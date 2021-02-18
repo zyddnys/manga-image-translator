@@ -29,3 +29,25 @@
 ![Original](original2.jpg "https://twitter.com/mmd_96yuki/status/1320122899005460481")|![Output](result2.png)
 ![Original](original3.jpg "https://twitter.com/_taroshin_/status/1231099378779082754")|![Output](result3.png)
 ![Original](original4.jpg "https://amagi.fanbox.cc/posts/1904941")|![Output](result4.png)
+# Citation
+```
+@inproceedings{baek2019character,
+  title={Character region awareness for text detection},
+  author={Baek, Youngmin and Lee, Bado and Han, Dongyoon and Yun, Sangdoo and Lee, Hwalsuk},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  pages={9365--9374},
+  year={2019}
+}
+@article{hinami2020towards,
+  title={Towards Fully Automated Manga Translation},
+  author={Hinami, Ryota and Ishiwatari, Shonosuke and Yasuda, Kazuhiko and Matsui, Yusuke},
+  journal={arXiv preprint arXiv:2012.14271},
+  year={2020}
+}
+@article{oord2017neural,
+  title={Neural discrete representation learning},
+  author={Oord, Aaron van den and Vinyals, Oriol and Kavukcuoglu, Koray},
+  journal={arXiv preprint arXiv:1711.00937},
+  year={2017}
+}
+```
