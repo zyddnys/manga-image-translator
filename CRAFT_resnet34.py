@@ -5,8 +5,6 @@ import torch.nn.functional as F
 import torch.nn.init as init
 
 from torchvision.models import resnet34
-from resnest.torch.resnest import Bottleneck
-from axial_attention import AxialAttention
 
 import einops
 import math
