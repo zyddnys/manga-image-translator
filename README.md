@@ -6,7 +6,7 @@
 
 # 使用说明
 1. clone这个repo
-2. 下载ocr.ckpt和detect.ckpt，放到这个repo的根目录下
+2. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/alpha-v2.1)ocr.ckpt和detect.ckpt，放到这个repo的根目录下
 3. 申请百度翻译API，把你的appid和密钥存到key.py里
 4. 运行`python translate_demo.py --image <图片文件路径>`，结果会存放到result文件夹里
 # 只是初步版本，我们需要您的帮助完善
