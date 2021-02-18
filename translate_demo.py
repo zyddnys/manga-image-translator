@@ -366,7 +366,7 @@ def run_ocr(img, bboxes, dictionary, model, max_chunk_size = 2) :
 		images = einops.rearrange(images, 'N H W C -> N C H W')
 		ret = ocr_infer_bacth(images, model, widths)
 		for i, (pred_chars_index, prob) in enumerate(ret) :
-			if prob < 0.85 :
+			if prob < 0.2 :
 				continue
 			(x, y, w, h), (new_width, new_height), region = resized_bboxes[indices[i]]
 			seq = []
