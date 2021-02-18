@@ -25,7 +25,7 @@
 # 效果图
 原始图片             |  翻译后图片
 :-------------------------:|:-------------------------:
-![Original](original1.jpg "https://www.pixiv.net/en/artworks/85200179")|![Output](result1.png)
-![Original](original2.jpg "https://twitter.com/mmd_96yuki/status/1320122899005460481")|![Output](result2.png)
-![Original](original3.jpg "https://twitter.com/_taroshin_/status/1231099378779082754")|![Output](result3.png)
-![Original](original4.jpg "https://amagi.fanbox.cc/posts/1904941")|![Output](result4.png)
+https://www.pixiv.net/en/artworks/85200179![Original](original1.jpg "https://www.pixiv.net/en/artworks/85200179")|https://www.pixiv.net/en/artworks/85200179![Output](result1.png)
+https://twitter.com/mmd_96yuki/status/1320122899005460481![Original](original2.jpg "https://twitter.com/mmd_96yuki/status/1320122899005460481")|https://twitter.com/mmd_96yuki/status/1320122899005460481![Output](result2.png)
+https://twitter.com/\_taroshin\_/status/1231099378779082754![Original](original3.jpg "https://twitter.com/_taroshin_/status/1231099378779082754")|https://twitter.com/\_taroshin\_/status/1231099378779082754![Output](result3.png)
+https://amagi.fanbox.cc/posts/1904941![Original](original4.jpg "https://amagi.fanbox.cc/posts/1904941")|https://amagi.fanbox.cc/posts/1904941![Output](result4.png)
