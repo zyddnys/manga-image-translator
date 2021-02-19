@@ -53,7 +53,7 @@ class double_conv(nn.Module):
 class CRAFT_net(nn.Module) :
 	def __init__(self) :
 		super(CRAFT_net, self).__init__()
-		self.backbone = resnet34(pretrained=True)
+		self.backbone = resnet34()
 
 		self.conv_rs = nn.Sequential(
 			nn.Conv2d(64, 32, kernel_size=3, padding=1), nn.ReLU(inplace=True),
