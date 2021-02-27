@@ -4,6 +4,7 @@ from typing import List
 from networkx.algorithms.distance_measures import center
 import torch
 from CRAFT_resnet34 import CRAFT_net
+from model_ocr import OCR
 import einops
 import argparse
 import imgproc
@@ -28,13 +29,19 @@ import unicodedata
 TEXT_EXT_RATIO = 0.1
 
 class BBox(object) :
-	def __init__(self, x: int, y: int, w: int, h: int, text: str, prob: float) :
+	def __init__(self, x: int, y: int, w: int, h: int, text: str, prob: float, fg_r: int = 0, fg_g: int = 0, fg_b: int = 0, bg_r: int = 0, bg_g: int = 0, bg_b: int = 0) :
 		self.x = x
 		self.y = y
 		self.w = w
 		self.h = h
 		self.text = text
 		self.prob = prob
+		self.fg_r = fg_r
+		self.fg_g = fg_g
+		self.fg_b = fg_b
+		self.bg_r = bg_r
+		self.bg_g = bg_g
+		self.bg_b = bg_b
 
 	def to_points(self) :
 		tl, tr, br, bl = np.array([self.x, self.y]), np.array([self.x + self.w, self.y]), np.array([self.x + self.w, self.y+ self.h]), np.array([self.x, self.y + self.h])
@@ -272,6 +279,13 @@ def merge_bboxes_text_region(bboxes: List[BBox]) :
 			np.array([max_coord[0], max_coord[1]]),
 			np.array([min_coord[0], max_coord[1]])
 			]), 0)
+		# calculate average fg and bg color
+		fg_r = round(np.mean([box.fg_r for box in [bboxes[i] for i in nodes]]))
+		fg_g = round(np.mean([box.fg_g for box in [bboxes[i] for i in nodes]]))
+		fg_b = round(np.mean([box.fg_b for box in [bboxes[i] for i in nodes]]))
+		bg_r = round(np.mean([box.bg_r for box in [bboxes[i] for i in nodes]]))
+		bg_g = round(np.mean([box.bg_g for box in [bboxes[i] for i in nodes]]))
+		bg_b = round(np.mean([box.bg_b for box in [bboxes[i] for i in nodes]]))
 		# majority vote for direction
 		dirs = [bbox_direction(0, 0, box.w, box.h) for box in [bboxes[i] for i in nodes]]
 		majority_dir = Counter(dirs).most_common(1)[0][0]
@@ -281,7 +295,7 @@ def merge_bboxes_text_region(bboxes: List[BBox]) :
 		elif majority_dir == 'v' :
 			nodes = sorted(nodes, key = lambda x: -(bboxes[x].x + bboxes[x].w))
 		# yield overall bbox and sorted indices
-		yield merged_box, nodes, majority_dir
+		yield merged_box, nodes, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
 
 def test(model, img_np_resized) :
 	img = torch.from_numpy(img_np_resized)
@@ -365,9 +379,15 @@ def run_ocr(img, bboxes, dictionary, model, max_chunk_size = 2) :
 		images = (torch.from_numpy(region).float() - 127.5) / 127.5
 		images = einops.rearrange(images, 'N H W C -> N C H W')
 		ret = ocr_infer_bacth(images, model, widths)
-		for i, (pred_chars_index, prob) in enumerate(ret) :
+		for i, (pred_chars_index, prob, fr, fg, fb, br, bg, bb) in enumerate(ret) :
 			if prob < 0.2 :
 				continue
+			fr = (torch.clip(fr.view(-1), 0, 1).mean() * 255).long().item()
+			fg = (torch.clip(fg.view(-1), 0, 1).mean() * 255).long().item()
+			fb = (torch.clip(fb.view(-1), 0, 1).mean() * 255).long().item()
+			br = (torch.clip(br.view(-1), 0, 1).mean() * 255).long().item()
+			bg = (torch.clip(bg.view(-1), 0, 1).mean() * 255).long().item()
+			bb = (torch.clip(bb.view(-1), 0, 1).mean() * 255).long().item()
 			(x, y, w, h), (new_width, new_height), region = resized_bboxes[indices[i]]
 			seq = []
 			for chid in pred_chars_index :
@@ -381,10 +401,8 @@ def run_ocr(img, bboxes, dictionary, model, max_chunk_size = 2) :
 				seq.append(ch)
 			txt = ''.join(seq)
 			print(prob, txt)
-			ret_bboxes.append(BBox(x, y, w, h, txt, prob))
+			ret_bboxes.append(BBox(x, y, w, h, txt, prob, fr, fg, fb, br, bg, bb))
 	return ret_bboxes
-
-from model_ocr_transformer_ar_v3 import OCR
 
 def run_inpainting(img, mask) :
 	img = np.copy(img)
@@ -441,7 +459,7 @@ def main() :
 	# merge textline to text region, filter textlines without characters
 	text_regions: List[BBox] = []
 	new_textlines = []
-	for (poly_regions, textline_indices, majority_dir) in merge_bboxes_text_region(textlines) :
+	for (poly_regions, textline_indices, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines) :
 		[tl, tr, br, bl] = poly_regions
 		x = int(tl[0]) - 5
 		y = int(tl[1]) - 5
@@ -467,7 +485,7 @@ def main() :
 		total_logprobs /= sum([x[1] for x in logprob_lengths])
 		# filter text region without characters
 		if vc > 1 :
-			region = BBox(x, y, width, height, text, np.exp(total_logprobs))
+			region = BBox(x, y, width, height, text, np.exp(total_logprobs), fg_r, fg_g, fg_b, bg_r, bg_g, bg_b)
 			region.textline_indices = []
 			region.majority_dir = majority_dir
 			text_regions.append(region)
@@ -511,13 +529,14 @@ def main() :
 		print(trans_text)
 		print(region.majority_dir, region.x, region.y, region.w, region.h)
 		img_bbox = cv2.rectangle(img_bbox, (region.x, region.y), (region.x + region.w, region.y + region.h), color=(0, 0, 255), thickness=2)
+		fg = (region.fg_r, region.fg_g, region.fg_b)
 		for idx in region.textline_indices :
 			txtln = textlines[idx]
-			img_bbox = cv2.rectangle(img_bbox, (txtln.x, txtln.y), (txtln.x + txtln.w, txtln.y + txtln.h), color=textline_colors[idx], thickness=2)
+			img_bbox = cv2.rectangle(img_bbox, (txtln.x, txtln.y), (txtln.x + txtln.w, txtln.y + txtln.h), color = fg, thickness=2)
 		if region.majority_dir == 'h' :
-			text_render.put_text_horizontal(img_canvas, trans_text, len(region.textline_indices), region.x, region.y, region.w, region.h, textline_colors[idx], None)
+			text_render.put_text_horizontal(img_canvas, trans_text, len(region.textline_indices), region.x, region.y, region.w, region.h, fg, None)
 		else :
-			text_render.put_text_vertical(img_canvas, trans_text, len(region.textline_indices), region.x, region.y, region.w, region.h, textline_colors[idx], None)
+			text_render.put_text_vertical(img_canvas, trans_text, len(region.textline_indices), region.x, region.y, region.w, region.h, fg, None)
 
 	cv2.imwrite('result/rs.png', imgproc.cvt2HeatmapImg(rscore))
 	cv2.imwrite('result/as.png', imgproc.cvt2HeatmapImg(ascore))

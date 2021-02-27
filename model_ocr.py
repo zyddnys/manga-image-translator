@@ -175,48 +175,12 @@ class PositionalEncoding(nn.Module):
 
 	def forward(self, x, offset = 0):
 		x = x + self.pe[offset: offset + x.size(0), :]
-		return self.dropout(x)
+		return x
 
 def generate_square_subsequent_mask(sz):
 	mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
 	mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
 	return mask
-
-class AddCoords(nn.Module):
-
-	def __init__(self, with_r=False):
-		super().__init__()
-		self.with_r = with_r
-
-	def forward(self, input_tensor):
-		"""
-		Args:
-			input_tensor: shape(batch, channel, x_dim, y_dim)
-		"""
-		batch_size, _, x_dim, y_dim = input_tensor.size()
-
-		xx_channel = torch.arange(x_dim).repeat(1, y_dim, 1)
-		yy_channel = torch.arange(y_dim).repeat(1, x_dim, 1).transpose(1, 2)
-
-		xx_channel = xx_channel.float() / (x_dim - 1)
-		yy_channel = yy_channel.float() / (y_dim - 1)
-
-		xx_channel = xx_channel * 2 - 1
-		yy_channel = yy_channel * 2 - 1
-
-		xx_channel = xx_channel.repeat(batch_size, 1, 1, 1).transpose(2, 3)
-		yy_channel = yy_channel.repeat(batch_size, 1, 1, 1).transpose(2, 3)
-
-		ret = torch.cat([
-			input_tensor,
-			xx_channel.type_as(input_tensor),
-			yy_channel.type_as(input_tensor)], dim=1)
-
-		if self.with_r:
-			rr = torch.sqrt(torch.pow(xx_channel.type_as(input_tensor) - 0.5, 2) + torch.pow(yy_channel.type_as(input_tensor) - 0.5, 2))
-			ret = torch.cat([ret, rr], dim=1)
-
-		return ret
 
 class Beam :
 	def __init__(self, char_seq = [], logprobs = []) :
@@ -283,6 +247,9 @@ class Hypothesis :
 		ret.out_logprobs = torch.cat([self.out_logprobs, torch.FloatTensor([logprob], device = self.device)], dim = 0)
 		return ret
 
+	def output(self) :
+		return self.cached_activations[-1]
+
 def next_token_batch(
 	hyps: List[Hypothesis],
 	memory: torch.Tensor, # S, K, E
@@ -332,16 +299,20 @@ class OCR(nn.Module) :
 		self.dictionary = dictionary
 		self.dict_size = len(dictionary)
 		self.backbone = ResNet_FeatureExtractor(3, 512)
-		encoder = nn.TransformerEncoderLayer(512, 4)
-		decoder = nn.TransformerDecoderLayer(512, 4)
+		encoder = nn.TransformerEncoderLayer(512, 8, dropout = 0.0)
+		decoder = nn.TransformerDecoderLayer(512, 8, dropout = 0.0)
 		self.encoders = nn.TransformerEncoder(encoder, 3)
 		self.decoders = nn.TransformerDecoder(decoder, 3)
 		self.pe = PositionalEncoding(512, max_len = max_len)
 		self.embd = nn.Embedding(self.dict_size, 512)
-		self.pred_coord = nn.Sequential(nn.Linear(512, 128), nn.ReLU(), nn.Linear(128, 4))
-		self.pred = nn.Linear(512, self.dict_size)
-		self.pred1 = nn.Linear(512, 512)
-		self.pred.weight = self.embd.weight
+		self.pred = nn.Sequential(nn.Dropout(0.1), nn.Linear(512, 512), nn.ReLU(), nn.Dropout(0.1), nn.Linear(512, self.dict_size))
+		self.color_pred1 = nn.Sequential(nn.Linear(512, 64), nn.ReLU())
+		self.fg_r_pred = nn.Linear(64, 1)
+		self.fg_g_pred = nn.Linear(64, 1)
+		self.fg_b_pred = nn.Linear(64, 1)
+		self.bg_r_pred = nn.Linear(64, 1)
+		self.bg_g_pred = nn.Linear(64, 1)
+		self.bg_b_pred = nn.Linear(64, 1)
 
 	def forward(self,
 		img: torch.FloatTensor,
@@ -360,16 +331,23 @@ class OCR(nn.Module) :
 		casual_mask = generate_square_subsequent_mask(L).to(img.device)
 		decoded = self.decoders(char_embd, memory, tgt_mask = casual_mask, tgt_key_padding_mask = mask, memory_key_padding_mask = source_mask)
 		decoded = decoded.permute(1, 0, 2)
-		pred_char_logits = self.pred(F.relu(self.pred1(decoded)))
-		return pred_char_logits
+		pred_char_logits = self.pred(decoded)
+		color_feats = self.color_pred1(decoded)
+		return pred_char_logits, \
+			self.fg_r_pred(color_feats), \
+			self.fg_g_pred(color_feats), \
+			self.fg_b_pred(color_feats), \
+			self.bg_r_pred(color_feats), \
+			self.bg_g_pred(color_feats), \
+			self.bg_b_pred(color_feats)
 
 	def infer_beam_batch(self, img: torch.FloatTensor, img_widths: List[int], beams_k: int = 5, start_tok = 1, end_tok = 2, pad_tok = 0, max_finished_hypos: int = 2, max_seq_length = 384) :
 		N, C, H, W = img.shape
 		assert H == 32 and C == 3
 		feats = self.backbone(img)
 		feats = torch.einsum('n e h s -> s n e', feats)
-		valid_feats_length = [(x + 3) // 4 for x in img_widths]
-		input_mask = torch.zeros(N, feats.shape[0], dtype = torch.bool).to(img.device)
+		valid_feats_length = [(x + 3) // 4 + 1 for x in img_widths]
+		input_mask = torch.zeros(N, (W + 3) // 4, dtype = torch.bool).to(img)
 		for i, l in enumerate(valid_feats_length) :
 			input_mask[i, l:] = True
 		feats = self.pe(feats)
@@ -378,7 +356,7 @@ class OCR(nn.Module) :
 		# N, E
 		decoded = next_token_batch(hypos, memory, input_mask, self.decoders, self.pe, self.embd)
 		# N, n_chars
-		pred_char_logprob = self.pred(F.relu(self.pred1(decoded))).log_softmax(-1)
+		pred_char_logprob = self.pred(decoded).log_softmax(-1)
 		# N, k
 		pred_chars_values, pred_chars_index = torch.topk(pred_char_logprob, beams_k, dim = 1)
 		new_hypos = []
@@ -391,7 +369,7 @@ class OCR(nn.Module) :
 			# N * k, E
 			decoded = next_token_batch(hypos, memory, torch.stack([input_mask[hyp.memory_idx] for hyp in hypos]) , self.decoders, self.pe, self.embd)
 			# N * k, n_chars
-			pred_char_logprob = self.pred(F.relu(self.pred1(decoded))).log_softmax(-1)
+			pred_char_logprob = self.pred(decoded).log_softmax(-1)
 			# N * k, k
 			pred_chars_values, pred_chars_index = torch.topk(pred_char_logprob, beams_k, dim = 1)
 			hypos_per_sample = defaultdict(list)
@@ -431,7 +409,15 @@ class OCR(nn.Module) :
 		for i in range(N) :
 			cur_hypos = finished_hypos[i]
 			cur_hypo = sorted(cur_hypos, key = lambda a: a.sort_key())[0]
-			result.append((cur_hypo.out_idx, cur_hypo.prob()))
+			decoded = cur_hypo.output()
+			color_feats = self.color_pred1(decoded)
+			fg_r, fg_g, fg_b, bg_r, bg_g, bg_b = self.fg_r_pred(color_feats), \
+				self.fg_g_pred(color_feats), \
+				self.fg_b_pred(color_feats), \
+				self.bg_r_pred(color_feats), \
+				self.bg_g_pred(color_feats), \
+				self.bg_b_pred(color_feats)
+			result.append((cur_hypo.out_idx, cur_hypo.prob(), fg_r, fg_g, fg_b, bg_r, bg_g, bg_b))
 		return result
 
 	def infer_beam(self, img: torch.FloatTensor, beams_k: int = 5, start_tok = 1, end_tok = 2, pad_tok = 0, max_seq_length = 384) :
@@ -456,13 +442,18 @@ class OCR(nn.Module) :
 			casual_mask = generate_square_subsequent_mask(L).to(img.device)
 			decoded = self.decoders(embd, memory, tgt_mask = casual_mask)
 			decoded = decoded.permute(1, 0, 2)
-			pred_char_logprob = self.pred(F.relu(self.pred1(decoded))).log_softmax(-1)
+			pred_char_logprob = self.pred(decoded).log_softmax(-1)
 			if char_only :
 				return pred_char_logprob
 			else :
-				#color_feats = self.color_pred1(decoded)
-				#pred_coord = self.pred_coord(decoded)
-				return pred_char_logprob
+				color_feats = self.color_pred1(decoded)
+				return pred_char_logprob, \
+					self.fg_r_pred(color_feats), \
+					self.fg_g_pred(color_feats), \
+					self.fg_b_pred(color_feats), \
+					self.bg_r_pred(color_feats), \
+					self.bg_g_pred(color_feats), \
+					self.bg_b_pred(color_feats)
 		# N, L, embd_size
 		initial_char_logprob = run([])
 		# N, L
