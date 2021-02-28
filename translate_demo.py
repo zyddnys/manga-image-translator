@@ -529,7 +529,7 @@ def main() :
 		print(trans_text)
 		print(region.majority_dir, region.x, region.y, region.w, region.h)
 		img_bbox = cv2.rectangle(img_bbox, (region.x, region.y), (region.x + region.w, region.y + region.h), color=(0, 0, 255), thickness=2)
-		fg = (region.fg_r, region.fg_g, region.fg_b)
+		fg = (region.fg_b, region.fg_g, region.fg_r)
 		for idx in region.textline_indices :
 			txtln = textlines[idx]
 			img_bbox = cv2.rectangle(img_bbox, (txtln.x, txtln.y), (txtln.x + txtln.w, txtln.y + txtln.h), color = fg, thickness=2)
