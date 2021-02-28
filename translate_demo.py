@@ -405,7 +405,7 @@ def run_ocr(img, bboxes, dictionary, model, max_chunk_size = 2) :
 			ret_bboxes.append(BBox(x, y, w, h, txt, prob, fr, fg, fb, br, bg, bb))
 	return ret_bboxes
 
-def run_inpainting(img, mask) :
+def run_inpainting(model_inpainting, img, mask) :
 	img = np.copy(img)
 	img[mask > 0] = np.array([255, 255, 255], np.uint8)
 	return img
@@ -431,13 +431,19 @@ def load_detect_model() :
 	model.eval()
 	return model
 
+def load_inpainting_model() :
+	return None
+
 def main() :
+	print(' -- Loading models')
 	import os
 	os.makedirs('result', exist_ok = True)
 	text_render.prepare_renderer()
 	dictionary, model_ocr = load_ocr_model()
 	model_detect = load_detect_model()
+	model_inpainting = load_inpainting_model()
 
+	print(' -- Read image')
 	img = cv2.imread(args.image)
 	img_bbox = np.copy(img)
 	img_bbox_all = np.copy(img)
@@ -447,6 +453,7 @@ def main() :
 	ratio_h = ratio_w = 1 / target_ratio
 	img_resized = imgproc.normalizeMeanVariance(img_resized)
 	print(img_resized.shape)
+	print(' -- Running text detection')
 	rscore, ascore, mask = run_detect(model_detect, img_resized)
 	overlay = imgproc.cvt2HeatmapImg(rscore + ascore)
 	boxes, polys = craft_utils.getDetBoxes(rscore, ascore, args.text_threshold, args.link_threshold, args.low_text, False)
@@ -462,6 +469,7 @@ def main() :
 		width = int(tr[0] - tl[0])
 		height = int(br[1] - tr[1])
 		cv2.rectangle(img_bbox_all, (x, y), (x + width, y + height), color=(255, 0, 0), thickness=2)
+	print(' -- Running OCR')
 	# run OCR for each textline
 	textlines = run_ocr(img_bbox, polys, dictionary, model_ocr, 32)
 	# merge textline to text region, filter textlines without characters
@@ -501,6 +509,7 @@ def main() :
 				region.textline_indices.append(len(new_textlines))
 				new_textlines.append(textlines[textline_idx])
 	textlines = new_textlines
+	print(' -- Generating text mask')
 	# create mask
 	from text_mask_utils import filter_masks, complete_mask
 	mask_resized = cv2.resize(mask, (mask.shape[1] * 2, mask.shape[0] * 2), interpolation = cv2.INTER_LINEAR)
@@ -516,8 +525,10 @@ def main() :
 	cv2.imwrite('result/mask_filtered.png', reduce(cv2.bitwise_or, mask_ccs))
 	final_mask = complete_mask(img_resized_2, mask_ccs, text_lines, cc2textline_assignment)
 	final_mask = cv2.resize(final_mask, (img.shape[1], img.shape[0]), interpolation = cv2.INTER_LINEAR)
+	print(' -- Running inpainting')
 	# run inpainting
-	img_inpainted = run_inpainting(img, final_mask)
+	img_inpainted = run_inpainting(model_inpainting, img, final_mask)
+	print(' -- Translating')
 	# translate text region texts
 	texts = '\n'.join([r.text for r in text_regions])
 	trans_ret = baidu_translator.translate('ja', 'zh-CN', texts)
@@ -530,6 +541,7 @@ def main() :
 		translated_sentences.extend(trans_ret[:batch])
 	else :
 		translated_sentences.extend(trans_ret)
+	print(' -- Rendering translated text')
 	# render translated texts
 	img_canvas = np.copy(img_inpainted)
 	for trans_text, region in zip(translated_sentences, text_regions) :
@@ -546,6 +558,7 @@ def main() :
 		else :
 			text_render.put_text_vertical(img_canvas, trans_text, len(region.textline_indices), region.x, region.y, region.w, region.h, fg, None)
 
+	print(' -- Saving results')
 	cv2.imwrite('result/rs.png', imgproc.cvt2HeatmapImg(rscore))
 	cv2.imwrite('result/as.png', imgproc.cvt2HeatmapImg(ascore))
 	cv2.imwrite('result/textline.png', overlay)
