@@ -401,7 +401,7 @@ def main() :
 	os.makedirs('result', exist_ok = True)
 	text_render.prepare_renderer()
 
-	with open('alphabet-all-v5.txt', 'r') as fp :
+	with open('alphabet-all-v5.txt', 'r', encoding='utf-8') as fp :
 		dictionary = [s[:-1] for s in fp.readlines()]
 	model_ocr = OCR(dictionary, 768)
 	model_ocr.load_state_dict(torch.load('ocr.ckpt', map_location='cpu'), strict=False)
