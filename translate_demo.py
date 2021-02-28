@@ -5,6 +5,7 @@ from networkx.algorithms.distance_measures import center
 import torch
 from CRAFT_resnet34 import CRAFT_net
 from model_ocr import OCR
+from inpainting_model import InpaintingVanilla
 import einops
 import argparse
 import imgproc
@@ -297,7 +298,7 @@ def merge_bboxes_text_region(bboxes: List[BBox]) :
 		# yield overall bbox and sorted indices
 		yield merged_box, nodes, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
 
-def test(model, img_np_resized) :
+def run_detect(model, img_np_resized) :
 	img = torch.from_numpy(img_np_resized)
 	img = einops.rearrange(img, 'h w c -> 1 c h w')
 	with torch.no_grad() :
@@ -414,22 +415,29 @@ baidu_translator = baidu_trans()
 
 import text_render
 
-def main() :
-	import os
-	os.makedirs('result', exist_ok = True)
-	text_render.prepare_renderer()
-
+def load_ocr_model() :
 	with open('alphabet-all-v5.txt', 'r', encoding='utf-8') as fp :
 		dictionary = [s[:-1] for s in fp.readlines()]
 	model_ocr = OCR(dictionary, 768)
 	model_ocr.load_state_dict(torch.load('ocr.ckpt', map_location='cpu'), strict=False)
 	model_ocr.eval()
+	return dictionary, model_ocr
 
+def load_detect_model() :
 	model = CRAFT_net()
 	sd = torch.load('detect.ckpt', map_location='cpu')
 	model.load_state_dict(sd['model'])
 	model = model.cpu()
 	model.eval()
+	return model
+
+def main() :
+	import os
+	os.makedirs('result', exist_ok = True)
+	text_render.prepare_renderer()
+	dictionary, model_ocr = load_ocr_model()
+	model_detect = load_detect_model()
+
 	img = cv2.imread(args.image)
 	img_bbox = np.copy(img)
 	img_bbox_all = np.copy(img)
@@ -439,7 +447,7 @@ def main() :
 	ratio_h = ratio_w = 1 / target_ratio
 	img_resized = imgproc.normalizeMeanVariance(img_resized)
 	print(img_resized.shape)
-	rscore, ascore, mask = test(model, img_resized)
+	rscore, ascore, mask = run_detect(model_detect, img_resized)
 	overlay = imgproc.cvt2HeatmapImg(rscore + ascore)
 	boxes, polys = craft_utils.getDetBoxes(rscore, ascore, args.text_threshold, args.link_threshold, args.low_text, False)
 	boxes = craft_utils.adjustResultCoordinates(boxes, ratio_w, ratio_h, ratio_net = 2)
@@ -494,7 +502,7 @@ def main() :
 				new_textlines.append(textlines[textline_idx])
 	textlines = new_textlines
 	# create mask
-	from text_mask_utils import filter_masks, main_process
+	from text_mask_utils import filter_masks, complete_mask
 	mask_resized = cv2.resize(mask, (mask.shape[1] * 2, mask.shape[0] * 2), interpolation = cv2.INTER_LINEAR)
 	if pad_h > 0 :
 		mask_resized = mask_resized[:-pad_h, :]
@@ -506,7 +514,7 @@ def main() :
 	text_lines = [(a.x // 2, a.y // 2, a.w // 2, a.h // 2) for a in textlines]
 	mask_ccs, cc2textline_assignment = filter_masks(mask_resized, text_lines)
 	cv2.imwrite('result/mask_filtered.png', reduce(cv2.bitwise_or, mask_ccs))
-	final_mask, textline_colors = main_process(img_resized_2, mask_ccs, text_lines, cc2textline_assignment)
+	final_mask = complete_mask(img_resized_2, mask_ccs, text_lines, cc2textline_assignment)
 	final_mask = cv2.resize(final_mask, (img.shape[1], img.shape[0]), interpolation = cv2.INTER_LINEAR)
 	# run inpainting
 	img_inpainted = run_inpainting(img, final_mask)
