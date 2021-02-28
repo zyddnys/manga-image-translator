@@ -20,6 +20,9 @@ from collections import Counter
 parser = argparse.ArgumentParser(description='Generate text bboxes given a image file')
 parser.add_argument('--image', default='', type=str, help='Image file')
 parser.add_argument('--size', default=1536, type=int, help='image square size')
+parser.add_argument('--use-inpainting', action='store_true', help='turn on/off inpainting')
+parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
+parser.add_argument('--inpainting-size', default=768, type=int, help='size of image used for inpainting (too large will result in OOM)')
 parser.add_argument('--text_threshold', default=0.7, type=float, help='text_threshold')
 parser.add_argument('--link_threshold', default=0.4, type=float, help='link_threshold')
 parser.add_argument('--low_text', default=0.4, type=float, help='low_text')
@@ -300,6 +303,8 @@ def merge_bboxes_text_region(bboxes: List[BBox]) :
 
 def run_detect(model, img_np_resized) :
 	img = torch.from_numpy(img_np_resized)
+	if args.use_cuda :
+		img = img.cuda()
 	img = einops.rearrange(img, 'h w c -> 1 c h w')
 	with torch.no_grad() :
 		craft, mask = model(img)
@@ -329,6 +334,8 @@ def test_inference(img, model) :
 		return pred_chars_index, prob
 
 def ocr_infer_bacth(img, model, widths) :
+	if args.use_cuda :
+		img = img.cuda()
 	with torch.no_grad() :
 		return model.infer_beam_batch(img, widths, beams_k = 5, max_seq_length = 255)
 
@@ -405,10 +412,44 @@ def run_ocr(img, bboxes, dictionary, model, max_chunk_size = 2) :
 			ret_bboxes.append(BBox(x, y, w, h, txt, prob, fr, fg, fb, br, bg, bb))
 	return ret_bboxes
 
-def run_inpainting(model_inpainting, img, mask) :
-	img = np.copy(img)
-	img[mask > 0] = np.array([255, 255, 255], np.uint8)
-	return img
+def resize_keep_aspect(img, size) :
+	ratio = (float(size)/max(img.shape[0], img.shape[1]))
+	new_width = round(img.shape[1] * ratio)
+	new_height = round(img.shape[0] * ratio)
+	return cv2.resize(img, (new_width, new_height), interpolation = cv2.INTER_LINEAR_EXACT)
+
+def run_inpainting(model_inpainting, img, mask, max_image_size = 1024) :
+	if not args.use_inpainting :
+		img = np.copy(img)
+		img[mask > 0] = np.array([255, 255, 255], np.uint8)
+		return img
+	height, width, c = img.shape
+	if max(img.shape[0: 2]) > max_image_size :
+		img = resize_keep_aspect(img, max_image_size)
+		mask = resize_keep_aspect(mask, max_image_size)
+	h, w, c = img.shape
+	if h % 4 != 0 :
+		new_h = (4 - (h % 4)) + h
+	else :
+		new_h = h
+	if w % 4 != 0 :
+		new_w = (4 - (w % 4)) + w
+	else :
+		new_w = w
+	if new_h != h or new_w != w :
+		img = cv2.resize(img, (new_w, new_h), interpolation = cv2.INTER_LINEAR_EXACT)
+		mask = cv2.resize(mask, (new_w, new_h), interpolation = cv2.INTER_LINEAR_EXACT)
+	img_torch = torch.from_numpy(img).permute(2, 0, 1).unsqueeze_(0).float() / 127.5 - 1.0
+	mask_torch = torch.from_numpy(mask).unsqueeze_(0).unsqueeze_(0).float() / 255.0
+	if args.use_cuda :
+		img_torch = img_torch.cuda()
+		mask_torch = mask_torch.cuda()
+	with torch.no_grad() :
+		_, img_inpainted_torch = model_inpainting(img_torch, mask_torch)
+	img_inpainted = ((img_inpainted_torch.cpu().squeeze_(0).permute(1, 2, 0).numpy() + 1.0) * 127.5).astype(np.uint8)
+	if new_h != height or new_w != width :
+		img_inpainted = cv2.resize(img_inpainted, (width, height), interpolation = cv2.INTER_LINEAR_EXACT)
+	return img_inpainted
 
 from baidutrans import Translator as baidu_trans
 baidu_translator = baidu_trans()
@@ -418,21 +459,32 @@ import text_render
 def load_ocr_model() :
 	with open('alphabet-all-v5.txt', 'r', encoding='utf-8') as fp :
 		dictionary = [s[:-1] for s in fp.readlines()]
-	model_ocr = OCR(dictionary, 768)
-	model_ocr.load_state_dict(torch.load('ocr.ckpt', map_location='cpu'), strict=False)
-	model_ocr.eval()
-	return dictionary, model_ocr
+	model = OCR(dictionary, 768)
+	model.load_state_dict(torch.load('ocr.ckpt', map_location='cpu'), strict=False)
+	model.eval()
+	if args.use_cuda :
+		model = model.cuda()
+	return dictionary, model
 
 def load_detect_model() :
 	model = CRAFT_net()
 	sd = torch.load('detect.ckpt', map_location='cpu')
 	model.load_state_dict(sd['model'])
-	model = model.cpu()
 	model.eval()
+	if args.use_cuda :
+		model = model.cuda()
 	return model
 
 def load_inpainting_model() :
-	return None
+	if not args.use_inpainting :
+		return 'not available'
+	model = InpaintingVanilla()
+	sd = torch.load('inpainting.ckpt', map_location='cpu')
+	model.load_state_dict(sd['gen'] if 'gen' in sd else sd)
+	model.eval()
+	if args.use_cuda :
+		model = model.cuda()
+	return model
 
 def main() :
 	print(' -- Loading models')

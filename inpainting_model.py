@@ -152,7 +152,7 @@ class GlobalLocalAttention(nn.Module):
 		bz, nc, w, h = foreground.size()
 		if background == "same":
 			background = foreground.clone()
-		mask = F.interpolate(mask, size=(h, w), mode='nearest')
+		mask = F.interpolate(mask, size=(w, h), mode='nearest')
 		background = background * (1 - mask)
 		foreground = self.feature_attention(foreground, background, mask)
 		background = F.pad(background,
@@ -408,7 +408,7 @@ class RefineGenerator(nn.Module) :
 		self.beta = (self.beta ** 2 + self.alpha ** 2) ** 0.5
 
 	def forward(self, img, img_coarse, mask) :
-		x = img * mask + img_coarse * (1. - mask)
+		x = img_coarse * mask + img * (1. - mask)
 		x = torch.cat([mask, x], dim = 1)
 		x = self.head(x)
 		attn = self.body_attn_1(x)
