@@ -418,7 +418,7 @@ def resize_keep_aspect(img, size) :
 	new_height = round(img.shape[0] * ratio)
 	return cv2.resize(img, (new_width, new_height), interpolation = cv2.INTER_LINEAR_EXACT)
 
-def run_inpainting(model_inpainting, img, mask, max_image_size = 1024) :
+def run_inpainting(model_inpainting, img, mask, max_image_size = 1024, pad_size = 4) :
 	if not args.use_inpainting :
 		img = np.copy(img)
 		img[mask > 0] = np.array([255, 255, 255], np.uint8)
@@ -428,12 +428,12 @@ def run_inpainting(model_inpainting, img, mask, max_image_size = 1024) :
 		img = resize_keep_aspect(img, max_image_size)
 		mask = resize_keep_aspect(mask, max_image_size)
 	h, w, c = img.shape
-	if h % 4 != 0 :
-		new_h = (4 - (h % 4)) + h
+	if h % pad_size != 0 :
+		new_h = (pad_size - (h % pad_size)) + h
 	else :
 		new_h = h
-	if w % 4 != 0 :
-		new_w = (4 - (w % 4)) + w
+	if w % pad_size != 0 :
+		new_w = (pad_size - (w % pad_size)) + w
 	else :
 		new_w = w
 	if new_h != h or new_w != w :
