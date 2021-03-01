@@ -214,9 +214,9 @@ class GlobalAttention(nn.Module):
 		super(GlobalAttention, self).__init__()
 		self.chanel_in = in_dim
 
-		self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
-		self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
-		self.value_conv = nn.Conv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
+		self.query_conv = ScaledWSConv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
+		self.key_conv = ScaledWSConv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
+		self.value_conv = ScaledWSConv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
 		self.softmax = nn.Softmax(dim=-1)  #
 		self.rate = 1
 		self.gamma = nn.parameter.Parameter(torch.tensor([1.0], requires_grad=True), requires_grad=True)
@@ -248,9 +248,9 @@ class GlobalAttentionPatch(nn.Module):
 		super(GlobalAttentionPatch, self).__init__()
 		self.chanel_in = in_dim
 
-		self.query_channel = nn.Conv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
-		self.key_channel = nn.Conv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
-		self.value_channel = nn.Conv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
+		self.query_channel = ScaledWSConv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
+		self.key_channel = ScaledWSConv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
+		self.value_channel = ScaledWSConv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
 
 		self.softmax_channel = nn.Softmax(dim=-1)
 		self.gamma = nn.parameter.Parameter(torch.tensor([1.0], requires_grad=True), requires_grad=True)
