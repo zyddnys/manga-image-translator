@@ -6,9 +6,9 @@
 
 # 使用说明
 1. clone这个repo
-2. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/alpha-v2.1)ocr.ckpt和detect.ckpt，放到这个repo的根目录下
+2. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/alpha-v2.2)ocr.ckpt、detect.ckpt和inpainting.ckpt，放到这个repo的根目录下
 3. 申请百度翻译API，把你的appid和密钥存到key.py里
-4. 运行`python translate_demo.py --image <图片文件路径> [--use-inpainting] [--use-cuda]`，结果会存放到result文件夹里
+4. 运行`python translate_demo.py --image <图片文件路径> [--use-inpainting] [--use-cuda]`，结果会存放到result文件夹里。请加上`--use-inpainting`使用图像修补，请加上`--use-cuda`使用GPU。
 # 只是初步版本，我们需要您的帮助完善
 这个项目目前只完成了简单的demo，依旧存在大量不完善的地方，我们需要您的帮助完善这个项目！
 
