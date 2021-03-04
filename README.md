@@ -8,13 +8,13 @@
 1. clone这个repo
 2. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/alpha-v2.1)ocr.ckpt和detect.ckpt，放到这个repo的根目录下
 3. 申请百度翻译API，把你的appid和密钥存到key.py里
-4. 运行`python translate_demo.py --image <图片文件路径>`，结果会存放到result文件夹里
+4. 运行`python translate_demo.py --image <图片文件路径> [--use-inpainting] [--use-cuda]`，结果会存放到result文件夹里
 # 只是初步版本，我们需要您的帮助完善
 这个项目目前只完成了简单的demo，依旧存在大量不完善的地方，我们需要您的帮助完善这个项目！
 
 # 下一步
 完善这个项目
-1. 图片涂改目前只是简单的涂白，图片修补的模型正在训练中！
+1. <s>图片涂改目前只是简单的涂白，图片修补的模型正在训练中！</s>图片修补基于[Global and Local Attention-Based Free-Form Image Inpainting](https://www.mdpi.com/1424-8220/20/11/3204)，但是根据[Brock, A. et al.](https://arxiv.org/abs/2101.08692)提出的方法修改去除了所有norm层，[repo在这里](https://github.com/zyddnys/anime-inpainting-deq)，目前只有Coarse阶段。
 2. 【重要，请求帮助】目前的文字渲染引擎只能勉强看，和Adobe的渲染引擎差距明显，我们需要您的帮助完善文本渲染！
 3. <s>我尝试了在OCR模型里提取文字颜色，均以失败告终，现在只能用DPGMM凑活提取文字颜色，但是效果欠佳，我会尽量完善文字颜色提取，如果您有好的建议请尽管提issue</s>
 4. 文本检测目前不能很好处理英语和韩语，等图片修补模型训练好了我就会训练新版的文字检测模型。
@@ -49,5 +49,21 @@
   author={Oord, Aaron van den and Vinyals, Oriol and Kavukcuoglu, Koray},
   journal={arXiv preprint arXiv:1711.00937},
   year={2017}
+}
+@article{uddin2020global,
+  title={Global and Local Attention-Based Free-Form Image Inpainting},
+  author={Uddin, SM and Jung, Yong Ju},
+  journal={Sensors},
+  volume={20},
+  number={11},
+  pages={3204},
+  year={2020},
+  publisher={Multidisciplinary Digital Publishing Institute}
+}
+@article{brock2021characterizing,
+  title={Characterizing signal propagation to close the performance gap in unnormalized ResNets},
+  author={Brock, Andrew and De, Soham and Smith, Samuel L},
+  journal={arXiv preprint arXiv:2101.08692},
+  year={2021}
 }
 ```
