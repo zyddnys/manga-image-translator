@@ -347,7 +347,7 @@ class OCR(nn.Module) :
 		feats = self.backbone(img)
 		feats = torch.einsum('n e h s -> s n e', feats)
 		valid_feats_length = [(x + 3) // 4 + 1 for x in img_widths]
-		input_mask = torch.zeros(N, (W + 3) // 4, dtype = torch.bool).to(img.device)
+		input_mask = torch.zeros(N, feats.size(0), dtype = torch.bool).to(img.device)
 		for i, l in enumerate(valid_feats_length) :
 			input_mask[i, l:] = True
 		feats = self.pe(feats)

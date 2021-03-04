@@ -428,7 +428,7 @@ def run_inpainting(model_inpainting, img, mask, max_image_size = 1024, pad_size 
 	if not args.use_inpainting :
 		img = np.copy(img)
 		img[mask > 0] = np.array([255, 255, 255], np.uint8)
-		return img
+		return img, None
 	height, width, c = img.shape
 	if max(img.shape[0: 2]) > max_image_size :
 		img = resize_keep_aspect(img, max_image_size)
@@ -459,7 +459,7 @@ def run_inpainting(model_inpainting, img, mask, max_image_size = 1024, pad_size 
 	img_inpainted = ((img_inpainted_torch.cpu().squeeze_(0).permute(1, 2, 0).numpy() + 1.0) * 127.5).astype(np.uint8)
 	if new_h != height or new_w != width :
 		img_inpainted = cv2.resize(img_inpainted, (width, height), interpolation = cv2.INTER_LINEAR_EXACT)
-	return img_inpainted * mask_original + img_original * (1 - mask_original)
+	return img_inpainted * mask_original + img_original * (1 - mask_original), (img_torch.cpu() * 127.5 + 127.5).squeeze_(0).permute(1, 2, 0).numpy()
 
 from baidutrans import Translator as baidu_trans
 baidu_translator = baidu_trans()
@@ -587,9 +587,10 @@ def main() :
 	cv2.imwrite('result/mask_filtered.png', reduce(cv2.bitwise_or, mask_ccs))
 	final_mask = complete_mask(img_resized_2, mask_ccs, text_lines, cc2textline_assignment)
 	final_mask = cv2.resize(final_mask, (img.shape[1], img.shape[0]), interpolation = cv2.INTER_LINEAR)
+	final_mask[final_mask > 0] = 255
 	print(' -- Running inpainting')
 	# run inpainting
-	img_inpainted = run_inpainting(model_inpainting, img, final_mask, args.inpainting_size)
+	img_inpainted, inpaint_input = run_inpainting(model_inpainting, img, final_mask, args.inpainting_size)
 	print(' -- Translating')
 	# translate text region texts
 	texts = '\n'.join([r.text for r in text_regions])
@@ -629,6 +630,8 @@ def main() :
 	cv2.imwrite('result/overlay.png', cv2.cvtColor(overlay_image(img_to_overlay, cv2.resize(overlay, (img_resized.shape[1], img_resized.shape[0]), interpolation=cv2.INTER_LINEAR)), cv2.COLOR_RGB2BGR))
 	cv2.imwrite('result/mask.png', final_mask)
 	cv2.imwrite('result/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
+	if inpaint_input is not None :
+		cv2.imwrite('result/inpaint_input.png', cv2.cvtColor(inpaint_input, cv2.COLOR_RGB2BGR))
 	cv2.imwrite('result/final.png', cv2.cvtColor(img_canvas, cv2.COLOR_RGB2BGR))
 
 if __name__ == '__main__':

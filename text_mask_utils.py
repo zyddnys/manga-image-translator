@@ -199,7 +199,7 @@ def complete_mask(img_np: np.ndarray, ccs: List[np.ndarray], text_lines: List[Tu
 		text_color_value = cls1_top2_mean[selected_idx]
 		text_color_stddev = cls1_top2_stddev[selected_idx]
 		text_line_colors[cc2textline_assignment[i]].append(text_color_value)
-	return final_mask
+	return cv2.dilate(final_mask, kern)
 
 def unsharp(image) :
 	gaussian_3 = cv2.GaussianBlur(image, (3, 3), 2.0)
