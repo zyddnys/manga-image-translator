@@ -10,11 +10,6 @@ from functools import reduce
 from collections import defaultdict
 from scipy.optimize import linear_sum_assignment
 
-import argparse
-parser = argparse.ArgumentParser(description='Generate text bboxes given a image file')
-parser.add_argument('--image', default='', type=str, help='Image file')
-args = parser.parse_args()
-
 COLOR_RANGE_SIGMA = 1.5 # how many stddev away is considered the same color
 
 def save_rgb(fn, img) :

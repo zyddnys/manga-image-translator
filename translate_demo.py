@@ -27,6 +27,7 @@ parser.add_argument('--text_threshold', default=0.7, type=float, help='text_thre
 parser.add_argument('--link_threshold', default=0.4, type=float, help='link_threshold')
 parser.add_argument('--low_text', default=0.4, type=float, help='low_text')
 args = parser.parse_args()
+print(args)
 
 import unicodedata
 
@@ -419,6 +420,11 @@ def resize_keep_aspect(img, size) :
 	return cv2.resize(img, (new_width, new_height), interpolation = cv2.INTER_LINEAR_EXACT)
 
 def run_inpainting(model_inpainting, img, mask, max_image_size = 1024, pad_size = 4) :
+	img_original = np.copy(img)
+	mask_original = np.copy(mask)
+	mask_original[mask_original < 127] = 0
+	mask_original[mask_original >= 127] = 1
+	mask_original = mask_original[:, :, None]
 	if not args.use_inpainting :
 		img = np.copy(img)
 		img[mask > 0] = np.array([255, 255, 255], np.uint8)
@@ -439,17 +445,21 @@ def run_inpainting(model_inpainting, img, mask, max_image_size = 1024, pad_size 
 	if new_h != h or new_w != w :
 		img = cv2.resize(img, (new_w, new_h), interpolation = cv2.INTER_LINEAR_EXACT)
 		mask = cv2.resize(mask, (new_w, new_h), interpolation = cv2.INTER_LINEAR_EXACT)
+	print(f'Inpainting resolution: {new_w}x{new_h}')
 	img_torch = torch.from_numpy(img).permute(2, 0, 1).unsqueeze_(0).float() / 127.5 - 1.0
 	mask_torch = torch.from_numpy(mask).unsqueeze_(0).unsqueeze_(0).float() / 255.0
+	mask_torch[mask_torch < 0.5] = 0
+	mask_torch[mask_torch >= 0.5] = 1
 	if args.use_cuda :
 		img_torch = img_torch.cuda()
 		mask_torch = mask_torch.cuda()
 	with torch.no_grad() :
-		_, img_inpainted_torch = model_inpainting(img_torch, mask_torch)
+		img_torch *= (1 - mask_torch)
+		img_inpainted_torch = model_inpainting(img_torch, mask_torch)
 	img_inpainted = ((img_inpainted_torch.cpu().squeeze_(0).permute(1, 2, 0).numpy() + 1.0) * 127.5).astype(np.uint8)
 	if new_h != height or new_w != width :
 		img_inpainted = cv2.resize(img_inpainted, (width, height), interpolation = cv2.INTER_LINEAR_EXACT)
-	return img_inpainted
+	return img_inpainted * mask_original + img_original * (1 - mask_original)
 
 from baidutrans import Translator as baidu_trans
 baidu_translator = baidu_trans()
@@ -504,7 +514,7 @@ def main() :
 	img_to_overlay = np.copy(img_resized)
 	ratio_h = ratio_w = 1 / target_ratio
 	img_resized = imgproc.normalizeMeanVariance(img_resized)
-	print(img_resized.shape)
+	print(f'Detection resolution: {img_resized.shape[1]}x{img_resized.shape[0]}')
 	print(' -- Running text detection')
 	rscore, ascore, mask = run_detect(model_detect, img_resized)
 	overlay = imgproc.cvt2HeatmapImg(rscore + ascore)
@@ -579,7 +589,7 @@ def main() :
 	final_mask = cv2.resize(final_mask, (img.shape[1], img.shape[0]), interpolation = cv2.INTER_LINEAR)
 	print(' -- Running inpainting')
 	# run inpainting
-	img_inpainted = run_inpainting(model_inpainting, img, final_mask)
+	img_inpainted = run_inpainting(model_inpainting, img, final_mask, args.inpainting_size)
 	print(' -- Translating')
 	# translate text region texts
 	texts = '\n'.join([r.text for r in text_regions])
@@ -618,7 +628,7 @@ def main() :
 	cv2.imwrite('result/bbox_unfiltered.png', img_bbox_all)
 	cv2.imwrite('result/overlay.png', cv2.cvtColor(overlay_image(img_to_overlay, cv2.resize(overlay, (img_resized.shape[1], img_resized.shape[0]), interpolation=cv2.INTER_LINEAR)), cv2.COLOR_RGB2BGR))
 	cv2.imwrite('result/mask.png', final_mask)
-	cv2.imwrite('result/masked.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
+	cv2.imwrite('result/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
 	cv2.imwrite('result/final.png', cv2.cvtColor(img_canvas, cv2.COLOR_RGB2BGR))
 
 if __name__ == '__main__':
