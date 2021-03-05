@@ -14,7 +14,7 @@
 
 # 下一步
 完善这个项目
-1. <s>图片涂改目前只是简单的涂白，图片修补的模型正在训练中！</s>图片修补基于[Global and Local Attention-Based Free-Form Image Inpainting](https://www.mdpi.com/1424-8220/20/11/3204)，但是根据[Brock, A. et al.](https://arxiv.org/abs/2101.08692)提出的方法修改去除了所有norm层，[repo在这里](https://github.com/zyddnys/anime-inpainting-deq)，目前只有Coarse阶段。
+1. <s>图片涂改目前只是简单的涂白，图片修补的模型正在训练中！</s>图片修补基于[Global and Local Attention-Based Free-Form Image Inpainting](https://www.mdpi.com/1424-8220/20/11/3204)，但是根据[Brock, A. et al.](https://arxiv.org/abs/2101.08692)提出的方法修改去除了所有norm层，目前只有Coarse阶段。
 2. 【重要，请求帮助】目前的文字渲染引擎只能勉强看，和Adobe的渲染引擎差距明显，我们需要您的帮助完善文本渲染！
 3. <s>我尝试了在OCR模型里提取文字颜色，均以失败告终，现在只能用DPGMM凑活提取文字颜色，但是效果欠佳，我会尽量完善文字颜色提取，如果您有好的建议请尽管提issue</s>
 4. 文本检测目前不能很好处理英语和韩语，等图片修补模型训练好了我就会训练新版的文字检测模型。
