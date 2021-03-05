@@ -219,9 +219,9 @@ class Hypothesis :
 		self.embd_size = embd_dim
 		self.num_layers = num_layers
 		# L, 1, E
-		self.cached_activations = [torch.zeros(0, 1, self.embd_size)] * (num_layers + 1)
-		self.out_idx = torch.LongTensor([start_tok], device = self.device)
-		self.out_logprobs = torch.FloatTensor([0], device = self.device)
+		self.cached_activations = [torch.zeros(0, 1, self.embd_size).to(self.device)] * (num_layers + 1)
+		self.out_idx = torch.LongTensor([start_tok]).to(self.device)
+		self.out_logprobs = torch.FloatTensor([0]).to(self.device)
 		self.length = 0
 
 	def seq_end(self) :
@@ -243,8 +243,8 @@ class Hypothesis :
 		ret = Hypothesis(self.device, self.start_tok, self.end_tok, self.padding_tok, self.memory_idx, self.num_layers, self.embd_size)
 		ret.cached_activations = [item.clone() for item in self.cached_activations]
 		ret.length = self.length + 1
-		ret.out_idx = torch.cat([self.out_idx, torch.LongTensor([idx], device = self.device)], dim = 0)
-		ret.out_logprobs = torch.cat([self.out_logprobs, torch.FloatTensor([logprob], device = self.device)], dim = 0)
+		ret.out_idx = torch.cat([self.out_idx, torch.LongTensor([idx]).to(self.device)], dim = 0)
+		ret.out_logprobs = torch.cat([self.out_logprobs, torch.FloatTensor([logprob]).to(self.device)], dim = 0)
 		return ret
 
 	def output(self) :
