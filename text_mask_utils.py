@@ -53,6 +53,8 @@ def rect_distance(x1, y1, x1b, y1b, x2, y2, x2b, y2b):
 def filter_masks(mask_img: np.ndarray, text_lines: List[Tuple[int, int, int, int]], keep_threshold = 1e-2) :
 	for (x, y, w, h) in text_lines :
 		cv2.rectangle(mask_img, (x, y), (x + w, y + h), (0), 1)
+	if len(text_lines) == 0 :
+		return [], []
 	num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_img)
 	
 	# Map component labels to hue val, 0-179 is the hue range in OpenCV
