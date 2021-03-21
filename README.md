@@ -1,5 +1,7 @@
 # 在线版
 https://touhou.ai/imgtrans/
+# English README
+[README_EN.md](README_EN.md)
 # 一键翻译各类图片内文字
 针对群内、各个图站上大量不太可能会有人去翻译的图片设计，让我这种日语小白能够勉强看懂图片\
 主要支持日语，不过也能识别汉语和小写英文 \
@@ -67,5 +69,12 @@ https://touhou.ai/imgtrans/
   author={Brock, Andrew and De, Soham and Smith, Samuel L},
   journal={arXiv preprint arXiv:2101.08692},
   year={2021}
+}
+@inproceedings{fujimoto2016manga109,
+  title={Manga109 dataset and creation of metadata},
+  author={Fujimoto, Azuma and Ogawa, Toru and Yamamoto, Kazuyoshi and Matsui, Yusuke and Yamasaki, Toshihiko and Aizawa, Kiyoharu},
+  booktitle={Proceedings of the 1st international workshop on comics analysis, processing and understanding},
+  pages={1--5},
+  year={2016}
 }
 ```
