@@ -325,7 +325,7 @@ def put_text_horizontal(img: np.ndarray, text: str, line_count: int, x: int, y: 
 			continue
 		x = x1 + spacing_x
 		for j in range(new_length) :
-			(x_offset, y_offset), (ch_x, ch_y, ch_w, ch_h), empty_ch, degree, char_color, border_color = put_char(img, x, y, font_size, rot, text[txt_i], 1, char_color=fg,border_color=bg,border_size=bgsize)
+			(x_offset, y_offset), (ch_x, ch_y, ch_w, ch_h), empty_ch, degree, char_color, border_color = put_char(img, x, y, font_size, rot, text[txt_i], 0, char_color=fg,border_color=bg,border_size=bgsize)
 			fg = char_color
 			txt_i += 1
 			if txt_i >= len(text) :
