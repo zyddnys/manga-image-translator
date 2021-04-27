@@ -1,6 +1,8 @@
 # Online Demo
 https://touhou.ai/imgtrans/
 Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
+# New model delayed
+New model delayed due to poor result, I am fixing it however there is no guarantee it will be out this week.
 # Translate texts in manga/images
 Some manga/images will never be translated, therefore this project is born, \
 Primarily designed for translating Japanese text, but also support Chinese and sometimes English \
