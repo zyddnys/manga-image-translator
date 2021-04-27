@@ -3,6 +3,10 @@ https://touhou.ai/imgtrans/
 Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
 # English README
 [README_EN.md](README_EN.md)
+# 关于新模型
+新模型使用DBNet，正在训练，将更好支持英文识别。 \
+新的图片修复将去掉attention以减少显存占用。 \
+预计一到两周左右出来。
 # 一键翻译各类图片内文字
 针对群内、各个图站上大量不太可能会有人去翻译的图片设计，让我这种日语小白能够勉强看懂图片\
 主要支持日语，不过也能识别汉语和小写英文 \
