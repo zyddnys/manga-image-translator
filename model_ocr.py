@@ -155,7 +155,7 @@ class ResNet_FeatureExtractor(nn.Module):
 
 	def __init__(self, input_channel, output_channel=128):
 		super(ResNet_FeatureExtractor, self).__init__()
-		self.ConvNet = ResNet(input_channel, output_channel, BasicBlock, [3, 4, 6, 4])
+		self.ConvNet = ResNet(input_channel, output_channel, BasicBlock, [3, 5, 7, 5])
 
 	def forward(self, input):
 		return self.ConvNet(input)
@@ -299,10 +299,10 @@ class OCR(nn.Module) :
 		self.dictionary = dictionary
 		self.dict_size = len(dictionary)
 		self.backbone = ResNet_FeatureExtractor(3, 512)
-		encoder = nn.TransformerEncoderLayer(512, 8, dropout = 0.0)
-		decoder = nn.TransformerDecoderLayer(512, 8, dropout = 0.0)
-		self.encoders = nn.TransformerEncoder(encoder, 3)
-		self.decoders = nn.TransformerDecoder(decoder, 3)
+		encoder = nn.TransformerEncoderLayer(512, 4, dropout = 0.0)
+		decoder = nn.TransformerDecoderLayer(512, 4, dropout = 0.0)
+		self.encoders = nn.TransformerEncoder(encoder, 2)
+		self.decoders = nn.TransformerDecoder(decoder, 2)
 		self.pe = PositionalEncoding(512, max_len = max_len)
 		self.embd = nn.Embedding(self.dict_size, 512)
 		self.pred = nn.Sequential(nn.Dropout(0.1), nn.Linear(512, 512), nn.ReLU(), nn.Dropout(0.1), nn.Linear(512, self.dict_size))

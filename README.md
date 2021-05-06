@@ -3,10 +3,17 @@ https://touhou.ai/imgtrans/
 Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
 # English README
 [README_EN.md](README_EN.md)
-# 关于新模型
-新模型使用DBNet，正在训练，将更好支持英文识别。 \
-新的图片修复将去掉attention以减少显存占用。 \
-预计一到两周左右出来。
+# Changelogs
+### 2021-05-06
+1. 检测模型更新为基于ResNet101的DBNet
+2. OCR模型更新更深
+3. 默认检测分辨率增加到2048
+
+注意这个版本除了英文检测稍微好一些，其他方面都不如之前版本
+### 2021-03-04
+1. 添加图片修补模型
+### 2021-02-17
+1. 初步版本发布
 # 一键翻译各类图片内文字
 针对群内、各个图站上大量不太可能会有人去翻译的图片设计，让我这种日语小白能够勉强看懂图片\
 主要支持日语，不过也能识别汉语和小写英文 \
@@ -15,7 +22,7 @@ Note this may not work sometimes due to stupid google gcp kept restarting my ins
 
 # 使用说明
 1. clone这个repo
-2. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/alpha-v2.2)ocr.ckpt、detect.ckpt和inpainting.ckpt，放到这个repo的根目录下
+2. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/alpha-v2.2.1)ocr.ckpt、detect.ckpt和inpainting.ckpt，放到这个repo的根目录下
 3. 申请百度翻译API，把你的appid和密钥存到key.py里
 4. 运行`python translate_demo.py --image <图片文件路径> [--use-inpainting] [--use-cuda]`，结果会存放到result文件夹里。请加上`--use-inpainting`使用图像修补，请加上`--use-cuda`使用GPU。
 # 只是初步版本，我们需要您的帮助完善
@@ -38,48 +45,3 @@ Note this may not work sometimes due to stupid google gcp kept restarting my ins
 ![Original](original2.jpg "https://twitter.com/mmd_96yuki/status/1320122899005460481")|![Output](result2.png)
 ![Original](original3.jpg "https://twitter.com/_taroshin_/status/1231099378779082754")|![Output](result3.png)
 ![Original](original4.jpg "https://amagi.fanbox.cc/posts/1904941")|![Output](result4.png)
-# Citation
-```
-@inproceedings{baek2019character,
-  title={Character region awareness for text detection},
-  author={Baek, Youngmin and Lee, Bado and Han, Dongyoon and Yun, Sangdoo and Lee, Hwalsuk},
-  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
-  pages={9365--9374},
-  year={2019}
-}
-@article{hinami2020towards,
-  title={Towards Fully Automated Manga Translation},
-  author={Hinami, Ryota and Ishiwatari, Shonosuke and Yasuda, Kazuhiko and Matsui, Yusuke},
-  journal={arXiv preprint arXiv:2012.14271},
-  year={2020}
-}
-@article{oord2017neural,
-  title={Neural discrete representation learning},
-  author={Oord, Aaron van den and Vinyals, Oriol and Kavukcuoglu, Koray},
-  journal={arXiv preprint arXiv:1711.00937},
-  year={2017}
-}
-@article{uddin2020global,
-  title={Global and Local Attention-Based Free-Form Image Inpainting},
-  author={Uddin, SM and Jung, Yong Ju},
-  journal={Sensors},
-  volume={20},
-  number={11},
-  pages={3204},
-  year={2020},
-  publisher={Multidisciplinary Digital Publishing Institute}
-}
-@article{brock2021characterizing,
-  title={Characterizing signal propagation to close the performance gap in unnormalized ResNets},
-  author={Brock, Andrew and De, Soham and Smith, Samuel L},
-  journal={arXiv preprint arXiv:2101.08692},
-  year={2021}
-}
-@inproceedings{fujimoto2016manga109,
-  title={Manga109 dataset and creation of metadata},
-  author={Fujimoto, Azuma and Ogawa, Toru and Yamamoto, Kazuyoshi and Matsui, Yusuke and Yamasaki, Toshihiko and Aizawa, Kiyoharu},
-  booktitle={Proceedings of the 1st international workshop on comics analysis, processing and understanding},
-  pages={1--5},
-  year={2016}
-}
-```

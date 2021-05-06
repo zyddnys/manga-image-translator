@@ -3,7 +3,7 @@ from functools import reduce
 from typing import List
 from networkx.algorithms.distance_measures import center
 import torch
-from CRAFT_resnet34 import CRAFT_net
+from DBNet_resnet101 import TextDetection
 from model_ocr import OCR
 from inpainting_model import InpaintingVanilla
 import einops
@@ -12,6 +12,7 @@ import imgproc
 import cv2
 import numpy as np
 import craft_utils
+import dbnet_utils
 import itertools
 import networkx as nx
 import math
@@ -19,7 +20,7 @@ from collections import Counter
 
 parser = argparse.ArgumentParser(description='Generate text bboxes given a image file')
 parser.add_argument('--image', default='', type=str, help='Image file')
-parser.add_argument('--size', default=1536, type=int, help='image square size')
+parser.add_argument('--size', default=2048, type=int, help='image square size')
 parser.add_argument('--use-inpainting', action='store_true', help='turn on/off inpainting')
 parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
 parser.add_argument('--inpainting-size', default=768, type=int, help='size of image used for inpainting (too large will result in OOM)')
@@ -31,7 +32,7 @@ print(args)
 
 import unicodedata
 
-TEXT_EXT_RATIO = 0.1
+TEXT_EXT_RATIO = 0.01
 
 class BBox(object) :
 	def __init__(self, x: int, y: int, w: int, h: int, text: str, prob: float, fg_r: int = 0, fg_g: int = 0, fg_b: int = 0, bg_r: int = 0, bg_g: int = 0, bg_b: int = 0) :
@@ -102,7 +103,7 @@ def bbox_direction(x1, y1, w1, h1, ratio = 2.2) :
 	else :
 		return 'v'
 
-def can_merge_textline(x1, y1, w1, h1, x2, y2, w2, h2, ratio = 2.2, char_diff_ratio = 0.7, char_gap_tolerance = 1.3) :
+def can_merge_textline(x1, y1, w1, h1, x2, y2, w2, h2, ratio = 2.2, char_diff_ratio = 0.5, char_gap_tolerance = 0.5) :
 	char_size = min(h1, h2, w1, w2)
 	if w1 > h1 * ratio and w2 > h2 * ratio : # both horizontal
 		char_size = min(h1, h2)
@@ -303,16 +304,16 @@ def merge_bboxes_text_region(bboxes: List[BBox]) :
 		yield merged_box, nodes, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
 
 def run_detect(model, img_np_resized) :
+	img_np_resized = img_np_resized.astype(np.float32) / 127.5 - 1.0
 	img = torch.from_numpy(img_np_resized)
 	if args.use_cuda :
 		img = img.cuda()
 	img = einops.rearrange(img, 'h w c -> 1 c h w')
 	with torch.no_grad() :
-		craft, mask = model(img)
-		rscore = craft[0, 0, :, :].cpu().numpy()
-		ascore = craft[0, 1, :, :].cpu().numpy()
+		db, mask = model(img)
+		db = db.sigmoid().cpu()
 		mask = mask[0, 0, :, :].cpu().numpy()
-	return rscore, ascore, (mask * 255.0).astype(np.uint8)
+	return db, (mask * 255.0).astype(np.uint8)
 
 def overlay_image(a, b, wa = 0.7) :
 	return cv2.addWeighted(a, wa, b, 1 - wa, 0)
@@ -389,7 +390,7 @@ def run_ocr(img, bboxes, dictionary, model, max_chunk_size = 2) :
 		images = einops.rearrange(images, 'N H W C -> N C H W')
 		ret = ocr_infer_bacth(images, model, widths)
 		for i, (pred_chars_index, prob, fr, fg, fb, br, bg, bb) in enumerate(ret) :
-			if prob < 0.2 :
+			if prob < 0.6 :
 				continue
 			fr = (torch.clip(fr.view(-1), 0, 1).mean() * 255).long().item()
 			fg = (torch.clip(fg.view(-1), 0, 1).mean() * 255).long().item()
@@ -477,9 +478,9 @@ def load_ocr_model() :
 	return dictionary, model
 
 def load_detect_model() :
-	model = CRAFT_net()
+	model = TextDetection()
 	sd = torch.load('detect.ckpt', map_location='cpu')
-	model.load_state_dict(sd['model'])
+	model.load_state_dict(sd['model'] if 'model' in sd else sd)
 	model.eval()
 	if args.use_cuda :
 		model = model.cuda()
@@ -513,16 +514,18 @@ def main() :
 	img_resized, target_ratio, _, pad_w, pad_h = imgproc.resize_aspect_ratio(img, args.size, cv2.INTER_LINEAR, mag_ratio = 1)
 	img_to_overlay = np.copy(img_resized)
 	ratio_h = ratio_w = 1 / target_ratio
-	img_resized = imgproc.normalizeMeanVariance(img_resized)
 	print(f'Detection resolution: {img_resized.shape[1]}x{img_resized.shape[0]}')
 	print(' -- Running text detection')
-	rscore, ascore, mask = run_detect(model_detect, img_resized)
-	overlay = imgproc.cvt2HeatmapImg(rscore + ascore)
-	boxes, polys = craft_utils.getDetBoxes(rscore, ascore, args.text_threshold, args.link_threshold, args.low_text, False)
-	boxes = craft_utils.adjustResultCoordinates(boxes, ratio_w, ratio_h, ratio_net = 2)
-	polys = craft_utils.adjustResultCoordinates(polys, ratio_w, ratio_h, ratio_net = 2)
-	for k in range(len(polys)):
-		if polys[k] is None: polys[k] = boxes[k]
+	db, mask = run_detect(model_detect, img_resized)
+	overlay = imgproc.cvt2HeatmapImg(db[0, 0, :, :].numpy())
+	det = dbnet_utils.SegDetectorRepresenter()
+	boxes, scores = det({'shape':[(img_resized.shape[0], img_resized.shape[1])]}, db)
+	boxes, scores = boxes[0], scores[0]
+	idx = boxes.reshape(boxes.shape[0], -1).sum(axis=1) > 0
+	polys, _ = boxes[idx], scores[idx]
+	polys = polys.astype(np.float64)
+	polys = craft_utils.adjustResultCoordinates(polys, ratio_w, ratio_h, ratio_net = 1)
+	polys = polys.astype(np.int16)
 	# merge textlines
 	polys = merge_bboxes(polys, can_merge_textline)
 	for [tl, tr, br, bl] in polys :
@@ -595,15 +598,18 @@ def main() :
 	# translate text region texts
 	texts = '\n'.join([r.text for r in text_regions])
 	trans_ret = baidu_translator.translate('ja', 'zh-CN', texts)
-	translated_sentences = []
-	batch = len(text_regions)
-	if len(trans_ret) < batch :
-		translated_sentences.extend(trans_ret)
-		translated_sentences.extend([''] * (batch - len(trans_ret)))
-	elif len(trans_ret) > batch :
-		translated_sentences.extend(trans_ret[:batch])
+	if trans_ret :
+		translated_sentences = []
+		batch = len(text_regions)
+		if len(trans_ret) < batch :
+			translated_sentences.extend(trans_ret)
+			translated_sentences.extend([''] * (batch - len(trans_ret)))
+		elif len(trans_ret) > batch :
+			translated_sentences.extend(trans_ret[:batch])
+		else :
+			translated_sentences.extend(trans_ret)
 	else :
-		translated_sentences.extend(trans_ret)
+		translated_sentences = texts
 	print(' -- Rendering translated text')
 	# render translated texts
 	img_canvas = np.copy(img_inpainted)
@@ -622,8 +628,8 @@ def main() :
 			text_render.put_text_vertical(img_canvas, trans_text, len(region.textline_indices), region.x, region.y, region.w, region.h, fg, None)
 
 	print(' -- Saving results')
-	cv2.imwrite('result/rs.png', imgproc.cvt2HeatmapImg(rscore))
-	cv2.imwrite('result/as.png', imgproc.cvt2HeatmapImg(ascore))
+	result_db = db[0, 0, :, :].numpy()
+	cv2.imwrite('result/db.png', imgproc.cvt2HeatmapImg(result_db))
 	cv2.imwrite('result/textline.png', overlay)
 	cv2.imwrite('result/bbox.png', img_bbox)
 	cv2.imwrite('result/bbox_unfiltered.png', img_bbox_all)
