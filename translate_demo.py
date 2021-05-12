@@ -462,8 +462,8 @@ def run_inpainting(model_inpainting, img, mask, max_image_size = 1024, pad_size 
 		img_inpainted = cv2.resize(img_inpainted, (width, height), interpolation = cv2.INTER_LINEAR_EXACT)
 	return img_inpainted * mask_original + img_original * (1 - mask_original), (img_torch.cpu() * 127.5 + 127.5).squeeze_(0).permute(1, 2, 0).numpy()
 
-from baidutrans import Translator as baidu_trans
-baidu_translator = baidu_trans()
+from youdao import Translator
+translator = Translator()
 
 import text_render
 
@@ -597,7 +597,7 @@ def main() :
 	print(' -- Translating')
 	# translate text region texts
 	texts = '\n'.join([r.text for r in text_regions])
-	trans_ret = baidu_translator.translate('ja', 'zh-CN', texts)
+	trans_ret = translator.translate('auto', 'zh-CHS', texts)
 	if trans_ret :
 		translated_sentences = []
 		batch = len(text_regions)

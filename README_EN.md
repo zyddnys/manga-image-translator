@@ -2,6 +2,8 @@
 https://touhou.ai/imgtrans/
 Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
 # Changelogs
+### 2021-05-11
+1. Add youdao translate and set as default translator
 ### 2021-05-06
 1. Text detection model is now based on DBNet with ResNet101 backbone
 2. OCR model is now deeper
@@ -21,7 +23,7 @@ Successor to https://github.com/PatchyVideo/MMDOCR-HighPerformance
 # How to use
 1. Clone this repo
 2. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/alpha-v2.2.1)ocr.ckpt、detect.ckpt and inpainting.ckpt，put them in the root directory of this repo
-3. Apply for baidu translate API, put ypur appid and key in `key.py`
+3. Apply for youdao translate API, put ypur APP_KEY and APP_SECRET in `key.py`
 4. Run`python translate_demo.py --image <path_to_image_file> [--use-inpainting] [--use-cuda]`，result can be found in `result/`. Add `--use-inpainting` to enable inpainting, Add `--use-cuda` to use CUDA.
 # This is a hobby project, you are welcome to contribute
 Currently this only a simple demo, many imperfections exist, we need your support to make this project better!

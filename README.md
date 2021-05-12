@@ -4,6 +4,8 @@ Note this may not work sometimes due to stupid google gcp kept restarting my ins
 # English README
 [README_EN.md](README_EN.md)
 # Changelogs
+### 2021-05-11
+1. 增加并默认使用有道翻译
 ### 2021-05-06
 1. 检测模型更新为基于ResNet101的DBNet
 2. OCR模型更新更深
@@ -23,7 +25,7 @@ Note this may not work sometimes due to stupid google gcp kept restarting my ins
 # 使用说明
 1. clone这个repo
 2. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/alpha-v2.2.1)ocr.ckpt、detect.ckpt和inpainting.ckpt，放到这个repo的根目录下
-3. 申请百度翻译API，把你的appid和密钥存到key.py里
+3. 申请有道翻译API，把你的APP_KEY和APP_SECRET存到key.py里
 4. 运行`python translate_demo.py --image <图片文件路径> [--use-inpainting] [--use-cuda]`，结果会存放到result文件夹里。请加上`--use-inpainting`使用图像修补，请加上`--use-cuda`使用GPU。
 # 只是初步版本，我们需要您的帮助完善
 这个项目目前只完成了简单的demo，依旧存在大量不完善的地方，我们需要您的帮助完善这个项目！
