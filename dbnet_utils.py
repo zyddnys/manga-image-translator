@@ -102,7 +102,10 @@ class SegDetectorRepresenter():
 		bitmap = _bitmap.cpu().numpy()  # The first channel
 		pred = pred.cpu().detach().numpy()
 		height, width = bitmap.shape
-		contours, _ = cv2.findContours((bitmap * 255).astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+		try :
+			contours, _ = cv2.findContours((bitmap * 255).astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+		except ValueError :
+			return [], []
 		num_contours = min(len(contours), self.max_candidates)
 		boxes = np.zeros((num_contours, 4, 2), dtype=np.int16)
 		scores = np.zeros((num_contours,), dtype=np.float32)
