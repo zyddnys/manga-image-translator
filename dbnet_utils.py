@@ -5,7 +5,7 @@ import numpy as np
 from shapely.geometry import Polygon
 
 class SegDetectorRepresenter():
-	def __init__(self, thresh=0.7, box_thresh=0.8, max_candidates=1000, unclip_ratio=1.8):
+	def __init__(self, thresh=0.6, box_thresh=0.8, max_candidates=1000, unclip_ratio=2.2):
 		self.min_size = 3
 		self.thresh = thresh
 		self.box_thresh = box_thresh

@@ -3,9 +3,9 @@ from functools import reduce
 from typing import List
 from networkx.algorithms.distance_measures import center
 import torch
-from DBNet_resnet101 import TextDetection
+from DBNet_resnet34 import TextDetection
 from model_ocr import OCR
-from inpainting_model import InpaintingVanilla
+from inpainting_aot import AOTGenerator
 import einops
 import argparse
 import imgproc
@@ -23,7 +23,7 @@ parser.add_argument('--image', default='', type=str, help='Image file')
 parser.add_argument('--size', default=2048, type=int, help='image square size')
 parser.add_argument('--use-inpainting', action='store_true', help='turn on/off inpainting')
 parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
-parser.add_argument('--inpainting-size', default=768, type=int, help='size of image used for inpainting (too large will result in OOM)')
+parser.add_argument('--inpainting-size', default=2048, type=int, help='size of image used for inpainting (too large will result in OOM)')
 parser.add_argument('--text_threshold', default=0.7, type=float, help='text_threshold')
 parser.add_argument('--link_threshold', default=0.4, type=float, help='link_threshold')
 parser.add_argument('--low_text', default=0.4, type=float, help='low_text')
@@ -489,7 +489,7 @@ def load_detect_model() :
 def load_inpainting_model() :
 	if not args.use_inpainting :
 		return 'not available'
-	model = InpaintingVanilla()
+	model = AOTGenerator()
 	sd = torch.load('inpainting.ckpt', map_location='cpu')
 	model.load_state_dict(sd['gen'] if 'gen' in sd else sd)
 	model.eval()
@@ -527,7 +527,7 @@ def main() :
 	polys = craft_utils.adjustResultCoordinates(polys, ratio_w, ratio_h, ratio_net = 1)
 	polys = polys.astype(np.int16)
 	# merge textlines
-	polys = merge_bboxes(polys, can_merge_textline)
+	#polys = merge_bboxes(polys, can_merge_textline)
 	for [tl, tr, br, bl] in polys :
 		x = int(tl[0])
 		y = int(tl[1])
@@ -557,7 +557,10 @@ def main() :
 				if ord(last_ch) > 255 and ord(cur_ch) > 255 :
 					text += textlines[textline_idx].text
 				else :
-					text += ' ' + textlines[textline_idx].text
+					if last_ch == '-' and ord(cur_ch) < 255 :
+						text = text[:-1] + textlines[textline_idx].text
+					else :
+						text += ' ' + textlines[textline_idx].text
 			logprob_lengths.append((np.log(textlines[textline_idx].prob), len(textlines[textline_idx].text)))
 		vc = count_valuable_text(text)
 		total_logprobs = 0.0
