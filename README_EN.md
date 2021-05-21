@@ -1,12 +1,13 @@
 # Online Demo
 https://touhou.ai/imgtrans/
-Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
+* Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs. \
+* Note this online demo maybe using an earlier version and not representing the current main branch version.
 # Changelogs
 ### 2021-05-20
 1. Text detection model is now based on DBNet with ResNet34 backbone
 2. OCR model is now trained with more English sentences
 3. Inpaint model is now based on [AOT](https://arxiv.org/abs/2104.01431) which requires far less memory
-4. Default inpainting resolution is now increased to 2048, thnaks to the new inpainting model
+4. Default inpainting resolution is now increased to 2048, thanks to the new inpainting model
 5. Support merging hyphenated English words
 ### 2021-05-11
 1. Add youdao translate and set as default translator
