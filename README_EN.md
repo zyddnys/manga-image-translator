@@ -1,7 +1,8 @@
 # Online Demo
-https://touhou.ai/imgtrans/
-* Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs. \
-* Note this online demo maybe using an earlier version and not representing the current main branch version.
+<s>https://touhou.ai/imgtrans/
+* Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
+* Note this online demo maybe using an earlier version and not representing the current main branch version.</s> \
+Too poor to afford GPU server.
 # Changelogs
 ### 2021-05-20
 1. Text detection model is now based on DBNet with ResNet34 backbone
