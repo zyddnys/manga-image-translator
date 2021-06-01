@@ -161,13 +161,14 @@ def rotate_image(image, angle) :
 	return result, (diff_i, diff_j)
 
 def add_color(bw_char_map, color, border_color = None, border_size: int = 0, bg = None) :
-	contours, hierarchy = cv2.findContours(bw_char_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 	char_intensity = np.tile(bw_char_map[:,:,None], 3).astype(np.float32) / 255.0
 	bg = np.zeros((bw_char_map.shape[0], bw_char_map.shape[1], 3), dtype = np.uint8) if bg is None else bg
 	fg = np.zeros((bw_char_map.shape[0], bw_char_map.shape[1], 3), dtype = np.uint8)
 	bg_mask = np.zeros((bw_char_map.shape[0], bw_char_map.shape[1]), dtype = np.uint8)
 	if border_size > 0 :
-		cv2.drawContours(bg_mask, contours, -1, (255), border_size, cv2.LINE_AA)
+		bg_mask = np.copy(bw_char_map)
+		kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * border_size + 1, 2 * border_size + 1))
+		bg_mask = cv2.dilate(bg_mask, kern)
 	color_np = np.array(color, dtype = np.uint8)
 	if border_color and border_size > 0 :
 		mask = bg_mask.astype(bool) | (bw_char_map > 0)
@@ -277,7 +278,7 @@ def put_text_vertical(img: np.ndarray, text: str, line_count: int, x: int, y: in
 		font_size -= 1
 		rows = h // font_size
 		cols = w // font_size
-	bgsize = int(max(font_size * 0.1, 1)) if bg else 0
+	bgsize = int(max(font_size * 0.025, 1)) if bg else 0
 	spacing_y = int(max(font_size * 0.05, 1))
 	spacing_x = spacing_y
 	x = x2 - spacing_x - font_size
@@ -312,7 +313,7 @@ def put_text_horizontal(img: np.ndarray, text: str, line_count: int, x: int, y: 
 		font_size -= 1
 		rows = h // font_size
 		cols = w // font_size
-	bgsize = int(max(font_size * 0.1, 1)) if bg else 0
+	bgsize = int(max(font_size * 0.025, 1)) if bg else 0
 	spacing_x = int(max(font_size * 0.05, 1))
 	spacing_y = spacing_x
 	x = x1 + max(spacing_x, 0)
