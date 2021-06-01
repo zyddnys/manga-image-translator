@@ -12,9 +12,7 @@ import time
 reload(sys)
 
 YOUDAO_URL = 'https://openapi.youdao.com/api'
-APP_KEY = '5077fb725e38c9d3'
-APP_SECRET = 'BHyiUU3c3ITyBNNaNzsaxnMnpamuePNo'
-
+from key import APP_KEY, APP_SECRET
 
 def encrypt(signStr):
 	hash_algorithm = hashlib.sha256()
