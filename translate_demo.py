@@ -32,7 +32,7 @@ print(args)
 
 import unicodedata
 
-TEXT_EXT_RATIO = 0.01
+TEXT_EXT_RATIO = 2.2
 
 class BBox(object) :
 	def __init__(self, x: int, y: int, w: int, h: int, text: str, prob: float, fg_r: int = 0, fg_g: int = 0, fg_b: int = 0, bg_r: int = 0, bg_g: int = 0, bg_b: int = 0) :
@@ -590,17 +590,23 @@ def main() :
 	mask_resized[mask_resized > 250] = 255
 	text_lines = [(a.x // 2, a.y // 2, a.w // 2, a.h // 2) for a in textlines]
 	mask_ccs, cc2textline_assignment = filter_masks(mask_resized, text_lines)
-	cv2.imwrite('result/mask_filtered.png', reduce(cv2.bitwise_or, mask_ccs))
-	final_mask = complete_mask(img_resized_2, mask_ccs, text_lines, cc2textline_assignment)
-	final_mask = cv2.resize(final_mask, (img.shape[1], img.shape[0]), interpolation = cv2.INTER_LINEAR)
-	final_mask[final_mask > 0] = 255
+	if mask_ccs :
+		cv2.imwrite('result/mask_filtered.png', reduce(cv2.bitwise_or, mask_ccs))
+		final_mask = complete_mask(img_resized_2, mask_ccs, text_lines, cc2textline_assignment)
+		final_mask = cv2.resize(final_mask, (img.shape[1], img.shape[0]), interpolation = cv2.INTER_LINEAR)
+		final_mask[final_mask > 0] = 255
+	else :
+		final_mask = np.zeros((img.shape[0], img.shape[1]), dtype = np.uint8)
 	print(' -- Running inpainting')
 	# run inpainting
 	img_inpainted, inpaint_input = run_inpainting(model_inpainting, img, final_mask, args.inpainting_size)
 	print(' -- Translating')
 	# translate text region texts
 	texts = '\n'.join([r.text for r in text_regions])
-	trans_ret = translator.translate('auto', 'zh-CHS', texts)
+	if texts :
+		trans_ret = translator.translate('auto', 'zh-CHS', texts)
+	else :
+		trans_ret = []
 	if trans_ret :
 		translated_sentences = []
 		batch = len(text_regions)
@@ -622,13 +628,16 @@ def main() :
 		print(region.majority_dir, region.x, region.y, region.w, region.h)
 		img_bbox = cv2.rectangle(img_bbox, (region.x, region.y), (region.x + region.w, region.y + region.h), color=(0, 0, 255), thickness=2)
 		fg = (region.fg_b, region.fg_g, region.fg_r)
+		bg = (region.bg_b, region.bg_g, region.bg_r)
+		print(fg)
+		print(bg)
 		for idx in region.textline_indices :
 			txtln = textlines[idx]
 			img_bbox = cv2.rectangle(img_bbox, (txtln.x, txtln.y), (txtln.x + txtln.w, txtln.y + txtln.h), color = fg, thickness=2)
 		if region.majority_dir == 'h' :
-			text_render.put_text_horizontal(img_canvas, trans_text, len(region.textline_indices), region.x, region.y, region.w, region.h, fg, None)
+			text_render.put_text_horizontal(img_canvas, trans_text, len(region.textline_indices), region.x, region.y, region.w, region.h, fg, bg)
 		else :
-			text_render.put_text_vertical(img_canvas, trans_text, len(region.textline_indices), region.x, region.y, region.w, region.h, fg, None)
+			text_render.put_text_vertical(img_canvas, trans_text, len(region.textline_indices), region.x, region.y, region.w, region.h, fg, bg)
 
 	print(' -- Saving results')
 	result_db = db[0, 0, :, :].numpy()
