@@ -32,7 +32,7 @@ print(args)
 
 import unicodedata
 
-TEXT_EXT_RATIO = 2.2
+TEXT_EXT_RATIO = 0.12
 
 class BBox(object) :
 	def __init__(self, x: int, y: int, w: int, h: int, text: str, prob: float, fg_r: int = 0, fg_g: int = 0, fg_b: int = 0, bg_r: int = 0, bg_g: int = 0, bg_b: int = 0) :
@@ -230,7 +230,7 @@ def rect_distance(x1, y1, x1b, y1b, x2, y2, x2b, y2b):
 	else:             # rectangles intersect
 		return 0
 
-def can_merge_text_region(x1, y1, w1, h1, x2, y2, w2, h2, ratio = 1.9, char_gap_tolerance = 0.9, char_gap_tolerance2 = 2.5) :
+def can_merge_text_region(x1, y1, w1, h1, x2, y2, w2, h2, ratio = 1.9, char_gap_tolerance = 0.9, char_gap_tolerance2 = 1.5) :
 	dist = rect_distance(x1, y1, x1 + w1, y1 + h1, x2, y2, x2 + w2, y2 + h2)
 	char_size = min(h1, h2, w1, w2)
 	if dist < char_size * char_gap_tolerance :
@@ -293,11 +293,11 @@ def merge_bboxes_text_region(bboxes: List[BBox]) :
 		bg_g = round(np.mean([box.bg_g for box in [bboxes[i] for i in nodes]]))
 		bg_b = round(np.mean([box.bg_b for box in [bboxes[i] for i in nodes]]))
 		# majority vote for direction
-		dirs = [bbox_direction(0, 0, box.w, box.h) for box in [bboxes[i] for i in nodes]]
+		dirs = ['h' if box.w > box.h else 'v' for box in [bboxes[i] for i in nodes]]
 		majority_dir = Counter(dirs).most_common(1)[0][0]
 		# sort
 		if majority_dir == 'h' :
-			nodes = sorted(nodes, key = lambda x: bboxes[x].y)
+			nodes = sorted(nodes, key = lambda x: bboxes[x].y + bboxes[x].h // 2)
 		elif majority_dir == 'v' :
 			nodes = sorted(nodes, key = lambda x: -(bboxes[x].x + bboxes[x].w))
 		# yield overall bbox and sorted indices
@@ -628,9 +628,7 @@ def main() :
 		print(region.majority_dir, region.x, region.y, region.w, region.h)
 		img_bbox = cv2.rectangle(img_bbox, (region.x, region.y), (region.x + region.w, region.y + region.h), color=(0, 0, 255), thickness=2)
 		fg = (region.fg_b, region.fg_g, region.fg_r)
-		bg = (region.bg_b, region.bg_g, region.bg_r)
-		print(fg)
-		print(bg)
+		bg = None#(region.bg_b, region.bg_g, region.bg_r)
 		for idx in region.textline_indices :
 			txtln = textlines[idx]
 			img_bbox = cv2.rectangle(img_bbox, (txtln.x, txtln.y), (txtln.x + txtln.w, txtln.y + txtln.h), color = fg, thickness=2)
