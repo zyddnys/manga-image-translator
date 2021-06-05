@@ -1,6 +1,6 @@
 
 from functools import reduce
-from typing import List
+from typing import List, Tuple
 from networkx.algorithms.distance_measures import center
 import torch
 from DBNet_resnet34 import TextDetection
@@ -234,6 +234,8 @@ def can_merge_text_region(x1, y1, w1, h1, x2, y2, w2, h2, ratio = 1.9, char_gap_
 	dist = rect_distance(x1, y1, x1 + w1, y1 + h1, x2, y2, x2 + w2, y2 + h2)
 	char_size = min(h1, h2, w1, w2)
 	if dist < char_size * char_gap_tolerance :
+		if abs(x1 + w1 // 2 - (x2 + w2 // 2)) < char_gap_tolerance2 :
+			return True
 		if w1 > h1 * ratio and h2 > w2 * ratio :
 			return False
 		if w2 > h2 * ratio and h1 > w1 * ratio :
@@ -303,6 +305,27 @@ def merge_bboxes_text_region(bboxes: List[BBox]) :
 		# yield overall bbox and sorted indices
 		yield merged_box, nodes, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
 
+def generate_bbox_and_text_direction(bboxes: List[BBox]) :
+	G = nx.Graph()
+	for i, box in enumerate(bboxes) :
+		G.add_node(i, box = box)
+	for ((u, ubox), (v, vbox)) in itertools.combinations(enumerate(bboxes), 2) :
+		if can_merge_text_region(ubox.x, ubox.y, ubox.w, ubox.h, vbox.x, vbox.y, vbox.w, vbox.h) :
+			G.add_edge(u, v)
+	for node_set in nx.algorithms.components.connected_components(G) :
+		nodes = list(node_set)
+		# majority vote for direction
+		dirs = ['h' if box.w > box.h else 'v' for box in [bboxes[i] for i in nodes]]
+		majority_dir = Counter(dirs).most_common(1)[0][0]
+		# sort
+		if majority_dir == 'h' :
+			nodes = sorted(nodes, key = lambda x: bboxes[x].y + bboxes[x].h // 2)
+		elif majority_dir == 'v' :
+			nodes = sorted(nodes, key = lambda x: -(bboxes[x].x + bboxes[x].w))
+		# yield overall bbox and sorted indices
+		for node in nodes :
+			yield bboxes[node], majority_dir
+
 def run_detect(model, img_np_resized) :
 	img_np_resized = img_np_resized.astype(np.float32) / 127.5 - 1.0
 	img = torch.from_numpy(img_np_resized)
@@ -346,11 +369,11 @@ def chunks(lst, n):
 	for i in range(0, len(lst), n):
 		yield lst[i:i + n]
 
-def run_ocr(img, bboxes, dictionary, model, max_chunk_size = 2) :
+def run_ocr(img, bboxes: List[Tuple[BBox, str]], dictionary, model, max_chunk_size = 2) :
 	text_height = 32
 	ret_bboxes = []
-	def map_bbox(ubox) :
-		x, y, w, h = ubox[0][0], ubox[0][1], ubox[1][0] - ubox[0][0], ubox[2][1] - ubox[1][1]
+	def map_bbox(ubox, direction) :
+		x, y, w, h = ubox.x, ubox.y, ubox.w, ubox.h
 		real_x, real_y, real_w, real_h = tuple([round(a) for a in [x, y, w, h]])
 		char_size = min(w, h)
 		x -= char_size * TEXT_EXT_RATIO
@@ -363,7 +386,7 @@ def run_ocr(img, bboxes, dictionary, model, max_chunk_size = 2) :
 		w = min(w, img.shape[1] - x - 1)
 		h = min(h, img.shape[0] - y - 1)
 		region = img[y: y + h, x: x + w]
-		if w > h :
+		if direction == 'h' :
 			ratio = float(w) / float(h)
 			new_width = int(text_height * ratio)
 			new_height = text_height
@@ -376,7 +399,7 @@ def run_ocr(img, bboxes, dictionary, model, max_chunk_size = 2) :
 			region = cv2.rotate(img_resized, cv2.ROTATE_90_COUNTERCLOCKWISE)
 			new_width, new_height = new_height, new_width
 		return (real_x, real_y, real_w, real_h), (new_width, new_height), region
-	resized_bboxes = [map_bbox(box) for box in bboxes]
+	resized_bboxes = [map_bbox(*box) for box in bboxes]
 	perm = sorted(range(len(resized_bboxes)), key = lambda x: resized_bboxes[x][1][0])
 	for indices in chunks(perm, max_chunk_size) :
 		N = len(indices)
@@ -536,7 +559,10 @@ def main() :
 		cv2.rectangle(img_bbox_all, (x, y), (x + width, y + height), color=(255, 0, 0), thickness=2)
 	print(' -- Running OCR')
 	# run OCR for each textline
-	textlines = run_ocr(img_bbox, polys, dictionary, model_ocr, 32)
+	text_bbox_and_direction = list(generate_bbox_and_text_direction(
+		[BBox(int(ubox[0][0]), int(ubox[0][1]), int(ubox[1][0] - ubox[0][0]), int(ubox[2][1] - ubox[1][1]), '', 0) for ubox in polys]
+	))
+	textlines = run_ocr(img_bbox, text_bbox_and_direction, dictionary, model_ocr, 32)
 	# merge textline to text region, filter textlines without characters
 	text_regions: List[BBox] = []
 	new_textlines = []
