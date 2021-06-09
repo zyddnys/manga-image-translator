@@ -16,23 +16,27 @@ import dbnet_utils
 import itertools
 import networkx as nx
 import math
+import requests
+import os
 from collections import Counter
+from oscrypto import util as crypto_utils
 
 parser = argparse.ArgumentParser(description='Generate text bboxes given a image file')
-parser.add_argument('--image', default='', type=str, help='Image file')
+parser.add_argument('--mode', default='demo', type=str, help='Run demo in either single image demo mode (demo) or web service mode (web)')
+parser.add_argument('--image', default='', type=str, help='Image file if using demo mode')
 parser.add_argument('--size', default=2048, type=int, help='image square size')
 parser.add_argument('--use-inpainting', action='store_true', help='turn on/off inpainting')
 parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
 parser.add_argument('--inpainting-size', default=2048, type=int, help='size of image used for inpainting (too large will result in OOM)')
-parser.add_argument('--text_threshold', default=0.7, type=float, help='text_threshold')
-parser.add_argument('--link_threshold', default=0.4, type=float, help='link_threshold')
-parser.add_argument('--low_text', default=0.4, type=float, help='low_text')
+parser.add_argument('--unclip-ratio', default=2.2, type=float, help='How much to extend text skeleton to form bounding box')
+parser.add_argument('--box-threshold', default=0.8, type=float, help='threshold for bbox generation')
+parser.add_argument('--text-threshold', default=0.6, type=float, help='threshold for text detection')
 args = parser.parse_args()
 print(args)
 
 import unicodedata
 
-TEXT_EXT_RATIO = 0.12
+TEXT_EXT_RATIO = 0.1
 
 class BBox(object) :
 	def __init__(self, x: int, y: int, w: int, h: int, text: str, prob: float, fg_r: int = 0, fg_g: int = 0, fg_b: int = 0, bg_r: int = 0, bg_g: int = 0, bg_b: int = 0) :
@@ -376,10 +380,10 @@ def run_ocr(img, bboxes: List[Tuple[BBox, str]], dictionary, model, max_chunk_si
 		x, y, w, h = ubox.x, ubox.y, ubox.w, ubox.h
 		real_x, real_y, real_w, real_h = tuple([round(a) for a in [x, y, w, h]])
 		char_size = min(w, h)
-		x -= char_size * TEXT_EXT_RATIO
-		y -= char_size * TEXT_EXT_RATIO
-		w += 2 * char_size * TEXT_EXT_RATIO
-		h += 2 * char_size * TEXT_EXT_RATIO
+		# x -= char_size * TEXT_EXT_RATIO
+		# y -= char_size * TEXT_EXT_RATIO
+		# w += 2 * char_size * TEXT_EXT_RATIO
+		# h += 2 * char_size * TEXT_EXT_RATIO
 		x, y, w, h = tuple([round(a) for a in [x, y, w, h]])
 		x = max(x, 0)
 		y = max(y, 0)
@@ -520,17 +524,30 @@ def load_inpainting_model() :
 		model = model.cuda()
 	return model
 
-def main() :
-	print(' -- Loading models')
-	import os
-	os.makedirs('result', exist_ok = True)
-	text_render.prepare_renderer()
-	dictionary, model_ocr = load_ocr_model()
-	model_detect = load_detect_model()
-	model_inpainting = load_inpainting_model()
+def update_state(task_id, nonce, state) :
+	requests.post('http://127.0.0.1:5003/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state})
 
+def get_task(nonce) :
+	try :
+		rjson = requests.get(f'http://127.0.0.1:5003/task-internal?nonce={nonce}').json()
+		if 'task_id' in rjson :
+			return rjson['task_id']
+		else :
+			return None
+	except :
+		return None
+
+def infer(
+	img,
+	mode,
+	nonce,
+	dictionary,
+	model_detect,
+	model_ocr,
+	model_inpainting,
+	task_id = ''
+	) :
 	print(' -- Read image')
-	img = cv2.imread(args.image)
 	img_bbox = np.copy(img)
 	img_bbox_all = np.copy(img)
 	img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -539,9 +556,11 @@ def main() :
 	ratio_h = ratio_w = 1 / target_ratio
 	print(f'Detection resolution: {img_resized.shape[1]}x{img_resized.shape[0]}')
 	print(' -- Running text detection')
+	if mode == 'web' and task_id :
+		update_state(task_id, nonce, 'detection')
 	db, mask = run_detect(model_detect, img_resized)
 	overlay = imgproc.cvt2HeatmapImg(db[0, 0, :, :].numpy())
-	det = dbnet_utils.SegDetectorRepresenter()
+	det = dbnet_utils.SegDetectorRepresenter(args.text_threshold, args.box_threshold, unclip_ratio = args.unclip_ratio)
 	boxes, scores = det({'shape':[(img_resized.shape[0], img_resized.shape[1])]}, db)
 	boxes, scores = boxes[0], scores[0]
 	idx = boxes.reshape(boxes.shape[0], -1).sum(axis=1) > 0
@@ -558,6 +577,8 @@ def main() :
 		height = int(br[1] - tr[1])
 		cv2.rectangle(img_bbox_all, (x, y), (x + width, y + height), color=(255, 0, 0), thickness=2)
 	print(' -- Running OCR')
+	if mode == 'web' and task_id :
+		update_state(task_id, nonce, 'ocr')
 	# run OCR for each textline
 	text_bbox_and_direction = list(generate_bbox_and_text_direction(
 		[BBox(int(ubox[0][0]), int(ubox[0][1]), int(ubox[1][0] - ubox[0][0]), int(ubox[2][1] - ubox[1][1]), '', 0) for ubox in polys]
@@ -604,6 +625,8 @@ def main() :
 				new_textlines.append(textlines[textline_idx])
 	textlines = new_textlines
 	print(' -- Generating text mask')
+	if mode == 'web' and task_id :
+		update_state(task_id, nonce, 'mask_generation')
 	# create mask
 	from text_mask_utils import filter_masks, complete_mask
 	mask_resized = cv2.resize(mask, (mask.shape[1] * 2, mask.shape[0] * 2), interpolation = cv2.INTER_LINEAR)
@@ -624,9 +647,15 @@ def main() :
 	else :
 		final_mask = np.zeros((img.shape[0], img.shape[1]), dtype = np.uint8)
 	print(' -- Running inpainting')
+	if mode == 'web' and task_id :
+		update_state(task_id, nonce, 'inpainting')
 	# run inpainting
 	img_inpainted, inpaint_input = run_inpainting(model_inpainting, img, final_mask, args.inpainting_size)
+
+	# TODO: translation and inpainting can run in parallel
 	print(' -- Translating')
+	if mode == 'web' and task_id :
+		update_state(task_id, nonce, 'translating')
 	# translate text region texts
 	texts = '\n'.join([r.text for r in text_regions])
 	if texts :
@@ -665,16 +694,62 @@ def main() :
 
 	print(' -- Saving results')
 	result_db = db[0, 0, :, :].numpy()
-	cv2.imwrite('result/db.png', imgproc.cvt2HeatmapImg(result_db))
-	cv2.imwrite('result/textline.png', overlay)
-	cv2.imwrite('result/bbox.png', img_bbox)
-	cv2.imwrite('result/bbox_unfiltered.png', img_bbox_all)
-	cv2.imwrite('result/overlay.png', cv2.cvtColor(overlay_image(img_to_overlay, cv2.resize(overlay, (img_resized.shape[1], img_resized.shape[0]), interpolation=cv2.INTER_LINEAR)), cv2.COLOR_RGB2BGR))
-	cv2.imwrite('result/mask.png', final_mask)
-	cv2.imwrite('result/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
+	os.makedirs(f'result/{task_id}/', exist_ok=True)
+	cv2.imwrite(f'result/{task_id}/db.png', imgproc.cvt2HeatmapImg(result_db))
+	cv2.imwrite(f'result/{task_id}/textline.png', overlay)
+	cv2.imwrite(f'result/{task_id}/bbox.png', img_bbox)
+	cv2.imwrite(f'result/{task_id}/bbox_unfiltered.png', img_bbox_all)
+	cv2.imwrite(f'result/{task_id}/overlay.png', cv2.cvtColor(overlay_image(img_to_overlay, cv2.resize(overlay, (img_resized.shape[1], img_resized.shape[0]), interpolation=cv2.INTER_LINEAR)), cv2.COLOR_RGB2BGR))
+	cv2.imwrite(f'result/{task_id}/mask.png', final_mask)
+	cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
 	if inpaint_input is not None :
-		cv2.imwrite('result/inpaint_input.png', cv2.cvtColor(inpaint_input, cv2.COLOR_RGB2BGR))
-	cv2.imwrite('result/final.png', cv2.cvtColor(img_canvas, cv2.COLOR_RGB2BGR))
+		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input, cv2.COLOR_RGB2BGR))
+	cv2.imwrite(f'result/{task_id}/final.png', cv2.cvtColor(img_canvas, cv2.COLOR_RGB2BGR))
+
+	if mode == 'web' and task_id :
+		update_state(task_id, nonce, 'finished')
+
+from PIL import Image
+import time
+
+def main(mode = 'demo') :
+	print(' -- Loading models')
+	import os
+	os.makedirs('result', exist_ok = True)
+	text_render.prepare_renderer()
+	dictionary, model_ocr = load_ocr_model()
+	model_detect = load_detect_model()
+	model_inpainting = load_inpainting_model()
+
+	if mode == 'demo' :
+		print('Running in single image demo mode')
+		if not args.image :
+			print('please provide an image')
+			parser.print_usage()
+			return
+		img = cv2.imread(args.image)
+		infer(img, mode, '', dictionary, model_detect, model_ocr, model_inpainting)
+	elif mode == 'web' :
+		print('Running in web service mode')
+		print('Waiting for translation tasks')
+		nonce = crypto_utils.rand_bytes(16).hex()
+		import subprocess
+		import sys
+		subprocess.Popen([sys.executable, 'web_main.py', nonce, '5003'])
+		while True :
+			task_id = get_task(nonce)
+			if task_id :
+				print(f'Processing task {task_id}')
+				img = cv2.imread(f'result/{task_id}/input.png')
+				try :
+					infer(img, mode, nonce, dictionary, model_detect, model_ocr, model_inpainting, task_id)
+				except :
+					import traceback
+					traceback.print_exc()
+					update_state(task_id, 'error')
+			else :
+				time.sleep(0.1)
+	
 
 if __name__ == '__main__':
-	main()
+	main(args.mode)

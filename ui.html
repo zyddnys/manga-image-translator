@@ -1,0 +1,336 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>图片翻译</title>
+		<script>
+			var TASKID = "";
+			var STATE = "";
+			const BASE_URI = "/imgtrans/";
+			async function poll(fn, fnCondition, ms) {
+				let result = await fn();
+				while (fnCondition(result)) {
+					await wait(ms);
+					result = await fn();
+				}
+				return result;
+			}
+
+			function wait(ms = 1000) {
+				return new Promise(resolve => {
+					setTimeout(resolve, ms);
+				});
+			}
+
+			function handle_state(state) {
+				const state2 = state.state;
+				const queue_pos = state.waiting;
+				var status = document.getElementById("status-text");
+				switch (state2) {
+					case "pending":
+						if (queue_pos > 0) {
+							status.innerText = `正在等待，你的队列位置${queue_pos}`;
+						} else {
+							status.innerText = `正在处理`;
+						}
+						break;
+					case "detection":
+						status.innerText = "正在检测文本";
+						if (!ProgressBar.started()) {
+							ProgressBar.start();
+						}
+						break;
+					case "ocr":
+						status.innerText = "正在识别文本";
+						if (!ProgressBar.started()) {
+							ProgressBar.start();
+						}
+						break;
+					case "mask_generation":
+						status.innerText = "正在生成文本掩码";
+						if (!ProgressBar.started()) {
+							ProgressBar.start();
+						}
+						break;
+					case "inpainting":
+						status.innerText = "正在修补图片";
+						if (!ProgressBar.started()) {
+							ProgressBar.start();
+						}
+						break;
+					case "translating":
+						status.innerText = "正在翻译";
+						if (!ProgressBar.started()) {
+							ProgressBar.start();
+						}
+						break;
+					case "error":
+						status.innerText = "出错，请重试";
+						if (!ProgressBar.started()) {
+							ProgressBar.start();
+						}
+						break;
+				}
+				STATE = state2;
+				if (state2 === "finished" || state2 === "error") {
+					return false;
+				} else {
+					return true;
+				}
+			}
+
+			function get_state() {
+				return get_json(BASE_URI + "task-state?taskid=" + TASKID)
+			}
+
+			function get_json(url) {
+				return new Promise(function (resolve, reject) {
+					var xhr = new XMLHttpRequest();
+					xhr.open('get', url, true);
+					xhr.onload = function () {
+						var status = xhr.status;
+						if (status == 200) {
+							var obj = JSON.parse(xhr.responseText);
+							resolve(obj);
+						} else {
+							reject(status);
+						}
+					};
+					xhr.send();
+				});
+			}
+
+			async function upload_image(event) {
+				event.preventDefault();
+				var files = document.getElementById("image-file").files;
+				var status = document.getElementById("status-text");
+				if (files.length == 0) {
+					return;
+				}
+				document.getElementById("translated-image-div").style.visibility = "hidden";
+				document.getElementById("translated-image").innerHTML = "";
+				document.getElementById("submit-button").disabled = true;
+				status.innerText = "正在上传";
+				const XHR = new XMLHttpRequest();
+
+				// Create a FormData object
+				var formData = new FormData();
+
+				// Select only the first file from the input array
+				var file = files[0];
+
+				formData.append('file', file, file.name);
+				XHR.open('POST', BASE_URI + "submit", true);
+				XHR.onload = async function () {
+					if (XHR.status == 200) {
+						status.innerHTML = '等待结果';
+						var obj = JSON.parse(XHR.responseText);
+						TASKID = obj.task_id;
+						console.log(`task_id: ${TASKID}`);
+						await poll(get_state, handle_state, 1000);
+						document.getElementById("submit-button").disabled = false;
+						if (STATE !== "error") {
+							document.getElementById("translated-image-div").style.visibility = "";
+							document.getElementById("translated-image").src = "";
+							document.getElementById("translated-image").src = BASE_URI + "result/" + TASKID + "/final.jpg";
+						}
+						status.innerHTML = '';
+						ProgressBar.end();
+					} else {
+						status.innerHTML = '上传失败，请重试';
+						document.getElementById("submit-button").disabled = false;
+					}
+				};
+
+				// Send the data.
+				XHR.send(formData);
+			}
+		</script>
+	</head>
+	<body>
+		<div>
+			<h3>一键翻译（免费版）</h3>
+			<a href="https://github.com/zyddnys/manga-image-translator">https://github.com/zyddnys/manga-image-translator</a>
+			<form id="image-form" action="#" onsubmit="upload_image(event);" method="post" enctype="multipart/form-data">
+				<input id="image-file" type="file" name="fileToUpload" id="image" accept="image/png, image/jpeg, image/bmp">
+				<input id="submit-button" type="submit" value="提交" name="submit">
+			</form>
+		</div>
+		<div><h4 id="status-text"></h4></div>
+		<div id="horizontalProgress">
+			<div id="horizontalProgressBar"></div>
+			<div id="horizontalProgressOverlay"></div>
+		</div>
+		<div id="detected-text-div" style="visibility: hidden;">
+			<h3>检测到的文字</h3>
+			<div id="detected-text"></div>
+		</div>
+		<div id="translated-image-div" style="visibility: hidden;">
+			<h3>翻译后图片</h3>
+			<img id="translated-image"></img>
+		</div>
+	</body>
+	<style>
+		#horizontalProgress {
+			/* CHANGE THIS STYLES AS YOU WISH */
+			position: relative;
+		}
+
+		#horizontalProgressBar {
+			/* DO NOT CHANGE STYLES IN THAT SELECTOR */
+			position: absolute;
+			top: 50%;
+			height: 2px;
+			left: 0px;
+			margin-top: -1px;
+			background: #3A95FF;
+			z-index: 999999;
+			transition: opacity 0.5s, width 0.5s;
+		}
+
+		#horizontalProgressOverlay {
+			/* DO NOT CHANGE STYLES IN THAT SELECTOR */
+			position: absolute;
+			top: 0px;
+			right: 0px;
+			bottom: 0px;
+			left: 0px;
+			background: #fff;
+			background: rgba(255, 255, 255, 0.9);
+			z-index: 999998;
+			transition: opacity 1s;
+		}
+
+		#horizontalProgressOverlay.show {
+			/* DO NOT CHANGE STYLES IN THAT SELECTOR */
+			left: 0%;
+		}
+	</style>
+	<script>
+		window.ProgressBar = (function (me) {
+
+			// SETTINGS
+
+			var ratio = 4;
+			var speed = 5;
+			var frequency = 1;
+			var ease = 'ease';
+
+			// PRIVATE VARIABLES
+
+			var timeout = null;
+			var element = null;
+			var overlay = null;
+			var current = 0;
+			var started_ = false;
+
+			var random = function (min, max) {
+				return Math.floor(Math.random() * (max - min + 1) + min);
+			};
+
+			var time = function () {
+				return random(1, 6) / speed;
+			};
+
+			var delay = function () {
+				return random(1, 2) / speed;
+			};
+
+			var frequency = function () {
+				return random(0, frequency);
+			};
+
+			var width = function () {
+				var min = current;
+				var remain = 100 - current;
+				var distance = Math.floor(remain / ratio);
+				var max = min + distance;
+				current = random(min, max);
+				return current;
+			};
+
+			var next = function () {
+				var t = time();
+				var d = delay();
+
+				element.style.transitionDuration = t + 's';
+				element.style.transitionDelay = d + 's';
+
+				timeout = setTimeout(function () {
+					move();
+				}, ((t * 1000) + (d * 1000)));
+			};
+
+			var move = function () {
+				element.style.width = width() + '%';
+				next();
+			};
+
+			me.init = function (params) {
+				element = params.element;
+				overlay = params.overlay;
+
+				ease = params.ease || ease;
+				ratio = params.ratio || ratio;
+				speed = params.speed || speed;
+				frequency = params.frequency || frequency;
+
+				overlay.style.opacity = '0';
+				element.style.opacity = '0';
+				element.style.transitionDuration = '1s';
+				element.style.transitionTimingFunction = ease;
+				element.style.transitionDelay = '0s';
+			};
+
+			me.start = function () {
+				current = 0;
+				started_ = true;
+
+				element.style.opacity = '1';
+				element.style.width = current + '%';
+				overlay.style.opacity = '1';
+				overlay.style.width = '100%';
+
+				next();
+			};
+
+			me.started = function () {
+				return started_;
+			}
+
+			me.end = function () {
+				started_ = false;
+
+				clearTimeout(timeout);
+
+				element.style.transitionDuration = '0.5s';
+				element.style.width = '100%';
+
+				setTimeout(function () {
+					element.style.opacity = '0';
+					overlay.style.opacity = '0';
+				}, 1000);
+
+				setTimeout(function () {
+					element.style.width = '0%';
+					overlay.style.width = '0%';
+				}, 2000);
+
+			};
+
+			return me;
+
+			}(window.ProgressBar || {}));
+
+			// YOU CAN INIT THAT PROGRESS BARY WHEREVER YOU WANT
+
+			ProgressBar.init({
+			element: document.getElementById('horizontalProgressBar'),
+			overlay: document.getElementById('horizontalProgressOverlay'),
+			ratio: 4,				// DEFAULT, YOU CAN SKIP IT
+			speed: 5,				// DEFAULT, YOU CAN SKIP IT
+			frequency: 1,		// DEFAULT, YOU CAN SKIP IT
+			ease: 'ease'		// DEFAULT, YOU CAN SKIP IT
+			});
+	</script>
+</html>

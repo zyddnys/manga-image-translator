@@ -3,6 +3,9 @@ https://touhou.ai/imgtrans/
 * Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
 * Note this online demo maybe using an earlier version and not representing the current main branch version.
 # Changelogs
+### 2021-06-09
+1. New text region based text direction detection method
+2. Support running demo as web service
 ### 2021-05-20
 1. Text detection model is now based on DBNet with ResNet34 backbone
 2. OCR model is now trained with more English sentences
@@ -31,7 +34,29 @@ Successor to https://github.com/PatchyVideo/MMDOCR-HighPerformance
 1. Clone this repo
 2. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/alpha-v3.0.0)ocr.ckpt、detect.ckpt and inpainting.ckpt，put them in the root directory of this repo
 3. Apply for youdao translate API, put ypur APP_KEY and APP_SECRET in `key.py`
-4. Run`python translate_demo.py --image <path_to_image_file> [--use-inpainting] [--use-cuda]`，result can be found in `result/`. Add `--use-inpainting` to enable inpainting, Add `--use-cuda` to use CUDA.
+4. Run `python translate_demo.py --image <path_to_image_file> [--use-inpainting] [--use-cuda]`，result can be found in `result/`. Add `--use-inpainting` to enable inpainting, Add `--use-cuda` to use CUDA.
+
+# How to use
+1. Clone this repo
+2. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/alpha-v3.0.0)ocr.ckpt、detect.ckpt and inpainting.ckpt，put them in the root directory of this repo
+3. Apply for youdao translate API, put ypur APP_KEY and APP_SECRET in `key.py`
+4. Run `python translate_demo.py --mode web [--use-inpainting] [--use-cuda]`, the demo will be serving on http://127.0.0.1:5003
+
+Two modes of translation service are provided by the demo: synchronous mode and asynchronous mode \
+In synchronous mode your HTTP POST request will finish once the translation task is finished. \
+In asynchronous mode your HTTP POST request will respond with a task_id immediately, you can use this task_id to poll for translation task state.
+### Synchronous mode
+1. POST a form request with form data `file:<content-of-image>` to http://127.0.0.1:5003/run
+2. Wait for response
+3. Use the resulant task_id to find translation result in `result/` directory, e.g. using Nginx to expose `result/`
+### Asynchronous mode
+1. POST a form request with form data `file:<content-of-image>` to http://127.0.0.1:5003/submit
+2. Acquire translation task_id
+3. Poll for translation task state by posting JSON `{"taskid": <task-id>}`  to http://127.0.0.1:5003/task-state
+4. Translation is finished when the resultant state is either `finished` or `error`
+5. Find translation result in `result/` directory, e.g. using Nginx to expose `result/`
+
+
 # This is a hobby project, you are welcome to contribute
 Currently this only a simple demo, many imperfections exist, we need your support to make this project better!
 

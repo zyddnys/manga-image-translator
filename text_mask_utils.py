@@ -156,6 +156,18 @@ def extend_cc_region(color_image: np.ndarray, cc: np.ndarray, color, std_ext) :
 		cv2.floodFill(color_image, final_mask, seed_point, (255), diff.tolist(), diff.tolist(), cv2.FLOODFILL_MASK_ONLY | 8)
 	return final_mask[1: -1, 1: -1] * 255
 
+def complete_mask_2(img_np: np.ndarray, ccs: List[np.ndarray], text_lines: List[Tuple[int, int, int, int]], cc2textline_assignment) :
+	if len(ccs) == 0 :
+		return
+	final_mask = np.zeros_like(ccs[0])
+	#kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+	for cc in ccs :
+		final_mask = cv2.bitwise_or(final_mask, cc)
+	for (x, y, w, h) in text_lines :
+		text_size = min(w, h)
+		final_mask[y - text_size // 2: y + h + text_size // 2, x - text_size // 2: x + w + text_size // 2] = 255
+	return final_mask
+
 def complete_mask(img_np: np.ndarray, ccs: List[np.ndarray], text_lines: List[Tuple[int, int, int, int]], cc2textline_assignment) :
 	if len(ccs) == 0 :
 		return

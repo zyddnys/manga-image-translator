@@ -5,6 +5,9 @@ https://touhou.ai/imgtrans/
 # English README
 [README_EN.md](README_EN.md)
 # Changelogs
+### 2021-06-09
+1. 使用基于区域的文本方向检测，文本方向检测效果大幅提升
+2. 增加web服务功能
 ### 2021-05-20
 1. 检测模型更新为基于ResNet34的DBNet
 2. OCR模型更新增加更多英语预料训练
@@ -34,6 +37,27 @@ https://touhou.ai/imgtrans/
 2. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/alpha-v3.0.0)ocr.ckpt、detect.ckpt和inpainting.ckpt，放到这个repo的根目录下
 3. 申请有道翻译API，把你的APP_KEY和APP_SECRET存到key.py里
 4. 运行`python translate_demo.py --image <图片文件路径> [--use-inpainting] [--use-cuda]`，结果会存放到result文件夹里。请加上`--use-inpainting`使用图像修补，请加上`--use-cuda`使用GPU。
+
+# Web服务使用说明
+1. clone这个repo
+2. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/alpha-v3.0.0)ocr.ckpt、detect.ckpt和inpainting.ckpt，放到这个repo的根目录下
+3. 申请有道翻译API，把你的APP_KEY和APP_SECRET存到key.py里
+4. 运行`python translate_demo.py --mode web [--use-inpainting] [--use-cuda]`，程序服务会开启在http://127.0.0.1:5003
+
+程序提供两个请求模式：同步模式和异步模式。 \
+同步模式下你的HTTP POST请求会一直等待直到翻译完成。 \
+异步模式下你的HTTP POST会立刻返回一个task_id，你可以使用这个task_id去定期轮询得到翻译的状态。 \
+### 同步模式
+1. POST提交一个带图片，名字是file的form到http://127.0.0.1:5003/run
+2. 等待返回
+3. 从得到的task_id去result文件夹里取结果，例如通过Nginx暴露result下的内容
+### 异步模式
+1. POST提交一个带图片，名字是file的form到http://127.0.0.1:5003/submit
+2. 你会得到一个task_id
+3. 通过这个task_id你可以定期发送POST轮询请求JSON {"taskid": <你的task_id>}到http://127.0.0.1:5003/task-state
+4. 当返回的状态是"finished"或"error"时代表翻译完成
+5. 去result文件夹里取结果，例如通过Nginx暴露result下的内容
+
 # 只是初步版本，我们需要您的帮助完善
 这个项目目前只完成了简单的demo，依旧存在大量不完善的地方，我们需要您的帮助完善这个项目！
 
