@@ -48,7 +48,7 @@ In asynchronous mode your HTTP POST request will respond with a task_id immediat
 ### Synchronous mode
 1. POST a form request with form data `file:<content-of-image>` to http://127.0.0.1:5003/run
 2. Wait for response
-3. Use the resulant task_id to find translation result in `result/` directory, e.g. using Nginx to expose `result/`
+3. Use the resultant task_id to find translation result in `result/` directory, e.g. using Nginx to expose `result/`
 ### Asynchronous mode
 1. POST a form request with form data `file:<content-of-image>` to http://127.0.0.1:5003/submit
 2. Acquire translation task_id
