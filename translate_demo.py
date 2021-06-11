@@ -20,6 +20,7 @@ import requests
 import os
 from collections import Counter
 from oscrypto import util as crypto_utils
+from utils import BBox
 
 parser = argparse.ArgumentParser(description='Generate text bboxes given a image file')
 parser.add_argument('--mode', default='demo', type=str, help='Run demo in either single image demo mode (demo) or web service mode (web)')
@@ -35,27 +36,6 @@ args = parser.parse_args()
 print(args)
 
 import unicodedata
-
-TEXT_EXT_RATIO = 0.1
-
-class BBox(object) :
-	def __init__(self, x: int, y: int, w: int, h: int, text: str, prob: float, fg_r: int = 0, fg_g: int = 0, fg_b: int = 0, bg_r: int = 0, bg_g: int = 0, bg_b: int = 0) :
-		self.x = x
-		self.y = y
-		self.w = w
-		self.h = h
-		self.text = text
-		self.prob = prob
-		self.fg_r = fg_r
-		self.fg_g = fg_g
-		self.fg_b = fg_b
-		self.bg_r = bg_r
-		self.bg_g = bg_g
-		self.bg_b = bg_b
-
-	def to_points(self) :
-		tl, tr, br, bl = np.array([self.x, self.y]), np.array([self.x + self.w, self.y]), np.array([self.x + self.w, self.y+ self.h]), np.array([self.x, self.y + self.h])
-		return tl, tr, br, bl
 
 def _is_whitespace(ch):
 	"""Checks whether `chars` is a whitespace character."""
@@ -234,7 +214,7 @@ def rect_distance(x1, y1, x1b, y1b, x2, y2, x2b, y2b):
 	else:             # rectangles intersect
 		return 0
 
-def can_merge_text_region(x1, y1, w1, h1, x2, y2, w2, h2, ratio = 1.9, char_gap_tolerance = 0.9, char_gap_tolerance2 = 1.5) :
+def can_merge_text_region(x1, y1, w1, h1, x2, y2, w2, h2, ratio = 1.9, char_gap_tolerance = 0.9, char_gap_tolerance2 = 1.8) :
 	dist = rect_distance(x1, y1, x1 + w1, y1 + h1, x2, y2, x2 + w2, y2 + h2)
 	char_size = min(h1, h2, w1, w2)
 	if dist < char_size * char_gap_tolerance :
@@ -380,10 +360,6 @@ def run_ocr(img, bboxes: List[Tuple[BBox, str]], dictionary, model, max_chunk_si
 		x, y, w, h = ubox.x, ubox.y, ubox.w, ubox.h
 		real_x, real_y, real_w, real_h = tuple([round(a) for a in [x, y, w, h]])
 		char_size = min(w, h)
-		# x -= char_size * TEXT_EXT_RATIO
-		# y -= char_size * TEXT_EXT_RATIO
-		# w += 2 * char_size * TEXT_EXT_RATIO
-		# h += 2 * char_size * TEXT_EXT_RATIO
 		x, y, w, h = tuple([round(a) for a in [x, y, w, h]])
 		x = max(x, 0)
 		y = max(y, 0)
@@ -589,10 +565,10 @@ def infer(
 	new_textlines = []
 	for (poly_regions, textline_indices, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines) :
 		[tl, tr, br, bl] = poly_regions
-		x = int(tl[0]) - 5
-		y = int(tl[1]) - 5
-		width = int(tr[0] - tl[0]) + 10
-		height = int(br[1] - tr[1]) + 10
+		x = int(tl[0]) - 0
+		y = int(tl[1]) - 0
+		width = int(tr[0] - tl[0]) + 0
+		height = int(br[1] - tr[1]) + 0
 		text = ''
 		logprob_lengths = []
 		for textline_idx in textline_indices :
@@ -681,16 +657,16 @@ def infer(
 		print(region.text)
 		print(trans_text)
 		print(region.majority_dir, region.x, region.y, region.w, region.h)
-		img_bbox = cv2.rectangle(img_bbox, (region.x, region.y), (region.x + region.w, region.y + region.h), color=(0, 0, 255), thickness=2)
 		fg = (region.fg_b, region.fg_g, region.fg_r)
 		bg = None#(region.bg_b, region.bg_g, region.bg_r)
 		for idx in region.textline_indices :
 			txtln = textlines[idx]
 			img_bbox = cv2.rectangle(img_bbox, (txtln.x, txtln.y), (txtln.x + txtln.w, txtln.y + txtln.h), color = fg, thickness=2)
+		img_bbox = cv2.rectangle(img_bbox, (region.x, region.y), (region.x + region.w, region.y + region.h), color=(0, 0, 255), thickness=2)
 		if region.majority_dir == 'h' :
-			text_render.put_text_horizontal(img_canvas, trans_text, len(region.textline_indices), region.x, region.y, region.w, region.h, fg, bg)
+			text_render.put_text_horizontal(img_canvas, trans_text, len(region.textline_indices), [textlines[idx] for idx in region.textline_indices], region.x, region.y, region.w, region.h, fg, bg)
 		else :
-			text_render.put_text_vertical(img_canvas, trans_text, len(region.textline_indices), region.x, region.y, region.w, region.h, fg, bg)
+			text_render.put_text_vertical(img_canvas, trans_text, len(region.textline_indices), [textlines[idx] for idx in region.textline_indices], region.x, region.y, region.w, region.h, fg, bg)
 
 	print(' -- Saving results')
 	result_db = db[0, 0, :, :].numpy()

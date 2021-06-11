@@ -8,6 +8,7 @@ import numpy as np
 import cv2
 import unicodedata
 import freetype
+from utils import BBox
 
 def _is_whitespace(ch):
 	"""Checks whether `chars` is a whitespace character."""
@@ -179,18 +180,19 @@ def add_color(bw_char_map, color, border_color = None, border_size: int = 0, bg 
 	fg[mask] = color_np
 	return (bg * (1 - char_intensity) + fg * char_intensity).astype(np.uint8), mask, color, border_color if border_size > 0 else None
 
-CACHED_FONT_FACE = None
+CACHED_FONT_FACE = []
 
 def get_char_glyph(cdpt, font_size: int, direction: int) :
 	global CACHED_FONT_FACE
-	face = CACHED_FONT_FACE
-
-	if direction == 0 :
-		face.set_pixel_sizes( 0, font_size )
-	elif direction == 1 :
-		face.set_pixel_sizes( font_size, 0 )
-	face.load_char(cdpt)
-	return face.glyph, face.glyph.bitmap.rows * face.glyph.bitmap.width == 0
+	for i, face in enumerate(CACHED_FONT_FACE) :
+		if face.get_char_index(cdpt) == 0 and i != len(CACHED_FONT_FACE) - 1 :
+			continue
+		if direction == 0 :
+			face.set_pixel_sizes( 0, font_size )
+		elif direction == 1 :
+			face.set_pixel_sizes( font_size, 0 )
+		face.load_char(cdpt)
+		return face.glyph, face.glyph.bitmap.rows * face.glyph.bitmap.width == 0
 
 def put_char(canvas: np.ndarray, x: int, y: int, font_size: int, rot: int, cdpt: str, direction: int, char_color = (0,0,0), border_color = (0,255,0), border_size = 2) :
 	is_pun = _is_punctuation(cdpt)
@@ -206,7 +208,7 @@ def put_char(canvas: np.ndarray, x: int, y: int, font_size: int, rot: int, cdpt:
 
 	char_map = np.array(bitmap.buffer, dtype = np.uint8).reshape((bitmap.rows,bitmap.width))
 	size = font_size
-	if is_pun :
+	if is_pun and direction == 1 :
 		x2, y2, w2, h2 = cv2.boundingRect(char_map.astype(np.uint8) * 255)
 		if w2 > font_size * 0.7 :
 			place_x = glyph.bitmap_left
@@ -265,13 +267,13 @@ def put_char(canvas: np.ndarray, x: int, y: int, font_size: int, rot: int, cdpt:
 		# 	offset_y = offset_x#bitmap.rows+place_y*2#max(char_map.shape[0], offset_x)
 	return (offset_x, offset_y), (x-diff_j+x2, y - diff_i+y2, w2, h2), False, degree, char_color, border_color
 
-def put_text_vertical(img: np.ndarray, text: str, line_count: int, x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
+def put_text_vertical(img: np.ndarray, text: str, line_count: int, lines: List[BBox], x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
 	x1 = x
 	x2 = x + w
 	y1 = y
 	y2 = y + h
 	#cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-	font_size = round(w / (line_count * 1.1))
+	font_size = round(w / (line_count * 1.2))
 	rows = h // font_size
 	cols = w // font_size
 	while rows * cols < len(text) :
@@ -279,34 +281,42 @@ def put_text_vertical(img: np.ndarray, text: str, line_count: int, x: int, y: in
 		rows = h // font_size
 		cols = w // font_size
 	bgsize = int(max(font_size * 0.025, 1)) if bg else 0
-	spacing_y = int(max(font_size * 0.05, 1))
+	spacing_y = 0#int(max(font_size * 0.05, 1))
 	spacing_x = spacing_y
 	x = x2 - spacing_x - font_size
 	y = y1 + max(spacing_y, 0)
 	txt_i = 0
 	rot = 0
-	for j in range(cols) :
+	j = 0
+	while True :
 		new_length = rows
 		if not new_length :
 			continue
 		y = y1 + spacing_y
-		for i in range(new_length) :
+		cur_line_bbox = lines[j] if j < len(lines) else BBox(0, y1, 0, h, '', 0)
+		y = cur_line_bbox.y
+		while True :
 			(x_offset, y_offset), (ch_x, ch_y, ch_w, ch_h), empty_ch, degree, char_color, border_color = put_char(img, x, y, font_size, rot, text[txt_i], 1, char_color=fg,border_color=bg,border_size=bgsize)
 			fg = char_color
 			txt_i += 1
 			if txt_i >= len(text) :
 				return True
 			y += spacing_y + y_offset
+			if y + font_size > y2 :
+				break
+			if y > cur_line_bbox.h + cur_line_bbox.y + font_size * 1.5 :
+				break
 		x -= spacing_x + font_size
+		j += 1
 	return True
 
-def put_text_horizontal(img: np.ndarray, text: str, line_count: int, x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
+def put_text_horizontal(img: np.ndarray, text: str, line_count: int, lines: List[BBox], x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
 	x1 = x
 	x2 = x + w
 	y1 = y
 	y2 = y + h
 	#cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-	font_size = round(h / (line_count * 1.1))
+	font_size = round(h / (line_count * 1.2))
 	rows = h // font_size
 	cols = w // font_size
 	while rows * cols < len(text) :
@@ -314,54 +324,49 @@ def put_text_horizontal(img: np.ndarray, text: str, line_count: int, x: int, y: 
 		rows = h // font_size
 		cols = w // font_size
 	bgsize = int(max(font_size * 0.025, 1)) if bg else 0
-	spacing_x = int(max(font_size * 0.05, 1))
+	spacing_x = 0#int(max(font_size * 0.05, 1))
 	spacing_y = spacing_x
 	x = x1 + max(spacing_x, 0)
 	y = y1 + spacing_y
 	txt_i = 0
 	rot = 0
-	for i in range(rows) :
+	i = 0
+	while True :
 		new_length = cols
 		if not new_length :
 			continue
 		x = x1 + spacing_x
-		for j in range(new_length) :
+		cur_line_bbox = lines[i] if i < len(lines) else BBox(x1, 0, w, 0, '', 0)
+		x = cur_line_bbox.x
+		while True :
 			(x_offset, y_offset), (ch_x, ch_y, ch_w, ch_h), empty_ch, degree, char_color, border_color = put_char(img, x, y, font_size, rot, text[txt_i], 0, char_color=fg,border_color=bg,border_size=bgsize)
 			fg = char_color
 			txt_i += 1
 			if txt_i >= len(text) :
 				return True
 			x += spacing_x + x_offset
+			if x + font_size > x2 :
+				break
+			if x > cur_line_bbox.w + cur_line_bbox.x + font_size * 1.5 :
+				break
 		y += font_size + spacing_y
+		i += 1
 	return True
 
 def put_text(img: np.ndarray, text: str, line_count: int, x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
 	pass
 
-def prepare_renderer(font_filename = 'Arial-Unicode-Regular.ttf') :
+def prepare_renderer(font_filenames = ['Arial-Unicode-Regular.ttf', 'msyh.ttc', 'msgothic.ttc']) :
 	global CACHED_FONT_FACE
-	CACHED_FONT_FACE = freetype.Face(font_filename)
-	pass
+	for font_filename in font_filenames :
+		CACHED_FONT_FACE.append(freetype.Face(font_filename))
 
 def test() :
 	prepare_renderer()
 	canvas = np.ones((4096, 2590, 3), dtype = np.uint8) * 255
-	put_text_vertical(canvas, '因为不同‼ 这真的是普通的肉！那个姑娘的恶作剧！是吗？咲夜⁉', 4, 2143, 3219, 355, 830, (0, 0, 0), None)
-	put_text_horizontal(canvas, '添加幽默FOR foy', 1, 242, 87, 2093, 221, (0, 0, 0), None)
+	put_text_vertical(canvas, '《因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉', 4, [], 2143, 3219, 355, 830, (0, 0, 0), None)
+	put_text_horizontal(canvas, '“添加幽默”FOR if else !?xxj', 1, [], 242, 87, 2093, 221, (0, 0, 0), None)
 	cv2.imwrite('text_render_combined.png', canvas)
 
-def find_ja_fonts() :
-	global CDPT_FONT_MAP
-	with open('char_font_map_2339fonts_v5.pkl', 'rb') as fp :
-		CDPT_FONT_MAP = pickle.load(fp)
-	s = set(CDPT_FONT_MAP['…'])
-	print(s)
-	for ch in ['…', '？', '！', '♥', '~'] :
-		s = s.intersection(set(CDPT_FONT_MAP[ch]))
-		if not s :
-			print(ch)
-		#print(s)
-	print(s)
-
 if __name__ == '__main__' :
-	find_ja_fonts()
+	test()

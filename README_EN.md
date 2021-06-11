@@ -3,6 +3,8 @@ https://touhou.ai/imgtrans/
 * Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
 * Note this online demo maybe using an earlier version and not representing the current main branch version.
 # Changelogs
+### 2021-06-10
+1. Improve text rendering
 ### 2021-06-09
 1. New text region based text direction detection method
 2. Support running demo as web service

@@ -5,6 +5,8 @@ https://touhou.ai/imgtrans/
 # English README
 [README_EN.md](README_EN.md)
 # Changelogs
+### 2021-06-10
+1. 完善文本渲染
 ### 2021-06-09
 1. 使用基于区域的文本方向检测，文本方向检测效果大幅提升
 2. 增加web服务功能
