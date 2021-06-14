@@ -144,7 +144,7 @@ def complete_mask(img_np: np.ndarray, ccs: List[np.ndarray], text_lines: List[Tu
 		h1 += extend_size * 2
 		w1 = min(w1, img_np.shape[1] - x1 - 1)
 		h1 = min(h1, img_np.shape[0] - y1 - 1)
-		dilate_size = max((int(text_size * 0.0001) // 2) * 2 + 1, 3)
+		dilate_size = max((int(text_size * 0.02) // 2) * 2 + 1, 3)
 		kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (dilate_size, dilate_size))
 		cc_region = np.ascontiguousarray(cc[y1: y1 + h1, x1: x1 + w1])
 		img_region = np.ascontiguousarray(img_np[y1: y1 + h1, x1: x1 + w1])
