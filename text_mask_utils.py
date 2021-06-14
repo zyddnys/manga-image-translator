@@ -102,117 +102,56 @@ def filter_masks(mask_img: np.ndarray, text_lines: List[Tuple[int, int, int, int
 				pass
 	return result, cc2textline_assignment
 
-def find_top_k_dpgmm(result: BayesianGaussianMixture, k: int = 2, cluster_threshold = 0.5) :
-	total_energy = np.sum(result.weights_)
-	num_clusters = result.n_components
-	perm = sorted(range(result.n_components), key=lambda k: -result.weights_[k])
-	if (result.covariances_[perm[:k]] > 100).any() :
-		perm = sorted(range(result.n_components), key=lambda k: result.covariances_[k].mean())
-	prefix_sum = 0
-	for i in range(result.n_components) :
-		prefix_sum += result.weights_[perm[i]]
-		if prefix_sum > total_energy * cluster_threshold :
-			num_clusters = i + 1
-			break
-	return np.round(result.means_[perm[:k]]).astype(np.int16), np.round(np.sqrt(result.covariances_[perm[:k]])).astype(np.int16), num_clusters
+from pydensecrf.utils import compute_unary, unary_from_softmax
+import pydensecrf.densecrf as dcrf
 
-def inRangeMasked(img, mask, lowb, upb) :
-	if lowb[0] > 0 :
-		masked_r = 0
-	elif upb[0] < 255 :
-		masked_r = 255
-	else :
-		raise Exception('R ranges entire uint8 space')
-	if lowb[1] > 0 :
-		masked_g = 0
-	elif upb[1] < 255 :
-		masked_g = 255
-	else :
-		raise Exception('G ranges entire uint8 space')
-	if lowb[2] > 0 :
-		masked_b = 0
-	elif upb[2] < 255 :
-		masked_b = 255
-	else :
-		raise Exception('B ranges entire uint8 space')
-	img2 = np.copy(img)
-	img2[mask < 127] = np.array([masked_r, masked_g, masked_b], dtype = np.uint8)
-	return cv2.inRange(img2, lowb, upb)
+def refine_mask(rgbim, rawmask) :
+	if len(rawmask.shape) == 2 :
+		rawmask = rawmask[:, :, None]
+	mask_softmax = np.concatenate([cv2.bitwise_not(rawmask)[:, :, None], rawmask], axis=2)
+	mask_softmax = mask_softmax.astype(np.float32) / 255.0
+	n_classes = 2
+	feat_first = mask_softmax.transpose((2, 0, 1)).reshape((n_classes,-1))
+	unary = unary_from_softmax(feat_first)
+	unary = np.ascontiguousarray(unary)
 
-def extend_cc_region(color_image: np.ndarray, cc: np.ndarray, color, std_ext) :
-	x, y, w, h = cv2.boundingRect(cc)
-	cc_region = color_image[y: y + h, x: x + w]
-	cc_region_mask = cc[y: y + h, x: x + w]
-	lowb = np.clip(color - std_ext, 0, 255).astype(np.uint8)
-	upb = np.clip(color + std_ext, 0, 255).astype(np.uint8)
-	seed_point_candidates_mask = inRangeMasked(cc_region, cc_region_mask, lowb, upb)
-	num_c, labels = cv2.connectedComponents(seed_point_candidates_mask)
-	final_mask = np.zeros((cc.shape[0] + 2, cc.shape[1] + 2), dtype = np.uint8)
-	for i in range(1, num_c) :
-		seed_point_candidates_y, seed_point_candidates_x = np.where(labels == i)
-		seed_point = (seed_point_candidates_x[0] + x, seed_point_candidates_y[0] + y)
-		seed_color = color_image[seed_point[::-1]]
-		diff = np.maximum(seed_color.astype(np.int16) - lowb.astype(np.int16), upb.astype(np.int16) - seed_color.astype(np.int16))
-		cv2.floodFill(color_image, final_mask, seed_point, (255), diff.tolist(), diff.tolist(), cv2.FLOODFILL_MASK_ONLY | 8)
-	return final_mask[1: -1, 1: -1] * 255
+	d = dcrf.DenseCRF2D(rgbim.shape[1], rgbim.shape[0], n_classes)
 
-def complete_mask_2(img_np: np.ndarray, ccs: List[np.ndarray], text_lines: List[Tuple[int, int, int, int]], cc2textline_assignment) :
-	if len(ccs) == 0 :
-		return
-	final_mask = np.zeros_like(ccs[0])
-	#kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-	for cc in ccs :
-		final_mask = cv2.bitwise_or(final_mask, cc)
-	for (x, y, w, h) in text_lines :
-		text_size = min(w, h)
-		final_mask[y - text_size // 2: y + h + text_size // 2, x - text_size // 2: x + w + text_size // 2] = 255
-	return final_mask
+	d.setUnaryEnergy(unary)
+	d.addPairwiseGaussian(sxy=1, compat=3, kernel=dcrf.DIAG_KERNEL,
+							normalization=dcrf.NO_NORMALIZATION)
+
+	d.addPairwiseBilateral(sxy=23, srgb=7, rgbim=rgbim,
+						compat=20,
+						kernel=dcrf.DIAG_KERNEL,
+						normalization=dcrf.NO_NORMALIZATION)
+	Q = d.inference(5)
+	res = np.argmax(Q, axis=0).reshape((rgbim.shape[0], rgbim.shape[1]))
+	crf_mask = np.array(res * 255, dtype=np.uint8)
+	return crf_mask
 
 def complete_mask(img_np: np.ndarray, ccs: List[np.ndarray], text_lines: List[Tuple[int, int, int, int]], cc2textline_assignment) :
 	if len(ccs) == 0 :
 		return
 	final_mask = np.zeros_like(ccs[0])
-	dpgmm = BayesianGaussianMixture(n_components = 5, covariance_type = 'diag')
-	kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-	text_line_colors = defaultdict(list)
 	for i, cc in enumerate(tqdm(ccs)) :
-		if np.sum(cv2.bitwise_and(cc, final_mask)) > 0 :
-			final_mask = cv2.bitwise_or(final_mask, cc)
-			continue
-		pixels = img_np[cv2.erode(cc, kern) > 127]
-		if len(pixels) < 5 :
-			final_mask = cv2.bitwise_or(final_mask, cc)
-			continue
-		cls1 = dpgmm.fit(pixels)
-		cls1_top2_mean, cls1_top2_stddev, cls1_k = find_top_k_dpgmm(cls1, 2)
-		cls1_top2_stddev_ext = np.round(cls1_top2_stddev * COLOR_RANGE_SIGMA)
-		top1_mask = extend_cc_region(img_np, cc, cls1_top2_mean[0], cls1_top2_stddev_ext[0])
-		top2_mask = extend_cc_region(img_np, cc, cls1_top2_mean[1], cls1_top2_stddev_ext[1])
-		iou1 = cv2.bitwise_and(cc, top1_mask).sum() / cv2.bitwise_or(cc, top1_mask).sum()
-		iou2 = cv2.bitwise_and(cc, top2_mask).sum() / cv2.bitwise_or(cc, top2_mask).sum()
-		if iou1 > iou2 :
-			D = top1_mask
-			selected_idx = 0
-			if iou1 < 1e-1 :
-				D = cc
-				selected_idx = -1
-		else :
-			D = top2_mask
-			selected_idx = 1
-			if iou2 < 1e-1 :
-				D = cc
-				selected_idx = -1
-
-		D = cv2.bitwise_or(cc, D)
-		D = cv2.dilate(D, kern)
-		final_mask = cv2.bitwise_or(final_mask, D)
-
-		# now we find text color
-		if selected_idx == -1 :
-			continue # skip
-		text_color_value = cls1_top2_mean[selected_idx]
-		text_color_stddev = cls1_top2_stddev[selected_idx]
-		text_line_colors[cc2textline_assignment[i]].append(text_color_value)
+		x1, y1, w1, h1 = cv2.boundingRect(cc)
+		text_size = min(w1, h1)
+		extend_size = int(text_size * 0.1)
+		x1 = max(x1 - extend_size, 0)
+		y1 = max(y1 - extend_size, 0)
+		w1 += extend_size * 2
+		h1 += extend_size * 2
+		w1 = min(w1, img_np.shape[1] - x1 - 1)
+		h1 = min(h1, img_np.shape[0] - y1 - 1)
+		dilate_size = max((int(text_size * 0.0001) // 2) * 2 + 1, 3)
+		kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (dilate_size, dilate_size))
+		cc_region = np.ascontiguousarray(cc[y1: y1 + h1, x1: x1 + w1])
+		img_region = np.ascontiguousarray(img_np[y1: y1 + h1, x1: x1 + w1])
+		cc_region = refine_mask(img_region, cc_region)
+		cc[y1: y1 + h1, x1: x1 + w1] = cc_region
+		cc = cv2.dilate(cc, kern)
+		final_mask = cv2.bitwise_or(final_mask, cc)
 	return cv2.dilate(final_mask, kern)
 
 def unsharp(image) :

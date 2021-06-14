@@ -325,6 +325,14 @@ def run_detect(model, img_np_resized) :
 def overlay_image(a, b, wa = 0.7) :
 	return cv2.addWeighted(a, wa, b, 1 - wa, 0)
 
+def overlay_mask(img, mask) :
+	img2 = img.copy().astype(np.float32)
+	mask_fp32 = (mask > 10).astype(np.uint8) * 2
+	mask_fp32[mask_fp32 == 0] = 1
+	mask_fp32 = mask_fp32.astype(np.float32) * 0.5
+	img2 = img2 * mask_fp32[:, :, None]
+	return img2.astype(np.uint8)
+
 from copy import deepcopy
 
 def filter_bbox(polys) :
@@ -612,12 +620,16 @@ def infer(
 		mask_resized = mask_resized[:, : -pad_w]
 	mask_resized = cv2.resize(mask_resized, (img.shape[1] // 2, img.shape[0] // 2), interpolation = cv2.INTER_LINEAR)
 	img_resized_2 = cv2.resize(img, (img.shape[1] // 2, img.shape[0] // 2), interpolation = cv2.INTER_LINEAR)
-	mask_resized[mask_resized > 250] = 255
+	mask_resized[mask_resized > 150] = 255
 	text_lines = [(a.x // 2, a.y // 2, a.w // 2, a.h // 2) for a in textlines]
 	mask_ccs, cc2textline_assignment = filter_masks(mask_resized, text_lines)
 	if mask_ccs :
-		cv2.imwrite('result/mask_filtered.png', reduce(cv2.bitwise_or, mask_ccs))
+		mask_filtered = reduce(cv2.bitwise_or, mask_ccs)
+		cv2.imwrite(f'result/{task_id}/mask_filtered.png', mask_filtered)
+		cv2.imwrite(f'result/{task_id}/mask_filtered_img.png', overlay_mask(img_resized_2, mask_filtered))
 		final_mask = complete_mask(img_resized_2, mask_ccs, text_lines, cc2textline_assignment)
+		cv2.imwrite(f'result/{task_id}/mask.png', final_mask)
+		cv2.imwrite(f'result/{task_id}/mask_img.png', overlay_mask(img_resized_2, final_mask))
 		final_mask = cv2.resize(final_mask, (img.shape[1], img.shape[0]), interpolation = cv2.INTER_LINEAR)
 		final_mask[final_mask > 0] = 255
 	else :
@@ -676,7 +688,6 @@ def infer(
 	cv2.imwrite(f'result/{task_id}/bbox.png', img_bbox)
 	cv2.imwrite(f'result/{task_id}/bbox_unfiltered.png', img_bbox_all)
 	cv2.imwrite(f'result/{task_id}/overlay.png', cv2.cvtColor(overlay_image(img_to_overlay, cv2.resize(overlay, (img_resized.shape[1], img_resized.shape[0]), interpolation=cv2.INTER_LINEAR)), cv2.COLOR_RGB2BGR))
-	cv2.imwrite(f'result/{task_id}/mask.png', final_mask)
 	cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
 	if inpaint_input is not None :
 		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input, cv2.COLOR_RGB2BGR))

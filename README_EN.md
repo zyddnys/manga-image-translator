@@ -3,6 +3,8 @@ https://touhou.ai/imgtrans/
 * Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
 * Note this online demo maybe using an earlier version and not representing the current main branch version.
 # Changelogs
+### 2021-06-13
+1. Text mask completion is now based on CRF, mask quality is drastically improved
 ### 2021-06-10
 1. Improve text rendering
 ### 2021-06-09
@@ -69,7 +71,7 @@ What need to be done
 5. Text rendering area is determined by detected text lines, not speech bubbles. This works for images without speech bubbles, but making it impossible to decide where to put translated English text. I have no idea how to solve this.
 6. [Ryota et al.](https://arxiv.org/abs/2012.14271) proposed using multimodal machine translation, maybe we can add ViT features for building custom NMT models.
 7. Make this project works for video(rewrite code in C++ and use GPU/other hardware NN accelerator). Used for detecting hard subtitles in videos, generting ass file and remove them completetly.
-8. Mask refinement based using non deep learning algorithms, I am currently testing out CRF based algorithm.
+8. <s>Mask refinement based using non deep learning algorithms, I am currently testing out CRF based algorithm.</s>
 
 # Samples
 The following samples are from the original version, they do not represent the current main branch version.
