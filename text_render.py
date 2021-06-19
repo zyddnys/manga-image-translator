@@ -8,7 +8,7 @@ import numpy as np
 import cv2
 import unicodedata
 import freetype
-from utils import BBox
+from utils import BBox, Quadrilateral
 
 def _is_whitespace(ch):
 	"""Checks whether `chars` is a whitespace character."""
@@ -194,7 +194,7 @@ def get_char_glyph(cdpt, font_size: int, direction: int) :
 		face.load_char(cdpt)
 		return face.glyph, face.glyph.bitmap.rows * face.glyph.bitmap.width == 0
 
-def put_char(canvas: np.ndarray, x: int, y: int, font_size: int, rot: int, cdpt: str, direction: int, char_color = (0,0,0), border_color = (0,255,0), border_size = 2) :
+def put_char(canvas: np.ndarray, mask: np.ndarray, x: int, y: int, font_size: int, rot: int, cdpt: str, direction: int, char_color = (0,0,0), border_color = (0,255,0), border_size = 2) :
 	is_pun = _is_punctuation(cdpt)
 	cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, direction)
 	glyph, empty_char = get_char_glyph(cdpt, font_size, direction)
@@ -241,7 +241,6 @@ def put_char(canvas: np.ndarray, x: int, y: int, font_size: int, rot: int, cdpt:
 	diff_j = x if diff_j > x else diff_j
 	available_shape = canvas[y - diff_i:y+diff_i+font_size,x-diff_j: x+diff_j+font_size,:].shape
 	char_map = char_map[:available_shape[0],:available_shape[1]]
-	#char_map_mask = np.tile((char_map > 0)[:,:,None], 3)
 	if len(char_map.shape) == 3 :
 		char_map = char_map.squeeze(-1)
 	if border_color :
@@ -249,25 +248,13 @@ def put_char(canvas: np.ndarray, x: int, y: int, font_size: int, rot: int, cdpt:
 	else :
 		char_map, char_map_mask, char_color, border_color = add_color(char_map, char_color, bg = canvas[y - diff_i:y+diff_i+font_size,x-diff_j: x+diff_j+font_size,:])
 	x2, y2, w2, h2 = cv2.boundingRect(char_map_mask.astype(np.uint8) * 255)
-	#if w2 * h2 == 0 :
-	#	print(f'[*] "{cdpt}" is Empty character')
-	#char_map = cv2.resize(char_map, (font_size, font_size), interpolation=cv2.INTER_LANCZOS4)
 	np.putmask(canvas[y - diff_i:y+diff_i+font_size,x-diff_j: x+diff_j+font_size,:], np.tile(char_map_mask[:,:,None], 3), char_map)
-	#cv2.rectangle(canvas, (x-diff_j+x2, y - diff_i+y2), (x-diff_j+x2+w2, y - diff_i+y2+h2), (255,0,0))
-	#canvas[y - diff_i:y+diff_i+font_size, x-diff_j: x+diff_j+font_size, :] = np.tile(char_map_mask[:,:,None], 3) * char_map
-	#canvas[y:y+font_size,x: x+font_size,:]=255-char_map[:font_size,:font_size]#np.array([0,0,0],dtype=np.uint8)
-	# if offset_x == 0 and direction == 0 :
-	# 	offset_x = max(char_map.shape[1], offset_y)
+	mask[y - diff_i:y+diff_i+font_size,x-diff_j: x+diff_j+font_size] |= char_map_mask
 	if offset_y == 0 and direction == 1 :
-		#print(f'0 offset_y for {cdpt}')
-		offset_y = font_size#h2#min(h2+y2, font_size)
-		# if my_randint(0,1) == 0 :
-		# 	offset_y = min(h2, font_size) #bitmap.rows+place_y
-		# else :
-		# 	offset_y = offset_x#bitmap.rows+place_y*2#max(char_map.shape[0], offset_x)
+		offset_y = font_size
 	return (offset_x, offset_y), (x-diff_j+x2, y - diff_i+y2, w2, h2), False, degree, char_color, border_color
 
-def put_text_vertical(img: np.ndarray, text: str, line_count: int, lines: List[BBox], x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
+def put_text_vertical(img: np.ndarray, mask: np.ndarray, text: str, line_count: int, lines: List[Quadrilateral], x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
 	x1 = x
 	x2 = x + w
 	y1 = y
@@ -294,23 +281,22 @@ def put_text_vertical(img: np.ndarray, text: str, line_count: int, lines: List[B
 			continue
 		y = y1 + spacing_y
 		cur_line_bbox = lines[j] if j < len(lines) else BBox(0, y1, 0, h, '', 0)
-		y = cur_line_bbox.y
 		while True :
-			(x_offset, y_offset), (ch_x, ch_y, ch_w, ch_h), empty_ch, degree, char_color, border_color = put_char(img, x, y, font_size, rot, text[txt_i], 1, char_color=fg,border_color=bg,border_size=bgsize)
+			(x_offset, y_offset), (ch_x, ch_y, ch_w, ch_h), empty_ch, degree, char_color, border_color = put_char(img, mask, x, y, font_size, rot, text[txt_i], 1, char_color=fg,border_color=bg,border_size=bgsize)
 			fg = char_color
 			txt_i += 1
 			if txt_i >= len(text) :
 				return True
 			y += spacing_y + y_offset
-			if y + font_size > y2 :
+			if y + font_size > y2 and j + 1 < len(lines) :
 				break
-			if y > cur_line_bbox.h + cur_line_bbox.y + font_size * 1.5 :
+			if y > cur_line_bbox.height() + y1 + font_size * 2 and j + 1 < len(lines) :
 				break
 		x -= spacing_x + font_size
 		j += 1
 	return True
 
-def put_text_horizontal(img: np.ndarray, text: str, line_count: int, lines: List[BBox], x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
+def put_text_horizontal(img: np.ndarray, mask: np.ndarray, text: str, line_count: int, lines: List[Quadrilateral], x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
 	x1 = x
 	x2 = x + w
 	y1 = y
@@ -337,17 +323,16 @@ def put_text_horizontal(img: np.ndarray, text: str, line_count: int, lines: List
 			continue
 		x = x1 + spacing_x
 		cur_line_bbox = lines[i] if i < len(lines) else BBox(x1, 0, w, 0, '', 0)
-		x = cur_line_bbox.x
 		while True :
-			(x_offset, y_offset), (ch_x, ch_y, ch_w, ch_h), empty_ch, degree, char_color, border_color = put_char(img, x, y, font_size, rot, text[txt_i], 0, char_color=fg,border_color=bg,border_size=bgsize)
+			(x_offset, y_offset), (ch_x, ch_y, ch_w, ch_h), empty_ch, degree, char_color, border_color = put_char(img, mask, x, y, font_size, rot, text[txt_i], 0, char_color=fg,border_color=bg,border_size=bgsize)
 			fg = char_color
 			txt_i += 1
 			if txt_i >= len(text) :
 				return True
 			x += spacing_x + x_offset
-			if x + font_size > x2 :
+			if x + font_size > x2 and i + 1 < len(lines) :
 				break
-			if x > cur_line_bbox.w + cur_line_bbox.x + font_size * 1.5 :
+			if x > cur_line_bbox.width() + x1 + font_size * 2 and i + 1 < len(lines) :
 				break
 		y += font_size + spacing_y
 		i += 1

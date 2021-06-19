@@ -13,8 +13,12 @@ from aiohttp import ClientSession
 
 from collections import deque
 
+from youdao import Translator
+translator = Translator()
+
 NONCE = ''
 QUEUE = deque()
+TASK_DATA = {}
 TASK_STATES = {}
 
 app = web.Application(client_max_size = 1024 * 1024 * 10)
@@ -66,6 +70,7 @@ async def run_async(request):
 	os.makedirs(f'result/{task_id}/', exist_ok=True)
 	img.save(f'result/{task_id}/input.png')
 	QUEUE.append(task_id)
+	TASK_DATA[task_id] = {}
 	TASK_STATES[task_id] = 'pending'
 	while True :
 		await asyncio.sleep(0.05)
@@ -88,14 +93,82 @@ async def get_task_async(request):
 		print('unauthorized', request.rel_url.query['nonce'], NONCE)
 	return web.json_response({})
 
+async def auto_trans_task(task_id, texts) :
+	texts = '\n'.join(texts)
+	if texts :
+		TASK_DATA[task_id]['trans_result'] = await translator.translate('auto', 'zh-CHS', texts)
+	else :
+		TASK_DATA[task_id]['trans_result'] = []
+	print('auto translation complete')
+
+async def manual_trans_task(task_id, texts) :
+	if texts :
+		TASK_DATA[task_id]['trans_request'] = [{'s': txt, 't': ''} for txt in texts]
+	else :
+		TASK_DATA[task_id]['trans_result'] = []
+		print('manual translation complete')
+
+@routes.post("/post-translation-result")
+async def post_translation_result(request):
+	rqjson = (await request.json())
+	if 'trans_result' in rqjson and 'task_id' in rqjson :
+		task_id = rqjson['task_id']
+		if task_id in TASK_DATA :
+			trans_result = [r['t'] for r in rqjson['trans_result']]
+			TASK_DATA[task_id]['trans_result'] = trans_result
+			while True :
+				await asyncio.sleep(0.1)
+				if TASK_STATES[task_id] == 'error' :
+					ret = web.json_response({'task_id' : task_id, 'status': 'failed'})
+					break
+				if TASK_STATES[task_id] == 'finished' :
+					ret = web.json_response({'task_id' : task_id, 'status': 'successful'})
+					break
+			# remove old tasks
+			del TASK_STATES[task_id]
+			del TASK_DATA[task_id]
+			return ret
+	return web.json_response({})
+
+@routes.post("/request-translation-internal")
+async def request_translation_internal(request):
+	global NONCE
+	rqjson = (await request.json())
+	if rqjson['nonce'] == NONCE :
+		task_id = rqjson['task_id']
+		if task_id in TASK_DATA :
+			if 'manual' in TASK_DATA[task_id] :
+				# manual translation
+				asyncio.gather(manual_trans_task(task_id, rqjson['texts']))
+			else :
+				# using youdao
+				asyncio.gather(auto_trans_task(task_id, rqjson['texts']))
+	return web.json_response({})
+
+@routes.post("/get-translation-result-internal")
+async def get_translation_internal(request):
+	global NONCE
+	rqjson = (await request.json())
+	if rqjson['nonce'] == NONCE :
+		task_id = rqjson['task_id']
+		if task_id in TASK_DATA :
+			if 'trans_result' in TASK_DATA[task_id] :
+				return web.json_response({'result': TASK_DATA[task_id]['trans_result']})
+	return web.json_response({})
+
 @routes.get("/task-state")
 async def get_task_state_async(request):
 	task_id = request.query.get('taskid')
 	if task_id and task_id in TASK_STATES :
 		try :
-			return web.json_response({'state': TASK_STATES[task_id], 'waiting': QUEUE.index(task_id) + 1})
+			ret = web.json_response({'state': TASK_STATES[task_id], 'waiting': QUEUE.index(task_id) + 1})
 		except :
-			return web.json_response({'state': TASK_STATES[task_id], 'waiting': 0})
+			ret = web.json_response({'state': TASK_STATES[task_id], 'waiting': 0})
+		if TASK_STATES[task_id] in ['finished', 'error'] :
+			# remove old tasks
+			del TASK_STATES[task_id]
+			del TASK_DATA[task_id]
+		return ret
 	return web.json_response({'state': 'error'})
 
 @routes.post("/task-update-internal")
@@ -133,8 +206,46 @@ async def submit_async(request):
 	os.makedirs(f'result/{task_id}/', exist_ok=True)
 	img.save(f'result/{task_id}/input.png')
 	QUEUE.append(task_id)
+	TASK_DATA[task_id] = {}
 	TASK_STATES[task_id] = 'pending'
 	return web.json_response({'task_id' : task_id, 'status': 'successful'})
+
+@routes.post("/manual-translate")
+async def submit_async(request):
+	data = await request.post()
+	if 'file' in data :
+		file_field = data['file']
+		content = file_field.file.read()
+	elif 'url' in data :
+		from aiohttp import ClientSession
+		async with ClientSession() as session:
+			async with session.get(data['url']) as resp:
+				if resp.status == 200 :
+					content = await resp.read()
+				else :
+					return web.json_response({'status' : 'failed'})
+	else :
+		return web.json_response({'status' : 'failed'})
+	try :
+		img = convert_img(Image.open(io.BytesIO(content)))
+	except :
+		return web.json_response({'status' : 'failed'})
+	task_id = crypto_utils.rand_bytes(16).hex()
+	os.makedirs(f'result/{task_id}/', exist_ok=True)
+	img.save(f'result/{task_id}/input.png')
+	QUEUE.append(task_id)
+	TASK_DATA[task_id] = {'manual': True}
+	TASK_STATES[task_id] = 'pending'
+	while True :
+		await asyncio.sleep(0.1)
+		if 'trans_request' in TASK_DATA[task_id] :
+			return web.json_response({'task_id' : task_id, 'status': 'pending', 'trans_result': TASK_DATA[task_id]['trans_request']})
+		if TASK_STATES[task_id] == 'error' :
+			break
+		if TASK_STATES[task_id] == 'finished' :
+			# no texts detected
+			return web.json_response({'task_id' : task_id, 'status': 'successful'})
+	return web.json_response({'task_id' : task_id, 'status': 'failed'})
 
 app.add_routes(routes)
 

@@ -2,3 +2,4 @@ result
 *.ckpt
 .vscode
 __pycache__
+ocrs

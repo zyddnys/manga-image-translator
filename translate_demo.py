@@ -20,7 +20,7 @@ import requests
 import os
 from collections import Counter
 from oscrypto import util as crypto_utils
-from utils import BBox
+from utils import BBox, Quadrilateral, image_resize, quadrilateral_can_merge_region
 
 parser = argparse.ArgumentParser(description='Generate text bboxes given a image file')
 parser.add_argument('--mode', default='demo', type=str, help='Run demo in either single image demo mode (demo) or web service mode (web)')
@@ -214,7 +214,7 @@ def rect_distance(x1, y1, x1b, y1b, x2, y2, x2b, y2b):
 	else:             # rectangles intersect
 		return 0
 
-def can_merge_text_region(x1, y1, w1, h1, x2, y2, w2, h2, ratio = 1.9, char_gap_tolerance = 0.9, char_gap_tolerance2 = 1.8) :
+def can_merge_text_region(x1, y1, w1, h1, x2, y2, w2, h2, ratio = 1.9, char_gap_tolerance = 0.9, char_gap_tolerance2 = 1.5) :
 	dist = rect_distance(x1, y1, x1 + w1, y1 + h1, x2, y2, x2 + w2, y2 + h2)
 	char_size = min(h1, h2, w1, w2)
 	if dist < char_size * char_gap_tolerance :
@@ -231,46 +231,57 @@ def can_merge_text_region(x1, y1, w1, h1, x2, y2, w2, h2, ratio = 1.9, char_gap_
 		return False
 	else :
 		return False
-
-def merge_bboxes(bboxes, merge_func) :
-	G = nx.Graph()
-	for i, box in enumerate(bboxes) :
-		G.add_node(i, box = box)
-	for ((u, ubox), (v, vbox)) in itertools.combinations(enumerate(bboxes), 2) :
-		if merge_func(ubox[0][0], ubox[0][1], ubox[1][0] - ubox[0][0], ubox[2][1] - ubox[1][1], vbox[0][0], vbox[0][1], vbox[1][0] - vbox[0][0], vbox[2][1] - vbox[1][1]) :
-			G.add_edge(u, v)
-	merged_boxes = []
-	for node_set in nx.algorithms.components.connected_components(G) :
-		kq = np.concatenate(bboxes[list(node_set)], axis = 0)
-		max_coord = np.max(kq, axis = 0)
-		min_coord = np.min(kq, axis = 0)
-		merged_boxes.append(np.maximum(np.array([
-			np.array([min_coord[0], min_coord[1]]),
-			np.array([max_coord[0], min_coord[1]]),
-			np.array([max_coord[0], max_coord[1]]),
-			np.array([min_coord[0], max_coord[1]])
-			]), 0))
-	return np.array(merged_boxes)
 	
-def merge_bboxes_text_region(bboxes: List[BBox]) :
+def get_mini_boxes(contour):
+	bounding_box = cv2.minAreaRect(contour)
+	points = sorted(list(cv2.boxPoints(bounding_box)), key=lambda x: x[0])
+
+	index_1, index_2, index_3, index_4 = 0, 1, 2, 3
+	if points[1][1] > points[0][1]:
+		index_1 = 0
+		index_4 = 1
+	else:
+		index_1 = 1
+		index_4 = 0
+	if points[3][1] > points[2][1]:
+		index_2 = 2
+		index_3 = 3
+	else:
+		index_2 = 3
+		index_3 = 2
+
+	box = [points[index_1], points[index_2], points[index_3], points[index_4]]
+	box = np.array(box)
+	startidx = box.sum(axis=1).argmin()
+	box = np.roll(box, 4-startidx, 0)
+	box = np.array(box)
+	return box
+
+def merge_bboxes_text_region(bboxes: List[Quadrilateral]) :
 	G = nx.Graph()
 	for i, box in enumerate(bboxes) :
 		G.add_node(i, box = box)
 	for ((u, ubox), (v, vbox)) in itertools.combinations(enumerate(bboxes), 2) :
-		if can_merge_text_region(ubox.x, ubox.y, ubox.w, ubox.h, vbox.x, vbox.y, vbox.w, vbox.h) :
+		if quadrilateral_can_merge_region(ubox, vbox) :
 			G.add_edge(u, v)
 	for node_set in nx.algorithms.components.connected_components(G) :
 		nodes = list(node_set)
 		# get overall bbox
-		kq = np.concatenate([x.to_points() for x in np.array(bboxes)[nodes]], axis = 0)
-		max_coord = np.max(kq, axis = 0)
-		min_coord = np.min(kq, axis = 0)
-		merged_box = np.maximum(np.array([
-			np.array([min_coord[0], min_coord[1]]),
-			np.array([max_coord[0], min_coord[1]]),
-			np.array([max_coord[0], max_coord[1]]),
-			np.array([min_coord[0], max_coord[1]])
-			]), 0)
+		txtlns = np.array(bboxes)[nodes]
+		kq = np.concatenate([x.pts for x in txtlns], axis = 0)
+		if sum([int(a.is_approximate_axis_aligned()) for a in txtlns]) > len(txtlns) // 2 :
+			max_coord = np.max(kq, axis = 0)
+			min_coord = np.min(kq, axis = 0)
+			merged_box = np.maximum(np.array([
+				np.array([min_coord[0], min_coord[1]]),
+				np.array([max_coord[0], min_coord[1]]),
+				np.array([max_coord[0], max_coord[1]]),
+				np.array([min_coord[0], max_coord[1]])
+				]), 0)
+			bbox = np.concatenate([a[None, :] for a in merged_box], axis = 0).astype(int)
+		else :
+			# TODO: use better method
+			bbox = np.concatenate([a[None, :] for a in get_mini_boxes(kq)], axis = 0).astype(int)
 		# calculate average fg and bg color
 		fg_r = round(np.mean([box.fg_r for box in [bboxes[i] for i in nodes]]))
 		fg_g = round(np.mean([box.fg_g for box in [bboxes[i] for i in nodes]]))
@@ -279,33 +290,33 @@ def merge_bboxes_text_region(bboxes: List[BBox]) :
 		bg_g = round(np.mean([box.bg_g for box in [bboxes[i] for i in nodes]]))
 		bg_b = round(np.mean([box.bg_b for box in [bboxes[i] for i in nodes]]))
 		# majority vote for direction
-		dirs = ['h' if box.w > box.h else 'v' for box in [bboxes[i] for i in nodes]]
+		dirs = [box.direction() for box in [bboxes[i] for i in nodes]]
 		majority_dir = Counter(dirs).most_common(1)[0][0]
 		# sort
 		if majority_dir == 'h' :
-			nodes = sorted(nodes, key = lambda x: bboxes[x].y + bboxes[x].h // 2)
+			nodes = sorted(nodes, key = lambda x: bboxes[x].get_aabb().y + bboxes[x].get_aabb().h // 2)
 		elif majority_dir == 'v' :
-			nodes = sorted(nodes, key = lambda x: -(bboxes[x].x + bboxes[x].w))
+			nodes = sorted(nodes, key = lambda x: -(bboxes[x].get_aabb().x + bboxes[x].get_aabb().w))
 		# yield overall bbox and sorted indices
-		yield merged_box, nodes, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
+		yield bbox, nodes, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
 
-def generate_bbox_and_text_direction(bboxes: List[BBox]) :
+def generate_text_direction(bboxes: List[Quadrilateral]) :
 	G = nx.Graph()
 	for i, box in enumerate(bboxes) :
 		G.add_node(i, box = box)
 	for ((u, ubox), (v, vbox)) in itertools.combinations(enumerate(bboxes), 2) :
-		if can_merge_text_region(ubox.x, ubox.y, ubox.w, ubox.h, vbox.x, vbox.y, vbox.w, vbox.h) :
+		if quadrilateral_can_merge_region(ubox, vbox) :
 			G.add_edge(u, v)
 	for node_set in nx.algorithms.components.connected_components(G) :
 		nodes = list(node_set)
 		# majority vote for direction
-		dirs = ['h' if box.w > box.h else 'v' for box in [bboxes[i] for i in nodes]]
+		dirs = [box.direction() for box in [bboxes[i] for i in nodes]]
 		majority_dir = Counter(dirs).most_common(1)[0][0]
 		# sort
 		if majority_dir == 'h' :
-			nodes = sorted(nodes, key = lambda x: bboxes[x].y + bboxes[x].h // 2)
+			nodes = sorted(nodes, key = lambda x: bboxes[x].get_aabb().y + bboxes[x].get_aabb().h // 2)
 		elif majority_dir == 'v' :
-			nodes = sorted(nodes, key = lambda x: -(bboxes[x].x + bboxes[x].w))
+			nodes = sorted(nodes, key = lambda x: -(bboxes[x].get_aabb().x + bboxes[x].get_aabb().w))
 		# yield overall bbox and sorted indices
 		for node in nodes :
 			yield bboxes[node], majority_dir
@@ -361,47 +372,27 @@ def chunks(lst, n):
 	for i in range(0, len(lst), n):
 		yield lst[i:i + n]
 
-def run_ocr(img, bboxes: List[Tuple[BBox, str]], dictionary, model, max_chunk_size = 2) :
+def run_ocr(img, quadrilaterals: List[Tuple[Quadrilateral, str]], dictionary, model, max_chunk_size = 2) :
 	text_height = 32
-	ret_bboxes = []
-	def map_bbox(ubox, direction) :
-		x, y, w, h = ubox.x, ubox.y, ubox.w, ubox.h
-		real_x, real_y, real_w, real_h = tuple([round(a) for a in [x, y, w, h]])
-		char_size = min(w, h)
-		x, y, w, h = tuple([round(a) for a in [x, y, w, h]])
-		x = max(x, 0)
-		y = max(y, 0)
-		w = min(w, img.shape[1] - x - 1)
-		h = min(h, img.shape[0] - y - 1)
-		region = img[y: y + h, x: x + w]
-		if direction == 'h' :
-			ratio = float(w) / float(h)
-			new_width = int(text_height * ratio)
-			new_height = text_height
-			region = cv2.resize(region, (new_width, new_height), cv2.INTER_LINEAR)
-		else :
-			ratio = float(h) / float(w)
-			new_height = int(text_height * ratio)
-			new_width = text_height
-			img_resized = cv2.resize(region, (new_width, new_height), cv2.INTER_LINEAR)
-			region = cv2.rotate(img_resized, cv2.ROTATE_90_COUNTERCLOCKWISE)
-			new_width, new_height = new_height, new_width
-		return (real_x, real_y, real_w, real_h), (new_width, new_height), region
-	resized_bboxes = [map_bbox(*box) for box in bboxes]
-	perm = sorted(range(len(resized_bboxes)), key = lambda x: resized_bboxes[x][1][0])
+	regions = [q.get_transformed_region(img, d, text_height) for q, d in quadrilaterals]
+	out_regions = []
+	perm = sorted(range(len(regions)), key = lambda x: regions[x].shape[1])
+	ix = 0
 	for indices in chunks(perm, max_chunk_size) :
 		N = len(indices)
-		widths = [resized_bboxes[i][1][0] for i in indices]
+		widths = [regions[i].shape[1] for i in indices]
 		max_width = 4 * (max(widths) + 7) // 4
 		region = np.zeros((N, text_height, max_width, 3), dtype = np.uint8)
 		for i, idx in enumerate(indices) :
-			W = resized_bboxes[idx][1][0]
-			region[i, :, : W, :] = resized_bboxes[idx][2]
+			W = regions[idx].shape[1]
+			region[i, :, : W, :] = regions[idx]
+			#cv2.imwrite(f'ocrs/{ix}.png', region[i, :, :, :])
+			ix += 1
 		images = (torch.from_numpy(region).float() - 127.5) / 127.5
 		images = einops.rearrange(images, 'N H W C -> N C H W')
 		ret = ocr_infer_bacth(images, model, widths)
 		for i, (pred_chars_index, prob, fr, fg, fb, br, bg, bb) in enumerate(ret) :
-			if prob < 0.6 :
+			if prob < 0.7 :
 				continue
 			fr = (torch.clip(fr.view(-1), 0, 1).mean() * 255).long().item()
 			fg = (torch.clip(fg.view(-1), 0, 1).mean() * 255).long().item()
@@ -409,7 +400,6 @@ def run_ocr(img, bboxes: List[Tuple[BBox, str]], dictionary, model, max_chunk_si
 			br = (torch.clip(br.view(-1), 0, 1).mean() * 255).long().item()
 			bg = (torch.clip(bg.view(-1), 0, 1).mean() * 255).long().item()
 			bb = (torch.clip(bb.view(-1), 0, 1).mean() * 255).long().item()
-			(x, y, w, h), (new_width, new_height), region = resized_bboxes[indices[i]]
 			seq = []
 			for chid in pred_chars_index :
 				ch = dictionary[chid]
@@ -422,8 +412,17 @@ def run_ocr(img, bboxes: List[Tuple[BBox, str]], dictionary, model, max_chunk_si
 				seq.append(ch)
 			txt = ''.join(seq)
 			print(prob, txt)
-			ret_bboxes.append(BBox(x, y, w, h, txt, prob, fr, fg, fb, br, bg, bb))
-	return ret_bboxes
+			cur_region = quadrilaterals[indices[i]][0]
+			cur_region.text = txt
+			cur_region.prob = prob
+			cur_region.fg_r = fr
+			cur_region.fg_g = fg
+			cur_region.fg_b = fb
+			cur_region.bg_r = br
+			cur_region.bg_g = bg
+			cur_region.bg_b = bb
+			out_regions.append(cur_region)
+	return out_regions
 
 def resize_keep_aspect(img, size) :
 	ratio = (float(size)/max(img.shape[0], img.shape[1]))
@@ -473,9 +472,6 @@ def run_inpainting(model_inpainting, img, mask, max_image_size = 1024, pad_size 
 		img_inpainted = cv2.resize(img_inpainted, (width, height), interpolation = cv2.INTER_LINEAR_EXACT)
 	return img_inpainted * mask_original + img_original * (1 - mask_original), (img_torch.cpu() * 127.5 + 127.5).squeeze_(0).permute(1, 2, 0).numpy()
 
-from youdao import Translator
-translator = Translator()
-
 import text_render
 
 def load_ocr_model() :
@@ -521,7 +517,7 @@ def get_task(nonce) :
 	except :
 		return None
 
-def infer(
+async def infer(
 	img,
 	mode,
 	nonce,
@@ -538,6 +534,7 @@ def infer(
 	img_resized, target_ratio, _, pad_w, pad_h = imgproc.resize_aspect_ratio(img, args.size, cv2.INTER_LINEAR, mag_ratio = 1)
 	img_to_overlay = np.copy(img_resized)
 	ratio_h = ratio_w = 1 / target_ratio
+
 	print(f'Detection resolution: {img_resized.shape[1]}x{img_resized.shape[0]}')
 	print(' -- Running text detection')
 	if mode == 'web' and task_id :
@@ -552,31 +549,23 @@ def infer(
 	polys = polys.astype(np.float64)
 	polys = craft_utils.adjustResultCoordinates(polys, ratio_w, ratio_h, ratio_net = 1)
 	polys = polys.astype(np.int16)
-	# merge textlines
-	#polys = merge_bboxes(polys, can_merge_textline)
-	for [tl, tr, br, bl] in polys :
-		x = int(tl[0])
-		y = int(tl[1])
-		width = int(tr[0] - tl[0])
-		height = int(br[1] - tr[1])
-		cv2.rectangle(img_bbox_all, (x, y), (x + width, y + height), color=(255, 0, 0), thickness=2)
+	textlines = [Quadrilateral(pts.astype(int), '', 0) for pts in polys]
+	for txtln in textlines :
+		cv2.polylines(img_bbox_all, [txtln.pts], True, color = (255, 0, 0), thickness = 2)
+		[l1a, l1b, l2a, l2b] = txtln.get_structure()
+		cv2.line(img_bbox_all, l1a, l1b, color = (0, 255, 0), thickness = 1)
+		cv2.line(img_bbox_all, l2a, l2b, color = (0, 0, 255), thickness = 1)
+		dbox = txtln.get_aabb()
+		cv2.rectangle(img_bbox_all, (dbox.x, dbox.y), (dbox.x + dbox.w, dbox.y + dbox.h), color = (255, 0, 255), thickness = 2)
+
 	print(' -- Running OCR')
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'ocr')
-	# run OCR for each textline
-	text_bbox_and_direction = list(generate_bbox_and_text_direction(
-		[BBox(int(ubox[0][0]), int(ubox[0][1]), int(ubox[1][0] - ubox[0][0]), int(ubox[2][1] - ubox[1][1]), '', 0) for ubox in polys]
-	))
-	textlines = run_ocr(img_bbox, text_bbox_and_direction, dictionary, model_ocr, 32)
-	# merge textline to text region, filter textlines without characters
-	text_regions: List[BBox] = []
+	textlines = run_ocr(img_bbox, list(generate_text_direction(textlines)), dictionary, model_ocr, 16)
+
+	text_regions: List[Quadrilateral] = []
 	new_textlines = []
 	for (poly_regions, textline_indices, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines) :
-		[tl, tr, br, bl] = poly_regions
-		x = int(tl[0]) - 0
-		y = int(tl[1]) - 0
-		width = int(tr[0] - tl[0]) + 0
-		height = int(br[1] - tr[1]) + 0
 		text = ''
 		logprob_lengths = []
 		for textline_idx in textline_indices :
@@ -600,14 +589,22 @@ def infer(
 		total_logprobs /= sum([x[1] for x in logprob_lengths])
 		# filter text region without characters
 		if vc > 1 :
-			region = BBox(x, y, width, height, text, np.exp(total_logprobs), fg_r, fg_g, fg_b, bg_r, bg_g, bg_b)
+			region = Quadrilateral(poly_regions, text, np.exp(total_logprobs), fg_r, fg_g, fg_b, bg_r, bg_g, bg_b)
+			region.clip(img.shape[1], img.shape[0])
 			region.textline_indices = []
 			region.majority_dir = majority_dir
 			text_regions.append(region)
 			for textline_idx in textline_indices :
 				region.textline_indices.append(len(new_textlines))
 				new_textlines.append(textlines[textline_idx])
-	textlines = new_textlines
+	textlines: List[Quadrilateral] = new_textlines
+
+	if mode == 'web' and task_id :
+		print(' -- Translating')
+		update_state(task_id, nonce, 'translating')
+		# in web mode, we can start translation task async
+		requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.text for r in text_regions]})
+
 	print(' -- Generating text mask')
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'mask_generation')
@@ -621,7 +618,7 @@ def infer(
 	mask_resized = cv2.resize(mask_resized, (img.shape[1] // 2, img.shape[0] // 2), interpolation = cv2.INTER_LINEAR)
 	img_resized_2 = cv2.resize(img, (img.shape[1] // 2, img.shape[0] // 2), interpolation = cv2.INTER_LINEAR)
 	mask_resized[mask_resized > 150] = 255
-	text_lines = [(a.x // 2, a.y // 2, a.w // 2, a.h // 2) for a in textlines]
+	text_lines = [(a.get_aabb().x // 2, a.get_aabb().y // 2, a.get_aabb().w // 2, a.get_aabb().h // 2) for a in textlines]
 	mask_ccs, cc2textline_assignment = filter_masks(mask_resized, text_lines)
 	if mask_ccs :
 		mask_filtered = reduce(cv2.bitwise_or, mask_ccs)
@@ -634,51 +631,89 @@ def infer(
 		final_mask[final_mask > 0] = 255
 	else :
 		final_mask = np.zeros((img.shape[0], img.shape[1]), dtype = np.uint8)
+
+
 	print(' -- Running inpainting')
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'inpainting')
 	# run inpainting
 	img_inpainted, inpaint_input = run_inpainting(model_inpainting, img, final_mask, args.inpainting_size)
 
-	# TODO: translation and inpainting can run in parallel
-	print(' -- Translating')
-	if mode == 'web' and task_id :
-		update_state(task_id, nonce, 'translating')
 	# translate text region texts
-	texts = '\n'.join([r.text for r in text_regions])
-	if texts :
-		trans_ret = translator.translate('auto', 'zh-CHS', texts)
-	else :
-		trans_ret = []
-	if trans_ret :
-		translated_sentences = []
-		batch = len(text_regions)
-		if len(trans_ret) < batch :
-			translated_sentences.extend(trans_ret)
-			translated_sentences.extend([''] * (batch - len(trans_ret)))
-		elif len(trans_ret) > batch :
-			translated_sentences.extend(trans_ret[:batch])
+	if mode != 'web' :
+		print(' -- Translating')
+		texts = '\n'.join([r.text for r in text_regions])
+		if texts :
+			from youdao import Translator
+			translator = Translator()
+			trans_ret = await translator.translate('auto', 'zh-CHS', texts)
 		else :
-			translated_sentences.extend(trans_ret)
+			trans_ret = []
+		if trans_ret :
+			translated_sentences = []
+			batch = len(text_regions)
+			if len(trans_ret) < batch :
+				translated_sentences.extend(trans_ret)
+				translated_sentences.extend([''] * (batch - len(trans_ret)))
+			elif len(trans_ret) > batch :
+				translated_sentences.extend(trans_ret[:batch])
+			else :
+				translated_sentences.extend(trans_ret)
+		else :
+			translated_sentences = texts
 	else :
-		translated_sentences = texts
+		while True :
+			ret = requests.post('http://127.0.0.1:5003/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}).json()
+			if 'result' in ret :
+				translated_sentences = ret['result']
+				break
+			await asyncio.sleep(0.1)
+
 	print(' -- Rendering translated text')
 	# render translated texts
 	img_canvas = np.copy(img_inpainted)
 	for trans_text, region in zip(translated_sentences, text_regions) :
 		print(region.text)
 		print(trans_text)
-		print(region.majority_dir, region.x, region.y, region.w, region.h)
+		print(region.majority_dir, region.pts)
 		fg = (region.fg_b, region.fg_g, region.fg_r)
 		bg = None#(region.bg_b, region.bg_g, region.bg_r)
 		for idx in region.textline_indices :
 			txtln = textlines[idx]
-			img_bbox = cv2.rectangle(img_bbox, (txtln.x, txtln.y), (txtln.x + txtln.w, txtln.y + txtln.h), color = fg, thickness=2)
-		img_bbox = cv2.rectangle(img_bbox, (region.x, region.y), (region.x + region.w, region.y + region.h), color=(0, 0, 255), thickness=2)
+			img_bbox = cv2.polylines(img_bbox, [txtln.pts], True, color = fg, thickness=2)
+		img_bbox = cv2.polylines(img_bbox, [region.pts], True, color=(0, 0, 255), thickness=2)
+
+		region_aabb = region.get_aabb()
+		tmp_canvas = np.ones((region_aabb.h * 2, region_aabb.w * 2, 3), dtype = np.uint8) * 255
+		tmp_mask = np.zeros((region_aabb.h * 2, region_aabb.w * 2), dtype = np.uint8)
+
 		if region.majority_dir == 'h' :
-			text_render.put_text_horizontal(img_canvas, trans_text, len(region.textline_indices), [textlines[idx] for idx in region.textline_indices], region.x, region.y, region.w, region.h, fg, bg)
+			text_render.put_text_horizontal(tmp_canvas, tmp_mask, trans_text, len(region.textline_indices), [textlines[idx] for idx in region.textline_indices], region_aabb.w // 2, region_aabb.h // 2, region_aabb.w, region_aabb.h, fg, bg)
 		else :
-			text_render.put_text_vertical(img_canvas, trans_text, len(region.textline_indices), [textlines[idx] for idx in region.textline_indices], region.x, region.y, region.w, region.h, fg, bg)
+			text_render.put_text_vertical(tmp_canvas, tmp_mask, trans_text, len(region.textline_indices), [textlines[idx] for idx in region.textline_indices], region_aabb.w // 2, region_aabb.h // 2, region_aabb.w, region_aabb.h, fg, bg)
+
+		tmp_mask *= 255
+		x, y, w, h = cv2.boundingRect(tmp_mask)
+		r_prime = w / h
+		r = region.aspect_ratio()
+		w_ext = 0
+		h_ext = 0
+		if r_prime > r :
+			h_ext = w / (2 * r) - h / 2
+		else :
+			w_ext = (h * r - w) / 2
+		region_ext = round(min(w, h) * 0.05)
+		h_ext += region_ext
+		w_ext += region_ext
+		src_pts = np.array([[x - w_ext, y - h_ext], [x + w + w_ext, y - h_ext], [x + w + w_ext, y + h + h_ext], [x - w_ext, y + h + h_ext]]).astype(np.float32)
+		src_pts[:, 0] = np.clip(np.round(src_pts[:, 0]), 0, region_aabb.w * 2)
+		src_pts[:, 1] = np.clip(np.round(src_pts[:, 1]), 0, region_aabb.h * 2)
+		dst_pts = region.pts
+		M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+		canvas_region = cv2.warpPerspective(tmp_canvas, M, (img_canvas.shape[1], img_canvas.shape[0]), flags = cv2.INTER_LINEAR)
+		mask_region = cv2.warpPerspective(tmp_mask, M, (img_canvas.shape[1], img_canvas.shape[0]), flags = cv2.INTER_LINEAR)[:, :, None]
+		mask_region = mask_region.astype(np.float32) / 255.0
+		img_canvas = (img_canvas.astype(np.float32) * (1 - mask_region) + canvas_region.astype(np.float32) * mask_region).astype(np.uint8)
 
 	print(' -- Saving results')
 	result_db = db[0, 0, :, :].numpy()
@@ -698,8 +733,9 @@ def infer(
 
 from PIL import Image
 import time
+import asyncio
 
-def main(mode = 'demo') :
+async def main(mode = 'demo') :
 	print(' -- Loading models')
 	import os
 	os.makedirs('result', exist_ok = True)
@@ -715,7 +751,7 @@ def main(mode = 'demo') :
 			parser.print_usage()
 			return
 		img = cv2.imread(args.image)
-		infer(img, mode, '', dictionary, model_detect, model_ocr, model_inpainting)
+		await infer(img, mode, '', dictionary, model_detect, model_ocr, model_inpainting)
 	elif mode == 'web' :
 		print('Running in web service mode')
 		print('Waiting for translation tasks')
@@ -729,14 +765,14 @@ def main(mode = 'demo') :
 				print(f'Processing task {task_id}')
 				img = cv2.imread(f'result/{task_id}/input.png')
 				try :
-					infer(img, mode, nonce, dictionary, model_detect, model_ocr, model_inpainting, task_id)
+					await infer(img, mode, nonce, dictionary, model_detect, model_ocr, model_inpainting, task_id)
 				except :
 					import traceback
 					traceback.print_exc()
-					update_state(task_id, 'error')
+					update_state(task_id, nonce, 'error')
 			else :
 				time.sleep(0.1)
 	
 
 if __name__ == '__main__':
-	main(args.mode)
+	asyncio.run(main(args.mode))

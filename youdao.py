@@ -7,6 +7,8 @@ import hashlib
 import time
 from imp import reload
 
+import aiohttp
+import asyncio
 import time
 
 reload(sys)
@@ -27,15 +29,17 @@ def truncate(q):
 	return q if size <= 20 else q[0:10] + str(size) + q[size - 10:size]
 
 
-def do_request(data):
+async def do_request(data):
 	headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-	return requests.post(YOUDAO_URL, data=data, headers=headers)
+	async with aiohttp.ClientSession() as session:
+		async with session.post(YOUDAO_URL, data=data, headers=headers) as resp:
+			return await resp.json()
 
 class Translator(object):
 	def __init__(self):
 	   pass
 
-	def translate(self, from_lang, to_lang, query_text):
+	async def translate(self, from_lang, to_lang, query_text):
 		data = {}
 		data['from'] = from_lang
 		data['to'] = to_lang
@@ -51,14 +55,9 @@ class Translator(object):
 		data['sign'] = sign
 		#data['vocabId'] = "您的用户词表ID"
 
-		response = do_request(data)
-		contentType = response.headers['Content-Type']
-		if contentType == "audio/mp3":
-			return []
-		else:
-			result = response.json()
-			result_list = []
-			for ret in result["translation"]:
-				result_list.extend(ret.split('\n'))
-			return result_list
+		result = await do_request(data)
+		result_list = []
+		for ret in result["translation"]:
+			result_list.extend(ret.split('\n'))
+		return result_list
 
