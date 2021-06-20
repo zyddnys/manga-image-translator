@@ -681,7 +681,12 @@ async def infer(
 		for idx in region.textline_indices :
 			txtln = textlines[idx]
 			img_bbox = cv2.polylines(img_bbox, [txtln.pts], True, color = fg, thickness=2)
-		img_bbox = cv2.polylines(img_bbox, [region.pts], True, color=(0, 0, 255), thickness=2)
+			[l1a, l1b, l2a, l2b] = txtln.get_structure()
+			cv2.line(img_bbox, l1a, l1b, color = (0, 255, 0), thickness = 2)
+			cv2.line(img_bbox, l2a, l2b, color = (0, 0, 255), thickness = 2)
+			dbox = txtln.get_aabb()
+			cv2.rectangle(img_bbox, (dbox.x, dbox.y), (dbox.x + dbox.w, dbox.y + dbox.h), color = (255, 0, 255), thickness = 2)
+		img_bbox = cv2.polylines(img_bbox, [region.pts], True, color=(0, 0, 255), thickness = 2)
 
 		region_aabb = region.get_aabb()
 		tmp_canvas = np.ones((region_aabb.h * 2, region_aabb.w * 2, 3), dtype = np.uint8) * 255

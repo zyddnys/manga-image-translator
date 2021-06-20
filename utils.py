@@ -95,6 +95,12 @@ class Quadrilateral(object) :
 		v2 = l2b - l2a
 		return np.linalg.norm(v2) / np.linalg.norm(v1)
 
+	def font_size(self) -> float :
+		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.get_structure()]
+		v1 = l1b - l1a
+		v2 = l2b - l2a
+		return min(np.linalg.norm(v2), np.linalg.norm(v1))
+
 	def width(self) -> int :
 		return self.get_aabb().w
 
@@ -169,6 +175,26 @@ class Quadrilateral(object) :
 		else :
 			return 'h'
 
+	def cosangle(self) -> float :
+		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.get_structure()]
+		v1 = l1b - l1a
+		e2 = np.array([1, 0])
+		unit_vector_1 = v1 / np.linalg.norm(v1)
+		return np.dot(unit_vector_1, e2)
+
+	def angle(self) -> float :
+		return np.fmod(np.arccos(self.cosangle()) + np.pi, np.pi)
+
+	def centroid(self) -> np.ndarray :
+		return np.average(self.pts, axis = 0)
+
+	def distance_to_point(self, p: np.ndarray) -> float :
+		d = 1.0e20
+		for i in range(4) :
+			d = min(d, distance_point_point(p, self.pts[i]))
+			d = min(d, distance_point_lineseg(p, self.pts[i], self.pts[(i + 1) % 4]))
+		return d
+
 def dist(x1, y1, x2, y2) :
 	return np.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2))
 
@@ -196,6 +222,43 @@ def rect_distance(x1, y1, x1b, y1b, x2, y2, x2b, y2b):
 	else:             # rectangles intersect
 		return 0
 
+def distance_point_point(a: np.ndarray, b: np.ndarray) -> float :
+	return np.linalg.norm(a - b)
+
+# from https://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
+def distance_point_lineseg(p: np.ndarray, p1: np.ndarray, p2: np.ndarray) :
+	x = p[0]
+	y = p[1]
+	x1 = p1[0]
+	y1 = p1[1]
+	x2 = p2[0]
+	y2 = p2[1]
+	A = x - x1
+	B = y - y1
+	C = x2 - x1
+	D = y2 - y1
+
+	dot = A * C + B * D
+	len_sq = C * C + D * D
+	param = -1
+	if len_sq != 0 :
+		param = dot / len_sq
+
+	if param < 0 :
+		xx = x1
+		yy = y1
+	elif param > 1 :
+		xx = x2
+		yy = y2
+	else :
+		xx = x1 + param * C
+		yy = y1 + param * D
+
+	dx = x - xx
+	dy = y - yy
+	return np.sqrt(dx * dx + dy * dy)
+
+
 def quadrilateral_can_merge_region(a: Quadrilateral, b: Quadrilateral, ratio = 1.9, char_gap_tolerance = 0.9, char_gap_tolerance2 = 1.5) -> bool :
 	a_aa = a.is_approximate_axis_aligned()
 	b_aa = b.is_approximate_axis_aligned()
@@ -221,6 +284,14 @@ def quadrilateral_can_merge_region(a: Quadrilateral, b: Quadrilateral, ratio = 1
 		else :
 			return False
 	if not a_aa and not b_aa :
-		# TODO: merge non AA text regions
-		pass
+		if abs(a.angle() - b.angle()) < 15 * np.pi / 180 :
+			fs_a = a.font_size()
+			fs_b = b.font_size()
+			fs = min(fs_a, fs_b)
+			ca, cb = a.centroid(), b.centroid()
+			if a.distance_to_point(cb) > fs * char_gap_tolerance2 and b.distance_to_point(ca) > fs * char_gap_tolerance2 :
+				return False
+			if abs(fs_a - fs_b) / fs > 0.25 :
+				return False
+			return True
 	return False
