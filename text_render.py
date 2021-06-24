@@ -162,23 +162,18 @@ def rotate_image(image, angle) :
 	return result, (diff_i, diff_j)
 
 def add_color(bw_char_map, color, border_color = None, border_size: int = 0, bg = None) :
-	char_intensity = np.tile(bw_char_map[:,:,None], 3).astype(np.float32) / 255.0
-	bg = np.zeros((bw_char_map.shape[0], bw_char_map.shape[1], 3), dtype = np.uint8) if bg is None else bg
-	fg = np.zeros((bw_char_map.shape[0], bw_char_map.shape[1], 3), dtype = np.uint8)
-	bg_mask = np.zeros((bw_char_map.shape[0], bw_char_map.shape[1]), dtype = np.uint8)
-	if border_size > 0 :
-		bg_mask = np.copy(bw_char_map)
-		kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * border_size + 1, 2 * border_size + 1))
-		bg_mask = cv2.dilate(bg_mask, kern)
+	fg = np.zeros((bw_char_map.shape[0] + 4, bw_char_map.shape[1] + 4, 3), dtype = np.uint8)
 	color_np = np.array(color, dtype = np.uint8)
 	if border_color and border_size > 0 :
-		mask = bg_mask.astype(bool) | (bw_char_map > 0)
 		bg_color_np = np.array(border_color, dtype = np.uint8)
-		bg[mask] = bg_color_np
+		fg[:] = bg_color_np
+		fg[bw_char_map > 0] = color_np
+		alpha = cv2.dilate(bw_char_map, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * border_color + 1, 2 * border_color + 1)))
+		return fg.astype(np.uint8), alpha, color, border_color if border_size > 0 else None
 	else :
-		mask = bw_char_map > 0
-	fg[mask] = color_np
-	return (bg * (1 - char_intensity) + fg * char_intensity).astype(np.uint8), mask, color, border_color if border_size > 0 else None
+		fg[:] = color_np
+		alpha = bw_char_map
+		return fg.astype(np.uint8), alpha, color, border_color if border_size > 0 else None
 
 CACHED_FONT_FACE = []
 
@@ -228,6 +223,7 @@ def put_char(canvas: np.ndarray, mask: np.ndarray, x: int, y: int, font_size: in
 	new_char_map[place_y:place_y+char_map.shape[0], place_x:place_x+char_map.shape[1]] = char_map[:available_region.shape[0],:available_region.shape[1]]
 	char_map = new_char_map
 	char_map = char_map.reshape((char_map.shape[0],char_map.shape[1],1))
+	#char_map = cv2.copyMakeBorder(char_map, 2, 2, 2, 2, cv2.BORDER_CONSTANT)
 	degree = 0
 	if rot == 1 and direction == 1 :
 		degree = -90.0
@@ -244,12 +240,12 @@ def put_char(canvas: np.ndarray, mask: np.ndarray, x: int, y: int, font_size: in
 	if len(char_map.shape) == 3 :
 		char_map = char_map.squeeze(-1)
 	if border_color :
-		char_map, char_map_mask, char_color, border_color = add_color(char_map, char_color, border_color=border_color, border_size=border_size)
+		char_map, char_map_alpha, char_color, border_color = add_color(char_map, char_color, border_color=border_color, border_size=border_size)
 	else :
-		char_map, char_map_mask, char_color, border_color = add_color(char_map, char_color, bg = canvas[y - diff_i:y+diff_i+font_size,x-diff_j: x+diff_j+font_size,:])
-	x2, y2, w2, h2 = cv2.boundingRect(char_map_mask.astype(np.uint8) * 255)
-	np.putmask(canvas[y - diff_i:y+diff_i+font_size,x-diff_j: x+diff_j+font_size,:], np.tile(char_map_mask[:,:,None], 3), char_map)
-	mask[y - diff_i:y+diff_i+font_size,x-diff_j: x+diff_j+font_size] |= char_map_mask
+		char_map, char_map_alpha, char_color, border_color = add_color(char_map, char_color, bg = canvas[y - diff_i:y+diff_i+font_size,x-diff_j: x+diff_j+font_size,:])
+	x2, y2, w2, h2 = cv2.boundingRect(char_map_alpha.astype(np.uint8))
+	canvas[y - diff_i-2:y+diff_i+font_size+2,x-diff_j-2: x+diff_j+font_size+2,:] = char_map
+	mask[y - diff_i:y+diff_i+font_size,x-diff_j: x+diff_j+font_size] += char_map_alpha
 	if offset_y == 0 and direction == 1 :
 		offset_y = font_size
 	return (offset_x, offset_y), (x-diff_j+x2, y - diff_i+y2, w2, h2), False, degree, char_color, border_color

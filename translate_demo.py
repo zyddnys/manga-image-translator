@@ -30,8 +30,8 @@ parser.add_argument('--use-inpainting', action='store_true', help='turn on/off i
 parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
 parser.add_argument('--inpainting-size', default=2048, type=int, help='size of image used for inpainting (too large will result in OOM)')
 parser.add_argument('--unclip-ratio', default=2.2, type=float, help='How much to extend text skeleton to form bounding box')
-parser.add_argument('--box-threshold', default=0.8, type=float, help='threshold for bbox generation')
-parser.add_argument('--text-threshold', default=0.6, type=float, help='threshold for text detection')
+parser.add_argument('--box-threshold', default=0.7, type=float, help='threshold for bbox generation')
+parser.add_argument('--text-threshold', default=0.5, type=float, help='threshold for text detection')
 args = parser.parse_args()
 print(args)
 
@@ -689,15 +689,15 @@ async def infer(
 		img_bbox = cv2.polylines(img_bbox, [region.pts], True, color=(0, 0, 255), thickness = 2)
 
 		region_aabb = region.get_aabb()
-		tmp_canvas = np.ones((region_aabb.h * 2, region_aabb.w * 2, 3), dtype = np.uint8) * 255
-		tmp_mask = np.zeros((region_aabb.h * 2, region_aabb.w * 2), dtype = np.uint8)
+		tmp_canvas = np.ones((region_aabb.h * 2, region_aabb.w * 2, 3), dtype = np.uint8) * 127
+		tmp_mask = np.zeros((region_aabb.h * 2, region_aabb.w * 2), dtype = np.uint16)
 
 		if region.majority_dir == 'h' :
 			text_render.put_text_horizontal(tmp_canvas, tmp_mask, trans_text, len(region.textline_indices), [textlines[idx] for idx in region.textline_indices], region_aabb.w // 2, region_aabb.h // 2, region_aabb.w, region_aabb.h, fg, bg)
 		else :
 			text_render.put_text_vertical(tmp_canvas, tmp_mask, trans_text, len(region.textline_indices), [textlines[idx] for idx in region.textline_indices], region_aabb.w // 2, region_aabb.h // 2, region_aabb.w, region_aabb.h, fg, bg)
 
-		tmp_mask *= 255
+		tmp_mask = np.clip(tmp_mask, 0, 255).astype(np.uint8)
 		x, y, w, h = cv2.boundingRect(tmp_mask)
 		r_prime = w / h
 		r = region.aspect_ratio()
@@ -715,9 +715,10 @@ async def infer(
 		src_pts[:, 1] = np.clip(np.round(src_pts[:, 1]), 0, region_aabb.h * 2)
 		dst_pts = region.pts
 		M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-		canvas_region = cv2.warpPerspective(tmp_canvas, M, (img_canvas.shape[1], img_canvas.shape[0]), flags = cv2.INTER_LINEAR)
-		mask_region = cv2.warpPerspective(tmp_mask, M, (img_canvas.shape[1], img_canvas.shape[0]), flags = cv2.INTER_LINEAR)[:, :, None]
-		mask_region = mask_region.astype(np.float32) / 255.0
+		tmp_rgba = np.concatenate([tmp_canvas, tmp_mask[:, :, None]], axis = -1).astype(np.float32)
+		rgba_region = cv2.warpPerspective(tmp_rgba, M, (img_canvas.shape[1], img_canvas.shape[0]), flags = cv2.INTER_LINEAR, borderMode = cv2.BORDER_TRANSPARENT)
+		canvas_region = rgba_region[:, :, 0: 3]
+		mask_region = rgba_region[:, :, 3: 4].astype(np.float32) / 255.0
 		img_canvas = (img_canvas.astype(np.float32) * (1 - mask_region) + canvas_region.astype(np.float32) * mask_region).astype(np.uint8)
 
 	print(' -- Saving results')
