@@ -6,6 +6,8 @@ https://touhou.ai/imgtrans/
 # English README
 [README_EN.md](README_EN.md)
 # Changelogs
+### 2021-07-09
+1. 修复不使用inpainting时图片错误
 ### 2021-06-18
 1. 增加手动翻译选项
 2. 支持倾斜文本的识别和渲染

@@ -3,6 +3,8 @@ https://touhou.ai/imgtrans/
 * Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
 * Note this online demo maybe using an earlier version and not representing the current main branch version.
 # Changelogs
+### 2021-07-09
+1. Fix erroneous image rendering when inpainting is not used
 ### 2021-06-18
 1. Support manual translation
 2. Support detection and rendering of angled texts

@@ -719,7 +719,7 @@ async def infer(
 		rgba_region = cv2.warpPerspective(tmp_rgba, M, (img_canvas.shape[1], img_canvas.shape[0]), flags = cv2.INTER_LINEAR, borderMode = cv2.BORDER_TRANSPARENT)
 		canvas_region = rgba_region[:, :, 0: 3]
 		mask_region = rgba_region[:, :, 3: 4].astype(np.float32) / 255.0
-		img_canvas = (img_canvas.astype(np.float32) * (1 - mask_region) + canvas_region.astype(np.float32) * mask_region).astype(np.uint8)
+		img_canvas = np.clip((img_canvas.astype(np.float32) * (1 - mask_region) + canvas_region.astype(np.float32) * mask_region), 0, 255).astype(np.uint8)
 
 	print(' -- Saving results')
 	result_db = db[0, 0, :, :].numpy()
