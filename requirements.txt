@@ -1,0 +1,11 @@
+networkx
+torch
+torchvision
+einops
+scikit-image
+opencv-python
+pyclipper
+shapely
+requests
+oscrypto 
+freetype-py
