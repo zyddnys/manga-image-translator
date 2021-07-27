@@ -6,6 +6,17 @@ https://touhou.ai/imgtrans/
 # English README
 [README_EN.md](README_EN.md)
 # Changelogs
+### 2021-07-26
+程序所有组件都大幅升级，本程序现已进入beta版本！ \
+注意：该版本所有英文检测只会输出大写字母。\
+你需要Python>=3.8版本才能运行
+1. 检测模型升级
+2. OCR模型升级，文本颜色抽取质量大幅提升
+3. 图像修补模型升级
+4. 文本渲染升级，渲染更快，并支持更高质量的文本和文本阴影渲染
+5. 文字掩膜补全算法小幅提升
+6. 各类BUG修复
+7. 默认检测分辨率为1536
 ### 2021-07-09
 1. 修复不使用inpainting时图片错误
 ### 2021-06-18
@@ -43,16 +54,18 @@ https://touhou.ai/imgtrans/
 该项目是[求闻转译志](https://github.com/PatchyVideo/MMDOCR-HighPerformance)的v2版本
 
 # 使用说明
-1. clone这个repo
-2. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/alpha-v3.0.0)ocr.ckpt、detect.ckpt和inpainting.ckpt，放到这个repo的根目录下
-3. 申请有道翻译API，把你的APP_KEY和APP_SECRET存到key.py里
-4. 运行`python translate_demo.py --image <图片文件路径> [--use-inpainting] [--use-cuda]`，结果会存放到result文件夹里。请加上`--use-inpainting`使用图像修补，请加上`--use-cuda`使用GPU。
+1. Python>=3.8
+2. clone这个repo
+3. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.0)ocr.ckpt、detect.ckpt和inpainting.ckpt，放到这个repo的根目录下
+4. 申请有道翻译API，把你的APP_KEY和APP_SECRET存到key.py里
+5. 运行`python translate_demo.py --image <图片文件路径> [--use-inpainting] [--use-cuda]`，结果会存放到result文件夹里。请加上`--use-inpainting`使用图像修补，请加上`--use-cuda`使用GPU。
 
 # Web服务使用说明
-1. clone这个repo
-2. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/alpha-v3.0.0)ocr.ckpt、detect.ckpt和inpainting.ckpt，放到这个repo的根目录下
-3. 申请有道翻译API，把你的APP_KEY和APP_SECRET存到key.py里
-4. 运行`python translate_demo.py --mode web [--use-inpainting] [--use-cuda]`，程序服务会开启在http://127.0.0.1:5003
+1. Python>=3.8
+2. clone这个repo
+3. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.0)ocr.ckpt、detect.ckpt和inpainting.ckpt，放到这个repo的根目录下
+4. 申请有道翻译API，把你的APP_KEY和APP_SECRET存到key.py里
+5. 运行`python translate_demo.py --mode web [--use-inpainting] [--use-cuda]`，程序服务会开启在http://127.0.0.1:5003
 
 程序提供两个请求模式：同步模式和异步模式。 \
 同步模式下你的HTTP POST请求会一直等待直到翻译完成。 \
@@ -81,7 +94,7 @@ https://touhou.ai/imgtrans/
 6. [Ryota et al.](https://arxiv.org/abs/2012.14271)提出了获取配对漫画作为训练数据，训练可以结合图片内容进行翻译的模型，未来可以考虑把大量图片VQVAE化，输入nmt的encoder辅助翻译，而不是分框提取tag辅助翻译，这样可以处理范围更广的图片。这需要我们也获取大量配对翻译漫画/图片数据，以及训练VQVAE模型。
 7. 求闻转译志针对视频设计，未来这个项目要能优化到可以处理视频，提取文本颜色用于生成ass字幕，进一步辅助东方视频字幕组工作。甚至可以涂改视频内容，去掉视频内字幕。
 8. <s>结合传统算法的mask生成优化，目前在测试CRF相关算法。</s>
-9. 尚不支持倾斜文本区域合并
+9. <s>尚不支持倾斜文本区域合并</s>
 
 # 效果图
 以下图片为最初版效果，并不代表目前最新版本的效果。

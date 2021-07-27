@@ -18,47 +18,46 @@ class ResNet(nn.Module):
 		self.output_channel_block = [int(output_channel / 4), int(output_channel / 2), output_channel, output_channel]
 
 		self.inplanes = int(output_channel / 8)
-		self.conv0_1 = nn.Conv2d(input_channel, int(output_channel / 16),
+		self.conv0_1 = nn.Conv2d(input_channel, int(output_channel / 8),
 								 kernel_size=3, stride=1, padding=1, bias=False)
-		self.bn0_1 = nn.BatchNorm2d(int(output_channel / 16))
-		self.conv0_2 = nn.Conv2d(int(output_channel / 16), self.inplanes,
+		self.bn0_1 = nn.BatchNorm2d(int(output_channel / 8))
+		self.conv0_2 = nn.Conv2d(int(output_channel / 8), self.inplanes,
 								 kernel_size=3, stride=1, padding=1, bias=False)
-		self.bn0_2 = nn.BatchNorm2d(self.inplanes)
-		self.relu = nn.ReLU(inplace=True)
 
-		self.maxpool1 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+		self.maxpool1 = nn.AvgPool2d(kernel_size=2, stride=2, padding=0)
 		self.layer1 = self._make_layer(block, self.output_channel_block[0], layers[0])
+		self.bn1 = nn.BatchNorm2d(self.output_channel_block[0])
 		self.conv1 = nn.Conv2d(self.output_channel_block[0], self.output_channel_block[
 							   0], kernel_size=3, stride=1, padding=1, bias=False)
-		self.bn1 = nn.BatchNorm2d(self.output_channel_block[0])
 
-		self.maxpool2 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+		self.maxpool2 = nn.AvgPool2d(kernel_size=2, stride=2, padding=0)
 		self.layer2 = self._make_layer(block, self.output_channel_block[1], layers[1], stride=1)
+		self.bn2 = nn.BatchNorm2d(self.output_channel_block[1])
 		self.conv2 = nn.Conv2d(self.output_channel_block[1], self.output_channel_block[
 							   1], kernel_size=3, stride=1, padding=1, bias=False)
-		self.bn2 = nn.BatchNorm2d(self.output_channel_block[1])
 
-		self.maxpool3 = nn.MaxPool2d(kernel_size=2, stride=(2, 1), padding=(0, 1))
+		self.maxpool3 = nn.AvgPool2d(kernel_size=2, stride=(2, 1), padding=(0, 1))
 		self.layer3 = self._make_layer(block, self.output_channel_block[2], layers[2], stride=1)
+		self.bn3 = nn.BatchNorm2d(self.output_channel_block[2])
 		self.conv3 = nn.Conv2d(self.output_channel_block[2], self.output_channel_block[
 							   2], kernel_size=3, stride=1, padding=1, bias=False)
-		self.bn3 = nn.BatchNorm2d(self.output_channel_block[2])
 
 		self.layer4 = self._make_layer(block, self.output_channel_block[3], layers[3], stride=1)
+		self.bn4_1 = nn.BatchNorm2d(self.output_channel_block[3])
 		self.conv4_1 = nn.Conv2d(self.output_channel_block[3], self.output_channel_block[
 								 3], kernel_size=2, stride=(2, 1), padding=(0, 1), bias=False)
-		self.bn4_1 = nn.BatchNorm2d(self.output_channel_block[3])
+		self.bn4_2 = nn.BatchNorm2d(self.output_channel_block[3])
 		self.conv4_2 = nn.Conv2d(self.output_channel_block[3], self.output_channel_block[
 								 3], kernel_size=2, stride=1, padding=0, bias=False)
-		self.bn4_2 = nn.BatchNorm2d(self.output_channel_block[3])
+		self.bn4_3 = nn.BatchNorm2d(self.output_channel_block[3])
 
 	def _make_layer(self, block, planes, blocks, stride=1):
 		downsample = None
 		if stride != 1 or self.inplanes != planes * block.expansion:
 			downsample = nn.Sequential(
+				nn.BatchNorm2d(self.inplanes),
 				nn.Conv2d(self.inplanes, planes * block.expansion,
 						  kernel_size=1, stride=stride, bias=False),
-				nn.BatchNorm2d(planes * block.expansion),
 			)
 
 		layers = []
@@ -72,36 +71,35 @@ class ResNet(nn.Module):
 	def forward(self, x):
 		x = self.conv0_1(x)
 		x = self.bn0_1(x)
-		x = self.relu(x)
+		x = F.relu(x)
 		x = self.conv0_2(x)
-		x = self.bn0_2(x)
-		x = self.relu(x)
 
 		x = self.maxpool1(x)
 		x = self.layer1(x)
-		x = self.conv1(x)
 		x = self.bn1(x)
-		x = self.relu(x)
+		x = F.relu(x)
+		x = self.conv1(x)
 
 		x = self.maxpool2(x)
 		x = self.layer2(x)
-		x = self.conv2(x)
 		x = self.bn2(x)
-		x = self.relu(x)
+		x = F.relu(x)
+		x = self.conv2(x)
 
 		x = self.maxpool3(x)
 		x = self.layer3(x)
-		x = self.conv3(x)
 		x = self.bn3(x)
-		x = self.relu(x)
+		x = F.relu(x)
+		x = self.conv3(x)
 
 		x = self.layer4(x)
-		x = self.conv4_1(x)
 		x = self.bn4_1(x)
-		x = self.relu(x)
-		x = self.conv4_2(x)
+		x = F.relu(x)
+		x = self.conv4_1(x)
 		x = self.bn4_2(x)
-		x = self.relu(x)
+		x = F.relu(x)
+		x = self.conv4_2(x)
+		x = self.bn4_3(x)
 
 		return x
 
@@ -110,11 +108,10 @@ class BasicBlock(nn.Module):
 
 	def __init__(self, inplanes, planes, stride=1, downsample=None):
 		super(BasicBlock, self).__init__()
+		self.bn1 = nn.BatchNorm2d(inplanes)
 		self.conv1 = self._conv3x3(inplanes, planes)
-		self.bn1 = nn.BatchNorm2d(planes)
-		self.conv2 = self._conv3x3(planes, planes)
 		self.bn2 = nn.BatchNorm2d(planes)
-		self.relu = nn.ReLU(inplace=True)
+		self.conv2 = self._conv3x3(planes, planes)
 		self.downsample = downsample
 		self.stride = stride
 
@@ -126,19 +123,18 @@ class BasicBlock(nn.Module):
 	def forward(self, x):
 		residual = x
 
-		out = self.conv1(x)
-		out = self.bn1(out)
-		out = self.relu(out)
+		out = self.bn1(x)
+		out = F.relu(out)
+		out = self.conv1(out)
 
-		out = self.conv2(out)
 		out = self.bn2(out)
+		out = F.relu(out)
+		out = self.conv2(out)
 
 		if self.downsample is not None:
-			residual = self.downsample(x)
-		out += residual
-		out = self.relu(out)
+			residual = self.downsample(residual)
 
-		return out
+		return out + residual
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
 	"""3x3 convolution with padding"""
@@ -155,7 +151,7 @@ class ResNet_FeatureExtractor(nn.Module):
 
 	def __init__(self, input_channel, output_channel=128):
 		super(ResNet_FeatureExtractor, self).__init__()
-		self.ConvNet = ResNet(input_channel, output_channel, BasicBlock, [3, 5, 7, 5])
+		self.ConvNet = ResNet(input_channel, output_channel, BasicBlock, [3, 6, 7, 5])
 
 	def forward(self, input):
 		return self.ConvNet(input)
@@ -175,12 +171,48 @@ class PositionalEncoding(nn.Module):
 
 	def forward(self, x, offset = 0):
 		x = x + self.pe[offset: offset + x.size(0), :]
-		return x
+		return x#self.dropout(x)
 
 def generate_square_subsequent_mask(sz):
 	mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
 	mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
 	return mask
+
+class AddCoords(nn.Module):
+
+	def __init__(self, with_r=False):
+		super().__init__()
+		self.with_r = with_r
+
+	def forward(self, input_tensor):
+		"""
+		Args:
+			input_tensor: shape(batch, channel, x_dim, y_dim)
+		"""
+		batch_size, _, x_dim, y_dim = input_tensor.size()
+
+		xx_channel = torch.arange(x_dim).repeat(1, y_dim, 1)
+		yy_channel = torch.arange(y_dim).repeat(1, x_dim, 1).transpose(1, 2)
+
+		xx_channel = xx_channel.float() / (x_dim - 1)
+		yy_channel = yy_channel.float() / (y_dim - 1)
+
+		xx_channel = xx_channel * 2 - 1
+		yy_channel = yy_channel * 2 - 1
+
+		xx_channel = xx_channel.repeat(batch_size, 1, 1, 1).transpose(2, 3)
+		yy_channel = yy_channel.repeat(batch_size, 1, 1, 1).transpose(2, 3)
+
+		ret = torch.cat([
+			input_tensor,
+			xx_channel.type_as(input_tensor),
+			yy_channel.type_as(input_tensor)], dim=1)
+
+		if self.with_r:
+			rr = torch.sqrt(torch.pow(xx_channel.type_as(input_tensor) - 0.5, 2) + torch.pow(yy_channel.type_as(input_tensor) - 0.5, 2))
+			ret = torch.cat([ret, rr], dim=1)
+
+		return ret
 
 class Beam :
 	def __init__(self, char_seq = [], logprobs = []) :
@@ -266,6 +298,16 @@ def next_token_batch(
 	# 1, N, E
 	tgt: torch.FloatTensor = pe(embd(last_toks).unsqueeze_(0), offset = len(hyps[0]))
 
+	# # L, N
+	# out_idxs = torch.stack([item.out_idx for item in hyps], dim = 0).permute(1, 0)
+	# # L, N, E
+	# tgt2: torch.FloatTensor = pe(embd(out_idxs))
+	# # 1, N, E
+	# tgt_v2 = tgt2[-1, :, :].unsqueeze_(0)
+	# print(((tgt_v1 - tgt_v2) ** 2).sum())
+
+	# tgt = tgt_v2
+
 	# S, N, E
 	memory = torch.stack([memory[:, idx, :] for idx in [item.memory_idx for item in hyps]], dim = 1)
 	for l, layer in enumerate(decoders.layers) :
@@ -298,15 +340,17 @@ class OCR(nn.Module) :
 		self.max_len = max_len
 		self.dictionary = dictionary
 		self.dict_size = len(dictionary)
-		self.backbone = ResNet_FeatureExtractor(3, 512)
-		encoder = nn.TransformerEncoderLayer(512, 4, dropout = 0.0)
-		decoder = nn.TransformerDecoderLayer(512, 4, dropout = 0.0)
-		self.encoders = nn.TransformerEncoder(encoder, 2)
+		self.backbone = ResNet_FeatureExtractor(3, 320)
+		encoder = nn.TransformerEncoderLayer(320, 4, dropout = 0.0)
+		decoder = nn.TransformerDecoderLayer(320, 4, dropout = 0.0)
+		self.encoders = nn.TransformerEncoder(encoder, 3)
 		self.decoders = nn.TransformerDecoder(decoder, 2)
-		self.pe = PositionalEncoding(512, max_len = max_len)
-		self.embd = nn.Embedding(self.dict_size, 512)
-		self.pred = nn.Sequential(nn.Dropout(0.1), nn.Linear(512, 512), nn.ReLU(), nn.Dropout(0.1), nn.Linear(512, self.dict_size))
-		self.color_pred1 = nn.Sequential(nn.Linear(512, 64), nn.ReLU())
+		self.pe = PositionalEncoding(320, max_len = max_len)
+		self.embd = nn.Embedding(self.dict_size, 320)
+		self.pred1 = nn.Sequential(nn.Linear(320, 320), nn.ReLU(), nn.Dropout(0.1))
+		self.pred = nn.Linear(320, self.dict_size)
+		self.pred.weight = self.embd.weight
+		self.color_pred1 = nn.Sequential(nn.Linear(320, 64), nn.ReLU())
 		self.fg_r_pred = nn.Linear(64, 1)
 		self.fg_g_pred = nn.Linear(64, 1)
 		self.fg_b_pred = nn.Linear(64, 1)
@@ -331,7 +375,7 @@ class OCR(nn.Module) :
 		casual_mask = generate_square_subsequent_mask(L).to(img.device)
 		decoded = self.decoders(char_embd, memory, tgt_mask = casual_mask, tgt_key_padding_mask = mask, memory_key_padding_mask = source_mask)
 		decoded = decoded.permute(1, 0, 2)
-		pred_char_logits = self.pred(decoded)
+		pred_char_logits = self.pred(self.pred1(decoded))
 		color_feats = self.color_pred1(decoded)
 		return pred_char_logits, \
 			self.fg_r_pred(color_feats), \
@@ -346,17 +390,17 @@ class OCR(nn.Module) :
 		assert H == 32 and C == 3
 		feats = self.backbone(img)
 		feats = torch.einsum('n e h s -> s n e', feats)
-		valid_feats_length = [(x + 3) // 4 + 1 for x in img_widths]
+		valid_feats_length = [(x + 3) // 4 + 2 for x in img_widths]
 		input_mask = torch.zeros(N, feats.size(0), dtype = torch.bool).to(img.device)
 		for i, l in enumerate(valid_feats_length) :
 			input_mask[i, l:] = True
 		feats = self.pe(feats)
 		memory = self.encoders(feats, src_key_padding_mask = input_mask)
-		hypos = [Hypothesis(img.device, start_tok, end_tok, pad_tok, i, self.decoders.num_layers, 512) for i in range(N)]
+		hypos = [Hypothesis(img.device, start_tok, end_tok, pad_tok, i, self.decoders.num_layers, 320) for i in range(N)]
 		# N, E
 		decoded = next_token_batch(hypos, memory, input_mask, self.decoders, self.pe, self.embd)
 		# N, n_chars
-		pred_char_logprob = self.pred(decoded).log_softmax(-1)
+		pred_char_logprob = self.pred(self.pred1(decoded)).log_softmax(-1)
 		# N, k
 		pred_chars_values, pred_chars_index = torch.topk(pred_char_logprob, beams_k, dim = 1)
 		new_hypos = []
@@ -369,7 +413,7 @@ class OCR(nn.Module) :
 			# N * k, E
 			decoded = next_token_batch(hypos, memory, torch.stack([input_mask[hyp.memory_idx] for hyp in hypos]) , self.decoders, self.pe, self.embd)
 			# N * k, n_chars
-			pred_char_logprob = self.pred(decoded).log_softmax(-1)
+			pred_char_logprob = self.pred(self.pred1(decoded)).log_softmax(-1)
 			# N * k, k
 			pred_chars_values, pred_chars_index = torch.topk(pred_char_logprob, beams_k, dim = 1)
 			hypos_per_sample = defaultdict(list)
@@ -442,7 +486,7 @@ class OCR(nn.Module) :
 			casual_mask = generate_square_subsequent_mask(L).to(img.device)
 			decoded = self.decoders(embd, memory, tgt_mask = casual_mask)
 			decoded = decoded.permute(1, 0, 2)
-			pred_char_logprob = self.pred(decoded).log_softmax(-1)
+			pred_char_logprob = self.pred(self.pred1(decoded)).log_softmax(-1)
 			if char_only :
 				return pred_char_logprob
 			else :
@@ -486,3 +530,34 @@ class OCR(nn.Module) :
 		#print(beams[0].logprobs.mean().exp())
 		return run(final_tokens, char_only = False), beams[0].logprobs.mean().exp().item()
 
+def test() :
+	with open('../SynthText/alphabet-all-v2.txt', 'r') as fp :
+		dictionary = [s[:-1] for s in fp.readlines()]
+	img = torch.randn(4, 3, 32, 1224)
+	idx = torch.zeros(4, 32).long()
+	mask = torch.zeros(4, 32).bool()
+	model = ResNet_FeatureExtractor(3, 256)
+	out = model(img)
+
+def test_inference() :
+	with torch.no_grad() :
+		with open('../SynthText/alphabet-all-v3.txt', 'r') as fp :
+			dictionary = [s[:-1] for s in fp.readlines()]
+		img = torch.zeros(1, 3, 32, 128)
+		model = OCR(dictionary, 32)
+		m = torch.load("ocr_ar_v2-3-test.ckpt", map_location='cpu')
+		model.load_state_dict(m['model'])
+		model.eval()
+		(char_probs, _, _, _, _, _, _, _), _ = model.infer_beam(img, max_seq_length = 20)
+		_, pred_chars_index = char_probs.max(2)
+		pred_chars_index = pred_chars_index.squeeze_(0)
+		seq = []
+		for chid in pred_chars_index :
+			ch = dictionary[chid]
+			if ch == '<SP>' :
+				ch == ' '
+			seq.append(ch)
+		print(''.join(seq))
+
+if __name__ == "__main__":
+	test()

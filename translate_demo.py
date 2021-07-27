@@ -25,13 +25,14 @@ from utils import BBox, Quadrilateral, image_resize, quadrilateral_can_merge_reg
 parser = argparse.ArgumentParser(description='Generate text bboxes given a image file')
 parser.add_argument('--mode', default='demo', type=str, help='Run demo in either single image demo mode (demo) or web service mode (web)')
 parser.add_argument('--image', default='', type=str, help='Image file if using demo mode')
-parser.add_argument('--size', default=2048, type=int, help='image square size')
+parser.add_argument('--size', default=1536, type=int, help='image square size')
 parser.add_argument('--use-inpainting', action='store_true', help='turn on/off inpainting')
 parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
 parser.add_argument('--inpainting-size', default=2048, type=int, help='size of image used for inpainting (too large will result in OOM)')
 parser.add_argument('--unclip-ratio', default=2.2, type=float, help='How much to extend text skeleton to form bounding box')
 parser.add_argument('--box-threshold', default=0.7, type=float, help='threshold for bbox generation')
 parser.add_argument('--text-threshold', default=0.5, type=float, help='threshold for text detection')
+parser.add_argument('--text-mag-ratio', default=1, type=int, help='text rendering magnification ratio, larger means higher quality')
 args = parser.parse_args()
 print(args)
 
@@ -269,7 +270,7 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral]) :
 		# get overall bbox
 		txtlns = np.array(bboxes)[nodes]
 		kq = np.concatenate([x.pts for x in txtlns], axis = 0)
-		if sum([int(a.is_approximate_axis_aligned()) for a in txtlns]) > len(txtlns) // 2 :
+		if sum([int(a.is_approximate_axis_aligned) for a in txtlns]) > len(txtlns) // 2 :
 			max_coord = np.max(kq, axis = 0)
 			min_coord = np.min(kq, axis = 0)
 			merged_box = np.maximum(np.array([
@@ -290,13 +291,13 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral]) :
 		bg_g = round(np.mean([box.bg_g for box in [bboxes[i] for i in nodes]]))
 		bg_b = round(np.mean([box.bg_b for box in [bboxes[i] for i in nodes]]))
 		# majority vote for direction
-		dirs = [box.direction() for box in [bboxes[i] for i in nodes]]
+		dirs = [box.direction for box in [bboxes[i] for i in nodes]]
 		majority_dir = Counter(dirs).most_common(1)[0][0]
 		# sort
 		if majority_dir == 'h' :
-			nodes = sorted(nodes, key = lambda x: bboxes[x].get_aabb().y + bboxes[x].get_aabb().h // 2)
+			nodes = sorted(nodes, key = lambda x: bboxes[x].aabb.y + bboxes[x].aabb.h // 2)
 		elif majority_dir == 'v' :
-			nodes = sorted(nodes, key = lambda x: -(bboxes[x].get_aabb().x + bboxes[x].get_aabb().w))
+			nodes = sorted(nodes, key = lambda x: -(bboxes[x].aabb.x + bboxes[x].aabb.w))
 		# yield overall bbox and sorted indices
 		yield bbox, nodes, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
 
@@ -310,13 +311,13 @@ def generate_text_direction(bboxes: List[Quadrilateral]) :
 	for node_set in nx.algorithms.components.connected_components(G) :
 		nodes = list(node_set)
 		# majority vote for direction
-		dirs = [box.direction() for box in [bboxes[i] for i in nodes]]
+		dirs = [box.direction for box in [bboxes[i] for i in nodes]]
 		majority_dir = Counter(dirs).most_common(1)[0][0]
 		# sort
 		if majority_dir == 'h' :
-			nodes = sorted(nodes, key = lambda x: bboxes[x].get_aabb().y + bboxes[x].get_aabb().h // 2)
+			nodes = sorted(nodes, key = lambda x: bboxes[x].aabb.y + bboxes[x].aabb.h // 2)
 		elif majority_dir == 'v' :
-			nodes = sorted(nodes, key = lambda x: -(bboxes[x].get_aabb().x + bboxes[x].get_aabb().w))
+			nodes = sorted(nodes, key = lambda x: -(bboxes[x].aabb.x + bboxes[x].aabb.w))
 		# yield overall bbox and sorted indices
 		for node in nodes :
 			yield bboxes[node], majority_dir
@@ -392,7 +393,7 @@ def run_ocr(img, quadrilaterals: List[Tuple[Quadrilateral, str]], dictionary, mo
 		images = einops.rearrange(images, 'N H W C -> N C H W')
 		ret = ocr_infer_bacth(images, model, widths)
 		for i, (pred_chars_index, prob, fr, fg, fb, br, bg, bb) in enumerate(ret) :
-			if prob < 0.7 :
+			if prob < 0.6 :
 				continue
 			fr = (torch.clip(fr.view(-1), 0, 1).mean() * 255).long().item()
 			fg = (torch.clip(fg.view(-1), 0, 1).mean() * 255).long().item()
@@ -411,7 +412,7 @@ def run_ocr(img, quadrilaterals: List[Tuple[Quadrilateral, str]], dictionary, mo
 					ch = ' '
 				seq.append(ch)
 			txt = ''.join(seq)
-			print(prob, txt)
+			print(prob, txt, f'fg: ({fr}, {fg}, {fb})', f'bg: ({br}, {bg}, {bb})')
 			cur_region = quadrilaterals[indices[i]][0]
 			cur_region.text = txt
 			cur_region.prob = prob
@@ -478,7 +479,7 @@ def load_ocr_model() :
 	with open('alphabet-all-v5.txt', 'r', encoding='utf-8') as fp :
 		dictionary = [s[:-1] for s in fp.readlines()]
 	model = OCR(dictionary, 768)
-	model.load_state_dict(torch.load('ocr.ckpt', map_location='cpu'), strict=False)
+	model.load_state_dict(torch.load('ocr.ckpt', map_location='cpu'))
 	model.eval()
 	if args.use_cuda :
 		model = model.cuda()
@@ -527,11 +528,23 @@ async def infer(
 	model_inpainting,
 	task_id = ''
 	) :
+	img_detect_size = args.size
+	if task_id and len(task_id) != 32 :
+		size_ind = task_id[-1]
+		if size_ind == 'S' :
+			img_detect_size = 1024
+		elif size_ind == 'M' :
+			img_detect_size = 1536
+		elif size_ind == 'L' :
+			img_detect_size = 2048
+		elif size_ind == 'X' :
+			img_detect_size = 2560
 	print(' -- Read image')
 	img_bbox = np.copy(img)
-	img_bbox_all = np.copy(img)
+	img_bbox = cv2.bilateralFilter(img_bbox, 17, 80, 80)
 	img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-	img_resized, target_ratio, _, pad_w, pad_h = imgproc.resize_aspect_ratio(img, args.size, cv2.INTER_LINEAR, mag_ratio = 1)
+	img_bbox_all = np.copy(img_bbox)
+	img_resized, target_ratio, _, pad_w, pad_h = imgproc.resize_aspect_ratio(img, img_detect_size, cv2.INTER_LINEAR, mag_ratio = 1)
 	img_to_overlay = np.copy(img_resized)
 	ratio_h = ratio_w = 1 / target_ratio
 
@@ -544,18 +557,21 @@ async def infer(
 	det = dbnet_utils.SegDetectorRepresenter(args.text_threshold, args.box_threshold, unclip_ratio = args.unclip_ratio)
 	boxes, scores = det({'shape':[(img_resized.shape[0], img_resized.shape[1])]}, db)
 	boxes, scores = boxes[0], scores[0]
-	idx = boxes.reshape(boxes.shape[0], -1).sum(axis=1) > 0
-	polys, _ = boxes[idx], scores[idx]
-	polys = polys.astype(np.float64)
-	polys = craft_utils.adjustResultCoordinates(polys, ratio_w, ratio_h, ratio_net = 1)
-	polys = polys.astype(np.int16)
+	if boxes.size == 0 :
+		polys = []
+	else :
+		idx = boxes.reshape(boxes.shape[0], -1).sum(axis=1) > 0
+		polys, _ = boxes[idx], scores[idx]
+		polys = polys.astype(np.float64)
+		polys = craft_utils.adjustResultCoordinates(polys, ratio_w, ratio_h, ratio_net = 1)
+		polys = polys.astype(np.int16)
 	textlines = [Quadrilateral(pts.astype(int), '', 0) for pts in polys]
 	for txtln in textlines :
 		cv2.polylines(img_bbox_all, [txtln.pts], True, color = (255, 0, 0), thickness = 2)
-		[l1a, l1b, l2a, l2b] = txtln.get_structure()
+		[l1a, l1b, l2a, l2b] = txtln.structure
 		cv2.line(img_bbox_all, l1a, l1b, color = (0, 255, 0), thickness = 1)
 		cv2.line(img_bbox_all, l2a, l2b, color = (0, 0, 255), thickness = 1)
-		dbox = txtln.get_aabb()
+		dbox = txtln.aabb
 		cv2.rectangle(img_bbox_all, (dbox.x, dbox.y), (dbox.x + dbox.w, dbox.y + dbox.h), color = (255, 0, 255), thickness = 2)
 
 	print(' -- Running OCR')
@@ -618,7 +634,7 @@ async def infer(
 	mask_resized = cv2.resize(mask_resized, (img.shape[1] // 2, img.shape[0] // 2), interpolation = cv2.INTER_LINEAR)
 	img_resized_2 = cv2.resize(img, (img.shape[1] // 2, img.shape[0] // 2), interpolation = cv2.INTER_LINEAR)
 	mask_resized[mask_resized > 150] = 255
-	text_lines = [(a.get_aabb().x // 2, a.get_aabb().y // 2, a.get_aabb().w // 2, a.get_aabb().h // 2) for a in textlines]
+	text_lines = [(a.aabb.x // 2, a.aabb.y // 2, a.aabb.w // 2, a.aabb.h // 2) for a in textlines]
 	mask_ccs, cc2textline_assignment = filter_masks(mask_resized, text_lines)
 	if mask_ccs :
 		mask_filtered = reduce(cv2.bitwise_or, mask_ccs)
@@ -672,35 +688,85 @@ async def infer(
 	print(' -- Rendering translated text')
 	# render translated texts
 	img_canvas = np.copy(img_inpainted)
-	for trans_text, region in zip(translated_sentences, text_regions) :
+	from utils import findNextPowerOf2
+	for ridx, (trans_text, region) in enumerate(zip(translated_sentences, text_regions)) :
 		print(region.text)
 		print(trans_text)
 		print(region.majority_dir, region.pts)
 		fg = (region.fg_b, region.fg_g, region.fg_r)
-		bg = None#(region.bg_b, region.bg_g, region.bg_r)
+		bg = (region.bg_b, region.bg_g, region.bg_r)
+		font_size = 0
+		n_lines = len(region.textline_indices)
 		for idx in region.textline_indices :
 			txtln = textlines[idx]
 			img_bbox = cv2.polylines(img_bbox, [txtln.pts], True, color = fg, thickness=2)
-			[l1a, l1b, l2a, l2b] = txtln.get_structure()
+			[l1a, l1b, l2a, l2b] = txtln.structure
 			cv2.line(img_bbox, l1a, l1b, color = (0, 255, 0), thickness = 2)
 			cv2.line(img_bbox, l2a, l2b, color = (0, 0, 255), thickness = 2)
-			dbox = txtln.get_aabb()
+			dbox = txtln.aabb
+			font_size = max(font_size, txtln.font_size)
 			cv2.rectangle(img_bbox, (dbox.x, dbox.y), (dbox.x + dbox.w, dbox.y + dbox.h), color = (255, 0, 255), thickness = 2)
+		font_size = round(font_size)
 		img_bbox = cv2.polylines(img_bbox, [region.pts], True, color=(0, 0, 255), thickness = 2)
 
-		region_aabb = region.get_aabb()
-		tmp_canvas = np.ones((region_aabb.h * 2, region_aabb.w * 2, 3), dtype = np.uint8) * 127
-		tmp_mask = np.zeros((region_aabb.h * 2, region_aabb.w * 2), dtype = np.uint16)
+		region_aabb = region.aabb
+		print(region_aabb.x, region_aabb.y, region_aabb.w, region_aabb.h)
+
+		# round font_size to fixed powers of 2, so later LRU cache can work
+		font_size_enlarged = findNextPowerOf2(font_size) * args.text_mag_ratio
+		enlarge_ratio = font_size_enlarged / font_size
+		font_size = font_size_enlarged
+		while True :
+			enlarged_w = round(enlarge_ratio * region_aabb.w)
+			enlarged_h = round(enlarge_ratio * region_aabb.h)
+			rows = enlarged_h // (font_size * 1.3)
+			cols = enlarged_w // (font_size * 1.3)
+			if rows * cols < len(trans_text) :
+				enlarge_ratio *= 1.1
+				continue
+			break
+		print('font_size:', font_size)
+
+		tmp_canvas = np.ones((enlarged_h * 2, enlarged_w * 2, 3), dtype = np.uint8) * 127
+		tmp_mask = np.zeros((enlarged_h * 2, enlarged_w * 2), dtype = np.uint16)
 
 		if region.majority_dir == 'h' :
-			text_render.put_text_horizontal(tmp_canvas, tmp_mask, trans_text, len(region.textline_indices), [textlines[idx] for idx in region.textline_indices], region_aabb.w // 2, region_aabb.h // 2, region_aabb.w, region_aabb.h, fg, bg)
+			text_render.put_text_horizontal(
+				font_size,
+				enlarge_ratio * 1.0,
+				tmp_canvas,
+				tmp_mask,
+				trans_text,
+				len(region.textline_indices),
+				[textlines[idx] for idx in region.textline_indices],
+				enlarged_w // 2,
+				enlarged_h // 2,
+				enlarged_w,
+				enlarged_h,
+				fg,
+				bg
+			)
 		else :
-			text_render.put_text_vertical(tmp_canvas, tmp_mask, trans_text, len(region.textline_indices), [textlines[idx] for idx in region.textline_indices], region_aabb.w // 2, region_aabb.h // 2, region_aabb.w, region_aabb.h, fg, bg)
+			text_render.put_text_vertical(
+				font_size,
+				enlarge_ratio * 1.0,
+				tmp_canvas,
+				tmp_mask,
+				trans_text,
+				len(region.textline_indices),
+				[textlines[idx] for idx in region.textline_indices],
+				enlarged_w // 2,
+				enlarged_h // 2,
+				enlarged_w,
+				enlarged_h,
+				fg,
+				bg
+			)
 
 		tmp_mask = np.clip(tmp_mask, 0, 255).astype(np.uint8)
 		x, y, w, h = cv2.boundingRect(tmp_mask)
 		r_prime = w / h
-		r = region.aspect_ratio()
+		r = region.aspect_ratio
 		w_ext = 0
 		h_ext = 0
 		if r_prime > r :
@@ -711,12 +777,12 @@ async def infer(
 		h_ext += region_ext
 		w_ext += region_ext
 		src_pts = np.array([[x - w_ext, y - h_ext], [x + w + w_ext, y - h_ext], [x + w + w_ext, y + h + h_ext], [x - w_ext, y + h + h_ext]]).astype(np.float32)
-		src_pts[:, 0] = np.clip(np.round(src_pts[:, 0]), 0, region_aabb.w * 2)
-		src_pts[:, 1] = np.clip(np.round(src_pts[:, 1]), 0, region_aabb.h * 2)
+		src_pts[:, 0] = np.clip(np.round(src_pts[:, 0]), 0, enlarged_w * 2)
+		src_pts[:, 1] = np.clip(np.round(src_pts[:, 1]), 0, enlarged_h * 2)
 		dst_pts = region.pts
 		M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 		tmp_rgba = np.concatenate([tmp_canvas, tmp_mask[:, :, None]], axis = -1).astype(np.float32)
-		rgba_region = cv2.warpPerspective(tmp_rgba, M, (img_canvas.shape[1], img_canvas.shape[0]), flags = cv2.INTER_LINEAR, borderMode = cv2.BORDER_TRANSPARENT)
+		rgba_region = np.clip(cv2.warpPerspective(tmp_rgba, M, (img_canvas.shape[1], img_canvas.shape[0]), flags = cv2.INTER_LINEAR, borderMode = cv2.BORDER_CONSTANT, borderValue = 0), 0, 255)
 		canvas_region = rgba_region[:, :, 0: 3]
 		mask_region = rgba_region[:, :, 3: 4].astype(np.float32) / 255.0
 		img_canvas = np.clip((img_canvas.astype(np.float32) * (1 - mask_region) + canvas_region.astype(np.float32) * mask_region), 0, 255).astype(np.uint8)

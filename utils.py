@@ -2,6 +2,7 @@
 from typing import List
 import numpy as np
 import cv2
+import functools
 
 def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
     # initialize the dimensions of the image to be resized and
@@ -70,17 +71,18 @@ class Quadrilateral(object) :
 		self.bg_r = bg_r
 		self.bg_g = bg_g
 		self.bg_b = bg_b
-		self.aabb = None
 
-	def get_structure(self) -> List[np.ndarray] :
+	@functools.cached_property
+	def structure(self) -> List[np.ndarray] :
 		p1 = ((self.pts[0] + self.pts[1]) / 2).astype(int)
 		p2 = ((self.pts[2] + self.pts[3]) / 2).astype(int)
 		p3 = ((self.pts[1] + self.pts[2]) / 2).astype(int)
 		p4 = ((self.pts[3] + self.pts[0]) / 2).astype(int)
 		return [p1, p2, p3, p4]
 
+	@functools.cached_property
 	def valid(self) -> bool :
-		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.get_structure()]
+		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.structure]
 		v1 = l1b - l1a
 		v2 = l2b - l2a
 		unit_vector_1 = v1 / np.linalg.norm(v1)
@@ -89,39 +91,39 @@ class Quadrilateral(object) :
 		angle = np.arccos(dot_product) * 180 / np.pi
 		return abs(angle - 90) < 10
 
+	@functools.cached_property
 	def aspect_ratio(self) -> float :
-		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.get_structure()]
+		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.structure]
 		v1 = l1b - l1a
 		v2 = l2b - l2a
 		return np.linalg.norm(v2) / np.linalg.norm(v1)
 
+	@functools.cached_property
 	def font_size(self) -> float :
-		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.get_structure()]
+		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.structure]
 		v1 = l1b - l1a
 		v2 = l2b - l2a
 		return min(np.linalg.norm(v2), np.linalg.norm(v1))
 
 	def width(self) -> int :
-		return self.get_aabb().w
+		return self.aabb.w
 
 	def height(self) -> int :
-		return self.get_aabb().h
+		return self.aabb.h
 
 	def clip(self, width, height) :
 		self.pts[:, 0] = np.clip(np.round(self.pts[:, 0]), 0, width)
 		self.pts[:, 1] = np.clip(np.round(self.pts[:, 1]), 0, height)
 
-	def get_aabb(self) -> BBox :
-		if self.aabb is not None :
-			return self.aabb
+	@functools.cached_property
+	def aabb(self) -> BBox :
 		kq = self.pts
 		max_coord = np.max(kq, axis = 0)
 		min_coord = np.min(kq, axis = 0)
-		self.aabb = BBox(min_coord[0], min_coord[1], max_coord[0] - min_coord[0], max_coord[1] - min_coord[1], self.text, self.prob, self.fg_r, self.fg_g, self.fg_b, self.bg_r, self.bg_g, self.bg_b)
-		return self.aabb
+		return BBox(min_coord[0], min_coord[1], max_coord[0] - min_coord[0], max_coord[1] - min_coord[1], self.text, self.prob, self.fg_r, self.fg_g, self.fg_b, self.bg_r, self.bg_g, self.bg_b)
 
 	def get_transformed_region(self, img, direction, textheight) -> np.ndarray :
-		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.get_structure()]
+		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.structure]
 		v_vec = l1b - l1a
 		h_vec = l2b - l2a
 		ratio = np.linalg.norm(v_vec) / np.linalg.norm(h_vec)
@@ -142,8 +144,9 @@ class Quadrilateral(object) :
 			region = cv2.rotate(region, cv2.ROTATE_90_COUNTERCLOCKWISE)
 			return region
 
+	@functools.cached_property
 	def is_axis_aligned(self) -> bool :
-		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.get_structure()]
+		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.structure]
 		v1 = l1b - l1a
 		v2 = l2b - l2a
 		e1 = np.array([0, 1])
@@ -154,20 +157,22 @@ class Quadrilateral(object) :
 			return True
 		return False
 
+	@functools.cached_property
 	def is_approximate_axis_aligned(self) -> bool :
-		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.get_structure()]
+		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.structure]
 		v1 = l1b - l1a
 		v2 = l2b - l2a
 		e1 = np.array([0, 1])
 		e2 = np.array([1, 0])
 		unit_vector_1 = v1 / np.linalg.norm(v1)
 		unit_vector_2 = v2 / np.linalg.norm(v2)
-		if abs(np.dot(unit_vector_1, e1)) < 0.06031 or abs(np.dot(unit_vector_1, e2)) < 0.06031 or abs(np.dot(unit_vector_2, e1)) < 0.06031 or abs(np.dot(unit_vector_2, e2)) < 0.06031 :
+		if abs(np.dot(unit_vector_1, e1)) < 0.05 or abs(np.dot(unit_vector_1, e2)) < 0.05 or abs(np.dot(unit_vector_2, e1)) < 0.05 or abs(np.dot(unit_vector_2, e2)) < 0.05 :
 			return True
 		return False
 
+	@functools.cached_property
 	def direction(self) -> str :
-		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.get_structure()]
+		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.structure]
 		v_vec = l1b - l1a
 		h_vec = l2b - l2a
 		if np.linalg.norm(v_vec) > np.linalg.norm(h_vec) :
@@ -175,16 +180,19 @@ class Quadrilateral(object) :
 		else :
 			return 'h'
 
+	@functools.cached_property
 	def cosangle(self) -> float :
-		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.get_structure()]
+		[l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.structure]
 		v1 = l1b - l1a
 		e2 = np.array([1, 0])
 		unit_vector_1 = v1 / np.linalg.norm(v1)
 		return np.dot(unit_vector_1, e2)
 
+	@functools.cached_property
 	def angle(self) -> float :
-		return np.fmod(np.arccos(self.cosangle()) + np.pi, np.pi)
+		return np.fmod(np.arccos(self.cosangle) + np.pi, np.pi)
 
+	@functools.cached_property
 	def centroid(self) -> np.ndarray :
 		return np.average(self.pts, axis = 0)
 
@@ -259,16 +267,20 @@ def distance_point_lineseg(p: np.ndarray, p1: np.ndarray, p2: np.ndarray) :
 	return np.sqrt(dx * dx + dy * dy)
 
 
-def quadrilateral_can_merge_region(a: Quadrilateral, b: Quadrilateral, ratio = 1.9, char_gap_tolerance = 0.9, char_gap_tolerance2 = 1.5) -> bool :
-	a_aa = a.is_approximate_axis_aligned()
-	b_aa = b.is_approximate_axis_aligned()
+def quadrilateral_can_merge_region(a: Quadrilateral, b: Quadrilateral, ratio = 1.9, discard_connection_gap = 5, char_gap_tolerance = 0.6, char_gap_tolerance2 = 1.5, font_size_ratio_tol = 1.5) -> bool :
+	b1 = a.aabb
+	b2 = b.aabb
+	char_size = min(a.font_size, b.font_size)
+	x1, y1, w1, h1 = b1.x, b1.y, b1.w, b1.h
+	x2, y2, w2, h2 = b2.x, b2.y, b2.w, b2.h
+	dist = rect_distance(x1, y1, x1 + w1, y1 + h1, x2, y2, x2 + w2, y2 + h2)
+	if dist > discard_connection_gap * char_size :
+		return False
+	if max(a.font_size, b.font_size) / char_size > font_size_ratio_tol :
+		return False
+	a_aa = a.is_approximate_axis_aligned
+	b_aa = b.is_approximate_axis_aligned
 	if a_aa and b_aa :
-		b1 = a.get_aabb()
-		b2 = b.get_aabb()
-		x1, y1, w1, h1 = b1.x, b1.y, b1.w, b1.h
-		x2, y2, w2, h2 = b2.x, b2.y, b2.w, b2.h
-		dist = rect_distance(x1, y1, x1 + w1, y1 + h1, x2, y2, x2 + w2, y2 + h2)
-		char_size = min(h1, h2, w1, w2)
 		if dist < char_size * char_gap_tolerance :
 			if abs(x1 + w1 // 2 - (x2 + w2 // 2)) < char_gap_tolerance2 :
 				return True
@@ -283,15 +295,22 @@ def quadrilateral_can_merge_region(a: Quadrilateral, b: Quadrilateral, ratio = 1
 			return False
 		else :
 			return False
-	if not a_aa and not b_aa :
-		if abs(a.angle() - b.angle()) < 15 * np.pi / 180 :
-			fs_a = a.font_size()
-			fs_b = b.font_size()
+	if True:#not a_aa and not b_aa :
+		if abs(a.angle - b.angle) < 15 * np.pi / 180 :
+			fs_a = a.font_size
+			fs_b = b.font_size
 			fs = min(fs_a, fs_b)
-			ca, cb = a.centroid(), b.centroid()
+			ca, cb = a.centroid, b.centroid
 			if a.distance_to_point(cb) > fs * char_gap_tolerance2 and b.distance_to_point(ca) > fs * char_gap_tolerance2 :
 				return False
 			if abs(fs_a - fs_b) / fs > 0.25 :
 				return False
 			return True
 	return False
+
+def findNextPowerOf2(n):
+	i = 0
+	while n != 0 :
+		i += 1
+		n = n >> 1
+	return 1 << i

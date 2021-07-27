@@ -49,6 +49,11 @@ def convert_img(img) :
 @routes.post("/run")
 async def run_async(request):
 	data = await request.post()
+	size = ''
+	if 'size' in data :
+		size = data['size'].upper()
+		if size not in ['S', 'M', 'L', 'X'] :
+			size = ''
 	if 'file' in data :
 		file_field = data['file']
 		content = file_field.file.read()
@@ -66,7 +71,7 @@ async def run_async(request):
 		img = convert_img(Image.open(io.BytesIO(content)))
 	except :
 		return web.json_response({'status' : 'failed'})
-	task_id = crypto_utils.rand_bytes(16).hex()
+	task_id = crypto_utils.rand_bytes(16).hex() + size
 	os.makedirs(f'result/{task_id}/', exist_ok=True)
 	img.save(f'result/{task_id}/input.png')
 	QUEUE.append(task_id)
@@ -185,6 +190,11 @@ async def post_task_update_async(request):
 @routes.post("/submit")
 async def submit_async(request):
 	data = await request.post()
+	size = ''
+	if 'size' in data :
+		size = data['size'].upper()
+		if size not in ['S', 'M', 'L', 'X'] :
+			size = ''
 	if 'file' in data :
 		file_field = data['file']
 		content = file_field.file.read()
@@ -202,7 +212,7 @@ async def submit_async(request):
 		img = convert_img(Image.open(io.BytesIO(content)))
 	except :
 		return web.json_response({'status' : 'failed'})
-	task_id = crypto_utils.rand_bytes(16).hex()
+	task_id = crypto_utils.rand_bytes(16).hex() + size
 	os.makedirs(f'result/{task_id}/', exist_ok=True)
 	img.save(f'result/{task_id}/input.png')
 	QUEUE.append(task_id)

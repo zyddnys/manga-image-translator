@@ -51,26 +51,15 @@ def rect_distance(x1, y1, x1b, y1b, x2, y2, x2b, y2b):
 		return 0
 
 def filter_masks(mask_img: np.ndarray, text_lines: List[Tuple[int, int, int, int]], keep_threshold = 1e-2) :
+	mask_img = mask_img.copy()
 	for (x, y, w, h) in text_lines :
 		cv2.rectangle(mask_img, (x, y), (x + w, y + h), (0), 1)
 	if len(text_lines) == 0 :
 		return [], []
 	num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_img)
-	
-	# Map component labels to hue val, 0-179 is the hue range in OpenCV
-	label_hue = np.uint8(179*labels/np.max(labels))
-	blank_ch = 255*np.ones_like(label_hue)
-	labeled_img = cv2.merge([label_hue, blank_ch, blank_ch])
-
-	# Converting cvt to BGR
-	labeled_img = cv2.cvtColor(labeled_img, cv2.COLOR_HSV2BGR)
-
-	# set bg label to black
-	labeled_img[label_hue==0] = 0
 
 	cc2textline_assignment = []
 	result = []
-	kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
 	M = len(text_lines)
 	ratio_mat = np.zeros(shape = (num_labels, M), dtype = np.float32)
 	dist_mat = np.zeros(shape = (num_labels, M), dtype = np.float32)
@@ -133,8 +122,13 @@ def refine_mask(rgbim, rawmask) :
 def complete_mask(img_np: np.ndarray, ccs: List[np.ndarray], text_lines: List[Tuple[int, int, int, int]], cc2textline_assignment) :
 	if len(ccs) == 0 :
 		return
+	textline_ccs = [np.zeros_like(ccs[0]) for _ in range(len(text_lines))]
+	for i, cc in enumerate(ccs) :
+		txtline = cc2textline_assignment[i]
+		textline_ccs[txtline] = cv2.bitwise_or(textline_ccs[txtline], cc)
 	final_mask = np.zeros_like(ccs[0])
-	for i, cc in enumerate(tqdm(ccs)) :
+	img_np = cv2.bilateralFilter(img_np, 17, 80, 80)
+	for i, cc in enumerate(tqdm(textline_ccs)) :
 		x1, y1, w1, h1 = cv2.boundingRect(cc)
 		text_size = min(w1, h1)
 		extend_size = int(text_size * 0.1)
@@ -144,14 +138,21 @@ def complete_mask(img_np: np.ndarray, ccs: List[np.ndarray], text_lines: List[Tu
 		h1 += extend_size * 2
 		w1 = min(w1, img_np.shape[1] - x1 - 1)
 		h1 = min(h1, img_np.shape[0] - y1 - 1)
-		dilate_size = max((int(text_size * 0.02) // 2) * 2 + 1, 3)
+		dilate_size = max((int(text_size * 0.3) // 2) * 2 + 1, 3)
 		kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (dilate_size, dilate_size))
 		cc_region = np.ascontiguousarray(cc[y1: y1 + h1, x1: x1 + w1])
+		#cv2.imshow('cc before', image_resize(cc_region, width = 256))
 		img_region = np.ascontiguousarray(img_np[y1: y1 + h1, x1: x1 + w1])
+		#cv2.imshow('img', image_resize(img_region, width = 256))
 		cc_region = refine_mask(img_region, cc_region)
+		#cv2.imshow('cc after', image_resize(cc_region, width = 256))
+		#cv2.waitKey(0)
 		cc[y1: y1 + h1, x1: x1 + w1] = cc_region
 		cc = cv2.dilate(cc, kern)
 		final_mask = cv2.bitwise_or(final_mask, cc)
+	kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+	# for (x, y, w, h) in text_lines :
+	# 	final_mask = cv2.rectangle(final_mask, (x, y), (x + w, y + h), (255), -1)
 	return cv2.dilate(final_mask, kern)
 
 def unsharp(image) :

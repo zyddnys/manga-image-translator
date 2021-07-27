@@ -3,6 +3,17 @@ https://touhou.ai/imgtrans/
 * Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
 * Note this online demo maybe using an earlier version and not representing the current main branch version.
 # Changelogs
+### 2021-07-26
+Major upgrades for all components, now we are on beta! \
+Note in this version all English texts are detected as capital letters, \
+You need Python >= 3.8 for `cached_property` to work
+1. Detection model upgrade
+2. OCR model upgrade, better at text color extraction
+3. Inpainting model upgrade
+4. Major text rendering improvement, faster rendering and higher quality text with shadow
+5. Slight mask generation improvement
+6. Various bugfixes
+7. Default detection resolution has been dialed back to 1536 from 2048
 ### 2021-07-09
 1. Fix erroneous image rendering when inpainting is not used
 ### 2021-06-18
@@ -40,16 +51,18 @@ Support simple inpainting and text rendering \
 Successor to https://github.com/PatchyVideo/MMDOCR-HighPerformance
 
 # How to use
-1. Clone this repo
-2. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/alpha-v3.0.0)ocr.ckpt、detect.ckpt and inpainting.ckpt，put them in the root directory of this repo
-3. Apply for youdao translate API, put ypur APP_KEY and APP_SECRET in `key.py`
-4. Run `python translate_demo.py --image <path_to_image_file> [--use-inpainting] [--use-cuda]`，result can be found in `result/`. Add `--use-inpainting` to enable inpainting, Add `--use-cuda` to use CUDA.
+1. Python>=3.8
+2. Clone this repo
+3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.0)ocr.ckpt、detect.ckpt and inpainting.ckpt，put them in the root directory of this repo
+4. Apply for youdao translate API, put ypur APP_KEY and APP_SECRET in `key.py`
+5. Run `python translate_demo.py --image <path_to_image_file> [--use-inpainting] [--use-cuda]`，result can be found in `result/`. Add `--use-inpainting` to enable inpainting, Add `--use-cuda` to use CUDA.
 
 # How to use
-1. Clone this repo
-2. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/alpha-v3.0.0)ocr.ckpt、detect.ckpt and inpainting.ckpt，put them in the root directory of this repo
-3. Apply for youdao translate API, put ypur APP_KEY and APP_SECRET in `key.py`
-4. Run `python translate_demo.py --mode web [--use-inpainting] [--use-cuda]`, the demo will be serving on http://127.0.0.1:5003
+1. Python>=3.8
+2. Clone this repo
+3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.0)ocr.ckpt、detect.ckpt and inpainting.ckpt，put them in the root directory of this repo
+4. Apply for youdao translate API, put ypur APP_KEY and APP_SECRET in `key.py`
+5. Run `python translate_demo.py --mode web [--use-inpainting] [--use-cuda]`, the demo will be serving on http://127.0.0.1:5003
 
 Two modes of translation service are provided by the demo: synchronous mode and asynchronous mode \
 In synchronous mode your HTTP POST request will finish once the translation task is finished. \
@@ -77,7 +90,7 @@ What need to be done
 6. [Ryota et al.](https://arxiv.org/abs/2012.14271) proposed using multimodal machine translation, maybe we can add ViT features for building custom NMT models.
 7. Make this project works for video(rewrite code in C++ and use GPU/other hardware NN accelerator). Used for detecting hard subtitles in videos, generting ass file and remove them completetly.
 8. <s>Mask refinement based using non deep learning algorithms, I am currently testing out CRF based algorithm.</s>
-9. Angled text region merge is not currently supported
+9. <s>Angled text region merge is not currently supported</s>
 
 # Samples
 The following samples are from the original version, they do not represent the current main branch version.
