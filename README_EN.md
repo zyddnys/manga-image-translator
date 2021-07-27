@@ -46,8 +46,8 @@ Note this version is slightly better at handling English texts, other than that 
 1. First version launched
 # Translate texts in manga/images
 Some manga/images will never be translated, therefore this project is born, \
-Primarily designed for translating Japanese text, but also support Chinese and sometimes English \
-Support simple inpainting and text rendering \
+Primarily designed for translating Japanese text, but also support Chinese and English \
+Support inpainting and text rendering \
 Successor to https://github.com/PatchyVideo/MMDOCR-HighPerformance
 
 # How to use
