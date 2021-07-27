@@ -1,7 +1,7 @@
 # Online Demo
 https://touhou.ai/imgtrans/
 * Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
-* Note this online demo maybe using an earlier version and not representing the current main branch version.
+* Note this online demo is using the current main branch version.
 # Changelogs
 ### 2021-07-26
 Major upgrades for all components, now we are on beta! \
