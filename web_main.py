@@ -221,7 +221,7 @@ async def submit_async(request):
 	return web.json_response({'task_id' : task_id, 'status': 'successful'})
 
 @routes.post("/manual-translate")
-async def submit_async(request):
+async def manual_translate_async(request):
 	data = await request.post()
 	if 'file' in data :
 		file_field = data['file']
