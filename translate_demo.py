@@ -393,7 +393,7 @@ def run_ocr(img, quadrilaterals: List[Tuple[Quadrilateral, str]], dictionary, mo
 		images = einops.rearrange(images, 'N H W C -> N C H W')
 		ret = ocr_infer_bacth(images, model, widths)
 		for i, (pred_chars_index, prob, fr, fg, fb, br, bg, bb) in enumerate(ret) :
-			if prob < 0.6 :
+			if prob < 0.4 :
 				continue
 			fr = (torch.clip(fr.view(-1), 0, 1).mean() * 255).long().item()
 			fg = (torch.clip(fg.view(-1), 0, 1).mean() * 255).long().item()
@@ -539,12 +539,12 @@ async def infer(
 			img_detect_size = 2048
 		elif size_ind == 'X' :
 			img_detect_size = 2560
+		print(f' -- Detection size {size_ind}, resolution {img_detect_size}')
 	print(' -- Read image')
-	img_bbox = np.copy(img)
-	img_bbox = cv2.bilateralFilter(img_bbox, 17, 80, 80)
 	img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-	img_bbox_all = np.copy(img_bbox)
-	img_resized, target_ratio, _, pad_w, pad_h = imgproc.resize_aspect_ratio(img, img_detect_size, cv2.INTER_LINEAR, mag_ratio = 1)
+	img_bbox = np.copy(img)
+	img_bbox_raw = np.copy(img_bbox)
+	img_resized, target_ratio, _, pad_w, pad_h = imgproc.resize_aspect_ratio(cv2.bilateralFilter(img, 17, 80, 80), img_detect_size, cv2.INTER_LINEAR, mag_ratio = 1)
 	img_to_overlay = np.copy(img_resized)
 	ratio_h = ratio_w = 1 / target_ratio
 
@@ -567,12 +567,12 @@ async def infer(
 		polys = polys.astype(np.int16)
 	textlines = [Quadrilateral(pts.astype(int), '', 0) for pts in polys]
 	for txtln in textlines :
-		cv2.polylines(img_bbox_all, [txtln.pts], True, color = (255, 0, 0), thickness = 2)
+		cv2.polylines(img_bbox_raw, [txtln.pts], True, color = (255, 0, 0), thickness = 2)
 		[l1a, l1b, l2a, l2b] = txtln.structure
-		cv2.line(img_bbox_all, l1a, l1b, color = (0, 255, 0), thickness = 1)
-		cv2.line(img_bbox_all, l2a, l2b, color = (0, 0, 255), thickness = 1)
+		cv2.line(img_bbox_raw, l1a, l1b, color = (0, 255, 0), thickness = 1)
+		cv2.line(img_bbox_raw, l2a, l2b, color = (0, 0, 255), thickness = 1)
 		dbox = txtln.aabb
-		cv2.rectangle(img_bbox_all, (dbox.x, dbox.y), (dbox.x + dbox.w, dbox.y + dbox.h), color = (255, 0, 255), thickness = 2)
+		cv2.rectangle(img_bbox_raw, (dbox.x, dbox.y), (dbox.x + dbox.w, dbox.y + dbox.h), color = (255, 0, 255), thickness = 2)
 
 	print(' -- Running OCR')
 	if mode == 'web' and task_id :
@@ -678,23 +678,30 @@ async def infer(
 		else :
 			translated_sentences = texts
 	else :
-		while True :
+		# wait for at most 1 hour
+		translated_sentences = None
+		for _ in range(36000) :
 			ret = requests.post('http://127.0.0.1:5003/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}).json()
 			if 'result' in ret :
 				translated_sentences = ret['result']
 				break
 			await asyncio.sleep(0.1)
+	if not translated_sentences :
+		update_state(task_id, nonce, 'error')
+		return
 
 	print(' -- Rendering translated text')
 	# render translated texts
 	img_canvas = np.copy(img_inpainted)
 	from utils import findNextPowerOf2
 	for ridx, (trans_text, region) in enumerate(zip(translated_sentences, text_regions)) :
+		if not trans_text :
+			continue
 		print(region.text)
 		print(trans_text)
 		print(region.majority_dir, region.pts)
-		fg = (region.fg_b, region.fg_g, region.fg_r)
-		bg = (region.bg_b, region.bg_g, region.bg_r)
+		fg = (region.fg_r, region.fg_g, region.fg_b)
+		bg = (region.bg_r, region.bg_g, region.bg_b)
 		font_size = 0
 		n_lines = len(region.textline_indices)
 		for idx in region.textline_indices :
@@ -792,8 +799,8 @@ async def infer(
 	os.makedirs(f'result/{task_id}/', exist_ok=True)
 	cv2.imwrite(f'result/{task_id}/db.png', imgproc.cvt2HeatmapImg(result_db))
 	cv2.imwrite(f'result/{task_id}/textline.png', overlay)
-	cv2.imwrite(f'result/{task_id}/bbox.png', img_bbox)
-	cv2.imwrite(f'result/{task_id}/bbox_unfiltered.png', img_bbox_all)
+	cv2.imwrite(f'result/{task_id}/bbox.png', cv2.cvtColor(img_bbox, cv2.COLOR_RGB2BGR))
+	cv2.imwrite(f'result/{task_id}/bbox_unfiltered.png', cv2.cvtColor(img_bbox_raw, cv2.COLOR_RGB2BGR))
 	cv2.imwrite(f'result/{task_id}/overlay.png', cv2.cvtColor(overlay_image(img_to_overlay, cv2.resize(overlay, (img_resized.shape[1], img_resized.shape[0]), interpolation=cv2.INTER_LINEAR)), cv2.COLOR_RGB2BGR))
 	cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
 	if inpaint_input is not None :
@@ -817,7 +824,7 @@ async def main(mode = 'demo') :
 	model_inpainting = load_inpainting_model()
 
 	if mode == 'demo' :
-		print('Running in single image demo mode')
+		print(' -- Running in single image demo mode')
 		if not args.image :
 			print('please provide an image')
 			parser.print_usage()
@@ -825,8 +832,8 @@ async def main(mode = 'demo') :
 		img = cv2.imread(args.image)
 		await infer(img, mode, '', dictionary, model_detect, model_ocr, model_inpainting)
 	elif mode == 'web' :
-		print('Running in web service mode')
-		print('Waiting for translation tasks')
+		print(' -- Running in web service mode')
+		print(' -- Waiting for translation tasks')
 		nonce = crypto_utils.rand_bytes(16).hex()
 		import subprocess
 		import sys
@@ -834,16 +841,17 @@ async def main(mode = 'demo') :
 		while True :
 			task_id = get_task(nonce)
 			if task_id :
-				print(f'Processing task {task_id}')
+				print(f' -- Processing task {task_id}')
 				img = cv2.imread(f'result/{task_id}/input.png')
 				try :
-					await infer(img, mode, nonce, dictionary, model_detect, model_ocr, model_inpainting, task_id)
+					infer_task = asyncio.create_task(infer(img, mode, nonce, dictionary, model_detect, model_ocr, model_inpainting, task_id))
+					asyncio.gather(infer_task)
 				except :
 					import traceback
 					traceback.print_exc()
 					update_state(task_id, nonce, 'error')
 			else :
-				time.sleep(0.1)
+				await asyncio.sleep(0.1)
 	
 
 if __name__ == '__main__':

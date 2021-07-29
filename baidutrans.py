@@ -36,21 +36,18 @@ LANG_MAP = {
 	"vi": 'vie'
 }
 
+import aiohttp
+
 class Translator(object):
 	def __init__(self):
 	   pass
 
-	def translate(self, from_lang, to_lang, query_text):
-		import sys
-		if to_lang not in LANG_MAP :
-			to_lang = 'en'#raise UserError('UNSUPPORTED_LANGUAGE')
-		from_lang = 'jp'
-		url = self.get_url(from_lang, LANG_MAP[to_lang], query_text)
+	async def translate(self, from_lang, to_lang, query_text):
+		url = self.get_url(from_lang, to_lang, query_text)
 		try:
-			req = requests.get('https://'+BASE_URL+url)
-			#print('code=',req.status_code, file = sys.stderr)
-			response = req.text
-			result = json.loads(response)
+			async with aiohttp.ClientSession() as session:
+				async with session.get('https://'+BASE_URL+url) as resp:
+					result = await resp.json()
 			result_list = []
 			for ret in result["trans_result"]:
 				for v in ret["dst"].split('\n') :

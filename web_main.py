@@ -13,8 +13,77 @@ from aiohttp import ClientSession
 
 from collections import deque
 
-from youdao import Translator
-translator = Translator()
+from youdao import Translator as YoudaoTranslator
+YOUDAO_TRANSLATOR = YoudaoTranslator()
+from googletrans import Translator as GoogleTranslator
+GOOGLE_TRANSLATOR = GoogleTranslator()
+from baidutrans import Translator as BaiduTranslator
+BAIDU_TRANSLATOR = BaiduTranslator()
+
+LANGUAGE_CODE_MAP = {}
+
+VALID_LANGUAGES = {
+	"CHS": "Chinese (Simplified)",
+	"CHT": "Chinese (Traditional)",
+	"CSY": "Czech",
+	"NLD": "Dutch",
+	"ENG": "English",
+	"FRA": "French",
+	"DEU": "German",
+	"HUN": "Hungarian",
+	"ITA": "Italian",
+	"JPN": "Japanese",
+	"KOR": "Korean",
+	"PLK": "Polish",
+	"PTB": "Portuguese (Brazil)",
+	"ROM": "Romanian",
+	"RUS": "Russian",
+	"ESP": "Spanish",
+	"TRK": "Turkish",
+	"VIN": "Vietnamese"
+}
+
+LANGUAGE_CODE_MAP['youdao'] = {
+	'CHS': 'zh-CHS',
+	'CHT': 'NONE',
+	'JPN': "ja",
+	'ENG': 'en',
+	'KOR': 'ko',
+	'VIN': 'vi',
+	'CSY': 'cs',
+	'NLD': 'nl',
+	'FRA': 'fr',
+	'DEU': 'de',
+	'HUN': 'hu',
+	'ITA': 'it',
+	'PLK': 'pl',
+	'PTB': 'pt',
+	'ROM': 'ro',
+	'RUS': 'ru',
+	'ESP': 'es',
+	'TRK': 'tr',
+}
+
+LANGUAGE_CODE_MAP['baidu'] = {
+	'CHS': 'zh',
+	'CHT': 'cht',
+	'JPN': "ja",
+	'ENG': 'en',
+	'KOR': 'kor',
+	'VIN': 'vie',
+	'CSY': 'cs',
+	'NLD': 'nl',
+	'FRA': 'fra',
+	'DEU': 'de',
+	'HUN': 'hu',
+	'ITA': 'it',
+	'PLK': 'pl',
+	'PTB': 'pt',
+	'ROM': 'rom',
+	'RUS': 'ru',
+	'ESP': 'spa',
+	'TRK': 'NONE',
+}
 
 NONCE = ''
 QUEUE = deque()
@@ -41,15 +110,25 @@ def convert_img(img) :
 		return img.convert('RGB')
 
 
-# @routes.get("/")
-# async def index_async(request):
-# 	with open('ui.html', 'r') as fp :
-# 		return web.Response(text=fp.read(), content_type='text/html')
+@routes.get("/")
+async def index_async(request):
+	with open('ui.html', 'r') as fp :
+		return web.Response(text=fp.read(), content_type='text/html')
 
 @routes.post("/run")
 async def run_async(request):
 	data = await request.post()
 	size = ''
+	selected_translator = 'youdao'
+	target_language = 'CHS'
+	if 'tgt_lang' in data :
+		target_language = data['tgt_lang'].upper()
+		if target_language not in VALID_LANGUAGES :
+			target_language = 'CHS'
+	if 'translator' in data :
+		selected_translator = data['translator'].lower()
+		if selected_translator not in ['youdao', 'baidu'] :
+			selected_translator = 'youdao'
 	if 'size' in data :
 		size = data['size'].upper()
 		if size not in ['S', 'M', 'L', 'X'] :
@@ -75,7 +154,7 @@ async def run_async(request):
 	os.makedirs(f'result/{task_id}/', exist_ok=True)
 	img.save(f'result/{task_id}/input.png')
 	QUEUE.append(task_id)
-	TASK_DATA[task_id] = {}
+	TASK_DATA[task_id] = {'translator': selected_translator, 'tgt': target_language}
 	TASK_STATES[task_id] = 'pending'
 	while True :
 		await asyncio.sleep(0.05)
@@ -98,13 +177,22 @@ async def get_task_async(request):
 		print('unauthorized', request.rel_url.query['nonce'], NONCE)
 	return web.json_response({})
 
-async def auto_trans_task(task_id, texts) :
+async def machine_trans_task(task_id, texts, translator = 'youdao', target_language = 'CHS') :
+	print('translator', translator)
+	print('target_language', target_language)
 	texts = '\n'.join(texts)
 	if texts :
-		TASK_DATA[task_id]['trans_result'] = await translator.translate('auto', 'zh-CHS', texts)
+		tgt_lang_code = LANGUAGE_CODE_MAP[translator][target_language]
+		print('tgt_lang_code', tgt_lang_code)
+		if translator == 'youdao' :
+			translator = YOUDAO_TRANSLATOR
+		elif translator == 'baidu' :
+			translator = BAIDU_TRANSLATOR
+		if tgt_lang_code == 'NONE' :
+			tgt_lang_code = 'en'
+		TASK_DATA[task_id]['trans_result'] = await translator.translate('auto', tgt_lang_code, texts)
 	else :
 		TASK_DATA[task_id]['trans_result'] = []
-	print('auto translation complete')
 
 async def manual_trans_task(task_id, texts) :
 	if texts :
@@ -123,7 +211,7 @@ async def post_translation_result(request):
 			TASK_DATA[task_id]['trans_result'] = trans_result
 			while True :
 				await asyncio.sleep(0.1)
-				if TASK_STATES[task_id] == 'error' :
+				if TASK_STATES[task_id] in ['error', 'error-lang'] :
 					ret = web.json_response({'task_id' : task_id, 'status': 'failed'})
 					break
 				if TASK_STATES[task_id] == 'finished' :
@@ -146,8 +234,8 @@ async def request_translation_internal(request):
 				# manual translation
 				asyncio.gather(manual_trans_task(task_id, rqjson['texts']))
 			else :
-				# using youdao
-				asyncio.gather(auto_trans_task(task_id, rqjson['texts']))
+				# using machine trnaslation
+				asyncio.gather(machine_trans_task(task_id, rqjson['texts'], TASK_DATA[task_id]['translator'], TASK_DATA[task_id]['tgt']))
 	return web.json_response({})
 
 @routes.post("/get-translation-result-internal")
@@ -169,7 +257,7 @@ async def get_task_state_async(request):
 			ret = web.json_response({'state': TASK_STATES[task_id], 'waiting': QUEUE.index(task_id) + 1})
 		except :
 			ret = web.json_response({'state': TASK_STATES[task_id], 'waiting': 0})
-		if TASK_STATES[task_id] in ['finished', 'error'] :
+		if TASK_STATES[task_id] in ['finished', 'error', 'error-lang'] :
 			# remove old tasks
 			del TASK_STATES[task_id]
 			del TASK_DATA[task_id]
@@ -191,6 +279,16 @@ async def post_task_update_async(request):
 async def submit_async(request):
 	data = await request.post()
 	size = ''
+	selected_translator = 'youdao'
+	target_language = 'CHS'
+	if 'tgt_lang' in data :
+		target_language = data['tgt_lang'].upper()
+		if target_language not in VALID_LANGUAGES :
+			target_language = 'CHS'
+	if 'translator' in data :
+		selected_translator = data['translator'].lower()
+		if selected_translator not in ['youdao', 'baidu'] :
+			selected_translator = 'youdao'
 	if 'size' in data :
 		size = data['size'].upper()
 		if size not in ['S', 'M', 'L', 'X'] :
@@ -216,7 +314,7 @@ async def submit_async(request):
 	os.makedirs(f'result/{task_id}/', exist_ok=True)
 	img.save(f'result/{task_id}/input.png')
 	QUEUE.append(task_id)
-	TASK_DATA[task_id] = {}
+	TASK_DATA[task_id] = {'translator': selected_translator, 'tgt': target_language}
 	TASK_STATES[task_id] = 'pending'
 	return web.json_response({'task_id' : task_id, 'status': 'successful'})
 
@@ -250,7 +348,7 @@ async def manual_translate_async(request):
 		await asyncio.sleep(0.1)
 		if 'trans_request' in TASK_DATA[task_id] :
 			return web.json_response({'task_id' : task_id, 'status': 'pending', 'trans_result': TASK_DATA[task_id]['trans_request']})
-		if TASK_STATES[task_id] == 'error' :
+		if TASK_STATES[task_id] in ['error', 'error-lang'] :
 			break
 		if TASK_STATES[task_id] == 'finished' :
 			# no texts detected

@@ -9,3 +9,4 @@ shapely
 requests
 oscrypto 
 freetype-py
+googletrans

@@ -2,7 +2,7 @@
 <html>
 	<head>
 		<meta charset="utf-8">
-		<title>图片翻译</title>
+		<title>Image/Manga translator</title>
 		<script>
 			var TASKID = "";
 			var STATE = "";
@@ -29,50 +29,56 @@
 				switch (state2) {
 					case "pending":
 						if (queue_pos > 0) {
-							status.innerText = `正在等待，你的队列位置${queue_pos}`;
+							status.innerText = `Queuing, your position is ${queue_pos}`;
 						} else {
-							status.innerText = `正在处理`;
+							status.innerText = `Processing`;
 						}
 						break;
 					case "detection":
-						status.innerText = "正在检测文本";
+						status.innerText = "Detecting texts";
 						if (!ProgressBar.started()) {
 							ProgressBar.start();
 						}
 						break;
 					case "ocr":
-						status.innerText = "正在识别文本";
+						status.innerText = "Running OCR";
 						if (!ProgressBar.started()) {
 							ProgressBar.start();
 						}
 						break;
 					case "mask_generation":
-						status.innerText = "正在生成文本掩码";
+						status.innerText = "Generating text mask";
 						if (!ProgressBar.started()) {
 							ProgressBar.start();
 						}
 						break;
 					case "inpainting":
-						status.innerText = "正在修补图片";
+						status.innerText = "Running inpainting";
 						if (!ProgressBar.started()) {
 							ProgressBar.start();
 						}
 						break;
 					case "translating":
-						status.innerText = "正在翻译";
+						status.innerText = "Translating";
 						if (!ProgressBar.started()) {
 							ProgressBar.start();
 						}
 						break;
 					case "error":
-						status.innerText = "出错，请重试";
+						status.innerText = "Something went wrong (maybe your language is not supported), please try again";
+						if (!ProgressBar.started()) {
+							ProgressBar.start();
+						}
+						break;
+					case "error-lang":
+						status.innerText = "Your target language is not supported";
 						if (!ProgressBar.started()) {
 							ProgressBar.start();
 						}
 						break;
 				}
 				STATE = state2;
-				if (state2 === "finished" || state2 === "error") {
+				if (state2 === "finished" || state2 === "error" || state2 == "error-lang") {
 					return false;
 				} else {
 					return true;
@@ -102,6 +108,10 @@
 
 			async function upload_image(event) {
 				event.preventDefault();
+				var detect_res = document.querySelector('input[name="detect-size"]:checked').value;
+				var translator = document.querySelector('input[name="translator-sel"]:checked').value;
+				var tgt_lang = document.getElementById("target-language").value;
+				console.log(document.getElementById("target-language"));
 				var files = document.getElementById("image-file").files;
 				var status = document.getElementById("status-text");
 				if (files.length == 0) {
@@ -110,7 +120,7 @@
 				document.getElementById("translated-image-div").style.visibility = "hidden";
 				document.getElementById("translated-image").innerHTML = "";
 				document.getElementById("submit-button").disabled = true;
-				status.innerText = "正在上传";
+				status.innerText = "Uploading";
 				const XHR = new XMLHttpRequest();
 
 				// Create a FormData object
@@ -120,10 +130,13 @@
 				var file = files[0];
 
 				formData.append('file', file, file.name);
+				formData.append('size', detect_res);
+				formData.append('translator', translator);
+				formData.append('tgt_lang', tgt_lang);
 				XHR.open('POST', BASE_URI + "submit", true);
 				XHR.onload = async function () {
 					if (XHR.status == 200) {
-						status.innerHTML = '等待结果';
+						status.innerHTML = 'Downloading result';
 						var obj = JSON.parse(XHR.responseText);
 						TASKID = obj.task_id;
 						console.log(`task_id: ${TASKID}`);
@@ -137,7 +150,7 @@
 						status.innerHTML = '';
 						ProgressBar.end();
 					} else {
-						status.innerHTML = '上传失败，请重试';
+						status.innerHTML = 'Upload failed, please try again';
 						document.getElementById("submit-button").disabled = false;
 					}
 				};
@@ -145,16 +158,89 @@
 				// Send the data.
 				XHR.send(formData);
 			}
+
+			function onShowOriginalSizeButtonClicked() {
+				var btn = document.getElementById('btn-show-original-size');
+				const limit_size = btn.checked;
+				var image_ele = document.getElementById('translated-image');
+				if (limit_size) {
+					image_ele.style = "max-width: 1024px;";
+				} else {
+					image_ele.style = "";
+				}
+			}
 		</script>
 	</head>
 	<body>
 		<div>
-			<h3>一键翻译（免费版）</h3>
-			<a href="https://github.com/zyddnys/manga-image-translator">https://github.com/zyddnys/manga-image-translator</a>
-			<form id="image-form" action="#" onsubmit="upload_image(event);" method="post" enctype="multipart/form-data">
-				<input id="image-file" type="file" name="fileToUpload" id="image" accept="image/png, image/jpeg, image/bmp">
-				<input id="submit-button" type="submit" value="提交" name="submit">
-			</form>
+			<div>
+				<h3>Image/Manga translator</h3>
+				<a href="https://github.com/zyddnys/manga-image-translator">https://github.com/zyddnys/manga-image-translator</a>
+			</div>
+			<div>
+				<hr>
+			</div>
+			<div>
+				<form id="image-form" action="#" onsubmit="upload_image(event);" method="post" enctype="multipart/form-data">
+					<div style="padding-bottom: 0.5rem;">
+						<span>Detection resolution: </span>
+						<label>
+							<input type="radio" id="detect-res-S" name="detect-size" value="S">
+							<span>1024px</span>
+						</label>
+						<label>
+							<input type="radio" id="detect-res-M" name="detect-size" value="M" checked>
+							<span>1536px</span>
+						</label>
+						<label>
+							<input type="radio" id="detect-res-L" name="detect-size" value="L">
+							<span>2048px</span>
+						</label>
+						<label>
+							<input type="radio" id="detect-res-X" name="detect-size" value="X">
+							<span>2560px</span>
+						</label>
+					</div>
+					<div style="padding-bottom: 0.5rem;">
+						<span>Translator: </span>
+						<label>
+							<input type="radio" id="translator-youdao" name="translator-sel" value="youdao" checked>
+							<span>Youdao</span>
+						</label>
+						<label>
+							<input type="radio" id="translator-baidu"  name="translator-sel" value="baidu">
+							<span>Baidu</span>
+						</label>
+					</div>
+					<div style="padding-bottom: 0.5rem;">
+						<span>Target language:</span>
+						<select name="tgt_lang" id="target-language">
+							<option value="CHS" selected>简体中文</option>
+							<option value="CHT">繁體中文</option>
+							<option value="JPN">日本語</option>
+							<option value="ENG">English</option>
+							<option value="KOR">한국어</option>
+							<option value="VIN">Tiếng Việt</option>
+							<option value="CSY">čeština</option>
+							<option value="NLD">Nederlands</option>
+							<option value="FRA">français</option>
+							<option value="DEU">Deutsch</option>
+							<option value="HUN">magyar nyelv</option>
+							<option value="ITA">italiano</option>
+							<option value="PLK">polski</option>
+							<option value="PTB">português</option>
+							<option value="ROM">limba română</option>
+							<option value="RUS">русский язык</option>
+							<option value="ESP">español</option>
+							<option value="TRK">Türk dili</option>
+						</select>
+					</div>
+					<div>
+						<input id="image-file" type="file" name="fileToUpload" id="image" accept="image/png, image/jpeg, image/bmp">
+						<input id="submit-button" type="submit" value="Upload" name="submit">
+					</div>
+				</form>
+			</div>
 		</div>
 		<div><h4 id="status-text"></h4></div>
 		<div id="horizontalProgress">
@@ -162,14 +248,82 @@
 			<div id="horizontalProgressOverlay"></div>
 		</div>
 		<div id="detected-text-div" style="visibility: hidden;">
-			<h3>检测到的文字</h3>
+			<h3>Detected texts</h3>
 			<div id="detected-text"></div>
 		</div>
 		<div id="translated-image-div" style="visibility: hidden;">
-			<h3>翻译后图片</h3>
-			<img id="translated-image"></img>
+			<h3>Translated image</h3>
+			<div>
+				<label class="switch">
+					<input id="btn-show-original-size" type="checkbox">
+					<span class="slider round" onclick="onShowOriginalSizeButtonClicked()"></span>
+				</label>
+				<span>Show original size</span>
+			</div>
+			<img id="translated-image" style="max-width: 1024px;" src="file:///media/unknown/dataset/workspace/manga-image-translator/result3.png"></img>
 		</div>
 	</body>
+	<style>
+		.switch {
+			position: relative;
+			display: inline-block;
+			width: 60px;
+			height: 34px;
+		}
+
+		.switch input { 
+			opacity: 0;
+			width: 0;
+			height: 0;
+		}
+
+		.slider {
+			position: absolute;
+			cursor: pointer;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background-color: #ccc;
+			-webkit-transition: .4s;
+			transition: .4s;
+		}
+
+		.slider:before {
+			position: absolute;
+			content: "";
+			height: 26px;
+			width: 26px;
+			left: 4px;
+			bottom: 4px;
+			background-color: white;
+			-webkit-transition: .4s;
+			transition: .4s;
+		}
+
+		input:checked + .slider {
+			background-color: #2196F3;
+		}
+
+		input:focus + .slider {
+			box-shadow: 0 0 1px #2196F3;
+		}
+
+		input:checked + .slider:before {
+			-webkit-transform: translateX(26px);
+			-ms-transform: translateX(26px);
+			transform: translateX(26px);
+		}
+
+		/* Rounded sliders */
+		.slider.round {
+			border-radius: 34px;
+		}
+
+		.slider.round:before {
+			border-radius: 50%;
+		}
+	</style>
 	<style>
 		#horizontalProgress {
 			/* CHANGE THIS STYLES AS YOU WISH */
