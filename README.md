@@ -7,7 +7,7 @@ https://touhou.ai/imgtrans/
 # Changelogs
 ### 2021-07-29
 1. Web demo adds translator, detection resolution and target language option
-2. Slight task color extraction improvement
+2. Slight text color extraction improvement
 ### 2021-07-26
 Major upgrades for all components, now we are on beta! \
 Note in this version all English texts are detected as capital letters, \
