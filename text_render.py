@@ -294,6 +294,11 @@ def put_text_vertical(font_size: int, mag_ratio: float, img: np.ndarray, mask: n
 		y = y1 + spacing_y
 		cur_line_bbox = lines[j] if j < len(lines) else BBox(0, y1, 0, h, '', 0)
 		while True :
+			if text[txt_i] == '\n' :
+				txt_i += 1
+				if txt_i >= len(text) :
+					return True
+				break
 			x_offset, y_offset = put_char(img, mask, x, y, font_size, rot, text[txt_i], 1, char_color=fg,border_color=bg,border_size=bgsize)
 			txt_i += 1
 			if txt_i >= len(text) :
@@ -340,6 +345,11 @@ def put_text_horizontal(font_size: int, mag_ratio: float, img: np.ndarray, mask:
 		x = x1 + spacing_x
 		cur_line_bbox = lines[i] if i < len(lines) else BBox(x1, 0, w, 0, '', 0)
 		while True :
+			if text[txt_i] == '\n' :
+				txt_i += 1
+				if txt_i >= len(text) :
+					return True
+				break
 			x_offset, y_offset = put_char(img, mask, x, y, font_size, rot, text[txt_i], 0, char_color=fg,border_color=bg,border_size=bgsize)
 			txt_i += 1
 			if txt_i >= len(text) :

@@ -17,6 +17,7 @@ import itertools
 import networkx as nx
 import math
 import requests
+import html
 import os
 from collections import Counter
 from oscrypto import util as crypto_utils
@@ -33,8 +34,11 @@ parser.add_argument('--unclip-ratio', default=2.2, type=float, help='How much to
 parser.add_argument('--box-threshold', default=0.7, type=float, help='threshold for bbox generation')
 parser.add_argument('--text-threshold', default=0.5, type=float, help='threshold for text detection')
 parser.add_argument('--text-mag-ratio', default=1, type=int, help='text rendering magnification ratio, larger means higher quality')
+parser.add_argument('--keep-lines', action='store_true', help='keep lines as they originally are')
 args = parser.parse_args()
 print(args)
+
+keep_lines = args.keep_lines
 
 import unicodedata
 
@@ -78,6 +82,9 @@ def _is_punctuation(ch):
 	if cat.startswith("P"):
 		return True
 	return False
+
+def _is_symbol(ch) :
+	return _is_punctuation(ch) or _is_control(ch) or _is_whitespace(ch)
 
 def count_valuable_text(text) :
 	return sum([1 for ch in text if not _is_punctuation(ch) and not _is_control(ch) and not _is_whitespace(ch)])
@@ -585,18 +592,24 @@ async def infer(
 		text = ''
 		logprob_lengths = []
 		for textline_idx in textline_indices :
+			if keep_lines :
+				cur_textline = html.escape(textlines[textline_idx].text)
+			else :
+				cur_textline = textlines[textline_idx].text
 			if not text :
-				text = textlines[textline_idx].text
+				text = cur_textline
 			else :
 				last_ch = text[-1]
 				cur_ch = textlines[textline_idx].text[0]
 				if ord(last_ch) > 255 and ord(cur_ch) > 255 :
-					text += textlines[textline_idx].text
+					if _is_symbol(last_ch) and keep_lines :
+						text += '<s>'
+					text += cur_textline
 				else :
 					if last_ch == '-' and ord(cur_ch) < 255 :
-						text = text[:-1] + textlines[textline_idx].text
+						text = text[:-1] + cur_textline
 					else :
-						text += ' ' + textlines[textline_idx].text
+						text += ' ' + cur_textline
 			logprob_lengths.append((np.log(textlines[textline_idx].prob), len(textlines[textline_idx].text)))
 		vc = count_valuable_text(text)
 		total_logprobs = 0.0
@@ -686,7 +699,7 @@ async def infer(
 				translated_sentences = ret['result']
 				break
 			await asyncio.sleep(0.1)
-	if not translated_sentences :
+	if not translated_sentences and text_regions :
 		update_state(task_id, nonce, 'error')
 		return
 
@@ -697,6 +710,12 @@ async def infer(
 	for ridx, (trans_text, region) in enumerate(zip(translated_sentences, text_regions)) :
 		if not trans_text :
 			continue
+		if keep_lines :
+			trans_text = trans_text.replace('<s>', '\n')
+			trans_text = html.unescape(trans_text)
+		if keep_lines :
+			region.text = region.text.replace('<s>', '\n')
+			region.text = html.unescape(region.text)
 		print(region.text)
 		print(trans_text)
 		print(region.majority_dir, region.pts)
@@ -726,8 +745,8 @@ async def infer(
 		while True :
 			enlarged_w = round(enlarge_ratio * region_aabb.w)
 			enlarged_h = round(enlarge_ratio * region_aabb.h)
-			rows = enlarged_h // (font_size * 1.3)
-			cols = enlarged_w // (font_size * 1.3)
+			rows = enlarged_h // (font_size * 1.1)
+			cols = enlarged_w // (font_size * 1.1)
 			if rows * cols < len(trans_text) :
 				enlarge_ratio *= 1.1
 				continue
