@@ -686,7 +686,7 @@ async def infer(
 				translated_sentences = ret['result']
 				break
 			await asyncio.sleep(0.1)
-	if not translated_sentences :
+	if not translated_sentences and text_regions :
 		update_state(task_id, nonce, 'error')
 		return
 
