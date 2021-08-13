@@ -295,7 +295,8 @@ async def submit_async(request):
 			size = ''
 	if 'file' in data :
 		file_field = data['file']
-		content = file_field.file.read()
+		content = open(file_field, 'rb').read()
+		# content = file_field.file.read()
 	elif 'url' in data :
 		from aiohttp import ClientSession
 		async with ClientSession() as session:
