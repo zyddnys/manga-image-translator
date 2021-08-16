@@ -34,7 +34,7 @@ parser.add_argument('--box-threshold', default=0.7, type=float, help='threshold 
 parser.add_argument('--text-threshold', default=0.5, type=float, help='threshold for text detection')
 parser.add_argument('--text-mag-ratio', default=1, type=int, help='text rendering magnification ratio, larger means higher quality')
 parser.add_argument('--translator', default='youdao', type=str, help='language translator')
-parser.add_argument('--target-lang', default='', type=str, help='destination language')
+parser.add_argument('--target-lang', default='zh-CHS', type=str, help='destination language')
 args = parser.parse_args()
 print(args)
 
