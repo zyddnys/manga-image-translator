@@ -33,6 +33,8 @@ parser.add_argument('--unclip-ratio', default=2.2, type=float, help='How much to
 parser.add_argument('--box-threshold', default=0.7, type=float, help='threshold for bbox generation')
 parser.add_argument('--text-threshold', default=0.5, type=float, help='threshold for text detection')
 parser.add_argument('--text-mag-ratio', default=1, type=int, help='text rendering magnification ratio, larger means higher quality')
+parser.add_argument('--translator', default='youdao', type=str, help='language translator')
+parser.add_argument('--target-lang', default='zh-CHS', type=str, help='destination language')
 args = parser.parse_args()
 print(args)
 
@@ -660,9 +662,15 @@ async def infer(
 		print(' -- Translating')
 		texts = '\n'.join([r.text for r in text_regions])
 		if texts :
-			from youdao import Translator
-			translator = Translator()
-			trans_ret = await translator.translate('auto', 'zh-CHS', texts)
+			if args.translator == 'google':
+				import googletrans
+				translator = googletrans.Translator()
+				translation = translator.translate(texts, dest=args.target_lang)
+				trans_ret = translation.text.split("\n")
+			else:
+				from youdao import Translator
+				translator = Translator()
+				trans_ret = await translator.translate('auto', args.target_lang, texts)
 		else :
 			trans_ret = []
 		if trans_ret :
