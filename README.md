@@ -58,16 +58,16 @@ Successor to https://github.com/PatchyVideo/MMDOCR-HighPerformance
 # How to use
 1. Python>=3.8
 2. Clone this repo
-3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.0)ocr.ckpt、detect.ckpt and inpainting.ckpt，put them in the root directory of this repo
-4. Apply for youdao translate API, put ypur APP_KEY and APP_SECRET in `key.py`
-5. Run `python translate_demo.py --image <path_to_image_file> [--use-inpainting] [--use-cuda]`，result can be found in `result/`. Add `--use-inpainting` to enable inpainting, Add `--use-cuda` to use CUDA.
+3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.0) `ocr.ckpt`、`detect.ckpt` and `inpainting.ckpt`, put them in the root directory of this repo
+4. [Optional if using Google translate] Apply for youdao translate API, put ypur APP_KEY and APP_SECRET in `key.py`
+5. Run `python translate_demo.py --image <path_to_image_file> [--use-inpainting] [--use-cuda] [--translator=google] [--target-lang=zh-CHS]`, result can be found in `result/`. Add `--use-inpainting` to enable inpainting, Add `--use-cuda` to use CUDA.
 
 # How to use
 1. Python>=3.8
 2. Clone this repo
-3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.0)ocr.ckpt、detect.ckpt and inpainting.ckpt，put them in the root directory of this repo
-4. Apply for youdao translate API, put ypur APP_KEY and APP_SECRET in `key.py`
-5. Run `python translate_demo.py --mode web [--use-inpainting] [--use-cuda]`, the demo will be serving on http://127.0.0.1:5003
+3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.0) `ocr.ckpt`、`detect.ckpt` and `inpainting.ckpt`, put them in the root directory of this repo
+4. [Optional if using Google translate] Apply for youdao translate API, put ypur APP_KEY and APP_SECRET in `key.py`
+5. Run `python translate_demo.py --mode web [--use-inpainting] [--use-cuda] [--translator=google] [--target-lang=zh-CHS]`, the demo will be serving on http://127.0.0.1:5003
 
 Two modes of translation service are provided by the demo: synchronous mode and asynchronous mode \
 In synchronous mode your HTTP POST request will finish once the translation task is finished. \
@@ -83,6 +83,39 @@ In asynchronous mode your HTTP POST request will respond with a task_id immediat
 4. Translation is finished when the resultant state is either `finished`, `error` or `error-lang`
 5. Find translation result in `result/` directory, e.g. using Nginx to expose `result/`
 
+### Manual translation
+Manual translation replace machine translation with human translators
+1. POST a form request with form data `file:<content-of-image>` to http://127.0.0.1:5003/manual-translate
+2. Wait for response
+3. You will obtain a JSON response like this:
+```JSON
+{
+    "task_id": "12c779c9431f954971cae720eb104499",
+    "status": "pending",
+    "trans_result": [
+        {
+            "s": "☆上司来ちゃった……",
+            "t": ""
+        }
+    ]
+}
+```
+4. Fill in translated texts
+```JSON
+{
+    "task_id": "12c779c9431f954971cae720eb104499",
+    "status": "pending",
+    "trans_result": [
+        {
+            "s": "☆上司来ちゃった……",
+            "t": "☆Boss is here..."
+        }
+    ]
+}
+```
+5. Post translated JSON to http://127.0.0.1:5003/post-translation-result
+6. Wait for response
+7. Find translation result in `result/` directory, e.g. using Nginx to expose `result/`
 
 # This is a hobby project, you are welcome to contribute
 Currently this only a simple demo, many imperfections exist, we need your support to make this project better!
