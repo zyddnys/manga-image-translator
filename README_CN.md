@@ -1,6 +1,6 @@
 # 在线版
 https://touhou.ai/imgtrans/
-* 注意如果在线版无法访问说明GCP又在重启我的服务器，此时请等待我重新开启服务。
+* 注意如果在线版无法访问说明Google GCP又在重启我的服务器，此时请等待我重新开启服务。
 * 在线版使用的是目前main分支最新版本。
 # Changelogs
 ### 2021-07-29
@@ -56,16 +56,17 @@ https://touhou.ai/imgtrans/
 # 使用说明
 1. Python>=3.8
 2. clone这个repo
-3. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.0)ocr.ckpt、detect.ckpt和inpainting.ckpt，放到这个repo的根目录下
-4. 申请有道翻译API，把你的APP_KEY和APP_SECRET存到key.py里
-5. 运行`python translate_demo.py --image <图片文件路径> [--use-inpainting] [--use-cuda]`，结果会存放到result文件夹里。请加上`--use-inpainting`使用图像修补，请加上`--use-cuda`使用GPU。
+3. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.0) `ocr.ckpt`、`detect.ckpt`和`inpainting.ckpt`，放到这个repo的根目录下
+4. [可选] 申请有道翻译API，把你的APP_KEY和APP_SECRET存到key.py里
+5. 运行`python translate_demo.py --image <图片文件路径> [--use-inpainting] [--use-cuda] [--translator=google] [--target-lang=zh-CHS]`，结果会存放到result文件夹里。请加上`--use-inpainting`使用图像修补，请加上`--use-cuda`使用GPU。
 
 # Web服务使用说明
 1. Python>=3.8
 2. clone这个repo
-3. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.0)ocr.ckpt、detect.ckpt和inpainting.ckpt，放到这个repo的根目录下
-4. 申请有道翻译API，把你的APP_KEY和APP_SECRET存到key.py里
-5. 运行`python translate_demo.py --mode web [--use-inpainting] [--use-cuda]`，程序服务会开启在http://127.0.0.1:5003
+3. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.0) `ocr.ckpt`、`detect.ckpt`和`inpainting.ckpt`，放到这个repo的根目录下
+4. [可选] 申请有道翻译API，把你的APP_KEY和APP_SECRET存到key.py里
+5. 运行`python translate_demo.py --mode web [--use-inpainting] [--use-cuda] [--translator=google] [--target-lang=zh-CHS]`，程序服务会开启在http://127.0.0.1:5003 \
+请加上`--use-inpainting`使用图像修补，请加上`--use-cuda`使用GPU。
 
 程序提供两个请求模式：同步模式和异步模式。 \
 同步模式下你的HTTP POST请求会一直等待直到翻译完成。 \
@@ -80,6 +81,40 @@ https://touhou.ai/imgtrans/
 3. 通过这个task_id你可以定期发送POST轮询请求JSON {"taskid": <你的task_id>}到http://127.0.0.1:5003/task-state
 4. 当返回的状态是"finished","error"或"error-lang"时代表翻译完成
 5. 去result文件夹里取结果，例如通过Nginx暴露result下的内容
+### 人工翻译
+人工翻译允许代替机翻手动填入翻译后文本
+1. POST提交一个带图片，名字是file的form到http://127.0.0.1:5003/manual-translate
+2. 等待返回
+3. 你会得到一个JSON数组，例如：
+```JSON
+{
+    "task_id": "12c779c9431f954971cae720eb104499",
+    "status": "pending",
+    "trans_result": [
+        {
+            "s": "☆上司来ちゃった……",
+            "t": ""
+        }
+    ]
+}
+```
+4. 将翻译后内容填入t字符串，例如
+```JSON
+{
+    "task_id": "12c779c9431f954971cae720eb104499",
+    "status": "pending",
+    "trans_result": [
+        {
+            "s": "☆上司来ちゃった……",
+            "t": "☆上司来了..."
+        }
+    ]
+}
+```
+5. 将该JSON发送到http://127.0.0.1:5003/post-translation-result
+6. 等待返回
+7. 从得到的task_id去result文件夹里取结果，例如通过Nginx暴露result下的内容
+
 
 # 只是初步版本，我们需要您的帮助完善
 这个项目目前只完成了简单的demo，依旧存在大量不完善的地方，我们需要您的帮助完善这个项目！
