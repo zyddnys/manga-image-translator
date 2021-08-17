@@ -9,4 +9,7 @@ shapely
 requests
 oscrypto 
 freetype-py
-googletrans
+googletrans==4.0.0rc1
+aiohttp
+tqdm
+sklearn
