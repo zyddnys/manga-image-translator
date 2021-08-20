@@ -29,7 +29,7 @@ parser.add_argument('--size', default=1536, type=int, help='image square size')
 parser.add_argument('--use-inpainting', action='store_true', help='turn on/off inpainting')
 parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
 parser.add_argument('--inpainting-size', default=2048, type=int, help='size of image used for inpainting (too large will result in OOM)')
-parser.add_argument('--unclip-ratio', default=2.0, type=float, help='How much to extend text skeleton to form bounding box')
+parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to extend text skeleton to form bounding box')
 parser.add_argument('--box-threshold', default=0.7, type=float, help='threshold for bbox generation')
 parser.add_argument('--text-threshold', default=0.5, type=float, help='threshold for text detection')
 parser.add_argument('--text-mag-ratio', default=1, type=int, help='text rendering magnification ratio, larger means higher quality')
@@ -445,7 +445,10 @@ def run_ocr(img, quadrilaterals: List[Tuple[Quadrilateral, str]], dictionary, mo
 		for i, idx in enumerate(indices) :
 			W = regions[idx].shape[1]
 			region[i, :, : W, :] = regions[idx]
-			cv2.imwrite(f'ocrs/{ix}.png', region[i, :, :, :])
+			if quadrilaterals[idx][1] == 'v' :
+				cv2.imwrite(f'ocrs/{ix}.png', cv2.rotate(cv2.cvtColor(region[i, :, :, :], cv2.COLOR_RGB2BGR), cv2.ROTATE_90_CLOCKWISE))
+			else :
+				cv2.imwrite(f'ocrs/{ix}.png', cv2.cvtColor(region[i, :, :, :], cv2.COLOR_RGB2BGR))
 			ix += 1
 		images = (torch.from_numpy(region).float() - 127.5) / 127.5
 		images = einops.rearrange(images, 'N H W C -> N C H W')
@@ -720,8 +723,8 @@ async def infer(
 		if texts :
 			from youdao import Translator
 			translator = Translator()
-			trans_ret = await translator.translate('auto', 'zh-CHS', texts)
-			#trans_ret = [r.text for r in text_regions]
+			#trans_ret = await translator.translate('auto', 'zh-CHS', texts)
+			trans_ret = [r.text for r in text_regions]
 		else :
 			trans_ret = []
 		if trans_ret :
