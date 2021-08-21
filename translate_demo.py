@@ -33,7 +33,7 @@ parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to
 parser.add_argument('--box-threshold', default=0.7, type=float, help='threshold for bbox generation')
 parser.add_argument('--text-threshold', default=0.5, type=float, help='threshold for text detection')
 parser.add_argument('--text-mag-ratio', default=1, type=int, help='text rendering magnification ratio, larger means higher quality')
-parser.add_argument('--translator', default='youdao', type=str, help='language translator')
+parser.add_argument('--translator', default='baidu', type=str, help='language translator')
 parser.add_argument('--target-lang', default='zh-CHS', type=str, help='destination language')
 args = parser.parse_args()
 print(args)
@@ -577,6 +577,10 @@ async def infer(
 				translator = googletrans.Translator()
 				translation = translator.translate(texts, dest=args.target_lang)
 				trans_ret = translation.text.split("\n")
+			elif args.translator == 'baidu':
+				from baidutrans import Translator as BaiduTranslator
+				translator = BaiduTranslator()
+				trans_ret = await translator.translate('auto', 'zh', texts)
 			else:
 				from youdao import Translator
 				translator = Translator()
@@ -609,7 +613,8 @@ async def infer(
 		return
 
 	print(' -- Rendering translated text')
-	update_state(task_id, nonce, 'render')
+	if mode == 'web' and task_id :
+		update_state(task_id, nonce, 'render')
 	# render translated texts
 	img_canvas = np.copy(img_inpainted)
 	from utils import findNextPowerOf2
