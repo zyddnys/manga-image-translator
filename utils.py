@@ -3,37 +3,39 @@ from typing import List
 import numpy as np
 import cv2
 import functools
+import shapely
+from shapely.geometry import Polygon, MultiPoint
 
 def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
-    # initialize the dimensions of the image to be resized and
-    # grab the image size
-    dim = None
-    (h, w) = image.shape[:2]
+	# initialize the dimensions of the image to be resized and
+	# grab the image size
+	dim = None
+	(h, w) = image.shape[:2]
 
-    # if both the width and height are None, then return the
-    # original image
-    if width is None and height is None:
-        return image
+	# if both the width and height are None, then return the
+	# original image
+	if width is None and height is None:
+		return image
 
-    # check to see if the width is None
-    if width is None:
-        # calculate the ratio of the height and construct the
-        # dimensions
-        r = height / float(h)
-        dim = (int(w * r), height)
+	# check to see if the width is None
+	if width is None:
+		# calculate the ratio of the height and construct the
+		# dimensions
+		r = height / float(h)
+		dim = (int(w * r), height)
 
-    # otherwise, the height is None
-    else:
-        # calculate the ratio of the width and construct the
-        # dimensions
-        r = width / float(w)
-        dim = (width, int(h * r))
+	# otherwise, the height is None
+	else:
+		# calculate the ratio of the width and construct the
+		# dimensions
+		r = width / float(w)
+		dim = (width, int(h * r))
 
-    # resize the image
-    resized = cv2.resize(image, dim, interpolation = inter)
+	# resize the image
+	resized = cv2.resize(image, dim, interpolation = inter)
 
-    # return the resized image
-    return resized
+	# return the resized image
+	return resized
 
 class BBox(object) :
 	def __init__(self, x: int, y: int, w: int, h: int, text: str, prob: float, fg_r: int = 0, fg_g: int = 0, fg_b: int = 0, bg_r: int = 0, bg_g: int = 0, bg_b: int = 0) :
@@ -71,6 +73,7 @@ class Quadrilateral(object) :
 		self.bg_r = bg_r
 		self.bg_g = bg_g
 		self.bg_b = bg_b
+		self.assigned_direction = None
 
 	@functools.cached_property
 	def structure(self) -> List[np.ndarray] :
@@ -116,6 +119,11 @@ class Quadrilateral(object) :
 		self.pts[:, 1] = np.clip(np.round(self.pts[:, 1]), 0, height)
 
 	@functools.cached_property
+	def points(self) :
+		ans = [a.astype(np.float32) for a in self.structure]
+		return [Point(a[0], a[1]) for a in ans]
+
+	@functools.cached_property
 	def aabb(self) -> BBox :
 		kq = self.pts
 		max_coord = np.max(kq, axis = 0)
@@ -128,6 +136,7 @@ class Quadrilateral(object) :
 		h_vec = l2b - l2a
 		ratio = np.linalg.norm(v_vec) / np.linalg.norm(h_vec)
 		src_pts = self.pts.astype(np.float32)
+		self.assigned_direction = direction
 		if direction == 'h' :
 			h = textheight
 			w = round(textheight / ratio)
@@ -202,6 +211,68 @@ class Quadrilateral(object) :
 			d = min(d, distance_point_point(p, self.pts[i]))
 			d = min(d, distance_point_lineseg(p, self.pts[i], self.pts[(i + 1) % 4]))
 		return d
+
+	@functools.cached_property
+	def polygon(self) -> Polygon :
+		return MultiPoint([tuple(self.pts[0]), tuple(self.pts[1]), tuple(self.pts[2]), tuple(self.pts[3])]).convex_hull
+
+	def poly_distance(self, other) -> float :
+		return self.polygon.distance(other.polygon)
+
+	def distance(self, other, rho = 0.5) -> float :
+		return self.distance_impl(other, rho)# + 1000 * abs(self.angle - other.angle)
+
+	def distance_impl(self, other, rho = 0.5) -> float :
+		assert self.assigned_direction == other.assigned_direction
+		#return gjk_distance(self.points, other.points)
+		# b1 = self.aabb
+		# b2 = b2.aabb
+		# x1, y1, w1, h1 = b1.x, b1.y, b1.w, b1.h
+		# x2, y2, w2, h2 = b2.x, b2.y, b2.w, b2.h
+		# return rect_distance(x1, y1, x1 + w1, y1 + h1, x2, y2, x2 + w2, y2 + h2)
+		pattern = ''
+		if self.assigned_direction == 'h' :
+			pattern = 'h_left'
+		else :
+			pattern = 'v_top'
+		fs = max(self.font_size, other.font_size)
+		if self.assigned_direction == 'h' :
+			poly1 = MultiPoint([tuple(self.pts[0]), tuple(self.pts[3]), tuple(other.pts[0]), tuple(other.pts[3])]).convex_hull
+			poly2 = MultiPoint([tuple(self.pts[2]), tuple(self.pts[1]), tuple(other.pts[2]), tuple(other.pts[1])]).convex_hull
+			poly3 = MultiPoint([
+				tuple(self.structure[0]),
+				tuple(self.structure[2]),
+				tuple(other.structure[0]),
+				tuple(other.structure[2])
+			]).convex_hull
+			dist1 = poly1.area / fs
+			dist2 = poly2.area / fs
+			dist3 = poly3.area / fs
+			if dist1 < fs * rho :
+				pattern = 'h_left'
+			if dist2 < fs * rho and dist2 < dist1 :
+				pattern = 'h_right'
+			if dist3 < fs * rho and dist3 < dist1 and dist3 < dist2 :
+				pattern = 'h_middle'
+			if pattern == 'h_left' :
+				return dist(self.pts[0][0], self.pts[0][1], other.pts[0][0], other.pts[0][1])
+			elif pattern == 'h_right' :
+				return dist(self.pts[1][0], self.pts[1][1], other.pts[1][0], other.pts[1][1])
+			else :
+				return dist(self.structure[0][0], self.structure[0][1], other.structure[0][0], other.structure[0][1])
+		else :
+			poly1 = MultiPoint([tuple(self.pts[0]), tuple(self.pts[1]), tuple(other.pts[0]), tuple(other.pts[1])]).convex_hull
+			poly2 = MultiPoint([tuple(self.pts[2]), tuple(self.pts[3]), tuple(other.pts[2]), tuple(other.pts[3])]).convex_hull
+			dist1 = poly1.area / fs
+			dist2 = poly2.area / fs
+			if dist1 < fs * rho :
+				pattern = 'v_top'
+			if dist2 < fs * rho and dist2 < dist1 :
+				pattern = 'v_bottom'
+			if pattern == 'v_top' :
+				return dist(self.pts[0][0], self.pts[0][1], other.pts[0][0], other.pts[0][1])
+			else :
+				return dist(self.pts[2][0], self.pts[2][1], other.pts[2][0], other.pts[2][1])
 
 def dist(x1, y1, x2, y2) :
 	return np.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2))
@@ -300,13 +371,28 @@ def quadrilateral_can_merge_region(a: Quadrilateral, b: Quadrilateral, ratio = 1
 			fs_a = a.font_size
 			fs_b = b.font_size
 			fs = min(fs_a, fs_b)
-			ca, cb = a.centroid, b.centroid
-			if a.distance_to_point(cb) > fs * char_gap_tolerance2 and b.distance_to_point(ca) > fs * char_gap_tolerance2 :
+			if a.poly_distance(b) > fs * char_gap_tolerance2 :
 				return False
 			if abs(fs_a - fs_b) / fs > 0.25 :
 				return False
 			return True
 	return False
+
+def quadrilateral_can_merge_region_coarse(a: Quadrilateral, b: Quadrilateral, discard_connection_gap = 2, font_size_ratio_tol = 0.7) -> bool :
+	if a.assigned_direction != b.assigned_direction :
+		return False
+	if abs(a.angle - b.angle) > 15 * np.pi / 180 :
+		return False
+	fs_a = a.font_size
+	fs_b = b.font_size
+	fs = min(fs_a, fs_b)
+	if abs(fs_a - fs_b) / fs > font_size_ratio_tol :
+		return False
+	fs = max(fs_a, fs_b)
+	dist = a.poly_distance(b)
+	if dist > discard_connection_gap * fs :
+		return False
+	return True
 
 def findNextPowerOf2(n):
 	i = 0
@@ -314,3 +400,120 @@ def findNextPowerOf2(n):
 		i += 1
 		n = n >> 1
 	return 1 << i
+
+class Point :
+	def __init__(self, x = 0, y = 0) :
+		self.x = x
+		self.y = y
+	
+	def length2(self) -> float :
+		return self.x * self.x + self.y * self.y
+
+	def length(self) -> float :
+		return np.sqrt(self.length2())
+
+	def __str__(self) :
+		return f'({self.x}, {self.y})'
+
+	def __add__(self, other):
+		x = self.x + other.x
+		y = self.y + other.y
+		return Point(x, y)
+
+	def __sub__(self, other):
+		x = self.x - other.x
+		y = self.y - other.y
+		return Point(x, y)
+
+	def __mul__(self, other):
+		if isinstance(other, Point) :
+			return self.x * other.x + self.y * other.y
+		else :
+			return Point(self.x * other, self.y * other)
+
+	def __truediv__(self, other):
+		return self.x * other.y - self.y * other.x
+
+	def neg(self) :
+		return Point(-self.x, -self.y)
+
+	def normalize(self) :
+		return self * (1. / self.length())
+
+def center_of_points(pts: List[Point]) -> Point :
+	ans = Point()
+	for p in pts :
+		ans.x += p.x
+		ans.y += p.y
+	ans.x /= len(pts)
+	ans.y /= len(pts)
+	return ans
+
+def support_impl(pts: List[Point], d: Point) -> Point :
+	dist = -1.0e-20
+	ans = pts[0]
+	for p in pts :
+		proj = p * d
+		if proj > dist :
+			dist = proj
+			ans = p
+	return ans
+
+def support(a: List[Point], b: List[Point], d: Point) -> Point :
+	return support_impl(a, d) - support_impl(b, d.neg())
+
+def cross(a: Point, b: Point, c: Point) -> Point :
+	return b * (a * c) - a * (b * c)
+
+def closest_point_to_origin(a: Point, b: Point) -> Point :
+	da = a.length()
+	db = b.length()
+	dist = abs(a / b) / (a - b).length()
+	ab = b - a
+	ba = a - b
+	ao = a.neg()
+	bo = b.neg()
+	if ab * ao > 0 and ba * bo > 0 :
+		return cross(ab, ao, ab).normalize() * dist
+	return a.neg() if da < db else b.neg()
+
+def dcmp(a) -> bool :
+	if abs(a) < 1e-8 :
+		return False
+	return True
+
+def gjk_distance(s1: List[Point], s2: List[Point]) -> float :
+	d = center_of_points(s2) - center_of_points(s1)
+	a = support(s1, s2, d)
+	b = support(s1, s2, d.neg())
+	d = closest_point_to_origin(a, b)
+	s = [a, b]
+	for _ in range(8) :
+		c = support(s1, s2, d)
+		a = s.pop()
+		b = s.pop()
+		da = d * a
+		db = d * b
+		dc = d * c
+		if not dcmp(dc - da) or not dcmp(dc - db) :
+			return d.length()
+		p1 = closest_point_to_origin(a, c)
+		p2 = closest_point_to_origin(b, c)
+		if p1.length2() < p2.length2() :
+			s.append(a)
+			d = p1
+		else :
+			s.append(b)
+			d = p2
+		s.append(c)
+	return 0
+
+def main() :
+	s1 = [Point(0, 0), Point(0, 2), Point(2, 2), Point(2, 0)]
+	offset = 0
+	s2 = [Point(1 + offset, 1 + offset), Point(1 + offset, 3 + offset), Point(3 + offset, 3 + offset + 1.5), Point(3 + offset + 1.5, 3 + offset), Point(3 + offset, 1 + offset)]
+	print(gjk_distance(s1, s2))
+
+if __name__ == '__main__' :
+	main()
+
