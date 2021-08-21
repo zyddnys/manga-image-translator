@@ -64,17 +64,19 @@
 							ProgressBar.start();
 						}
 						break;
-					case "error":
-						status.innerText = "Something went wrong (maybe your language is not supported), please try again";
+					case "render":
+						status.innerText = "Rendering translated texts";
 						if (!ProgressBar.started()) {
 							ProgressBar.start();
 						}
 						break;
+					case "error":
+						status.innerText = "Something went wrong (maybe your language is not supported), please try again";
+						ProgressBar.end();
+						break;
 					case "error-lang":
 						status.innerText = "Your target language is not supported";
-						if (!ProgressBar.started()) {
-							ProgressBar.start();
-						}
+						ProgressBar.end();
 						break;
 				}
 				STATE = state2;
