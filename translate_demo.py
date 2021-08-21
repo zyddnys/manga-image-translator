@@ -753,6 +753,7 @@ async def infer(
 		return
 
 	print(' -- Rendering translated text')
+	update_state(task_id, nonce, 'render')
 	# render translated texts
 	img_canvas = np.copy(img_inpainted)
 	from utils import findNextPowerOf2
