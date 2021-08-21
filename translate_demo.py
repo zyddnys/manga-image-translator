@@ -1,6 +1,6 @@
 
 from functools import reduce
-from typing import List, Tuple
+from typing import List, Set, Tuple
 from networkx.algorithms.distance_measures import center
 import torch
 from DBNet_resnet34 import TextDetection
@@ -20,7 +20,7 @@ import requests
 import os
 from collections import Counter
 from oscrypto import util as crypto_utils
-from utils import BBox, Quadrilateral, image_resize, quadrilateral_can_merge_region
+from utils import BBox, Quadrilateral, image_resize, quadrilateral_can_merge_region, quadrilateral_can_merge_region_coarse
 
 parser = argparse.ArgumentParser(description='Generate text bboxes given a image file')
 parser.add_argument('--mode', default='demo', type=str, help='Run demo in either single image demo mode (demo) or web service mode (web)')
@@ -29,7 +29,7 @@ parser.add_argument('--size', default=1536, type=int, help='image square size')
 parser.add_argument('--use-inpainting', action='store_true', help='turn on/off inpainting')
 parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
 parser.add_argument('--inpainting-size', default=2048, type=int, help='size of image used for inpainting (too large will result in OOM)')
-parser.add_argument('--unclip-ratio', default=2.2, type=float, help='How much to extend text skeleton to form bounding box')
+parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to extend text skeleton to form bounding box')
 parser.add_argument('--box-threshold', default=0.7, type=float, help='threshold for bbox generation')
 parser.add_argument('--text-threshold', default=0.5, type=float, help='threshold for text detection')
 parser.add_argument('--text-mag-ratio', default=1, type=int, help='text rendering magnification ratio, larger means higher quality')
@@ -260,14 +260,72 @@ def get_mini_boxes(contour):
 	box = np.array(box)
 	return box
 
-def merge_bboxes_text_region(bboxes: List[Quadrilateral]) :
+def split_text_region(bboxes: List[Quadrilateral], region_indices: Set[int], gamma = 0.5, sigma = 2, std_threshold = 6.0) -> List[Set[int]] :
+	region_indices = list(region_indices)
+	#print('to split', region_indices)
+	if len(region_indices) == 1 :
+		# case #1
+		return [set(region_indices)]
+	if len(region_indices) == 2 :
+		# case #2
+		fs1 = bboxes[region_indices[0]].font_size
+		fs2 = bboxes[region_indices[1]].font_size
+		fs = max(fs1, fs2)
+		if bboxes[region_indices[0]].distance(bboxes[region_indices[1]]) < (1 + gamma) * fs \
+			and abs(bboxes[region_indices[0]].angle - bboxes[region_indices[1]].angle) < 4 * np.pi / 180 :
+			return [set(region_indices)]
+		else :
+			return [set([region_indices[0]]), set([region_indices[1]])]
+	# case 3
+	G = nx.Graph()
+	for idx in region_indices :
+		G.add_node(idx)
+	for (u, v) in itertools.combinations(region_indices, 2) :
+		G.add_edge(u, v, weight = bboxes[u].distance(bboxes[v]))
+	edges = nx.algorithms.tree.minimum_spanning_edges(G, algorithm = "kruskal", data = True)
+	edges = sorted(edges, key = lambda a: a[2]['weight'], reverse = True)
+	edge_weights = [a[2]['weight'] for a in edges]
+	fontsize = np.mean([bboxes[idx].font_size for idx in region_indices])
+	std = np.std(edge_weights)
+	mean = np.mean(edge_weights)
+	#print('edge_weights', edge_weights)
+	#print(f'std: {std}, mean: {mean}')
+	if (edge_weights[0] <= mean + std * sigma or edge_weights[0] <= fontsize * (1 + gamma)) and std < std_threshold :
+		return [set(region_indices)]
+	else :
+		if edge_weights[0] - edge_weights[1] < std * sigma and std < std_threshold :
+			return [set(region_indices)]
+		(split_u, split_v, _) = edges[0]
+		#print(f'split between "{bboxes[split_u].text}", "{bboxes[split_v].text}"')
+		G = nx.Graph()
+		for idx in region_indices :
+			G.add_node(idx)
+		for edge in edges[1:] :
+			G.add_edge(edge[0], edge[1])
+		ans = []
+		for node_set in nx.algorithms.components.connected_components(G) :
+			ans.extend(split_text_region(bboxes, node_set))
+		return ans
+	pass
+
+def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height) :
 	G = nx.Graph()
 	for i, box in enumerate(bboxes) :
 		G.add_node(i, box = box)
+		bboxes[i].assigned_index = i
+	# step 1: roughly divide into multiple text region candidates
 	for ((u, ubox), (v, vbox)) in itertools.combinations(enumerate(bboxes), 2) :
-		if quadrilateral_can_merge_region(ubox, vbox) :
+		if quadrilateral_can_merge_region_coarse(ubox, vbox) :
 			G.add_edge(u, v)
+
+	region_indices: List[Set[int]] = []
 	for node_set in nx.algorithms.components.connected_components(G) :
+		# step 2: split each region
+		#print(' -- spliting', node_set)
+		region_indices.extend(split_text_region(bboxes, node_set))
+	#print('region_indices', region_indices)
+
+	for node_set in region_indices :
 		nodes = list(node_set)
 		# get overall bbox
 		txtlns = np.array(bboxes)[nodes]
@@ -389,7 +447,10 @@ def run_ocr(img, quadrilaterals: List[Tuple[Quadrilateral, str]], dictionary, mo
 		for i, idx in enumerate(indices) :
 			W = regions[idx].shape[1]
 			region[i, :, : W, :] = regions[idx]
-			#cv2.imwrite(f'ocrs/{ix}.png', region[i, :, :, :])
+			if quadrilaterals[idx][1] == 'v' :
+				cv2.imwrite(f'ocrs/{ix}.png', cv2.rotate(cv2.cvtColor(region[i, :, :, :], cv2.COLOR_RGB2BGR), cv2.ROTATE_90_CLOCKWISE))
+			else :
+				cv2.imwrite(f'ocrs/{ix}.png', cv2.cvtColor(region[i, :, :, :], cv2.COLOR_RGB2BGR))
 			ix += 1
 		images = (torch.from_numpy(region).float() - 127.5) / 127.5
 		images = einops.rearrange(images, 'N H W C -> N C H W')
@@ -583,7 +644,7 @@ async def infer(
 
 	text_regions: List[Quadrilateral] = []
 	new_textlines = []
-	for (poly_regions, textline_indices, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines) :
+	for (poly_regions, textline_indices, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines, img_bbox_raw.shape[1], img_bbox_raw.shape[0]) :
 		text = ''
 		logprob_lengths = []
 		for textline_idx in textline_indices :
@@ -662,6 +723,7 @@ async def infer(
 		print(' -- Translating')
 		texts = '\n'.join([r.text for r in text_regions])
 		if texts :
+<<<<<<< HEAD
 			if args.translator == 'google':
 				import googletrans
 				translator = googletrans.Translator()
@@ -671,6 +733,12 @@ async def infer(
 				from youdao import Translator
 				translator = Translator()
 				trans_ret = await translator.translate('auto', args.target_lang, texts)
+=======
+			from youdao import Translator
+			translator = Translator()
+			#trans_ret = await translator.translate('auto', 'zh-CHS', texts)
+			trans_ret = [r.text for r in text_regions]
+>>>>>>> new_text_merge
 		else :
 			trans_ret = []
 		if trans_ret :
@@ -707,7 +775,7 @@ async def infer(
 			continue
 		print(region.text)
 		print(trans_text)
-		print(region.majority_dir, region.pts)
+		#print(region.majority_dir, region.pts)
 		fg = (region.fg_r, region.fg_g, region.fg_b)
 		bg = (region.bg_r, region.bg_g, region.bg_b)
 		font_size = 0
@@ -715,12 +783,12 @@ async def infer(
 		for idx in region.textline_indices :
 			txtln = textlines[idx]
 			img_bbox = cv2.polylines(img_bbox, [txtln.pts], True, color = fg, thickness=2)
-			[l1a, l1b, l2a, l2b] = txtln.structure
-			cv2.line(img_bbox, l1a, l1b, color = (0, 255, 0), thickness = 2)
-			cv2.line(img_bbox, l2a, l2b, color = (0, 0, 255), thickness = 2)
+			# [l1a, l1b, l2a, l2b] = txtln.structure
+			# cv2.line(img_bbox, l1a, l1b, color = (0, 255, 0), thickness = 2)
+			# cv2.line(img_bbox, l2a, l2b, color = (0, 0, 255), thickness = 2)
 			dbox = txtln.aabb
 			font_size = max(font_size, txtln.font_size)
-			cv2.rectangle(img_bbox, (dbox.x, dbox.y), (dbox.x + dbox.w, dbox.y + dbox.h), color = (255, 0, 255), thickness = 2)
+			#cv2.rectangle(img_bbox, (dbox.x, dbox.y), (dbox.x + dbox.w, dbox.y + dbox.h), color = (255, 0, 255), thickness = 2)
 		font_size = round(font_size)
 		img_bbox = cv2.polylines(img_bbox, [region.pts], True, color=(0, 0, 255), thickness = 2)
 
