@@ -4,7 +4,7 @@ from typing import List, Set, Tuple
 from networkx.algorithms.distance_measures import center
 import torch
 from DBNet_resnet34 import TextDetection
-from model_ocr_48px import OCR
+from model_ocr import OCR
 from inpainting_aot import AOTGenerator
 import einops
 import argparse
@@ -432,7 +432,7 @@ def chunks(lst, n):
 		yield lst[i:i + n]
 
 def run_ocr(img, quadrilaterals: List[Tuple[Quadrilateral, str]], dictionary, model, max_chunk_size = 2) :
-	text_height = 48
+	text_height = 32
 	regions = [q.get_transformed_region(img, d, text_height) for q, d in quadrilaterals]
 	out_regions = []
 	perm = sorted(range(len(regions)), key = lambda x: regions[x].shape[1])
@@ -540,7 +540,7 @@ def load_ocr_model() :
 	with open('alphabet-all-v5.txt', 'r', encoding='utf-8') as fp :
 		dictionary = [s[:-1] for s in fp.readlines()]
 	model = OCR(dictionary, 768)
-	model.load_state_dict(torch.load('ocr_48px.ckpt', map_location='cpu'))
+	model.load_state_dict(torch.load('ocr.ckpt', map_location='cpu'))
 	model.eval()
 	if args.use_cuda :
 		model = model.cuda()
