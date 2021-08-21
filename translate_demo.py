@@ -723,7 +723,6 @@ async def infer(
 		print(' -- Translating')
 		texts = '\n'.join([r.text for r in text_regions])
 		if texts :
-<<<<<<< HEAD
 			if args.translator == 'google':
 				import googletrans
 				translator = googletrans.Translator()
@@ -733,12 +732,6 @@ async def infer(
 				from youdao import Translator
 				translator = Translator()
 				trans_ret = await translator.translate('auto', args.target_lang, texts)
-=======
-			from youdao import Translator
-			translator = Translator()
-			#trans_ret = await translator.translate('auto', 'zh-CHS', texts)
-			trans_ret = [r.text for r in text_regions]
->>>>>>> new_text_merge
 		else :
 			trans_ret = []
 		if trans_ret :
