@@ -5,6 +5,11 @@ https://touhou.ai/imgtrans/
 * Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
 * Note this online demo is using the current main branch version.
 # Changelogs
+### 2021-08-21
+1. New MST based text region merge algorithm, huge text region merge improvement
+2. Add baidu translator in demo mode
+3. Add google translator in demo mode
+4. Various bugfixes
 ### 2021-07-29
 1. Web demo adds translator, detection resolution and target language option
 2. Slight text color extraction improvement
