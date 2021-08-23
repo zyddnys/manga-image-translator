@@ -139,7 +139,7 @@ What need to be done
 The following samples are from the original version, they do not represent the current main branch version.
 Original             |  Translated
 :-------------------------:|:-------------------------:
-![Original](original1.jpg "https://www.pixiv.net/en/artworks/85200179")|![Output](result1.png)
-![Original](original2.jpg "https://twitter.com/mmd_96yuki/status/1320122899005460481")|![Output](result2.png)
-![Original](original3.jpg "https://twitter.com/_taroshin_/status/1231099378779082754")|![Output](result3.png)
-![Original](original4.jpg "https://amagi.fanbox.cc/posts/1904941")|![Output](result4.png)
+![Original](demo/original1.jpg "https://www.pixiv.net/en/artworks/85200179")|![Output](demo/result1.png)
+![Original](demo/original2.jpg "https://twitter.com/mmd_96yuki/status/1320122899005460481")|![Output](demo/result2.png)
+![Original](demo/original3.jpg "https://twitter.com/_taroshin_/status/1231099378779082754")|![Output](demo/result3.png)
+![Original](demo/original4.jpg "https://amagi.fanbox.cc/posts/1904941")|![Output](demo/result4.png)

@@ -356,7 +356,7 @@ def put_text_horizontal(font_size: int, mag_ratio: float, img: np.ndarray, mask:
 def put_text(img: np.ndarray, text: str, line_count: int, x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
 	pass
 
-def prepare_renderer(font_filenames = ['Arial-Unicode-Regular.ttf', 'msyh.ttc', 'msgothic.ttc']) :
+def prepare_renderer(font_filenames = ['fonts/Arial-Unicode-Regular.ttf', 'fonts/msyh.ttc', 'fonts/msgothic.ttc']) :
 	global CACHED_FONT_FACE
 	for font_filename in font_filenames :
 		CACHED_FONT_FACE.append(freetype.Face(font_filename))
