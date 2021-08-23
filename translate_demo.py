@@ -19,7 +19,7 @@ parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to
 parser.add_argument('--box-threshold', default=0.7, type=float, help='threshold for bbox generation')
 parser.add_argument('--text-threshold', default=0.5, type=float, help='threshold for text detection')
 parser.add_argument('--text-mag-ratio', default=1, type=int, help='text rendering magnification ratio, larger means higher quality')
-parser.add_argument('--translator', default='null', type=str, help='language translator')
+parser.add_argument('--translator', default='google', type=str, help='language translator')
 parser.add_argument('--target-lang', default='CHS', type=str, help='destination language')
 parser.add_argument('--verbose', action='store_true', help='print debug info and save intermediate images')
 args = parser.parse_args()
