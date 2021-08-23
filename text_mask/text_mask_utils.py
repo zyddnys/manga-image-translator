@@ -119,6 +119,13 @@ def refine_mask(rgbim, rawmask) :
 	crf_mask = np.array(res * 255, dtype=np.uint8)
 	return crf_mask
 
+def complete_mask_fill(img_np: np.ndarray, ccs: List[np.ndarray], text_lines: List[Tuple[int, int, int, int]], cc2textline_assignment) :
+	if len(ccs) == 0 :
+		return
+	for (x, y, w, h) in text_lines :
+		final_mask = cv2.rectangle(final_mask, (x, y), (x + w, y + h), (255), -1)
+	return final_mask
+
 def complete_mask(img_np: np.ndarray, ccs: List[np.ndarray], text_lines: List[Tuple[int, int, int, int]], cc2textline_assignment) :
 	if len(ccs) == 0 :
 		return

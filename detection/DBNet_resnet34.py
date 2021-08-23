@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 from torchvision.models import resnet34
 
-import DBHead
+from . import DBHead
 import einops
 
 class ImageMultiheadSelfAttention(nn.Module) :

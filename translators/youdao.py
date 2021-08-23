@@ -1,20 +1,14 @@
 
 # -*- coding: utf-8 -*-
-import sys
 import uuid
-import requests
 import hashlib
 import time
-from imp import reload
 
 import aiohttp
-import asyncio
 import time
 
-reload(sys)
-
 YOUDAO_URL = 'https://openapi.youdao.com/api'
-from key import APP_KEY, APP_SECRET
+from .keys import APP_KEY, APP_SECRET
 
 def encrypt(signStr):
 	hash_algorithm = hashlib.sha256()

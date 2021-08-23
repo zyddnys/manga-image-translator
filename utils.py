@@ -6,6 +6,12 @@ import functools
 import shapely
 from shapely.geometry import Polygon, MultiPoint
 
+def resize_keep_aspect(img, size) :
+	ratio = (float(size)/max(img.shape[0], img.shape[1]))
+	new_width = round(img.shape[1] * ratio)
+	new_height = round(img.shape[0] * ratio)
+	return cv2.resize(img, (new_width, new_height), interpolation = cv2.INTER_LINEAR_EXACT)
+	
 def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
 	# initialize the dimensions of the image to be resized and
 	# grab the image size

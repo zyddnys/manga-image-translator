@@ -13,77 +13,7 @@ from aiohttp import ClientSession
 
 from collections import deque
 
-from youdao import Translator as YoudaoTranslator
-YOUDAO_TRANSLATOR = YoudaoTranslator()
-from googletrans import Translator as GoogleTranslator
-GOOGLE_TRANSLATOR = GoogleTranslator()
-from baidutrans import Translator as BaiduTranslator
-BAIDU_TRANSLATOR = BaiduTranslator()
-
-LANGUAGE_CODE_MAP = {}
-
-VALID_LANGUAGES = {
-	"CHS": "Chinese (Simplified)",
-	"CHT": "Chinese (Traditional)",
-	"CSY": "Czech",
-	"NLD": "Dutch",
-	"ENG": "English",
-	"FRA": "French",
-	"DEU": "German",
-	"HUN": "Hungarian",
-	"ITA": "Italian",
-	"JPN": "Japanese",
-	"KOR": "Korean",
-	"PLK": "Polish",
-	"PTB": "Portuguese (Brazil)",
-	"ROM": "Romanian",
-	"RUS": "Russian",
-	"ESP": "Spanish",
-	"TRK": "Turkish",
-	"VIN": "Vietnamese"
-}
-
-LANGUAGE_CODE_MAP['youdao'] = {
-	'CHS': 'zh-CHS',
-	'CHT': 'NONE',
-	'JPN': "ja",
-	'ENG': 'en',
-	'KOR': 'ko',
-	'VIN': 'vi',
-	'CSY': 'cs',
-	'NLD': 'nl',
-	'FRA': 'fr',
-	'DEU': 'de',
-	'HUN': 'hu',
-	'ITA': 'it',
-	'PLK': 'pl',
-	'PTB': 'pt',
-	'ROM': 'ro',
-	'RUS': 'ru',
-	'ESP': 'es',
-	'TRK': 'tr',
-}
-
-LANGUAGE_CODE_MAP['baidu'] = {
-	'CHS': 'zh',
-	'CHT': 'cht',
-	'JPN': "ja",
-	'ENG': 'en',
-	'KOR': 'kor',
-	'VIN': 'vie',
-	'CSY': 'cs',
-	'NLD': 'nl',
-	'FRA': 'fra',
-	'DEU': 'de',
-	'HUN': 'hu',
-	'ITA': 'it',
-	'PLK': 'pl',
-	'PTB': 'pt',
-	'ROM': 'rom',
-	'RUS': 'ru',
-	'ESP': 'spa',
-	'TRK': 'NONE',
-}
+from translators import VALID_LANGUAGES, dispatch as run_translation
 
 NONCE = ''
 QUEUE = deque()
@@ -180,17 +110,11 @@ async def get_task_async(request):
 async def machine_trans_task(task_id, texts, translator = 'youdao', target_language = 'CHS') :
 	print('translator', translator)
 	print('target_language', target_language)
-	texts = '\n'.join(texts)
 	if texts :
-		tgt_lang_code = LANGUAGE_CODE_MAP[translator][target_language]
-		print('tgt_lang_code', tgt_lang_code)
-		if translator == 'youdao' :
-			translator = YOUDAO_TRANSLATOR
-		elif translator == 'baidu' :
-			translator = BAIDU_TRANSLATOR
-		if tgt_lang_code == 'NONE' :
-			tgt_lang_code = 'en'
-		TASK_DATA[task_id]['trans_result'] = await translator.translate('auto', tgt_lang_code, texts)
+		try :
+			TASK_DATA[task_id]['trans_result'] = await run_translation(translator, 'auto', target_language, texts)
+		except Exception as ex :
+			TASK_DATA[task_id]['trans_result'] = ['error'] * len(texts)
 	else :
 		TASK_DATA[task_id]['trans_result'] = []
 

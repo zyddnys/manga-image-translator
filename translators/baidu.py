@@ -9,32 +9,11 @@ import traceback
 import json
 import time
 
-from key import APP_ID, SECRET_KEY
+from .keys import APP_ID, SECRET_KEY
 
 # base api url
 BASE_URL = 'api.fanyi.baidu.com'
 API_URL = '/api/trans/vip/translate'
-
-LANG_MAP = {
-	'zh-CN': 'zh',
-	'zh-TW': 'cht',
-	'ja': 'jp',
-	"en": 'en',
-	"ko": 'kor',
-	"cs": 'cs',
-	#"nl": 'en', # not supported
-	"fr": 'fra',
-	"de": 'de',
-	"hu": 'hu',
-	"it": 'it',
-	"pl": 'pl',
-	"pt": 'pt',
-	"ro": 'rom',
-	"ru": 'ru',
-	"es": 'spa',
-	#"tr": 'en', # not supported
-	"vi": 'vie'
-}
 
 import aiohttp
 
@@ -44,17 +23,14 @@ class Translator(object):
 
 	async def translate(self, from_lang, to_lang, query_text):
 		url = self.get_url(from_lang, to_lang, query_text)
-		try:
-			async with aiohttp.ClientSession() as session:
-				async with session.get('https://'+BASE_URL+url) as resp:
-					result = await resp.json()
-			result_list = []
-			for ret in result["trans_result"]:
-				for v in ret["dst"].split('\n') :
-					result_list.append(v)
-			return result_list
-		except Exception as e:
-			traceback.print_exc()
+		async with aiohttp.ClientSession() as session:
+			async with session.get('https://'+BASE_URL+url) as resp:
+				result = await resp.json()
+		result_list = []
+		for ret in result["trans_result"]:
+			for v in ret["dst"].split('\n') :
+				result_list.append(v)
+		return result_list
 
 	@staticmethod
 	def get_url(from_lang, to_lang, query_text):
