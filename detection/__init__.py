@@ -55,7 +55,7 @@ async def run_default(img: np.ndarray, detect_size: int, cuda: bool, verbose: bo
 		mask_resized = mask_resized[:-pad_h, :]
 	elif pad_w > 0 :
 		mask_resized = mask_resized[:, : -pad_w]
-	return textlines, np.clip(mask_resized, 0, 255).astype(np.uint8)
+	return textlines, np.clip(mask_resized * 255, 0, 255).astype(np.uint8)
 
 async def dispatch(img: np.ndarray, detect_size: int, cuda: bool, args: dict, model_name: str = 'default', verbose: bool = False) -> List[Quadrilateral] :
 	print(' -- Running text detection')

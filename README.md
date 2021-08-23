@@ -65,14 +65,14 @@ Successor to https://github.com/PatchyVideo/MMDOCR-HighPerformance
 2. Clone this repo
 3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.0) `ocr.ckpt`、`detect.ckpt` and `inpainting.ckpt`, put them in the root directory of this repo
 4. [Optional if using Google translate] Apply for youdao translate API, put ypur APP_KEY and APP_SECRET in `translators/key.py`
-5. Run `python translate_demo.py --image <path_to_image_file> [--use-inpainting] [--use-cuda] [--translator=google] [--target-lang=zh-CHS]`, result can be found in `result/`. Add `--use-inpainting` to enable inpainting, Add `--use-cuda` to use CUDA.
+5. Run `python translate_demo.py --image <path_to_image_file> [--use-inpainting] [--verbose] [--use-cuda] [--translator=google] [--target-lang=CHS]`, result can be found in `result/`. Add `--use-inpainting` to enable inpainting, Add `--use-cuda` to use CUDA.
 
 # How to use
 1. Python>=3.8
 2. Clone this repo
 3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.0) `ocr.ckpt`、`detect.ckpt` and `inpainting.ckpt`, put them in the root directory of this repo
 4. [Optional if using Google translate] Apply for youdao translate API, put ypur APP_KEY and APP_SECRET in `translators/key.py`
-5. Run `python translate_demo.py --mode web [--use-inpainting] [--use-cuda] [--translator=google] [--target-lang=zh-CHS]`, the demo will be serving on http://127.0.0.1:5003
+5. Run `python translate_demo.py --mode web [--use-inpainting] [--verbose] [--use-cuda] [--translator=google] [--target-lang=CHS]`, the demo will be serving on http://127.0.0.1:5003
 
 Two modes of translation service are provided by the demo: synchronous mode and asynchronous mode \
 In synchronous mode your HTTP POST request will finish once the translation task is finished. \

@@ -25,18 +25,6 @@ parser.add_argument('--verbose', action='store_true', help='print debug info and
 args = parser.parse_args()
 print(args)
 
-def run_detect(model, img_np_resized) :
-	img_np_resized = img_np_resized.astype(np.float32) / 127.5 - 1.0
-	img = torch.from_numpy(img_np_resized)
-	if args.use_cuda :
-		img = img.cuda()
-	img = einops.rearrange(img, 'h w c -> 1 c h w')
-	with torch.no_grad() :
-		db, mask = model(img)
-		db = db.sigmoid().cpu()
-		mask = mask[0, 0, :, :].cpu().numpy()
-	return db, (mask * 255.0).astype(np.uint8)
-
 def overlay_image(a, b, wa = 0.7) :
 	return cv2.addWeighted(a, wa, b, 1 - wa, 0)
 
@@ -47,14 +35,6 @@ def overlay_mask(img, mask) :
 	mask_fp32 = mask_fp32.astype(np.float32) * 0.5
 	img2 = img2 * mask_fp32[:, :, None]
 	return img2.astype(np.uint8)
-
-def filter_bbox(polys) :
-	r = []
-	for ubox in polys :
-		x, y, w, h = ubox[0][0], ubox[0][1], ubox[1][0] - ubox[0][0], ubox[2][1] - ubox[1][1]
-		if w / h > 2.5 or h / w > 2.5 :
-			r.append(ubox)
-	return np.array(r)
 
 from text_rendering import text_render
 
@@ -100,13 +80,28 @@ async def infer(
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'detection')
-	textlines, mask = await dispatch_detection(img, img_detect_size, args.use_cuda, args, verbose = True)
+	textlines, mask = await dispatch_detection(img, img_detect_size, args.use_cuda, args, verbose = args.verbose)
+
+	if args.verbose :
+		img_bbox_raw = np.copy(img)
+		for txtln in textlines :
+			cv2.polylines(img_bbox_raw, [txtln.pts], True, color = (255, 0, 0), thickness = 2)
+		cv2.imwrite(f'result/{task_id}/bbox_unfiltered.png', cv2.cvtColor(img_bbox_raw, cv2.COLOR_RGB2BGR))
+		cv2.imwrite(f'result/{task_id}/mask_raw.png', mask)
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'ocr')
 	textlines = await dispatch_ocr(img, textlines, args.use_cuda, args)
 
 	text_regions, textlines = await dispatch_textline_merge(textlines, img.shape[1], img.shape[0])
+	if args.verbose :
+		img_bbox = np.copy(img)
+		for region in text_regions :
+			for idx in region.textline_indices :
+				txtln = textlines[idx]
+				cv2.polylines(img_bbox, [txtln.pts], True, color = (255, 0, 0), thickness = 2)
+			img_bbox = cv2.polylines(img_bbox, [region.pts], True, color = (0, 0, 255), thickness = 2)
+		cv2.imwrite(f'result/{task_id}/bbox.png', cv2.cvtColor(img_bbox, cv2.COLOR_RGB2BGR))
 
 	if mode == 'web' and task_id :
 		print(' -- Translating')
@@ -129,6 +124,7 @@ async def infer(
 		img_inpainted, inpaint_input = img_inpainted
 		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input, cv2.COLOR_RGB2BGR))
 		cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
+		cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
 
 	# translate text region texts
 	if mode != 'web' :
@@ -154,18 +150,7 @@ async def infer(
 	# render translated texts
 	output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions)
 	
-
 	print(' -- Saving results')
-	# result_db = db[0, 0, :, :].numpy()
-	# os.makedirs(f'result/{task_id}/', exist_ok=True)
-	# cv2.imwrite(f'result/{task_id}/db.png', imgproc.cvt2HeatmapImg(result_db))
-	# cv2.imwrite(f'result/{task_id}/textline.png', overlay)
-	# cv2.imwrite(f'result/{task_id}/bbox.png', cv2.cvtColor(img_bbox, cv2.COLOR_RGB2BGR))
-	# cv2.imwrite(f'result/{task_id}/bbox_unfiltered.png', cv2.cvtColor(img_bbox_raw, cv2.COLOR_RGB2BGR))
-	# cv2.imwrite(f'result/{task_id}/overlay.png', cv2.cvtColor(overlay_image(img_to_overlay, cv2.resize(overlay, (img_resized.shape[1], img_resized.shape[0]), interpolation=cv2.INTER_LINEAR)), cv2.COLOR_RGB2BGR))
-	# cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
-	# if inpaint_input is not None :
-	# 	cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input, cv2.COLOR_RGB2BGR))
 	cv2.imwrite(f'result/{task_id}/final.png', cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
 
 	if mode == 'web' and task_id :
