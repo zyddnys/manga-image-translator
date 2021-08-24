@@ -93,7 +93,7 @@ async def infer(
 		update_state(task_id, nonce, 'ocr')
 	textlines = await dispatch_ocr(img, textlines, args.use_cuda, args)
 
-	text_regions, textlines = await dispatch_textline_merge(textlines, img.shape[1], img.shape[0])
+	text_regions, textlines = await dispatch_textline_merge(textlines, img.shape[1], img.shape[0], verbose = args.verbose)
 	if args.verbose :
 		img_bbox = np.copy(img)
 		for region in text_regions :

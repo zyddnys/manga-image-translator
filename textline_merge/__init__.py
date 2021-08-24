@@ -53,9 +53,10 @@ def _is_punctuation(ch):
 def count_valuable_text(text) :
 	return sum([1 for ch in text if not _is_punctuation(ch) and not _is_control(ch) and not _is_whitespace(ch)])
 
-def split_text_region(bboxes: List[Quadrilateral], region_indices: Set[int], gamma = 0.5, sigma = 2, std_threshold = 6.0) -> List[Set[int]] :
+def split_text_region(bboxes: List[Quadrilateral], region_indices: Set[int], gamma = 0.5, sigma = 2, std_threshold = 6.0, verbose: bool = False) -> List[Set[int]] :
 	region_indices = list(region_indices)
-	#print('to split', region_indices)
+	if verbose :
+		print('to split', region_indices)
 	if len(region_indices) == 1 :
 		# case #1
 		return [set(region_indices)]
@@ -81,15 +82,17 @@ def split_text_region(bboxes: List[Quadrilateral], region_indices: Set[int], gam
 	fontsize = np.mean([bboxes[idx].font_size for idx in region_indices])
 	std = np.std(edge_weights)
 	mean = np.mean(edge_weights)
-	#print('edge_weights', edge_weights)
-	#print(f'std: {std}, mean: {mean}')
+	if verbose :
+		print('edge_weights', edge_weights)
+		print(f'std: {std}, mean: {mean}')
 	if (edge_weights[0] <= mean + std * sigma or edge_weights[0] <= fontsize * (1 + gamma)) and std < std_threshold :
 		return [set(region_indices)]
 	else :
 		if edge_weights[0] - edge_weights[1] < std * sigma and std < std_threshold :
 			return [set(region_indices)]
-		(split_u, split_v, _) = edges[0]
-		#print(f'split between "{bboxes[split_u].text}", "{bboxes[split_v].text}"')
+		if verbose :
+			(split_u, split_v, _) = edges[0]
+			print(f'split between "{bboxes[split_u].text}", "{bboxes[split_v].text}"')
 		G = nx.Graph()
 		for idx in region_indices :
 			G.add_node(idx)
@@ -126,7 +129,7 @@ def get_mini_boxes(contour):
 	box = np.array(box)
 	return box
 
-def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height) :
+def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose) :
 	G = nx.Graph()
 	for i, box in enumerate(bboxes) :
 		G.add_node(i, box = box)
@@ -140,7 +143,7 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height) :
 	for node_set in nx.algorithms.components.connected_components(G) :
 		# step 2: split each region
 		#print(' -- spliting', node_set)
-		region_indices.extend(split_text_region(bboxes, node_set))
+		region_indices.extend(split_text_region(bboxes, node_set, verbose = verbose))
 	#print('region_indices', region_indices)
 
 	for node_set in region_indices :
@@ -179,10 +182,10 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height) :
 		# yield overall bbox and sorted indices
 		yield bbox, nodes, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
 
-async def dispatch(textlines: List[Quadrilateral], width: int, height: int) -> Tuple[List[Quadrilateral], List[Quadrilateral]] :
+async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verbose: bool = False) -> Tuple[List[Quadrilateral], List[Quadrilateral]] :
 	text_regions: List[Quadrilateral] = []
 	new_textlines = []
-	for (poly_regions, textline_indices, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines, width, height) :
+	for (poly_regions, textline_indices, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines, width, height, verbose) :
 		text = ''
 		logprob_lengths = []
 		for textline_idx in textline_indices :
