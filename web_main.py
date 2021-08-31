@@ -57,7 +57,7 @@ async def run_async(request):
 			target_language = 'CHS'
 	if 'translator' in data :
 		selected_translator = data['translator'].lower()
-		if selected_translator not in ['youdao', 'baidu'] :
+		if selected_translator not in ['youdao', 'baidu', 'null'] :
 			selected_translator = 'youdao'
 	if 'size' in data :
 		size = data['size'].upper()
@@ -211,7 +211,7 @@ async def submit_async(request):
 			target_language = 'CHS'
 	if 'translator' in data :
 		selected_translator = data['translator'].lower()
-		if selected_translator not in ['youdao', 'baidu'] :
+		if selected_translator not in ['youdao', 'baidu', 'null'] :
 			selected_translator = 'youdao'
 	if 'size' in data :
 		size = data['size'].upper()
