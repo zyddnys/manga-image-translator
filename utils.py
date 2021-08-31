@@ -251,9 +251,9 @@ class Quadrilateral(object) :
 			poly2 = MultiPoint([tuple(self.pts[2]), tuple(self.pts[1]), tuple(other.pts[2]), tuple(other.pts[1])]).convex_hull
 			poly3 = MultiPoint([
 				tuple(self.structure[0]),
-				tuple(self.structure[2]),
+				tuple(self.structure[1]),
 				tuple(other.structure[0]),
-				tuple(other.structure[2])
+				tuple(other.structure[1])
 			]).convex_hull
 			dist1 = poly1.area / fs
 			dist2 = poly2.area / fs

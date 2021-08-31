@@ -100,7 +100,7 @@ def split_text_region(bboxes: List[Quadrilateral], region_indices: Set[int], gam
 			G.add_edge(edge[0], edge[1])
 		ans = []
 		for node_set in nx.algorithms.components.connected_components(G) :
-			ans.extend(split_text_region(bboxes, node_set))
+			ans.extend(split_text_region(bboxes, node_set, verbose = verbose))
 		return ans
 	pass
 
@@ -142,9 +142,11 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose
 	region_indices: List[Set[int]] = []
 	for node_set in nx.algorithms.components.connected_components(G) :
 		# step 2: split each region
-		#print(' -- spliting', node_set)
+		if verbose :
+			print(' -- spliting', node_set)
 		region_indices.extend(split_text_region(bboxes, node_set, verbose = verbose))
-	#print('region_indices', region_indices)
+	if verbose :
+		print('region_indices', region_indices)
 
 	for node_set in region_indices :
 		nodes = list(node_set)
