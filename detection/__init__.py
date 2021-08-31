@@ -50,6 +50,7 @@ async def run_default(img: np.ndarray, detect_size: int, cuda: bool, verbose: bo
 		polys = craft_utils.adjustResultCoordinates(polys, ratio_w, ratio_h, ratio_net = 1)
 		polys = polys.astype(np.int16)
 	textlines = [Quadrilateral(pts.astype(int), '', 0) for pts in polys]
+	textlines = list(filter(lambda q: q.area > 16, textlines))
 	mask_resized = cv2.resize(mask, (mask.shape[1] * 2, mask.shape[0] * 2), interpolation = cv2.INTER_LINEAR)
 	if pad_h > 0 :
 		mask_resized = mask_resized[:-pad_h, :]

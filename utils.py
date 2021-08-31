@@ -144,15 +144,15 @@ class Quadrilateral(object) :
 		src_pts = self.pts.astype(np.float32)
 		self.assigned_direction = direction
 		if direction == 'h' :
-			h = textheight
-			w = round(textheight / ratio)
+			h = int(textheight)
+			w = int(round(textheight / ratio))
 			dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
 			M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 			region = cv2.warpPerspective(img, M, (w, h))
 			return region
 		elif direction == 'v' :
-			w = textheight
-			h = round(textheight * ratio)
+			w = int(textheight)
+			h = int(round(textheight * ratio))
 			dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
 			M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 			region = cv2.warpPerspective(img, M, (w, h))
@@ -221,6 +221,10 @@ class Quadrilateral(object) :
 	@functools.cached_property
 	def polygon(self) -> Polygon :
 		return MultiPoint([tuple(self.pts[0]), tuple(self.pts[1]), tuple(self.pts[2]), tuple(self.pts[3])]).convex_hull
+
+	@functools.cached_property
+	def area(self) -> float :
+		return self.polygon.area
 
 	def poly_distance(self, other) -> float :
 		return self.polygon.distance(other.polygon)
