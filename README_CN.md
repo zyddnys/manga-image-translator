@@ -2,9 +2,6 @@
 https://touhou.ai/imgtrans/
 * 注意如果在线版无法访问说明Google GCP又在重启我的服务器，此时请等待我重新开启服务。
 * 在线版使用的是目前main分支最新版本。
-# Pixiv翻译插件
-需要tampermonkey
-https://gist.github.com/QiroNT/b646e0b749e6f3ced6f8ebe52ee0b03d
 # Changelogs
 ### 2021-08-21
 1. 文本区域合并算法更新，先已经实现几乎完美文本行合并
