@@ -1,9 +1,10 @@
 # 中文说明
 [README_CN.md](README_CN.md)
-# Online Demo
-https://touhou.ai/imgtrans/
-* Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
-* Note this online demo is using the current main branch version.
+# <s>Online Demo</s>
+<s>https://touhou.ai/imgtrans/</s> \
+<s>* Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.</s> \
+<s>* Note this online demo is using the current main branch version.</s> \
+I can't fix the constant bad alloc error thrown at me, if you know how to fix it please help.
 # Changelogs
 ### 2021-08-21
 1. New MST based text region merge algorithm, huge text region merge improvement
