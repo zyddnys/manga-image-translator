@@ -395,7 +395,12 @@ def put_text_horizontal(font_size: int, text: str, lang: str, w: int, h: int, or
 		x1, y1, x2, y2 = test_draw.multiline_textbbox((0,0), wrapped_text, font=font, spacing=spacing, align="center", stroke_width=stroke_width)
 		box_width = x2 - x1
 		box_height = y2 - y1
-		if box_height > h:
+		if box_width > orig_shape[1] or box_height > orig_shape[0]:
+			if work_parity > 0:
+				break
+			new_font_size -= 2
+			work_parity = -1
+		elif box_height > h:
 			if work_parity > 0:
 				break
 			new_font_size -= 2
