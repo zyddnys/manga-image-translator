@@ -7,7 +7,7 @@ from utils import findNextPowerOf2
 
 from . import text_render
 
-async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], textlines: List[Quadrilateral], text_regions: List[Quadrilateral]) -> np.ndarray :
+async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], textlines: List[Quadrilateral], text_regions: List[Quadrilateral], force_horizontal: bool) -> np.ndarray :
 	for ridx, (trans_text, region) in enumerate(zip(translated_sentences, text_regions)) :
 		if not trans_text :
 			continue
@@ -57,12 +57,8 @@ async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translate
 		enlarged_w = region_aabb.w
 		enlarged_h = region_aabb.h
 		enlarge_ratio = 1
-		#tmp_canvas = np.ones((enlarged_h * 2, enlarged_w * 2, 3), dtype = np.uint8) * 127
-		#tmp_mask = np.zeros((enlarged_h * 2, enlarged_w * 2), dtype = np.uint16)
-		#tmp_canvas = np.ones((img_canvas.shape[1], img_canvas.shape[0], 3), dtype = np.uint8) * 127
-		#tmp_mask = np.zeros((img_canvas.shape[1], img_canvas.shape[0]), dtype = np.uint16)
 
-		if region.majority_dir == 'h' or True :
+		if region.majority_dir == 'h' or force_horizontal :
 			tmp_rgba = text_render.put_text_horizontal(
 				font_size,
 				trans_text,
@@ -74,6 +70,10 @@ async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translate
 				bg
 			)
 		else :
+			tmp_canvas = np.ones((enlarged_h * 2, enlarged_w * 2, 3), dtype = np.uint8) * 127
+			tmp_mask = np.zeros((enlarged_h * 2, enlarged_w * 2), dtype = np.uint16)
+			tmp_canvas = np.ones((img_canvas.shape[1], img_canvas.shape[0], 3), dtype = np.uint8) * 127
+			tmp_mask = np.zeros((img_canvas.shape[1], img_canvas.shape[0]), dtype = np.uint16)
 			text_render.put_text_vertical(
 				font_size,
 				enlarge_ratio * 1.0,
