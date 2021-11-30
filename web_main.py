@@ -42,7 +42,7 @@ def convert_img(img) :
 
 @routes.get("/")
 async def index_async(request):
-	with open('ui.html', 'r') as fp :
+	with open('ui.html', 'r', encoding="utf-8") as fp :
 		return web.Response(text=fp.read(), content_type='text/html')
 
 @routes.post("/run")
@@ -211,7 +211,7 @@ async def submit_async(request):
 			target_language = 'CHS'
 	if 'translator' in data :
 		selected_translator = data['translator'].lower()
-		if selected_translator not in ['youdao', 'baidu', 'null'] :
+		if selected_translator not in ['youdao', 'baidu', 'google', 'papago', 'null'] :
 			selected_translator = 'youdao'
 	if 'size' in data :
 		size = data['size'].upper()
@@ -284,6 +284,14 @@ async def manual_translate_async(request):
 			return web.json_response({'task_id' : task_id, 'status': 'successful'})
 	return web.json_response({'task_id' : task_id, 'status': 'failed'})
 
+@routes.get("/result")
+async def get_result(request):
+	task_id = request.query.get('taskid')
+	try :
+		return web.FileResponse(f"result/{task_id}/final.png")
+	except :
+		return web.json_response({'state': 'error'})
+
 app.add_routes(routes)
 
 async def start_async_app():
@@ -295,7 +303,7 @@ async def start_async_app():
 	await runner.setup()
 	site = web.TCPSite(runner, '127.0.0.1', port)
 	await site.start()
-	print(f"Serving up app on 127.0.0.1:{port}")
+	print(f"Serving up app on http://127.0.0.1:{port}")
 	return runner, site
 
 loop = asyncio.get_event_loop()

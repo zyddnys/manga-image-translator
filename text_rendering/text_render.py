@@ -1,13 +1,24 @@
 
 from itertools import filterfalse
 import pickle
+from sys import flags
 from typing import List, Tuple, Optional
+
 
 import numpy as np
 
 import cv2
 import unicodedata
-import freetype
+
+from time import sleep
+from PIL import Image, ImageFont, ImageDraw
+import math
+
+if __name__ == '__main__' :
+	import sys, os 
+	p = os.path.abspath('.')
+	sys.path.insert(1, p)
+
 from utils import BBox, Quadrilateral
 
 def _is_whitespace(ch):
@@ -186,6 +197,7 @@ class namespace :
 
 class Glyph :
 	def __init__(self, glyph) :
+		self.slot = glyph
 		self.bitmap = namespace()
 		self.bitmap.buffer = glyph.bitmap.buffer
 		self.bitmap.rows = glyph.bitmap.rows
@@ -195,6 +207,10 @@ class Glyph :
 		self.advance.y = glyph.advance.y
 		self.bitmap_left = glyph.bitmap_left
 		self.bitmap_top = glyph.bitmap_top
+	def get_glyph(self):
+		return self.slot.get_glyph()
+
+
 
 @functools.lru_cache(maxsize = 1024, typed = True)
 def get_char_glyph(cdpt, font_size: int, direction: int) :
@@ -209,7 +225,35 @@ def get_char_glyph(cdpt, font_size: int, direction: int) :
 		face.load_char(cdpt)
 		return Glyph(face.glyph), face.glyph.bitmap.rows * face.glyph.bitmap.width == 0
 
-def put_char(canvas: np.ndarray, mask: np.ndarray, x: int, y: int, font_size: int, rot: int, cdpt: str, direction: int, char_color = (0,0,0), border_color = (0,255,0), border_size = 2) :
+@functools.lru_cache(maxsize = 1024, typed = True)
+def get_font(font_size: int, direction=0) :
+	global CACHED_FONT_FACE
+	for i, face in enumerate(CACHED_FONT_FACE) :
+		return ImageFont.truetype(face, font_size)
+
+def wrap_text(text, boxWidth, font, draw):
+	textArr = text.split(" ")
+	newStr = ""
+	line = ""
+	for i, c in enumerate(textArr):
+			if i == 0:
+					line += c
+					if i == len(textArr) - 1:
+							newStr += line
+			else:
+					if draw.textlength(line + " " + c, font=font) > boxWidth:
+							newStr += line + "\n"
+							line = c
+							if i == len(textArr) - 1:
+									newStr += c
+					else:
+							line += " " + c
+							if i == len(textArr) - 1:
+									newStr += line
+	return newStr
+	
+
+def put_char(canvas: np.ndarray, mask: np.ndarray, x: int, y: int, font_size: int, rot: int, cdpt: str, direction: int, char_color = (0,0,0), border_color = (0,255,0), border_size = 2, debug = False) :
 	is_pun = _is_punctuation(cdpt)
 	cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, direction)
 	old_font_size = font_size
@@ -217,15 +261,30 @@ def put_char(canvas: np.ndarray, mask: np.ndarray, x: int, y: int, font_size: in
 	x -= border_size
 	y -= border_size
 	glyph, empty_char = get_char_glyph(cdpt, old_font_size, direction)
+	"""
+	glyph_real = glyph.get_glyph()
+	stroker = freetype.Stroker()
+	stroker.set(64, freetype.FT_STROKER_LINECAP_ROUND, freetype.FT_STROKER_LINEJOIN_ROUND,0)
+	#glyph_real.stroke(stroker, True)
+	blyph = glyph_real.to_bitmap(freetype.FT_RENDER_MODE_NORMAL, freetype.Vector(0,0), True)
+	bitmap = blyph.bitmap
+	"""
 	offset_x = glyph.advance.x>>6
 	offset_y = glyph.advance.y>>6
 	bitmap = glyph.bitmap
+	
 	if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width :
 		if offset_y == 0 and direction == 1 :
 			offset_y = offset_x
 		return offset_x, offset_y
-
+	if debug:
+		if offset_y == 0 and direction == 1 :
+			offset_y = old_font_size
+		return offset_x, offset_y
+	print(cdpt, offset_x, offset_y)
 	char_map = np.array(bitmap.buffer, dtype = np.uint8).reshape((bitmap.rows,bitmap.width))
+	cv2.imshow("char_map", cv2.resize(char_map, (0,0), fx=10, fy=10, interpolation=cv2.INTER_NEAREST))
+	
 	size = font_size
 	if is_pun and direction == 1 :
 		x2, y2, w2, h2 = cv2.boundingRect(char_map.astype(np.uint8) * 255)
@@ -245,16 +304,24 @@ def put_char(canvas: np.ndarray, mask: np.ndarray, x: int, y: int, font_size: in
 	new_char_map = np.zeros((size + place_y, size + place_x),dtype=np.uint8)
 	available_region = new_char_map[place_y:place_y+char_map.shape[0], place_x:place_x+char_map.shape[1]]
 	new_char_map[place_y:place_y+char_map.shape[0], place_x:place_x+char_map.shape[1]] = char_map[:available_region.shape[0],:available_region.shape[1]]
+	print(place_x, place_y)
+	cv2.imshow("char_map", cv2.resize(char_map, (0,0), fx=10, fy=10, interpolation=cv2.INTER_NEAREST))
 	char_map = new_char_map
 	char_map = char_map.reshape((char_map.shape[0],char_map.shape[1],1))
+	
 	available_shape = canvas[y :y+font_size,x: x+font_size,:].shape
 	char_map = char_map[:available_shape[0],:available_shape[1]]
+	
 	if len(char_map.shape) == 3 :
 		char_map = char_map.squeeze(-1)
 	if border_color :
 		char_map, char_map_alpha, char_color, border_color = add_color(char_map, char_color, border_color=border_color, border_size=border_size)
 	else :
 		char_map, char_map_alpha, char_color, border_color = add_color(char_map, char_color)
+	
+	#cv2.imshow("char_map_alpha", cv2.resize(char_map_alpha, (0,0), fx=10, fy=10, interpolation=cv2.INTER_NEAREST))
+	cv2.waitKey(0)
+	cv2.destroyAllWindows()
 	canvas[y:y+font_size,x: x+font_size,:] = char_map
 	mask[y:y+font_size,x: x+font_size] += char_map_alpha
 	if offset_y == 0 and direction == 1 :
@@ -307,66 +374,66 @@ def put_text_vertical(font_size: int, mag_ratio: float, img: np.ndarray, mask: n
 		j += 1
 	return True
 
-def put_text_horizontal(font_size: int, mag_ratio: float, img: np.ndarray, mask: np.ndarray, text: str, line_count: int, lines: List[Quadrilateral], x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
-	x1 = x
-	x2 = x + w
-	y1 = y
-	y2 = y + h
-	#cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-	# font_size = round(h / (line_count * 0.9))
-	rows = h // font_size
-	cols = w // font_size
-	# while rows * cols < len(text) :
-	# 	font_size -= 1
-	# 	rows = h // font_size
-	# 	cols = w // font_size
-	fg_avg = (fg[0] + fg[1] + fg[2]) / 3
+def put_text_horizontal(font_size: int, text: str, lang: str, w: int, h: int, orig_shape: Tuple[int, int], fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
+	test_image = Image.new("L", (orig_shape[1], orig_shape[0]))
+	test_draw = ImageDraw.Draw(test_image)
 	if bg :
-		bg_avg = (bg[0] + bg[1] + bg[2]) / 3
-		if abs(fg_avg - bg_avg) < 40 :
-			bg = None
-	bgsize = int(max(font_size * 0.07, 1)) if bg else 0
-	spacing_x = 0#int(max(font_size * 0.05, 1))
-	spacing_y = spacing_x
-	x = x1 + max(spacing_x, 0)
-	y = y1 + spacing_y
-	txt_i = 0
+		if abs(fg[0] - bg[0]) < 40 and abs(fg[1] - bg[1]) < 40 and abs(fg[2] - bg[2]) < 40:
+			bg = (255, 255, 255)
+	else:
+		bg = (255, 255, 255)
 	rot = 0
-	i = 0
-	while True :
-		new_length = cols
-		if not new_length :
-			continue
-		x = x1 + spacing_x
-		cur_line_bbox = lines[i] if i < len(lines) else BBox(x1, 0, w, 0, '', 0)
-		while True :
-			x_offset, y_offset = put_char(img, mask, x, y, font_size, rot, text[txt_i], 0, char_color=fg,border_color=bg,border_size=bgsize)
-			txt_i += 1
-			if txt_i >= len(text) :
-				return True
-			x += spacing_x + x_offset
-			if x + font_size > x2 :
+	leading = 1.3
+	tracking = 0
+	work_parity = 0
+	new_font_size = font_size
+	while True:
+		font = get_font(new_font_size)
+		wrapped_text = wrap_text(text, w, font, test_draw) if not lang in ["JPN", "CHS", "CHT"] else "\n".join(list(text))
+		spacing = int(new_font_size * (leading - 1))
+		stroke_width = int(new_font_size * 0.07)
+		x1, y1, x2, y2 = test_draw.multiline_textbbox((0,0), wrapped_text, font=font, spacing=spacing, align="center", stroke_width=stroke_width)
+		box_width = x2 - x1
+		box_height = y2 - y1
+		if box_width > orig_shape[1] or box_height > orig_shape[0]:
+			if work_parity > 0:
 				break
-			if x > cur_line_bbox.width() * mag_ratio + x1 + font_size * 2 and i + 1 < len(lines) :
+			new_font_size -= 2
+			work_parity = -1
+		elif box_height > h:
+			if work_parity > 0:
 				break
-		y += font_size + spacing_y
-		i += 1
-	return True
+			new_font_size -= 2
+			work_parity = -1
+		elif box_width < w:
+			if work_parity < 0:
+				break
+			new_font_size += 2
+			work_parity = 1
+		else:
+			break
+	new_width = math.ceil(box_width)
+	new_height = math.ceil(box_height) + stroke_width * 2
+	canvas = Image.new("RGBA", (new_width, new_height))
+	canvas.putalpha(0)
+	draw = ImageDraw.Draw(canvas)
+	draw.multiline_text((stroke_width, stroke_width * 2 -spacing), wrapped_text, font=font, spacing=spacing, align="center", stroke_width=stroke_width, fill=fg, stroke_fill=bg)
+	#canvas.save("./shill.png")
+	numpy_image = np.array(canvas)
+	return numpy_image
 
-def put_text(img: np.ndarray, text: str, line_count: int, x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
-	pass
-
-def prepare_renderer(font_filenames = ['fonts/Arial-Unicode-Regular.ttf', 'fonts/msyh.ttc', 'fonts/msgothic.ttc']) :
+def prepare_renderer(font_filenames = ['fonts/Arial-Unicode-Regular.ttf', 'fonts/msyh.ttc', 'fonts/msgothic.ttc']) : #'fonts/KoPubWorld Dotum Medium.ttf','fonts/NanumGothic.ttf', 
 	global CACHED_FONT_FACE
 	for font_filename in font_filenames :
-		CACHED_FONT_FACE.append(freetype.Face(font_filename))
+		CACHED_FONT_FACE.append(font_filename)
 
 def test() :
 	prepare_renderer()
-	canvas = np.ones((4096, 2590, 3), dtype = np.uint8) * 255
-	put_text_vertical(canvas, '《因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉', 4, [], 2143, 3219, 355, 830, (0, 0, 0), None)
-	put_text_horizontal(canvas, '“添加幽默”FOR if else !?xxj', 1, [], 242, 87, 2093, 221, (0, 0, 0), None)
-	cv2.imwrite('text_render_combined.png', canvas)
+	put_text_horizontal(64, '안녕, 내 이름은 눈물의 요정! 사회주의 최고의 카레이서다!', "", 360, 830, (2048, 2048), (255, 0, 0), (0, 255, 0))
 
 if __name__ == '__main__' :
+	import sys, os 
+	p = os.path.abspath('.')
+	sys.path.insert(1, p)
+	from utils import BBox, Quadrilateral
 	test()

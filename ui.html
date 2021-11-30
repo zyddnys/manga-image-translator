@@ -6,7 +6,7 @@
 		<script>
 			var TASKID = "";
 			var STATE = "";
-			const BASE_URI = "/imgtrans/";
+			const BASE_URI = "/";
 			async function poll(fn, fnCondition, ms) {
 				let result = await fn();
 				while (fnCondition(result)) {
@@ -113,7 +113,7 @@
 				var detect_res = document.querySelector('input[name="detect-size"]:checked').value;
 				var translator = document.querySelector('input[name="translator-sel"]:checked').value;
 				var tgt_lang = document.getElementById("target-language").value;
-				console.log(document.getElementById("target-language"));
+				//console.log(document.getElementById("target-language"));
 				var files = document.getElementById("image-file").files;
 				var status = document.getElementById("status-text");
 				if (files.length == 0) {
@@ -147,7 +147,7 @@
 						if (STATE !== "error") {
 							document.getElementById("translated-image-div").style.visibility = "";
 							document.getElementById("translated-image").src = "";
-							document.getElementById("translated-image").src = BASE_URI + "result/" + TASKID + "/final.jpg";
+							document.getElementById("translated-image").src = `result?taskid=${TASKID}` //BASE_URI + "result/" + TASKID + "/final.jpg";
 						}
 						status.innerHTML = '';
 						ProgressBar.end();
@@ -212,6 +212,10 @@
 						<label>
 							<input type="radio" id="translator-baidu"  name="translator-sel" value="baidu">
 							<span>Baidu</span>
+						</label>
+						<label>
+							<input type="radio" id="translator-papago" name="translator-sel" value="papago">
+							<span>Papago</span>
 						</label>
 					</div>
 					<div style="padding-bottom: 0.5rem;">
