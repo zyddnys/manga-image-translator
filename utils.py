@@ -6,6 +6,23 @@ import functools
 import shapely
 from shapely.geometry import Polygon, MultiPoint
 
+class AvgMeter() :
+	def __init__(self) :
+		self.reset()
+
+	def reset(self) :
+		self.sum = 0
+		self.count = 0
+
+	def __call__(self, val = None) :
+		if val is not None :
+			self.sum += val
+			self.count += 1
+		if self.count > 0 :
+			return self.sum / self.count
+		else :
+			return 0
+
 def resize_keep_aspect(img, size) :
 	ratio = (float(size)/max(img.shape[0], img.shape[1]))
 	new_width = round(img.shape[1] * ratio)

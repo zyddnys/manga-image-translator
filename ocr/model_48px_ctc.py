@@ -10,8 +10,25 @@ import einops
 
 from typing import List, Tuple, Optional
 
-class ResNet(nn.Module):
+class BidirectionalLSTM(nn.Module):
+	def __init__(self, input_size, hidden_size, output_size):
+		super(BidirectionalLSTM, self).__init__()
+		self.rnn = nn.LSTM(input_size, hidden_size, num_layers=2, bidirectional=True, batch_first=True)
+		self.linear = nn.Linear(hidden_size * 2, output_size)
 
+	def forward(self, input, lengths):
+		"""
+		input : visual feature [batch_size x T x input_size]
+		output : contextual feature [batch_size x T x output_size]
+		"""
+		self.rnn.flatten_parameters()
+		input = nn.utils.rnn.pack_padded_sequence(input, lengths, batch_first=True, enforce_sorted=False)
+		recurrent, _ = self.rnn(input)  # batch_size x T x input_size -> batch_size x T x (2*hidden_size)
+		recurrent, _ = torch.nn.utils.rnn.pad_packed_sequence(recurrent, batch_first=True)
+		output = self.linear(recurrent)  # batch_size x T x output_size
+		return output
+
+class ResNet(nn.Module):
 	def __init__(self, input_channel, output_channel, block, layers):
 		super(ResNet, self).__init__()
 
@@ -70,29 +87,28 @@ class ResNet(nn.Module):
 		return nn.Sequential(*layers)
 
 	def forward(self, x):
-		with torch.no_grad() :
-			x = self.conv0_1(x)
-			x = self.bn0_1(x)
-			x = F.relu(x)
-			x = self.conv0_2(x)
+		x = self.conv0_1(x)
+		x = self.bn0_1(x)
+		x = F.relu(x)
+		x = self.conv0_2(x)
 
-			x = self.maxpool1(x)
-			x = self.layer1(x)
-			x = self.bn1(x)
-			x = F.relu(x)
-			x = self.conv1(x)
+		x = self.maxpool1(x)
+		x = self.layer1(x)
+		x = self.bn1(x)
+		x = F.relu(x)
+		x = self.conv1(x)
 
-			x = self.maxpool2(x)
-			x = self.layer2(x)
-			x = self.bn2(x)
-			x = F.relu(x)
-			x = self.conv2(x)
+		x = self.maxpool2(x)
+		x = self.layer2(x)
+		x = self.bn2(x)
+		x = F.relu(x)
+		x = self.conv2(x)
 
-			x = self.maxpool3(x)
-			x = self.layer3(x)
-			x = self.bn3(x)
-			x = F.relu(x)
-			x = self.conv3(x)
+		x = self.maxpool3(x)
+		x = self.layer3(x)
+		x = self.bn3(x)
+		x = F.relu(x)
+		x = self.conv3(x)
 
 		x = self.layer4(x)
 
@@ -156,27 +172,10 @@ class ResNet_FeatureExtractor(nn.Module):
 
 	def __init__(self, input_channel, output_channel=128):
 		super(ResNet_FeatureExtractor, self).__init__()
-		self.ConvNet = ResNet(input_channel, output_channel, BasicBlock, [4, 6, 8, 6, 3])
+		self.ConvNet = ResNet(input_channel, output_channel, BasicBlock, [4, 6, 8, 6])
 
 	def forward(self, input):
 		return self.ConvNet(input)
-
-class PositionalEncoding(nn.Module):
-	def __init__(self, d_model, dropout=0.1, max_len=5000):
-		super(PositionalEncoding, self).__init__()
-		self.dropout = nn.Dropout(p=dropout)
-
-		pe = torch.zeros(max_len, d_model)
-		position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-		div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
-		pe[:, 0::2] = torch.sin(position * div_term)
-		pe[:, 1::2] = torch.cos(position * div_term)
-		pe = pe.unsqueeze(0).transpose(0, 1)
-		self.register_buffer('pe', pe)
-
-	def forward(self, x, offset = 0):
-		x = x + self.pe[offset: offset + x.size(0), :] / math.sqrt(x.size(2))
-		return x
 
 class OCR(nn.Module) :
 	def __init__(self, dictionary, max_len):
@@ -185,63 +184,49 @@ class OCR(nn.Module) :
 		self.dictionary = dictionary
 		self.dict_size = len(dictionary)
 		self.backbone = ResNet_FeatureExtractor(3, 320)
-		encoder = nn.TransformerEncoderLayer(320, 4, dropout = 0.0)
-		self.encoders = nn.TransformerEncoder(encoder, 3)
-		self.pe = PositionalEncoding(320, max_len = max_len)
-		self.char_pred = nn.Sequential(nn.Linear(320, 320), nn.ReLU(), nn.Linear(320, self.dict_size))
+		#encoder = CustomTransformerEncoderLayer(320, 4, dropout = 0.02, batch_first = True)
+		self.encoder1 = BidirectionalLSTM(320, 320, 320)
+		self.char_pred = nn.Sequential(nn.Linear(320, 320), nn.ReLU(), nn.Dropout(0.1), nn.Linear(320, self.dict_size))
 		self.color_pred1 = nn.Sequential(nn.Linear(320, 64), nn.ReLU(), nn.Linear(64, 6))
 
-	def forward(self,
-		img: torch.FloatTensor,
-		source_mask: torch.BoolTensor
-		) :
-		feats = self.backbone(img)
-		feats = torch.einsum('n e h s -> s n e', feats)
-		feats = self.pe(feats)
-		feats = self.encoders(feats, src_key_padding_mask = source_mask)
-		feats = torch.einsum('s n e -> n s e', feats)
-		pred_char_logits = self.char_pred(feats)
-		pred_color_values = self.color_pred1(feats)
-		return pred_char_logits, pred_color_values
-
-	def decode(self, img: torch.Tensor, img_widths: List[int], blank) -> List[List[Tuple[str, float, int, int, int, int, int, int]]] :
+	def decode(self, img: torch.Tensor, img_widths: List[int], blank, verbose = False) -> List[List[Tuple[str, float, int, int, int, int, int, int]]] :
 		N, C, H, W = img.shape
 		assert H == 48 and C == 3
 		feats = self.backbone(img)
-		feats = torch.einsum('n e h s -> s n e', feats)
-		valid_feats_length = [(x + 3) // 4 + 1 for x in img_widths]
-		input_mask = torch.zeros(N, feats.size(0), dtype = torch.bool).to(img.device)
-		for i, l in enumerate(valid_feats_length) :
-			input_mask[i, l:] = True
-		feats = self.pe(feats)
-		feats = self.encoders(feats, src_key_padding_mask = input_mask)
-		feats = torch.einsum('s n e -> n s e', feats)
+		feats = torch.einsum('n e h s -> n s e', feats)
+		valid_feats_length = [(x + 3) // 4 for x in img_widths]
+		feats = self.encoder1(feats, lengths = valid_feats_length)
 		pred_char_logits = self.char_pred(feats)
 		pred_color_values = self.color_pred1(feats)
-		return self.decode_ctc_top1(pred_char_logits, pred_color_values, blank)
+		return self.decode_ctc_top1(pred_char_logits, pred_color_values, blank, verbose = verbose)
 
-	def decode_ctc_top1(self, pred_char_logits, pred_color_values, blank) -> List[List[Tuple[str, float, int, int, int, int, int, int]]] :
+	def decode_ctc_top1(self, pred_char_logits, pred_color_values, blank, verbose = False) -> List[List[Tuple[str, float, int, int, int, int, int, int]]] :
 		pred_chars: List[List[Tuple[str, float, int, int, int, int, int, int]]] = []
 		for _ in range(pred_char_logits.size(0)) :
 			pred_chars.append([])
 		logprobs = pred_char_logits.log_softmax(2)
 		_, preds_index = logprobs.max(2)
 		preds_index = preds_index.cpu()
-		pred_color_values = pred_color_values.cpu()
+		pred_color_values = pred_color_values.cpu().clamp_(0, 1)
 		for b in range(pred_char_logits.size(0)) :
+			if verbose :
+				print('------------------------------')
 			last_ch = blank
 			for t in range(pred_char_logits.size(1)) :
 				pred_ch = preds_index[b, t]
 				if pred_ch != last_ch and pred_ch != blank :
 					lp = logprobs[b, t, pred_ch].item()
-					if lp < math.log(0.96) :
-						top5 = torch.topk(logprobs[b, t], 5)
-						top5_idx = top5.indices
-						top5_val = top5.values
-						r = ''
-						for i in range(5) :
-							r += f'{self.dictionary[top5_idx[i]]}: {math.exp(top5_val[i])}, '
-						print(r)
+					if verbose :
+						if lp < math.log(0.9) :
+							top5 = torch.topk(logprobs[b, t], 5)
+							top5_idx = top5.indices
+							top5_val = top5.values
+							r = ''
+							for i in range(5) :
+								r += f'{self.dictionary[top5_idx[i]]}: {math.exp(top5_val[i])}, '
+							print(r)
+						else :
+							print(f'{self.dictionary[pred_ch]}: {math.exp(lp)}')
 					pred_chars[b].append((
 						pred_ch,
 						lp,
