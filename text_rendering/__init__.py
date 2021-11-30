@@ -7,10 +7,12 @@ from utils import findNextPowerOf2
 
 from . import text_render
 
-async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], textlines: List[Quadrilateral], text_regions: List[Quadrilateral]) -> np.ndarray :
+async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], textlines: List[Quadrilateral], text_regions: List[Quadrilateral], force_horizontal: bool) -> np.ndarray :
 	for ridx, (trans_text, region) in enumerate(zip(translated_sentences, text_regions)) :
 		if not trans_text :
 			continue
+		if force_horizontal :
+			region.majority_dir = 'h'
 		print(region.text)
 		print(trans_text)
 		#print(region.majority_dir, region.pts)

@@ -14,6 +14,7 @@ parser.add_argument('--image', default='', type=str, help='Image file if using d
 parser.add_argument('--size', default=1536, type=int, help='image square size')
 parser.add_argument('--use-inpainting', action='store_true', help='turn on/off inpainting')
 parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
+parser.add_argument('--force-horizontal', action='store_true', help='force texts rendered horizontally')
 parser.add_argument('--inpainting-size', default=2048, type=int, help='size of image used for inpainting (too large will result in OOM)')
 parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to extend text skeleton to form bounding box')
 parser.add_argument('--box-threshold', default=0.7, type=float, help='threshold for bbox generation')
@@ -148,7 +149,7 @@ async def infer(
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'render')
 	# render translated texts
-	output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions)
+	output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, args.force_horizontal)
 	
 	print(' -- Saving results')
 	cv2.imwrite(f'result/{task_id}/final.png', cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
