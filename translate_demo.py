@@ -9,8 +9,9 @@ import requests
 from oscrypto import util as crypto_utils
 
 parser = argparse.ArgumentParser(description='Generate text bboxes given a image file')
-parser.add_argument('--mode', default='demo', type=str, help='Run demo in either single image demo mode (demo) or web service mode (web)')
-parser.add_argument('--image', default='', type=str, help='Image file if using demo mode')
+parser.add_argument('--mode', default='demo', type=str, help='Run demo in either single image demo mode (demo), web service mode (web) or batch translation mode (batch)')
+parser.add_argument('--image', default='', type=str, help='Image file if using demo mode or Image folder name if using batch mode')
+parser.add_argument('--image-dst', default='', type=str, help='Destination folder for translated images in batch mode')
 parser.add_argument('--size', default=1536, type=int, help='image square size')
 parser.add_argument('--use-inpainting', action='store_true', help='turn on/off inpainting')
 parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
@@ -63,7 +64,8 @@ async def infer(
 	img,
 	mode,
 	nonce,
-	task_id = ''
+	task_id = '',
+	dst_image_name = ''
 	) :
 	img_detect_size = args.size
 	if task_id and len(task_id) != 32 :
@@ -120,7 +122,10 @@ async def infer(
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'inpainting')
 	# run inpainting
-	img_inpainted = await dispatch_inpainting(args.use_inpainting, False, args.use_cuda, img, final_mask, args.inpainting_size, verbose = args.verbose)
+	if text_regions :
+		img_inpainted = await dispatch_inpainting(args.use_inpainting, False, args.use_cuda, img, final_mask, args.inpainting_size, verbose = args.verbose)
+	else :
+		img_inpainted = img
 	if args.verbose :
 		img_inpainted, inpaint_input = img_inpainted
 		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input, cv2.COLOR_RGB2BGR))
@@ -152,7 +157,10 @@ async def infer(
 	output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, args.force_horizontal)
 	
 	print(' -- Saving results')
-	cv2.imwrite(f'result/{task_id}/final.png', cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
+	if dst_image_name :
+		cv2.imwrite(dst_image_name, cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
+	else :
+		cv2.imwrite(f'result/{task_id}/final.png', cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'finished')
@@ -160,6 +168,11 @@ async def infer(
 from PIL import Image
 import time
 import asyncio
+
+def replace_prefix(s: str, old: str, new: str) :
+	if s.startswith(old) :
+		s = new + s[len(old):]
+	return s
 
 async def main(mode = 'demo') :
 	print(' -- Loading models')
@@ -201,7 +214,41 @@ async def main(mode = 'demo') :
 					update_state(task_id, nonce, 'error')
 			else :
 				await asyncio.sleep(0.1)
-	
+	elif mode == 'batch' :
+		src = os.path.abspath(args.image)
+		if src[-1] == '\\' or src[-1] == '/' :
+			src = src[:-1]
+		dst = args.image_dst or src + '-translated'
+		if os.path.exists(dst) and not os.path.isdir(dst) :
+			print(f'Destination `{dst}` already exists and is not a directory! Please specify another directory.')
+			return
+		if os.path.exists(dst) and os.listdir(dst) :
+			print(f'Destination directory `{dst}` already exists! Please specify another directory.')
+			return
+		print('Processing image in source directory')
+		files = []
+		for root, subdirs, files in os.walk(src) :
+			dst_root = replace_prefix(root, src, dst)
+			os.makedirs(dst_root, exist_ok = True)
+			for f in files :
+				if f.lower() == '.thumb' :
+					continue
+				filename = os.path.join(root, f)
+				try :
+					img = cv2.imread(filename)
+					if img is None :
+						continue
+				except Exception :
+					pass
+				try :
+					dst_filename = replace_prefix(filename, src, dst)
+					print('Processing', filename, '->', dst_filename)
+					await infer(img, 'demo', '', dst_image_name = dst_filename)
+				except Exception :
+					import traceback
+					traceback.print_exc()
+					pass
 
 if __name__ == '__main__':
-	asyncio.run(main(args.mode))
+	loop = asyncio.get_event_loop()
+	loop.run_until_complete(main(args.mode))

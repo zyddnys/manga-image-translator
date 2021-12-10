@@ -100,6 +100,8 @@ async def dispatch(translator: str, src_lang: str, tgt_lang: str, texts: List[st
 		raise Exception
 	if translator == 'null' :
 		return texts
+	if not texts :
+		return texts
 	if tgt_lang not in VALID_LANGUAGES :
 		raise Exception
 	if src_lang not in VALID_LANGUAGES and src_lang != 'auto' :

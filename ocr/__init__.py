@@ -62,7 +62,7 @@ def run_ocr_32px(img: np.ndarray, cuda: bool, quadrilaterals: List[Tuple[Quadril
 			images = images.cuda()
 		ret = ocr_infer_bacth(images, MODEL_32PX, widths)
 		for i, (pred_chars_index, prob, fr, fg, fb, br, bg, bb) in enumerate(ret) :
-			if prob < 0.4 :
+			if prob < 0.8 :
 				continue
 			fr = (torch.clip(fr.view(-1), 0, 1).mean() * 255).long().item()
 			fg = (torch.clip(fg.view(-1), 0, 1).mean() * 255).long().item()
