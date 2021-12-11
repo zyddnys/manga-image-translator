@@ -1,6 +1,6 @@
 
 from typing import List
-from . import baidu, google, youdao
+from . import baidu, google, youdao, deepl
 
 import googletrans
 
@@ -91,12 +91,34 @@ LANGUAGE_CODE_MAP['google'] = {
 	'TRK': 'tr',
 }
 
+LANGUAGE_CODE_MAP['deepl'] = {
+	'CHS': 'ZH',
+	'CHT': 'ZH',
+	'JPN': "JA",
+	'ENG': 'EN',
+	'KOR': 'NONE',
+	'VIN': 'NONE',
+	'CSY': 'CS',
+	'NLD': 'NL',
+	'FRA': 'FR',
+	'DEU': 'DE',
+	'HUN': 'HU',
+	'ITA': 'IT',
+	'PLK': 'PL',
+	'PTB': 'PT-BR',
+	'ROM': 'RO',
+	'RUS': 'RU',
+	'ESP': 'ES',
+	'TRK': 'NONE',
+}
+
 GOOGLE_CLIENT = google.Translator()
 BAIDU_CLIENT = baidu.Translator()
 YOUDAO_CLIENT = youdao.Translator()
+DEEPL_CLIENT = deepl.Translator()
 
 async def dispatch(translator: str, src_lang: str, tgt_lang: str, texts: List[str], *args, **kwargs) -> List[str] :
-	if translator not in ['google', 'youdao', 'baidu', 'null'] :
+	if translator not in ['google', 'youdao', 'baidu', 'deepl', 'null'] :
 		raise Exception
 	if translator == 'null' :
 		return texts
@@ -121,6 +143,9 @@ async def dispatch(translator: str, src_lang: str, tgt_lang: str, texts: List[st
 	elif translator == 'youdao' :
 		concat_texts = '\n'.join(texts)
 		result = await YOUDAO_CLIENT.translate(src_lang, tgt_lang, concat_texts)
+	elif translator == 'deepl' :
+		concat_texts = '\n'.join(texts)
+		result = await DEEPL_CLIENT.translate(src_lang, tgt_lang, concat_texts)
 	translated_sentences = []
 	if len(result) < len(texts) :
 		translated_sentences.extend(result)
