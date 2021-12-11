@@ -95,7 +95,7 @@ LANGUAGE_CODE_MAP['deepl'] = {
 	'CHS': 'ZH',
 	'CHT': 'ZH',
 	'JPN': "JA",
-	'ENG': 'EN',
+	'ENG': 'EN-US',
 	'KOR': 'NONE',
 	'VIN': 'NONE',
 	'CSY': 'CS',
