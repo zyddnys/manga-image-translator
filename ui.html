@@ -147,7 +147,7 @@
 						if (STATE !== "error") {
 							document.getElementById("translated-image-div").style.visibility = "";
 							document.getElementById("translated-image").src = "";
-							document.getElementById("translated-image").src = BASE_URI + "result/" + TASKID + "/final.jpg";
+							document.getElementById("translated-image").src = BASE_URI + "result/" + TASKID;
 						}
 						status.innerHTML = '';
 						ProgressBar.end();
@@ -212,6 +212,14 @@
 						<label>
 							<input type="radio" id="translator-baidu"  name="translator-sel" value="baidu">
 							<span>Baidu</span>
+						</label>
+						<label>
+							<input type="radio" id="translator-google"  name="translator-sel" value="google">
+							<span>Google</span>
+						</label>
+						<label>
+							<input type="radio" id="translator-deepl"  name="translator-sel" value="deepl">
+							<span>DeepL</span>
 						</label>
 					</div>
 					<div style="padding-bottom: 0.5rem;">

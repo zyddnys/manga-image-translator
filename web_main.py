@@ -10,6 +10,7 @@ from PIL import Image
 from oscrypto import util as crypto_utils
 from aiohttp import web
 from aiohttp import ClientSession
+from io import BytesIO
 
 from collections import deque
 
@@ -45,6 +46,13 @@ async def index_async(request):
 	with open('ui.html', 'r') as fp :
 		return web.Response(text=fp.read(), content_type='text/html')
 
+@routes.get("/result/{taskid}")
+async def result_async(request):
+        im = Image.open("result/" + request.match_info.get('taskid') + "/final.png")
+        stream = BytesIO()
+        im.save(stream, "PNG")
+        return web.Response(body=stream.getvalue(), content_type='image/png')
+
 @routes.post("/run")
 async def run_async(request):
 	data = await request.post()
@@ -57,7 +65,7 @@ async def run_async(request):
 			target_language = 'CHS'
 	if 'translator' in data :
 		selected_translator = data['translator'].lower()
-		if selected_translator not in ['youdao', 'baidu', 'null'] :
+		if selected_translator not in ['youdao', 'baidu', 'google', 'deepl', 'null'] :
 			selected_translator = 'youdao'
 	if 'size' in data :
 		size = data['size'].upper()
@@ -211,7 +219,7 @@ async def submit_async(request):
 			target_language = 'CHS'
 	if 'translator' in data :
 		selected_translator = data['translator'].lower()
-		if selected_translator not in ['youdao', 'baidu', 'null'] :
+		if selected_translator not in ['youdao', 'baidu', 'google', 'deepl', 'null'] :
 			selected_translator = 'youdao'
 	if 'size' in data :
 		size = data['size'].upper()
