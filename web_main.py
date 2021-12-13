@@ -10,6 +10,7 @@ from PIL import Image
 from oscrypto import util as crypto_utils
 from aiohttp import web
 from aiohttp import ClientSession
+from io import BytesIO
 
 from collections import deque
 
