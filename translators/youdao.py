@@ -31,7 +31,7 @@ async def do_request(data):
 
 class Translator(object):
 	def __init__(self):
-	   pass
+		pass
 
 	async def translate(self, from_lang, to_lang, query_text):
 		data = {}

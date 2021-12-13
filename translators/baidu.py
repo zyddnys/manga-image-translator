@@ -19,7 +19,7 @@ import aiohttp
 
 class Translator(object):
 	def __init__(self):
-	   pass
+		pass
 
 	async def translate(self, from_lang, to_lang, query_text):
 		url = self.get_url(from_lang, to_lang, query_text)
