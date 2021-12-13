@@ -67,6 +67,29 @@ Successor to https://github.com/PatchyVideo/MMDOCR-HighPerformance
 4. [Optional if using Google translate] Apply for youdao or deepl translate API, put your APP_KEY and APP_SECRET or AUTH_KEY in `translators/key.py`
 5. Run `python translate_demo.py --image <path_to_image_file> [--use-inpainting] [--verbose] [--use-cuda] [--translator=google] [--target-lang=CHS]`, result can be found in `result/`. Add `--use-inpainting` to enable inpainting, Add `--use-cuda` to use CUDA.
 
+# Language codes
+Used by `--target-lang` argument
+```
+	"CHS": "Chinese (Simplified)",
+	"CHT": "Chinese (Traditional)",
+	"CSY": "Czech",
+	"NLD": "Dutch",
+	"ENG": "English",
+	"FRA": "French",
+	"DEU": "German",
+	"HUN": "Hungarian",
+	"ITA": "Italian",
+	"JPN": "Japanese",
+	"KOR": "Korean",
+	"PLK": "Polish",
+	"PTB": "Portuguese (Brazil)",
+	"ROM": "Romanian",
+	"RUS": "Russian",
+	"ESP": "Spanish",
+	"TRK": "Turkish",
+	"VIN": "Vietnamese"
+```
+
 # How to use (batch translation)
 1. Python>=3.8
 2. Clone this repo
