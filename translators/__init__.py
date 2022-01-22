@@ -115,7 +115,12 @@ LANGUAGE_CODE_MAP['deepl'] = {
 GOOGLE_CLIENT = google.Translator()
 BAIDU_CLIENT = baidu.Translator()
 YOUDAO_CLIENT = youdao.Translator()
-DEEPL_CLIENT = deepl.Translator()
+try:
+	DEEPL_CLIENT = deepl.Translator()
+except Exception as e:
+	DEEPL_CLIENT = GOOGLE_CLIENT
+	print(f'fail to initialize deepl :\n{str(e)} \nswitch to google translator')
+
 
 async def dispatch(translator: str, src_lang: str, tgt_lang: str, texts: List[str], *args, **kwargs) -> List[str] :
 	if translator not in ['google', 'youdao', 'baidu', 'deepl', 'null'] :

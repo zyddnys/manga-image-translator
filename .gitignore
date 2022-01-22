@@ -1,5 +1,7 @@
 result
 *.ckpt
+*.pt
 .vscode
+translators
 __pycache__
 ocrs

@@ -23,6 +23,7 @@ parser.add_argument('--text-threshold', default=0.5, type=float, help='threshold
 parser.add_argument('--text-mag-ratio', default=1, type=int, help='text rendering magnification ratio, larger means higher quality')
 parser.add_argument('--translator', default='google', type=str, help='language translator')
 parser.add_argument('--target-lang', default='CHS', type=str, help='destination language')
+parser.add_argument('--use-ctd', action='store_true', help='use comic-text-detector for text detection')
 parser.add_argument('--verbose', action='store_true', help='print debug info and save intermediate images')
 args = parser.parse_args()
 print(args)
@@ -59,6 +60,8 @@ from inpainting import dispatch as dispatch_inpainting, load_model as load_inpai
 from text_mask import dispatch as dispatch_mask_refinement
 from textline_merge import dispatch as dispatch_textline_merge
 from text_rendering import dispatch as dispatch_rendering
+from textblockdetector import dispatch as dispatch_ctd_detection
+from textblockdetector.textblock import visualize_textblocks
 
 async def infer(
 	img,
@@ -83,28 +86,46 @@ async def infer(
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'detection')
-	textlines, mask = await dispatch_detection(img, img_detect_size, args.use_cuda, args, verbose = args.verbose)
+	
+	if args.use_ctd:
+		mask, final_mask, textlines = await dispatch_ctd_detection(img, args.use_cuda)
+		text_regions = textlines
+	else:
+		textlines, mask = await dispatch_detection(img, img_detect_size, args.use_cuda, args, verbose = args.verbose)
 
 	if args.verbose :
-		img_bbox_raw = np.copy(img)
-		for txtln in textlines :
-			cv2.polylines(img_bbox_raw, [txtln.pts], True, color = (255, 0, 0), thickness = 2)
-		cv2.imwrite(f'result/{task_id}/bbox_unfiltered.png', cv2.cvtColor(img_bbox_raw, cv2.COLOR_RGB2BGR))
-		cv2.imwrite(f'result/{task_id}/mask_raw.png', mask)
+		if args.use_ctd:
+			bboxes = visualize_textblocks(cv2.cvtColor(img,cv2.COLOR_BGR2RGB), textlines)
+			cv2.imwrite(f'result/{task_id}/bboxes.png', bboxes)
+			cv2.imwrite(f'result/{task_id}/mask_raw.png', mask)
+			cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
+		else:
+			img_bbox_raw = np.copy(img)
+			for txtln in textlines :
+				cv2.polylines(img_bbox_raw, [txtln.pts], True, color = (255, 0, 0), thickness = 2)
+			cv2.imwrite(f'result/{task_id}/bbox_unfiltered.png', cv2.cvtColor(img_bbox_raw, cv2.COLOR_RGB2BGR))
+			cv2.imwrite(f'result/{task_id}/mask_raw.png', mask)
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'ocr')
 	textlines = await dispatch_ocr(img, textlines, args.use_cuda, args)
 
-	text_regions, textlines = await dispatch_textline_merge(textlines, img.shape[1], img.shape[0], verbose = args.verbose)
-	if args.verbose :
-		img_bbox = np.copy(img)
-		for region in text_regions :
-			for idx in region.textline_indices :
-				txtln = textlines[idx]
-				cv2.polylines(img_bbox, [txtln.pts], True, color = (255, 0, 0), thickness = 2)
-			img_bbox = cv2.polylines(img_bbox, [region.pts], True, color = (0, 0, 255), thickness = 2)
-		cv2.imwrite(f'result/{task_id}/bbox.png', cv2.cvtColor(img_bbox, cv2.COLOR_RGB2BGR))
+	if not args.use_ctd:
+		text_regions, textlines = await dispatch_textline_merge(textlines, img.shape[1], img.shape[0], verbose = args.verbose)
+		if args.verbose :
+			img_bbox = np.copy(img)
+			for region in text_regions :
+				for idx in region.textline_indices :
+					txtln = textlines[idx]
+					cv2.polylines(img_bbox, [txtln.pts], True, color = (255, 0, 0), thickness = 2)
+				img_bbox = cv2.polylines(img_bbox, [region.pts], True, color = (0, 0, 255), thickness = 2)
+			cv2.imwrite(f'result/{task_id}/bbox.png', cv2.cvtColor(img_bbox, cv2.COLOR_RGB2BGR))
+
+		print(' -- Generating text mask')
+		if mode == 'web' and task_id :
+			update_state(task_id, nonce, 'mask_generation')
+		# create mask
+		final_mask = await dispatch_mask_refinement(img, mask, textlines)
 
 	if mode == 'web' and task_id :
 		print(' -- Translating')
@@ -112,11 +133,7 @@ async def infer(
 		# in web mode, we can start translation task async
 		requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.text for r in text_regions]})
 
-	print(' -- Generating text mask')
-	if mode == 'web' and task_id :
-		update_state(task_id, nonce, 'mask_generation')
-	# create mask
-	final_mask = await dispatch_mask_refinement(img, mask, textlines)
+
 
 	print(' -- Running inpainting')
 	if mode == 'web' and task_id :
@@ -125,7 +142,7 @@ async def infer(
 	if text_regions :
 		img_inpainted = await dispatch_inpainting(args.use_inpainting, False, args.use_cuda, img, final_mask, args.inpainting_size, verbose = args.verbose)
 	else :
-		img_inpainted = img
+		img_inpainted = img, img
 	if args.verbose :
 		img_inpainted, inpaint_input = img_inpainted
 		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input, cv2.COLOR_RGB2BGR))
@@ -133,34 +150,44 @@ async def infer(
 		cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
 
 	# translate text region texts
+	translated_sentences = None
 	if mode != 'web' :
 		print(' -- Translating')
+		# try:
 		from translators import dispatch as run_translation
-		translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.text for r in text_regions])
+		if args.use_ctd:
+			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.get_text() for r in text_regions])
+		else:
+			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.text for r in text_regions])
+
 	else :
 		# wait for at most 1 hour
-		translated_sentences = None
 		for _ in range(36000) :
 			ret = requests.post('http://127.0.0.1:5003/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}).json()
 			if 'result' in ret :
 				translated_sentences = ret['result']
 				break
 			await asyncio.sleep(0.1)
-	if not translated_sentences and text_regions :
-		update_state(task_id, nonce, 'error')
-		return
+	# if not translated_sentences and text_regions :
+	# 	update_state(task_id, nonce, 'error')
+	# 	return
 
-	print(' -- Rendering translated text')
-	if mode == 'web' and task_id :
-		update_state(task_id, nonce, 'render')
-	# render translated texts
-	output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, args.force_horizontal)
-	
-	print(' -- Saving results')
-	if dst_image_name :
-		cv2.imwrite(dst_image_name, cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
-	else :
-		cv2.imwrite(f'result/{task_id}/final.png', cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
+	if translated_sentences is not None:
+		print(' -- Rendering translated text')
+		if mode == 'web' and task_id :
+			update_state(task_id, nonce, 'render')
+		# render translated texts
+		if args.use_ctd:
+			from text_rendering import dispatch_ctd_render
+			output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, args.force_horizontal)
+		else:
+			output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, args.force_horizontal)
+		
+		print(' -- Saving results')
+		if dst_image_name :
+			cv2.imwrite(dst_image_name, cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
+		else :
+			cv2.imwrite(f'result/{task_id}/final.png', cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'finished')
@@ -182,7 +209,11 @@ async def main(mode = 'demo') :
 	with open('alphabet-all-v5.txt', 'r', encoding = 'utf-8') as fp :
 		dictionary = [s[:-1] for s in fp.readlines()]
 	load_ocr_model(dictionary, args.use_cuda)
-	load_detection_model(args.use_cuda)
+	if args.use_ctd:
+		from textblockdetector import load_model as load_ctd_model
+		load_ctd_model(args.use_cuda)
+	else:
+		load_detection_model(args.use_cuda)
 	load_inpainting_model(args.use_cuda)
 
 	if mode == 'demo' :
