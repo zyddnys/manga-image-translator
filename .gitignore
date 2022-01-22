@@ -3,3 +3,4 @@ result
 .vscode
 __pycache__
 ocrs
+*.pt
