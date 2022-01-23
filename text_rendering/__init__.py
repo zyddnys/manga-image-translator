@@ -115,16 +115,15 @@ async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translate
 
 async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], text_regions: List[TextBlock], force_horizontal: bool) -> np.ndarray :
 	for ridx, (trans_text, region) in enumerate(zip(translated_sentences, text_regions)) :
+		print(f'text: {region.get_text()} \n trans: {trans_text}')
 		if not trans_text :
 			continue
 		if force_horizontal :
 			majority_dir = 'h'
 		else:
 			majority_dir = 'v' if region.vertical else 'h'
-		print(region.text)
-		print(trans_text)
-		fg = (region.fg_r, region.fg_g, region.fg_b)
-		bg = (region.bg_r, region.bg_g, region.bg_b)
+
+		fg, bg = region.get_font_colors()
 		font_size = region.font_size
 		font_size = round(font_size)
 
@@ -193,7 +192,7 @@ async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer
 		x, y, w, h = cv2.boundingRect(tmp_mask)
 		r_prime = w / h
 
-		r = region.aspect_ratio
+		r = region.aspect_ratio()
 		if majority_dir != 'v':
 			r = 1 / r
 
@@ -209,12 +208,10 @@ async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer
 		src_pts = np.array([[x - w_ext, y - h_ext], [x + w + w_ext, y - h_ext], [x + w + w_ext, y + h + h_ext], [x - w_ext, y + h + h_ext]]).astype(np.float32)
 		src_pts[:, 0] = np.clip(np.round(src_pts[:, 0]), 0, enlarged_w * 2)
 		src_pts[:, 1] = np.clip(np.round(src_pts[:, 1]), 0, enlarged_h * 2)
-		# dst_pts = region.mini_rect[:, [3, 0, 1, 2]]
+		
+		dst_pts = region.min_rect()
 		if majority_dir == 'v':
-			dst_pts = region.mini_rect[:, [3, 0, 1, 2]]
-		else:
-			dst_pts = region.mini_rect
-		# dst_pts = region.mini_rect
+			dst_pts = dst_pts[:, [3, 0, 1, 2]]
 		M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 		tmp_rgba = np.concatenate([tmp_canvas, tmp_mask[:, :, None]], axis = -1).astype(np.float32)
 		rgba_region = np.clip(cv2.warpPerspective(tmp_rgba, M, (img_canvas.shape[1], img_canvas.shape[0]), flags = cv2.INTER_LINEAR, borderMode = cv2.BORDER_CONSTANT, borderValue = 0), 0, 255)

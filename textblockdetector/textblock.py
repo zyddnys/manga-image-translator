@@ -47,13 +47,14 @@ class TextBlock(object):
         self.structure = None
 
         self.text = list()
-        self.prob = None
-        self.fg_r = None
-        self.fg_g = None
-        self.fg_b = None
-        self.bg_r = None
-        self.bg_g = None
-        self.bg_b = None
+        self.prob = 1
+        # note they're accumulative rgb values of textlines
+        self.fg_r = 0                       
+        self.fg_g = 0
+        self.fg_b = 0
+        self.bg_r = 0
+        self.bg_g = 0
+        self.bg_b = 0
 
     def adjust_bbox(self, with_bbox=False):
         lines = np.array(self.lines)
@@ -74,21 +75,19 @@ class TextBlock(object):
             self.distance = self.distance[idx]
             lines = np.array(self.lines, dtype=np.int32)
             self.lines = lines[idx].tolist()
-            self.structure = self.structure[idx]
+            # self.structure = self.structure[idx]
 
     def lines_array(self, dtype=np.float64):
         return np.array(self.lines, dtype=dtype)
 
-    @functools.cached_property
     def aspect_ratio(self) -> float:
-        mini_rect = self.mini_rect
-        middle_pnts = (mini_rect[:, [1, 2, 3, 0]] + mini_rect) / 2
+        min_rect = self.min_rect()
+        middle_pnts = (min_rect[:, [1, 2, 3, 0]] + min_rect) / 2
         norm_v = np.linalg.norm(middle_pnts[:, 2] - middle_pnts[:, 0])
         norm_h = np.linalg.norm(middle_pnts[:, 1] - middle_pnts[:, 3])
         return norm_v / norm_h
     
-    @functools.cached_property
-    def mini_rect(self):
+    def min_rect(self):
         center = [self.xyxy[0]/2, self.xyxy[1]/2]
         polygons = self.lines_array().reshape(-1, 8)
         rotated_polygons = rotate_polygons(center, polygons, self.angle)
@@ -99,6 +98,15 @@ class TextBlock(object):
         min_bbox = np.array([[min_x, min_y, max_x, min_y, max_x, max_y, min_x, max_y]])
         min_bbox = rotate_polygons(center, min_bbox, -self.angle)
         return min_bbox.reshape(-1, 4, 2)
+
+    def get_font_colors(self):
+        num_lines = len(self.lines)
+        if num_lines > 0:
+            frgb = (np.array([self.fg_r, self.fg_g, self.fg_b]) / num_lines).astype(np.int32)
+            brgb = (np.array([self.bg_r, self.bg_g, self.bg_b]) / num_lines).astype(np.int32)
+            return (frgb[0], frgb[1], frgb[2]), (brgb[0], brgb[1], brgb[2])
+        else:
+            return (0, 0, 0), (0, 0, 0)
 
     def __getattribute__(self, name: str):
         if name == 'pts':
@@ -122,19 +130,28 @@ class TextBlock(object):
         return blk_dict
 
     def get_transformed_region(self, img, idx, textheight) -> np.ndarray :
-        [l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.structure[idx]]
-        v_vec = l2a - l1a
-        h_vec = l1b - l2b
-        ratio = np.linalg.norm(v_vec) / np.linalg.norm(h_vec)
-        src_pts = self.pts[idx].astype(np.float32)
+        im_h, im_w = img.shape[:2]
         direction = 'v' if self.vertical else 'h'
+        src_pts = np.array(self.lines[idx], dtype=np.float64)
+
+        if self.language == 'eng' or (self.language == 'unknown' and not self.vertical):
+            e_size = self.font_size / 3
+            src_pts[..., 0] += np.array([-e_size, e_size, e_size, -e_size])
+            src_pts[..., 1] += np.array([-e_size, -e_size, e_size, e_size])
+            src_pts[..., 0] = np.clip(src_pts[..., 0], 0, im_w)
+            src_pts[..., 1] = np.clip(src_pts[..., 1], 0, im_h)
+
+        middle_pnt = (src_pts[[1, 2, 3, 0]] + src_pts) / 2
+        vec_v = middle_pnt[2] - middle_pnt[0]   # vertical vectors of textlines
+        vec_h = middle_pnt[1] - middle_pnt[3]   # horizontal vectors of textlines
+        ratio = np.linalg.norm(vec_v) / np.linalg.norm(vec_h)
+
         if direction == 'h' :
             h = int(textheight)
             w = int(round(textheight / ratio))
             dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
             M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
             region = cv2.warpPerspective(img, M, (w, h))
-            return region
         elif direction == 'v' :
             w = int(textheight)
             h = int(round(textheight * ratio))
@@ -142,9 +159,9 @@ class TextBlock(object):
             M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
             region = cv2.warpPerspective(img, M, (w, h))
             region = cv2.rotate(region, cv2.ROTATE_90_COUNTERCLOCKWISE)
-            # cv2.imshow('region'+str(idx), region)
-            # cv2.waitKey(0)
-            return region
+        # cv2.imshow('region'+str(idx), region)
+        # cv2.waitKey(0)
+        return region
 
     def get_text(self):
         return ' '.join(self.text)
@@ -216,7 +233,7 @@ def examine_textblk(blk: TextBlock, im_w: int, im_h: int, eval_orientation: bool
     blk.vertical = vertical
     blk.vec = primary_vec
     blk.norm = primary_norm
-    blk.structure = middle_pnts
+    # blk.structure = middle_pnts
     if sort:
         blk.sort_lines()
 
@@ -245,6 +262,7 @@ def try_merge_textline(blk: TextBlock, blk2: TextBlock, fntsize_tol=1.3, distanc
     blk.angle = int(round(np.rad2deg(math.atan2(vec_sum[1], vec_sum[0]))))
     blk.norm = np.linalg.norm(vec_sum)
     blk.distance = np.append(blk.distance, blk2.distance[-1])
+    # blk.structure = np.concatenate((blk.structure, blk2.structure))
     blk.font_size = fntsz_avg
     blk2.merged = True
     return True
@@ -368,7 +386,7 @@ def visualize_textblocks(canvas, blk_list:  List[TextBlock]):
         for jj, line in enumerate(lines):
             cv2.putText(canvas, str(jj), line[0], cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,127,0), 1)
             cv2.polylines(canvas, [line], True, (0,127,255), 2)
-        cv2.polylines(canvas, [blk.mini_rect], True, (127,127,0), 2)
+        cv2.polylines(canvas, [blk.min_rect()], True, (127,127,0), 2)
         center = [int((bx1 + bx2)/2), int((by1 + by2)/2)]
         cv2.putText(canvas, str(blk.angle), center, cv2.FONT_HERSHEY_SIMPLEX, 1, (127,127,255), 2)
         cv2.putText(canvas, str(ii), (bx1, by1 + lw + 2), 0, lw / 3, (255,127,127), max(lw-1, 1), cv2.LINE_AA)
