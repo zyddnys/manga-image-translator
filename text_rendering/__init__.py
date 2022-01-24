@@ -8,12 +8,12 @@ from utils import findNextPowerOf2
 from . import text_render
 from textblockdetector.textblock import TextBlock
 
-async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], textlines: List[Quadrilateral], text_regions: List[Quadrilateral], force_horizontal: bool) -> np.ndarray :
+async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], textlines: List[Quadrilateral], text_regions: List[Quadrilateral], text_direction_overwrite: str) -> np.ndarray :
 	for ridx, (trans_text, region) in enumerate(zip(translated_sentences, text_regions)) :
 		if not trans_text :
 			continue
-		if force_horizontal :
-			region.majority_dir = 'h'
+		if text_direction_overwrite and text_direction_overwrite in ['h', 'v'] :
+			region.majority_dir = text_direction_overwrite
 		print(region.text)
 		print(trans_text)
 		#print(region.majority_dir, region.pts)
@@ -113,13 +113,13 @@ async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translate
 	return img_canvas
 
 
-async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], text_regions: List[TextBlock], force_horizontal: bool) -> np.ndarray :
+async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], text_regions: List[TextBlock], text_direction_overwrite: str) -> np.ndarray :
 	for ridx, (trans_text, region) in enumerate(zip(translated_sentences, text_regions)) :
 		print(f'text: {region.get_text()} \n trans: {trans_text}')
 		if not trans_text :
 			continue
-		if force_horizontal :
-			majority_dir = 'h'
+		if text_direction_overwrite and text_direction_overwrite in ['h', 'v'] :
+			majority_dir = text_direction_overwrite
 		else:
 			majority_dir = 'v' if region.vertical else 'h'
 
