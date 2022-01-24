@@ -112,6 +112,8 @@
 				event.preventDefault();
 				var detect_res = document.querySelector('input[name="detect-size"]:checked').value;
 				var translator = document.querySelector('input[name="translator-sel"]:checked').value;
+				var dir = document.querySelector('input[name="dir-sel"]:checked').value;
+				var detector = document.querySelector('input[name="detector-sel"]:checked').value;
 				var tgt_lang = document.getElementById("target-language").value;
 				console.log(document.getElementById("target-language"));
 				var files = document.getElementById("image-file").files;
@@ -135,6 +137,8 @@
 				formData.append('size', detect_res);
 				formData.append('translator', translator);
 				formData.append('tgt_lang', tgt_lang);
+				formData.append('dir', dir);
+				formData.append('detector', detector);
 				XHR.open('POST', BASE_URI + "submit", true);
 				XHR.onload = async function () {
 					if (XHR.status == 200) {
@@ -185,7 +189,7 @@
 			<div>
 				<form id="image-form" action="#" onsubmit="upload_image(event);" method="post" enctype="multipart/form-data">
 					<div style="padding-bottom: 0.5rem;">
-						<span>Detection resolution: </span>
+						<span>Detection resolution </span>
 						<label>
 							<input type="radio" id="detect-res-S" name="detect-size" value="S">
 							<span>1024px</span>
@@ -204,7 +208,18 @@
 						</label>
 					</div>
 					<div style="padding-bottom: 0.5rem;">
-						<span>Translator: </span>
+						<span>Text detector </span>
+						<label>
+							<input type="radio" id="detector-default" name="detector-sel" value="auto" checked>
+							<span>Default</span>
+						</label>
+						<label>
+							<input type="radio" id="detector-ctd"  name="detector-sel" value="ctd">
+							<span>CTD</span>
+						</label>
+					</div>
+					<div style="padding-bottom: 0.5rem;">
+						<span>Translator </span>
 						<label>
 							<input type="radio" id="translator-youdao" name="translator-sel" value="youdao" checked>
 							<span>Youdao</span>
@@ -220,6 +235,17 @@
 						<label>
 							<input type="radio" id="translator-deepl"  name="translator-sel" value="deepl">
 							<span>DeepL</span>
+						</label>
+					</div>
+					<div style="padding-bottom: 0.5rem;">
+						<span>Render text direction </span>
+						<label>
+							<input type="radio" id="dir-auto" name="dir-sel" value="auto" checked>
+							<span>Auto</span>
+						</label>
+						<label>
+							<input type="radio" id="dir-horizontal"  name="dir-sel" value="horizontal">
+							<span>Horizontal</span>
 						</label>
 					</div>
 					<div style="padding-bottom: 0.5rem;">

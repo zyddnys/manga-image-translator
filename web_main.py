@@ -16,6 +16,9 @@ from collections import deque
 
 from translators import VALID_LANGUAGES, dispatch as run_translation
 
+VALID_DETECTORS = set(['default', 'ctd'])
+VALID_DIRECTIONS = set(['auto', 'horizontal'])
+
 NONCE = ''
 QUEUE = deque()
 TASK_DATA = {}
@@ -42,27 +45,36 @@ def convert_img(img) :
 
 
 @routes.get("/")
-async def index_async(request):
+async def index_async(request) :
 	with open('ui.html', 'r') as fp :
 		return web.Response(text=fp.read(), content_type='text/html')
 
 @routes.get("/result/{taskid}")
-async def result_async(request):
+async def result_async(request) :
         im = Image.open("result/" + request.match_info.get('taskid') + "/final.png")
         stream = BytesIO()
         im.save(stream, "PNG")
         return web.Response(body=stream.getvalue(), content_type='image/png')
 
-@routes.post("/run")
-async def run_async(request):
+async def handle_post(request) :
 	data = await request.post()
 	size = ''
 	selected_translator = 'youdao'
 	target_language = 'CHS'
+	detector = 'default'
+	direction = 'auto'
 	if 'tgt_lang' in data :
 		target_language = data['tgt_lang'].upper()
 		if target_language not in VALID_LANGUAGES :
 			target_language = 'CHS'
+	if 'detector' in data :
+		detector = data['detector'].lower()
+		if detector not in VALID_DETECTORS :
+			detector = 'default'
+	if 'dir' in data :
+		direction = data['dir'].lower()
+		if direction not in VALID_DIRECTIONS :
+			direction = 'auto'
 	if 'translator' in data :
 		selected_translator = data['translator'].lower()
 		if selected_translator not in ['youdao', 'baidu', 'google', 'deepl', 'null'] :
@@ -88,11 +100,16 @@ async def run_async(request):
 		img = convert_img(Image.open(io.BytesIO(content)))
 	except :
 		return web.json_response({'status' : 'failed'})
-	task_id = crypto_utils.rand_bytes(16).hex() + size
+	return img, size, selected_translator, target_language, detector, direction
+
+@routes.post("/run")
+async def run_async(request) :
+	img, size, selected_translator, target_language, detector, direction = await handle_post(request)
+	task_id = crypto_utils.rand_bytes(16).hex()
 	os.makedirs(f'result/{task_id}/', exist_ok=True)
 	img.save(f'result/{task_id}/input.png')
 	QUEUE.append(task_id)
-	TASK_DATA[task_id] = {'translator': selected_translator, 'tgt': target_language}
+	TASK_DATA[task_id] = {'size': size, 'translator': selected_translator, 'tgt': target_language, 'detector': detector, 'direction': direction}
 	TASK_STATES[task_id] = 'pending'
 	while True :
 		await asyncio.sleep(0.05)
@@ -103,12 +120,13 @@ async def run_async(request):
 
 
 @routes.get("/task-internal")
-async def get_task_async(request):
+async def get_task_async(request) :
 	global NONCE
 	if request.rel_url.query['nonce'] == NONCE :
 		if len(QUEUE) > 0 :
-			item = QUEUE.popleft()
-			return web.json_response({'task_id': item})
+			task_id = QUEUE.popleft()
+			data = TASK_DATA[task_id]
+			return web.json_response({'task_id': task_id, 'data': data})
 		else :
 			return web.json_response({})
 	else :
@@ -134,7 +152,7 @@ async def manual_trans_task(task_id, texts) :
 		print('manual translation complete')
 
 @routes.post("/post-translation-result")
-async def post_translation_result(request):
+async def post_translation_result(request) :
 	rqjson = (await request.json())
 	if 'trans_result' in rqjson and 'task_id' in rqjson :
 		task_id = rqjson['task_id']
@@ -156,7 +174,7 @@ async def post_translation_result(request):
 	return web.json_response({})
 
 @routes.post("/request-translation-internal")
-async def request_translation_internal(request):
+async def request_translation_internal(request) :
 	global NONCE
 	rqjson = (await request.json())
 	if rqjson['nonce'] == NONCE :
@@ -171,7 +189,7 @@ async def request_translation_internal(request):
 	return web.json_response({})
 
 @routes.post("/get-translation-result-internal")
-async def get_translation_internal(request):
+async def get_translation_internal(request) :
 	global NONCE
 	rqjson = (await request.json())
 	if rqjson['nonce'] == NONCE :
@@ -182,7 +200,7 @@ async def get_translation_internal(request):
 	return web.json_response({})
 
 @routes.get("/task-state")
-async def get_task_state_async(request):
+async def get_task_state_async(request) :
 	task_id = request.query.get('taskid')
 	if task_id and task_id in TASK_STATES :
 		try :
@@ -197,7 +215,7 @@ async def get_task_state_async(request):
 	return web.json_response({'state': 'error'})
 
 @routes.post("/task-update-internal")
-async def post_task_update_async(request):
+async def post_task_update_async(request) :
 	global NONCE
 	rqjson = (await request.json())
 	if rqjson['nonce'] == NONCE :
@@ -208,78 +226,24 @@ async def post_task_update_async(request):
 	return web.json_response({})
 
 @routes.post("/submit")
-async def submit_async(request):
-	data = await request.post()
-	size = ''
-	selected_translator = 'youdao'
-	target_language = 'CHS'
-	if 'tgt_lang' in data :
-		target_language = data['tgt_lang'].upper()
-		if target_language not in VALID_LANGUAGES :
-			target_language = 'CHS'
-	if 'translator' in data :
-		selected_translator = data['translator'].lower()
-		if selected_translator not in ['youdao', 'baidu', 'google', 'deepl', 'null'] :
-			selected_translator = 'youdao'
-	if 'size' in data :
-		size = data['size'].upper()
-		if size not in ['S', 'M', 'L', 'X'] :
-			size = ''
-	if 'file' in data :
-		file_field = data['file']
-		content = file_field.file.read()
-	elif 'url' in data :
-		from aiohttp import ClientSession
-		async with ClientSession() as session:
-			async with session.get(data['url']) as resp:
-				if resp.status == 200 :
-					content = await resp.read()
-				else :
-					return web.json_response({'status' : 'failed'})
-	else :
-		return web.json_response({'status' : 'failed'})
-	try :
-		img = convert_img(Image.open(io.BytesIO(content)))
-	except :
-		return web.json_response({'status' : 'failed'})
-	task_id = crypto_utils.rand_bytes(16).hex() + size
+async def submit_async(request) :
+	img, size, selected_translator, target_language, detector, direction = await handle_post(request)
+	task_id = crypto_utils.rand_bytes(16).hex()
 	os.makedirs(f'result/{task_id}/', exist_ok=True)
 	img.save(f'result/{task_id}/input.png')
 	QUEUE.append(task_id)
-	TASK_DATA[task_id] = {'translator': selected_translator, 'tgt': target_language}
+	TASK_DATA[task_id] = {'size': size, 'translator': selected_translator, 'tgt': target_language, 'detector': detector, 'direction': direction}
 	TASK_STATES[task_id] = 'pending'
 	return web.json_response({'task_id' : task_id, 'status': 'successful'})
 
 @routes.post("/manual-translate")
-async def manual_translate_async(request):
-	data = await request.post()
-	size = ''
-	if 'size' in data :
-		size = data['size'].upper()
-		if size not in ['S', 'M', 'L', 'X'] :
-			size = ''
-	if 'file' in data :
-		file_field = data['file']
-		content = file_field.file.read()
-	elif 'url' in data :
-		from aiohttp import ClientSession
-		async with ClientSession() as session:
-			async with session.get(data['url']) as resp:
-				if resp.status == 200 :
-					content = await resp.read()
-				else :
-					return web.json_response({'status' : 'failed'})
-	else :
-		return web.json_response({'status' : 'failed'})
-	try :
-		img = convert_img(Image.open(io.BytesIO(content)))
-	except :
-		return web.json_response({'status' : 'failed'})
-	task_id = crypto_utils.rand_bytes(16).hex() + size
+async def manual_translate_async(request) :
+	img, size, selected_translator, target_language, detector, direction = await handle_post(request)
+	task_id = crypto_utils.rand_bytes(16).hex()
 	os.makedirs(f'result/{task_id}/', exist_ok=True)
 	img.save(f'result/{task_id}/input.png')
 	QUEUE.append(task_id)
-	TASK_DATA[task_id] = {'manual': True}
+	TASK_DATA[task_id] = {'size': size, 'manual': True, 'detector': detector, 'direction': direction}
 	TASK_STATES[task_id] = 'pending'
 	while True :
 		await asyncio.sleep(0.1)
@@ -294,7 +258,7 @@ async def manual_translate_async(request):
 
 app.add_routes(routes)
 
-async def start_async_app():
+async def start_async_app() :
 	# schedule web server to run
 	global NONCE
 	NONCE = sys.argv[1]
@@ -311,6 +275,6 @@ runner, site = loop.run_until_complete(start_async_app())
 
 try:
 	loop.run_forever()
-except KeyboardInterrupt as err:
+except KeyboardInterrupt as err :
 	loop.run_until_complete(runner.cleanup())
 
