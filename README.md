@@ -65,7 +65,7 @@ Successor to https://github.com/PatchyVideo/MMDOCR-HighPerformance
 # How to use
 1. Python>=3.8
 2. Clone this repo
-3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.1) `ocr.ckpt`、`detect.ckpt`, `comictextdetector.pt` and `inpainting.ckpt`, put them in the root directory of this repo
+3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.1) `ocr.ckpt`, `detect.ckpt`, `comictextdetector.pt`, `comictextdetector.pt.onnx` and `inpainting.ckpt`, put them in the root directory of this repo
 4. [Optional if using Google translate] Apply for youdao or deepl translate API, put your APP_KEY and APP_SECRET or AUTH_KEY in `translators/key.py`
 5. Run `python translate_demo.py --image <path_to_image_file> [--use-inpainting] [--verbose] [--use-cuda] [--translator=google] [--target-lang=CHS]`, result can be found in `result/`. Add `--use-inpainting` to enable inpainting, Add `--use-cuda` to use CUDA.
 
@@ -95,14 +95,14 @@ Used by `--target-lang` argument
 # How to use (batch translation)
 1. Python>=3.8
 2. Clone this repo
-3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.1) `ocr.ckpt`、`detect.ckpt`, `comictextdetector.pt` and `inpainting.ckpt`, put them in the root directory of this repo
+3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.1) `ocr.ckpt`, `detect.ckpt`, `comictextdetector.pt`, `comictextdetector.pt.onnx` and `inpainting.ckpt`, put them in the root directory of this repo
 4. [Optional if using Google translate] Apply for youdao or deepl translate API, put your APP_KEY and APP_SECRET or AUTH_KEY in `translators/key.py`
 5. Run `python translate_demo.py --image <path_to_image_folder> [--use-inpainting] [--verbose] [--use-cuda] [--translator=google] [--target-lang=CHS]`, result can be found in `<path_to_image_folder>-translated/`. Add `--use-inpainting` to enable inpainting, Add `--use-cuda` to use CUDA.
 
 # How to use
 1. Python>=3.8
 2. Clone this repo
-3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.1) `ocr.ckpt`、`detect.ckpt`, `comictextdetector.pt` and `inpainting.ckpt`, put them in the root directory of this repo
+3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.1) `ocr.ckpt`, `detect.ckpt`, `comictextdetector.pt`, `comictextdetector.pt.onnx` and `inpainting.ckpt`, put them in the root directory of this repo
 4. [Optional if using Google translate] Apply for youdao or deepl translate API, put your APP_KEY and APP_SECRET or AUTH_KEY in `translators/key.py`
 5. Run `python translate_demo.py --mode web [--use-inpainting] [--verbose] [--use-cuda] [--translator=google] [--target-lang=CHS]`, the demo will be serving on http://127.0.0.1:5003
 
