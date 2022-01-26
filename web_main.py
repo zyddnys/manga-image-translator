@@ -104,7 +104,11 @@ async def handle_post(request) :
 
 @routes.post("/run")
 async def run_async(request) :
-	img, size, selected_translator, target_language, detector, direction = await handle_post(request)
+	x = await handle_post(request)
+	if isinstance(x, tuple) :
+		img, size, selected_translator, target_language, detector, direction = x
+	else :
+		return x
 	task_id = crypto_utils.rand_bytes(16).hex()
 	os.makedirs(f'result/{task_id}/', exist_ok=True)
 	img.save(f'result/{task_id}/input.png')
@@ -227,7 +231,11 @@ async def post_task_update_async(request) :
 
 @routes.post("/submit")
 async def submit_async(request) :
-	img, size, selected_translator, target_language, detector, direction = await handle_post(request)
+	x = await handle_post(request)
+	if isinstance(x, tuple) :
+		img, size, selected_translator, target_language, detector, direction = x
+	else :
+		return x
 	task_id = crypto_utils.rand_bytes(16).hex()
 	os.makedirs(f'result/{task_id}/', exist_ok=True)
 	img.save(f'result/{task_id}/input.png')
@@ -238,7 +246,11 @@ async def submit_async(request) :
 
 @routes.post("/manual-translate")
 async def manual_translate_async(request) :
-	img, size, selected_translator, target_language, detector, direction = await handle_post(request)
+	x = await handle_post(request)
+	if isinstance(x, tuple) :
+		img, size, selected_translator, target_language, detector, direction = x
+	else :
+		return x
 	task_id = crypto_utils.rand_bytes(16).hex()
 	os.makedirs(f'result/{task_id}/', exist_ok=True)
 	img.save(f'result/{task_id}/input.png')
