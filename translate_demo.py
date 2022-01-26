@@ -142,7 +142,10 @@ async def infer(
 		print(' -- Translating')
 		update_state(task_id, nonce, 'translating')
 		# in web mode, we can start translation task async
-		requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.text for r in text_regions]})
+		if detector == 'ctd':
+			requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]})
+		else:
+			requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.text for r in text_regions]})
 
 
 

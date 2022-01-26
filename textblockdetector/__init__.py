@@ -1,5 +1,5 @@
 import json
-from .basemodel import TextDetBase
+from .basemodel import TextDetBase, TextDetBaseDNN
 import os.path as osp
 from tqdm import tqdm
 import numpy as np
@@ -7,7 +7,7 @@ import cv2
 import torch
 from pathlib import Path
 import torch
-import onnxruntime
+from typing import Union
 from .utils.yolov5_utils import non_max_suppression
 from .utils.db_utils import SegDetectorRepresenter
 from .utils.io_utils import imread, imwrite, find_all_imgs, NumpyEncoder
@@ -19,23 +19,30 @@ def preprocess_img(img, input_size=(1024, 1024), device='cpu', bgr2rgb=True, hal
     if bgr2rgb:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img_in, ratio, (dw, dh) = letterbox(img, new_shape=input_size, auto=False, stride=64)
-    img_in = img_in.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
-    img_in = np.array([np.ascontiguousarray(img_in)]).astype(np.float32) / 255
     if to_tensor:
-        img_in = torch.from_numpy(img_in).to(device)
-        if half:
-            img_in = img_in.half()
+        img_in = img_in.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
+        img_in = np.array([np.ascontiguousarray(img_in)]).astype(np.float32) / 255
+        if to_tensor:
+            img_in = torch.from_numpy(img_in).to(device)
+            if half:
+                img_in = img_in.half()
     return img_in, ratio, int(dw), int(dh)
 
-def postprocess_mask(img: torch.Tensor, thresh=None):
+def postprocess_mask(img: Union[torch.Tensor, np.ndarray], thresh=None):
     # img = img.permute(1, 2, 0)
+    if isinstance(img, torch.Tensor):
+        img = img.squeeze_()
+        if img.device != 'cpu':
+            img = img.detach_().cpu()
+        img = img.numpy()
+    else:
+        img = img.squeeze()
     if thresh is not None:
         img = img > thresh
     img = img * 255
-    if img.device != 'cpu':
-        img = img.detach_().cpu()
-    img = img.numpy().astype(np.uint8)
-    return img
+    # if isinstance(img, torch.Tensor):
+
+    return img.astype(np.uint8)
 
 def postprocess_yolo(det, conf_thresh, nms_thresh, resize_ratio, sort_func=None):
     det = non_max_suppression(det, conf_thresh, nms_thresh)[0]
@@ -56,16 +63,18 @@ class TextDetector:
     lang_list = ['eng', 'ja', 'unknown']
     langcls2idx = {'eng': 0, 'ja': 1, 'unknown': 2}
 
-    def __init__(self, model_path, input_size=1152, device='cpu', half=False, nms_thresh=0.35, conf_thresh=0.4, mask_thresh=0.3, act='leaky', backend='torch') :
+    def __init__(self, model_path, input_size=1024, device='cpu', half=False, nms_thresh=0.35, conf_thresh=0.4, mask_thresh=0.3, act='leaky'):
         super(TextDetector, self).__init__()
         cuda = device == 'cuda'
-        self.backend = backend
-        if self.backend == 'torch':
-            self.net = TextDetBase(model_path, device=device, act=act)
+
+        if Path(model_path).suffix == '.onnx':
+            self.model = cv2.dnn.readNetFromONNX(model_path)
+            self.net = TextDetBaseDNN(input_size, model_path)
+            self.backend = 'opencv'
         else:
-            # TODO: OPENCV ONNX INFERENCE
-            providers = ['CUDAExecutionProvider', 'CPUExecutionProvider'] if cuda else ['CPUExecutionProvider']
-            self.session = onnxruntime.InferenceSession(model_path, providers=providers)
+            self.net = TextDetBase(model_path, device=device, act=act)
+            self.backend = 'torch'
+        
         if isinstance(input_size, int):
             input_size = (input_size, input_size)
         self.input_size = input_size
@@ -75,16 +84,17 @@ class TextDetector:
         self.nms_thresh = nms_thresh
         self.seg_rep = SegDetectorRepresenter(thresh=0.3)
 
+    @torch.no_grad()
     def __call__(self, img, refine_mode=REFINEMASK_INPAINT, keep_undetected_mask=False, bgr2rgb=True):
-        img_in, ratio, dw, dh = preprocess_img(img, input_size=self.input_size, device=self.device, half=self.half, bgr2rgb=bgr2rgb)
+        img_in, ratio, dw, dh = preprocess_img(img, input_size=self.input_size, device=self.device, half=self.half, to_tensor=self.backend=='torch')
 
         im_h, im_w = img.shape[:2]
-        with torch.no_grad():
-            blks, mask, lines_map = self.net(img_in)
+
+        blks, mask, lines_map = self.net(img_in)
         
         resize_ratio = (im_w / (self.input_size[0] - dw), im_h / (self.input_size[1] - dh))
-        blks = postprocess_yolo(blks[0], self.conf_thresh, self.nms_thresh, resize_ratio)
-        mask = postprocess_mask(mask.squeeze_())
+        blks = postprocess_yolo(blks, self.conf_thresh, self.nms_thresh, resize_ratio)
+        mask = postprocess_mask(mask)
         lines, scores = self.seg_rep(self.input_size, lines_map)
         box_thresh = 0.6
         idx = np.where(scores[0] > box_thresh)
@@ -107,16 +117,15 @@ class TextDetector:
     
         return mask, mask_refined, blk_list
 
-    def cuda(self):
-        self.net.to('cuda')
-
 DEFAULT_MODEL = None
 def load_model(cuda: bool):
     global DEFAULT_MODEL
     device = 'cuda' if cuda else 'cpu'
-    model = TextDetector(model_path='comictextdetector.pt', device=device, act='leaky')
-    if cuda :
-        model.cuda()
+    if cuda:
+        model = TextDetector(model_path='comictextdetector.pt', device=device, act='leaky')
+        model.net.cuda()
+    else:
+        model = TextDetector(model_path='comictextdetector.pt.onnx', device=device, act='leaky', input_size=1024)
     DEFAULT_MODEL = model
 
 async def dispatch(img: np.ndarray, cuda: bool):
