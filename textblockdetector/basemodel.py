@@ -206,14 +206,14 @@ class TextDetector(nn.Module):
             return self.dbnet(*outs)
 
 def get_base_det_models(model_path, device='cpu', half=False, act='leaky'):
-    textdetector_dict = torch.load(model_path, map_location='cpu')
-    blk_det = load_yolov5_ckpt(textdetector_dict['blk_det'], map_location='cpu')
+    textdetector_dict = torch.load(model_path, map_location=device)
+    blk_det = load_yolov5_ckpt(textdetector_dict['blk_det'], map_location=device)
     text_seg = UnetHead(act=act)
     text_seg.load_state_dict(textdetector_dict['text_seg'])
     text_det = DBHead(64, act=act)
     text_det.load_state_dict(textdetector_dict['text_det'])
     if half:
-        return blk_det.eval().to(device).half(), text_seg.eval().to(device).half(), text_det.eval().to(device).half()
+        return blk_det.eval().half(), text_seg.eval().half(), text_det.eval().half()
     return blk_det.eval().to(device), text_seg.eval().to(device), text_det.eval().to(device)
 
 class TextDetBase(nn.Module):
@@ -238,4 +238,16 @@ class TextDetBase(nn.Module):
         blks, features = self.blk_det(features, detect=True)
         mask, features = self.text_seg(*features, forward_mode=TEXTDET_INFERENCE)
         lines = self.text_det(*features, step_eval=False)
-        return blks, mask, lines
+        return blks[0], mask, lines
+
+class TextDetBaseDNN:
+    def __init__(self, input_size, model_path):
+        self.input_size = input_size
+        self.model = cv2.dnn.readNetFromONNX(model_path)
+        self.uoln = self.model.getUnconnectedOutLayersNames()
+    
+    def __call__(self, im_in):
+        blob = cv2.dnn.blobFromImage(im_in, scalefactor=1 / 255.0, size=(self.input_size, self.input_size))
+        self.model.setInput(blob)
+        blks, mask, lines_map  = self.model.forward(self.uoln)
+        return blks, mask, lines_map

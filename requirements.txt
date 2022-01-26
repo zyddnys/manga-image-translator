@@ -14,5 +14,3 @@ aiohttp
 tqdm
 sklearn
 deepl
-pandas
-onnxruntime

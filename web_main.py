@@ -46,7 +46,7 @@ def convert_img(img) :
 
 @routes.get("/")
 async def index_async(request) :
-	with open('ui.html', 'r') as fp :
+	with open('ui.html', 'r', encoding='utf8') as fp :
 		return web.Response(text=fp.read(), content_type='text/html')
 
 @routes.get("/result/{taskid}")
