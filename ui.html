@@ -6,7 +6,7 @@
 		<script>
 			var TASKID = "";
 			var STATE = "";
-			const BASE_URI = "/imgtrans/";
+			const BASE_URI = "/";
 			async function poll(fn, fnCondition, ms) {
 				let result = await fn();
 				while (fnCondition(result)) {
