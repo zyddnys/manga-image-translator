@@ -72,7 +72,7 @@ https://touhou.ai/imgtrans/
 2. clone这个repo
 3. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.1) `ocr.ckpt`、`detect.ckpt`、`comictextdetector.pt`、`comictextdetector.pt`和`inpainting.ckpt`，放到这个repo的根目录下
 4. [可选] 申请有道翻译或者DeepL的API，把你的APP_KEY和APP_SECRET或AUTH_KEY存到`translators/key.py`里
-5. 运行`python translate_demo.py --image <图片文件夹路径> [--use-inpainting] [--use-cuda] [--verbose] [--translator=google] [--target-lang=CHS]`，结果会存放到`<图片文件夹路径>-translated`文件夹里。请加上`--use-inpainting`使用图像修补，请加上`--use-cuda`使用GPU。
+5. 运行`python translate_demo.py --mode batch --image <图片文件夹路径> [--use-inpainting] [--use-cuda] [--verbose] [--translator=google] [--target-lang=CHS]`，结果会存放到`<图片文件夹路径>-translated`文件夹里。请加上`--use-inpainting`使用图像修补，请加上`--use-cuda`使用GPU。
 
 # Web服务使用说明
 1. Python>=3.8
