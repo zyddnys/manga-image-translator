@@ -1,12 +1,15 @@
 
 import asyncio
 import argparse
+from PIL import Image
 import cv2
 import numpy as np
 import requests
 import os
 from oscrypto import util as crypto_utils
 import asyncio
+
+from web_main import convert_img
 
 from detection import dispatch as dispatch_detection, load_model as load_detection_model
 from ocr import dispatch as dispatch_ocr, load_model as load_ocr_model
@@ -93,7 +96,6 @@ async def infer(
 		if options['direction'] == 'horizontal' :
 			render_text_direction_overwrite = 'h'
 	print(f' -- Render text direction is {render_text_direction_overwrite or "auto"}')
-	img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'detection')
@@ -229,7 +231,7 @@ async def main(mode = 'demo') :
 			print('please provide an image')
 			parser.print_usage()
 			return
-		img = cv2.imread(args.image)
+		img = np.array(convert_img(Image.open(args.image)))
 		await infer(img, mode, '')
 	elif mode == 'web' :
 		print(' -- Running in web service mode')
@@ -242,7 +244,7 @@ async def main(mode = 'demo') :
 			task_id, options = get_task(nonce)
 			if task_id :
 				print(f' -- Processing task {task_id}')
-				img = cv2.imread(f'result/{task_id}/input.png')
+				img = np.array(convert_img(Image.open(f'result/{task_id}/input.png')))
 				try :
 					infer_task = asyncio.create_task(infer(img, mode, nonce, options, task_id))
 					asyncio.gather(infer_task)
@@ -273,7 +275,7 @@ async def main(mode = 'demo') :
 					continue
 				filename = os.path.join(root, f)
 				try :
-					img = cv2.imread(filename)
+					img = np.array(convert_img(Image.open(filename)))
 					if img is None :
 						continue
 				except Exception :

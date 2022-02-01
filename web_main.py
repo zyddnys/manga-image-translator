@@ -282,11 +282,12 @@ async def start_async_app() :
 	print(f"Serving up app on 127.0.0.1:{port}")
 	return runner, site
 
-loop = asyncio.get_event_loop()
-runner, site = loop.run_until_complete(start_async_app())
+if __name__ == '__main__' :
+	loop = asyncio.get_event_loop()
+	runner, site = loop.run_until_complete(start_async_app())
 
-try:
-	loop.run_forever()
-except KeyboardInterrupt as err :
-	loop.run_until_complete(runner.cleanup())
+	try:
+		loop.run_forever()
+	except KeyboardInterrupt as err :
+		loop.run_until_complete(runner.cleanup())
 
