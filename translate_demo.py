@@ -9,16 +9,15 @@ import os
 from oscrypto import util as crypto_utils
 import asyncio
 
-from web_main import convert_img
-
 from detection import dispatch as dispatch_detection, load_model as load_detection_model
 from ocr import dispatch as dispatch_ocr, load_model as load_ocr_model
 from inpainting import dispatch as dispatch_inpainting, load_model as load_inpainting_model
 from text_mask import dispatch as dispatch_mask_refinement
 from textline_merge import dispatch as dispatch_textline_merge
-from text_rendering import dispatch as dispatch_rendering
+from text_rendering import dispatch as dispatch_rendering, text_render
 from textblockdetector import dispatch as dispatch_ctd_detection
 from textblockdetector.textblock import visualize_textblocks
+from utils import convert_img
 
 parser = argparse.ArgumentParser(description='Generate text bboxes given a image file')
 parser.add_argument('--mode', default='demo', type=str, help='Run demo in either single image demo mode (demo), web service mode (web) or batch translation mode (batch)')
@@ -38,20 +37,6 @@ parser.add_argument('--target-lang', default='CHS', type=str, help='destination 
 parser.add_argument('--use-ctd', action='store_true', help='use comic-text-detector for text detection')
 parser.add_argument('--verbose', action='store_true', help='print debug info and save intermediate images')
 args = parser.parse_args()
-print(args)
-
-def overlay_image(a, b, wa = 0.7) :
-	return cv2.addWeighted(a, wa, b, 1 - wa, 0)
-
-def overlay_mask(img, mask) :
-	img2 = img.copy().astype(np.float32)
-	mask_fp32 = (mask > 10).astype(np.uint8) * 2
-	mask_fp32[mask_fp32 == 0] = 1
-	mask_fp32 = mask_fp32.astype(np.float32) * 0.5
-	img2 = img2 * mask_fp32[:, :, None]
-	return img2.astype(np.uint8)
-
-from text_rendering import text_render
 
 def update_state(task_id, nonce, state) :
 	requests.post('http://127.0.0.1:5003/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state})
@@ -72,7 +57,8 @@ async def infer(
 	nonce,
 	options = None,
 	task_id = '',
-	dst_image_name = ''
+	dst_image_name = '',
+	alpha_ch = None
 	) :
 	options = options or {}
 	img_detect_size = args.size
@@ -149,8 +135,6 @@ async def infer(
 		else:
 			requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.text for r in text_regions]})
 
-
-
 	print(' -- Running inpainting')
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'inpainting')
@@ -184,9 +168,6 @@ async def infer(
 				translated_sentences = ret['result']
 				break
 			await asyncio.sleep(0.1)
-	# if not translated_sentences and text_regions :
-	# 	update_state(task_id, nonce, 'error')
-	# 	return
 
 	if translated_sentences is not None:
 		print(' -- Rendering translated text')
@@ -200,10 +181,13 @@ async def infer(
 			output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite)
 		
 		print(' -- Saving results')
+		if alpha_ch is not None :
+			output = np.concatenate([output, np.array(alpha_ch)[..., None]], axis = 2)
+		img_pil = Image.fromarray(output)
 		if dst_image_name :
-			cv2.imwrite(dst_image_name, cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
+			img_pil.save(dst_image_name)
 		else :
-			cv2.imwrite(f'result/{task_id}/final.png', cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
+			img_pil.save(f'result/{task_id}/final.png')
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'finished')
@@ -231,8 +215,9 @@ async def main(mode = 'demo') :
 			print('please provide an image')
 			parser.print_usage()
 			return
-		img = np.array(convert_img(Image.open(args.image)))
-		await infer(img, mode, '')
+		img, alpha_ch = convert_img(Image.open(args.image))
+		img = np.array(img)
+		await infer(img, mode, '', alpha_ch = alpha_ch)
 	elif mode == 'web' :
 		print(' -- Running in web service mode')
 		print(' -- Waiting for translation tasks')
@@ -244,9 +229,10 @@ async def main(mode = 'demo') :
 			task_id, options = get_task(nonce)
 			if task_id :
 				print(f' -- Processing task {task_id}')
-				img = np.array(convert_img(Image.open(f'result/{task_id}/input.png')))
+				img, alpha_ch = convert_img(Image.open(args.image))
+				img = np.array(img)
 				try :
-					infer_task = asyncio.create_task(infer(img, mode, nonce, options, task_id))
+					infer_task = asyncio.create_task(infer(img, mode, nonce, options, task_id, alpha_ch = alpha_ch))
 					asyncio.gather(infer_task)
 				except :
 					import traceback
@@ -275,7 +261,8 @@ async def main(mode = 'demo') :
 					continue
 				filename = os.path.join(root, f)
 				try :
-					img = np.array(convert_img(Image.open(filename)))
+					img, alpha_ch = convert_img(Image.open(args.image))
+					img = np.array(img)
 					if img is None :
 						continue
 				except Exception :
@@ -283,12 +270,13 @@ async def main(mode = 'demo') :
 				try :
 					dst_filename = replace_prefix(filename, src, dst)
 					print('Processing', filename, '->', dst_filename)
-					await infer(img, 'demo', '', dst_image_name = dst_filename)
+					await infer(img, 'demo', '', dst_image_name = dst_filename, alpha_ch = alpha_ch)
 				except Exception :
 					import traceback
 					traceback.print_exc()
 					pass
 
 if __name__ == '__main__':
+	print(args)
 	loop = asyncio.get_event_loop()
 	loop.run_until_complete(main(args.mode))

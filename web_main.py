@@ -27,23 +27,6 @@ TASK_STATES = {}
 app = web.Application(client_max_size = 1024 * 1024 * 10)
 routes = web.RouteTableDef()
 
-def convert_img(img) :
-	if img.mode == 'RGBA' :
-		# from https://stackoverflow.com/questions/9166400/convert-rgba-png-to-rgb-with-pil
-		img.load()  # needed for split()
-		background = Image.new('RGB', img.size, (255, 255, 255))
-		background.paste(img, mask = img.split()[3])  # 3 is the alpha channel
-		return background
-	elif img.mode == 'P' :
-		img = img.convert('RGBA')
-		img.load()  # needed for split()
-		background = Image.new('RGB', img.size, (255, 255, 255))
-		background.paste(img, mask = img.split()[3])  # 3 is the alpha channel
-		return background
-	else :
-		return img.convert('RGB')
-
-
 @routes.get("/")
 async def index_async(request) :
 	with open('ui.html', 'r', encoding='utf8') as fp :
@@ -97,7 +80,7 @@ async def handle_post(request) :
 	else :
 		return web.json_response({'status' : 'failed'})
 	try :
-		img = convert_img(Image.open(io.BytesIO(content)))
+		img = Image.open(io.BytesIO(content))
 	except :
 		return web.json_response({'status' : 'failed'})
 	return img, size, selected_translator, target_language, detector, direction
