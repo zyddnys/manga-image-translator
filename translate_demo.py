@@ -261,7 +261,7 @@ async def main(mode = 'demo') :
 					continue
 				filename = os.path.join(root, f)
 				try :
-					img, alpha_ch = convert_img(Image.open(args.image))
+					img, alpha_ch = convert_img(Image.open(filename))
 					img = np.array(img)
 					if img is None :
 						continue
