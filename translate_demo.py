@@ -229,7 +229,7 @@ async def main(mode = 'demo') :
 			task_id, options = get_task(nonce)
 			if task_id :
 				print(f' -- Processing task {task_id}')
-				img, alpha_ch = convert_img(Image.open(args.image))
+				img, alpha_ch = convert_img(Image.open(f'result/{task_id}/input.png'))
 				img = np.array(img)
 				try :
 					infer_task = asyncio.create_task(infer(img, mode, nonce, options, task_id, alpha_ch = alpha_ch))
