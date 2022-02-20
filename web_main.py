@@ -12,6 +12,7 @@ from aiohttp import web
 from aiohttp import ClientSession
 from io import BytesIO
 
+from imagehash import phash
 from collections import deque
 
 from translators import VALID_LANGUAGES, dispatch as run_translation
@@ -92,14 +93,24 @@ async def run_async(request) :
 		img, size, selected_translator, target_language, detector, direction = x
 	else :
 		return x
-	task_id = crypto_utils.rand_bytes(16).hex()
-	os.makedirs(f'result/{task_id}/', exist_ok=True)
-	img.save(f'result/{task_id}/input.png')
-	QUEUE.append(task_id)
-	TASK_DATA[task_id] = {'size': size, 'translator': selected_translator, 'tgt': target_language, 'detector': detector, 'direction': direction}
-	TASK_STATES[task_id] = 'pending'
+	task_id = f'{phash(img)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
+	if os.path.exists(f'result/{task_id}/final.png') :
+		return web.json_response({'task_id' : task_id, 'status': 'successful'})
+	elif os.path.exists(f'result/{task_id}') :
+		# either image is being processed or error occurred 
+		if task_id not in TASK_STATES :
+			# error occurred
+			return web.json_response({'state': 'error'})
+	else :
+		os.makedirs(f'result/{task_id}/', exist_ok=True)
+		img.save(f'result/{task_id}/input.png')
+		QUEUE.append(task_id)
+		TASK_DATA[task_id] = {'size': size, 'translator': selected_translator, 'tgt': target_language, 'detector': detector, 'direction': direction, 'created_at': time.time()}
+		TASK_STATES[task_id] = 'pending'
 	while True :
 		await asyncio.sleep(0.05)
+		if task_id not in TASK_STATES :
+			break
 		state = TASK_STATES[task_id]
 		if state == 'finished' :
 			break
@@ -194,10 +205,12 @@ async def get_task_state_async(request) :
 			ret = web.json_response({'state': TASK_STATES[task_id], 'waiting': QUEUE.index(task_id) + 1})
 		except :
 			ret = web.json_response({'state': TASK_STATES[task_id], 'waiting': 0})
-		if TASK_STATES[task_id] in ['finished', 'error', 'error-lang'] :
-			# remove old tasks
-			del TASK_STATES[task_id]
-			del TASK_DATA[task_id]
+		now = time.time()
+		for tid in TASK_STATES :
+			if tid in TASK_DATA and TASK_STATES[tid] in ['finished', 'error', 'error-lang'] and now - TASK_DATA[tid]['created_at'] > 1800 :
+				# remove old tasks
+				del TASK_STATES[tid]
+				del TASK_DATA[tid]
 		return ret
 	return web.json_response({'state': 'error'})
 
@@ -219,12 +232,20 @@ async def submit_async(request) :
 		img, size, selected_translator, target_language, detector, direction = x
 	else :
 		return x
-	task_id = crypto_utils.rand_bytes(16).hex()
-	os.makedirs(f'result/{task_id}/', exist_ok=True)
-	img.save(f'result/{task_id}/input.png')
-	QUEUE.append(task_id)
-	TASK_DATA[task_id] = {'size': size, 'translator': selected_translator, 'tgt': target_language, 'detector': detector, 'direction': direction}
-	TASK_STATES[task_id] = 'pending'
+	task_id = f'{phash(img)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
+	if os.path.exists(f'result/{task_id}/final.png') :
+		TASK_STATES[task_id] = 'finished'
+	elif os.path.exists(f'result/{task_id}') :
+		# either image is being processed or error occurred 
+		if task_id not in TASK_STATES :
+			# error occurred
+			return web.json_response({'state': 'error'})
+	else :
+		os.makedirs(f'result/{task_id}/', exist_ok=True)
+		img.save(f'result/{task_id}/input.png')
+		QUEUE.append(task_id)
+		TASK_DATA[task_id] = {'size': size, 'translator': selected_translator, 'tgt': target_language, 'detector': detector, 'direction': direction, 'created_at': time.time()}
+		TASK_STATES[task_id] = 'pending'
 	return web.json_response({'task_id' : task_id, 'status': 'successful'})
 
 @routes.post("/manual-translate")
@@ -238,7 +259,7 @@ async def manual_translate_async(request) :
 	os.makedirs(f'result/{task_id}/', exist_ok=True)
 	img.save(f'result/{task_id}/input.png')
 	QUEUE.append(task_id)
-	TASK_DATA[task_id] = {'size': size, 'manual': True, 'detector': detector, 'direction': direction}
+	TASK_DATA[task_id] = {'size': size, 'manual': True, 'detector': detector, 'direction': direction, 'created_at': time.time()}
 	TASK_STATES[task_id] = 'pending'
 	while True :
 		await asyncio.sleep(0.1)
