@@ -182,7 +182,7 @@ async def infer(
 		
 		print(' -- Saving results')
 		if alpha_ch is not None :
-			output = np.concatenate([output, np.array(alpha_ch)[..., None]], axis = 2)
+			output = np.concatenate([output.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
 		img_pil = Image.fromarray(output)
 		if dst_image_name :
 			img_pil.save(dst_image_name)
