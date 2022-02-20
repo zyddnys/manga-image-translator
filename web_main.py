@@ -206,11 +206,14 @@ async def get_task_state_async(request) :
 		except :
 			ret = web.json_response({'state': TASK_STATES[task_id], 'waiting': 0})
 		now = time.time()
+		to_del_task_ids = set()
 		for tid in TASK_STATES :
 			if tid in TASK_DATA and TASK_STATES[tid] in ['finished', 'error', 'error-lang'] and now - TASK_DATA[tid]['created_at'] > 1800 :
 				# remove old tasks
-				del TASK_STATES[tid]
-				del TASK_DATA[tid]
+				to_del_task_ids.add(tid)
+		for tid in to_del_task_ids :
+			del TASK_STATES[tid]
+			del TASK_DATA[tid]
 		return ret
 	return web.json_response({'state': 'error'})
 
