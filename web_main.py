@@ -93,7 +93,7 @@ async def run_async(request) :
 		img, size, selected_translator, target_language, detector, direction = x
 	else :
 		return x
-	task_id = f'{phash(img)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
+	task_id = f'{phash(img, hash_size = 16)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
 	if os.path.exists(f'result/{task_id}/final.png') :
 		return web.json_response({'task_id' : task_id, 'status': 'successful'})
 	elif os.path.exists(f'result/{task_id}') :
@@ -235,7 +235,7 @@ async def submit_async(request) :
 		img, size, selected_translator, target_language, detector, direction = x
 	else :
 		return x
-	task_id = f'{phash(img)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
+	task_id = f'{phash(img, hash_size = 16)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
 	if os.path.exists(f'result/{task_id}/final.png') :
 		TASK_STATES[task_id] = 'finished'
 	elif os.path.exists(f'result/{task_id}') :
