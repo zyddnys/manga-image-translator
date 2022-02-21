@@ -142,10 +142,9 @@ async def infer(
 	if text_regions :
 		img_inpainted = await dispatch_inpainting(args.use_inpainting, False, args.use_cuda, img, final_mask, args.inpainting_size, verbose = args.verbose)
 	else :
-		img_inpainted = img, img
+		img_inpainted = img
 	if args.verbose :
-		img_inpainted, inpaint_input = img_inpainted
-		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input, cv2.COLOR_RGB2BGR))
+		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
 		cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
 		cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
 
