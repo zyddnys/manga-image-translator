@@ -1,5 +1,9 @@
 # 中文说明
 [README_CN.md](README_CN.md)
+# Supporting us
+Support us [here](https://ko-fi.com/voilelabs) so we can afford GPU server instead of just 2 core vCPU
+# Browser extension
+https://greasyfork.org/en/scripts/437569-touhou-ai-manga-translator
 # Online Demo
 https://touhou.ai/imgtrans/
 * Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
