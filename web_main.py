@@ -25,7 +25,7 @@ QUEUE = deque()
 TASK_DATA = {}
 TASK_STATES = {}
 
-app = web.Application(client_max_size = 1024 * 1024 * 10)
+app = web.Application(client_max_size = 1024 * 1024 * 50)
 routes = web.RouteTableDef()
 
 @routes.get("/")
