@@ -20,6 +20,8 @@ from translators import VALID_LANGUAGES, dispatch as run_translation
 VALID_DETECTORS = set(['default', 'ctd'])
 VALID_DIRECTIONS = set(['auto', 'horizontal'])
 
+MAX_NUM_TASKS = 3
+NUM_ONGOING_TASKS = 0
 NONCE = ''
 QUEUE = deque()
 TASK_DATA = {}
@@ -119,11 +121,13 @@ async def run_async(request) :
 
 @routes.get("/task-internal")
 async def get_task_async(request) :
-	global NONCE
+	global NONCE, NUM_ONGOING_TASKS
 	if request.rel_url.query['nonce'] == NONCE :
-		if len(QUEUE) > 0 :
+		if len(QUEUE) > 0 and NUM_ONGOING_TASKS < MAX_NUM_TASKS :
 			task_id = QUEUE.popleft()
 			data = TASK_DATA[task_id]
+			if 'manual' not in TASK_DATA[task_id]:
+				NUM_ONGOING_TASKS += 1
 			return web.json_response({'task_id': task_id, 'data': data})
 		else :
 			return web.json_response({})
@@ -219,12 +223,14 @@ async def get_task_state_async(request) :
 
 @routes.post("/task-update-internal")
 async def post_task_update_async(request) :
-	global NONCE
+	global NONCE, NUM_ONGOING_TASKS
 	rqjson = (await request.json())
 	if rqjson['nonce'] == NONCE :
 		task_id = rqjson['task_id']
 		if task_id in TASK_STATES :
 			TASK_STATES[task_id] = rqjson['state']
+			if rqjson['state'] in ['finished', 'error', 'error-lang'] and 'manual' not in TASK_DATA[task_id] :
+				NUM_ONGOING_TASKS -= 1
 			print(f'Task state {task_id} to {TASK_STATES[task_id]}')
 	return web.json_response({})
 
