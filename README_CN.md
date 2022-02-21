@@ -1,3 +1,7 @@
+# 支持我们
+在[这里](https://ko-fi.com/voilelabs)支持我们使用GPU服务器
+# 浏览器扩展
+https://greasyfork.org/en/scripts/437569-touhou-ai-manga-translator
 # 在线版
 https://touhou.ai/imgtrans/
 * 注意如果在线版无法访问说明Google GCP又在重启我的服务器，此时请等待我重新开启服务。
