@@ -96,11 +96,11 @@ async def run_async(request) :
 	task_id = f'{phash(img, hash_size = 16)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
 	if os.path.exists(f'result/{task_id}/final.png') :
 		return web.json_response({'task_id' : task_id, 'status': 'successful'})
-	elif os.path.exists(f'result/{task_id}') :
-		# either image is being processed or error occurred 
-		if task_id not in TASK_STATES :
-			# error occurred
-			return web.json_response({'state': 'error'})
+	# elif os.path.exists(f'result/{task_id}') :
+	# 	# either image is being processed or error occurred 
+	# 	if task_id not in TASK_STATES :
+	# 		# error occurred
+	# 		return web.json_response({'state': 'error'})
 	else :
 		os.makedirs(f'result/{task_id}/', exist_ok=True)
 		img.save(f'result/{task_id}/input.png')
@@ -238,11 +238,11 @@ async def submit_async(request) :
 	task_id = f'{phash(img, hash_size = 16)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
 	if os.path.exists(f'result/{task_id}/final.png') :
 		TASK_STATES[task_id] = 'finished'
-	elif os.path.exists(f'result/{task_id}') :
-		# either image is being processed or error occurred 
-		if task_id not in TASK_STATES :
-			# error occurred
-			return web.json_response({'state': 'error'})
+	# elif os.path.exists(f'result/{task_id}') :
+	# 	# either image is being processed or error occurred 
+	# 	if task_id not in TASK_STATES :
+	# 		# error occurred
+	# 		return web.json_response({'state': 'error'})
 	else :
 		os.makedirs(f'result/{task_id}/', exist_ok=True)
 		img.save(f'result/{task_id}/input.png')
