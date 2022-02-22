@@ -139,9 +139,15 @@ async def machine_trans_task(task_id, texts, translator = 'youdao', target_langu
 	print('translator', translator)
 	print('target_language', target_language)
 	if texts :
-		try :
-			TASK_DATA[task_id]['trans_result'] = await run_translation(translator, 'auto', target_language, texts)
-		except Exception as ex :
+		success = False
+		for i in range(10) :
+			try :
+				TASK_DATA[task_id]['trans_result'] = await run_translation(translator, 'auto', target_language, texts)
+				success = True
+				break
+			except Exception as ex :
+				continue
+		if not success :
 			TASK_DATA[task_id]['trans_result'] = ['error'] * len(texts)
 	else :
 		TASK_DATA[task_id]['trans_result'] = []
