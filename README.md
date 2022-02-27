@@ -1,7 +1,10 @@
 # 中文说明
 [README_CN.md](README_CN.md)
 # Supporting us
-Support us [here](https://ko-fi.com/voilelabs) so we can afford GPU server instead of just 2 core vCPU
+GPU server is not cheap \
+Please Support us\
+https://ko-fi.com/voilelabs \
+https://www.patreon.com/voilelabs
 # Browser extension
 https://greasyfork.org/en/scripts/437569-touhou-ai-manga-translator
 # Online Demo

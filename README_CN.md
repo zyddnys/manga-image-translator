@@ -1,5 +1,7 @@
 # 支持我们
-在[这里](https://ko-fi.com/voilelabs)支持我们使用GPU服务器
+请支持我们使用GPU服务器 \
+https://ko-fi.com/voilelabs \
+https://www.patreon.com/voilelabs
 # 浏览器扩展
 https://greasyfork.org/en/scripts/437569-touhou-ai-manga-translator
 # 在线版
