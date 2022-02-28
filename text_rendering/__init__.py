@@ -3,10 +3,23 @@ from typing import List
 from utils import Quadrilateral
 import numpy as np
 import cv2
+import math
 from utils import findNextPowerOf2
 
 from . import text_render
 from textblockdetector.textblock import TextBlock
+
+def fg_bg_compare(fg, bg):
+	fg_lumi = math.sqrt(0.299 * fg[0] ** 2 + 0.587 * fg[1] ** 2 + 0.114 * fg[2] ** 2)
+	bg_lumi = math.sqrt(0.299 * bg[0] ** 2 + 0.587 * bg[1] ** 2 + 0.114 * bg[2] ** 2)
+	max_lumi = max(fg_lumi, bg_lumi)
+	min_lumi = min(fg_lumi, bg_lumi)
+	lumi_contrast = (max_lumi + 0.05) / (min_lumi + 0.05)
+	if lumi_contrast <= 4.5:
+		fg_avg = np.mean(fg)
+		bg = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
+	return bg
+
 
 async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], textlines: List[Quadrilateral], text_regions: List[Quadrilateral], text_direction_overwrite: str) -> np.ndarray :
 	for ridx, (trans_text, region) in enumerate(zip(translated_sentences, text_regions)) :
@@ -19,6 +32,7 @@ async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translate
 		#print(region.majority_dir, region.pts)
 		fg = (region.fg_r, region.fg_g, region.fg_b)
 		bg = (region.bg_r, region.bg_g, region.bg_b)
+		bg = fg_bg_compare(fg, bg)
 		font_size = 0
 		n_lines = len(region.textline_indices)
 		for idx in region.textline_indices :
@@ -124,6 +138,7 @@ async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer
 			majority_dir = 'v' if region.vertical else 'h'
 
 		fg, bg = region.get_font_colors()
+		bg = fg_bg_compare(fg, bg)
 		font_size = region.font_size
 		font_size = round(font_size)
 

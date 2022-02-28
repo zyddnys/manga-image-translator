@@ -274,11 +274,11 @@ def put_text_vertical(font_size: int, mag_ratio: float, img: np.ndarray, mask: n
 	# 	font_size -= 1
 	# 	rows = h // font_size
 	# 	cols = w // font_size
-	fg_avg = (fg[0] + fg[1] + fg[2]) / 3
-	if bg :
-		bg_avg = (bg[0] + bg[1] + bg[2]) / 3
-		if abs(fg_avg - bg_avg) < 40 :
-			bg = None
+	#fg_avg = (fg[0] + fg[1] + fg[2]) / 3
+	#if bg :
+	#	bg_avg = (bg[0] + bg[1] + bg[2]) / 3
+	#	if abs(fg_avg - bg_avg) < 40 :
+	#		bg = None
 	bgsize = int(max(font_size * 0.07, 1)) if bg else 0
 	spacing_y = 0#int(max(font_size * 0.05, 1))
 	spacing_x = spacing_y
@@ -320,11 +320,11 @@ def put_text_horizontal(font_size: int, mag_ratio: float, img: np.ndarray, mask:
 	# 	font_size -= 1
 	# 	rows = h // font_size
 	# 	cols = w // font_size
-	fg_avg = (fg[0] + fg[1] + fg[2]) / 3
-	if bg :
-		bg_avg = (bg[0] + bg[1] + bg[2]) / 3
-		if abs(fg_avg - bg_avg) < 40 :
-			bg = None
+	#fg_avg = (fg[0] + fg[1] + fg[2]) / 3
+	#if bg :
+	#	bg_avg = (bg[0] + bg[1] + bg[2]) / 3
+	#	if abs(fg_avg - bg_avg) < 40 :
+	#		bg = None
 	bgsize = int(max(font_size * 0.07, 1)) if bg else 0
 	spacing_x = 0#int(max(font_size * 0.05, 1))
 	spacing_y = spacing_x
