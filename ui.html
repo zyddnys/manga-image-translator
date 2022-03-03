@@ -6,7 +6,7 @@
 		<script>
 			var TASKID = "";
 			var STATE = "";
-			const BASE_URI = "/imgtrans/";
+			const BASE_URI = "/";
 			async function poll(fn, fnCondition, ms) {
 				let result = await fn();
 				while (fnCondition(result)) {
@@ -112,6 +112,8 @@
 				event.preventDefault();
 				var detect_res = document.querySelector('input[name="detect-size"]:checked').value;
 				var translator = document.querySelector('input[name="translator-sel"]:checked').value;
+				var dir = document.querySelector('input[name="dir-sel"]:checked').value;
+				var detector = document.querySelector('input[name="detector-sel"]:checked').value;
 				var tgt_lang = document.getElementById("target-language").value;
 				console.log(document.getElementById("target-language"));
 				var files = document.getElementById("image-file").files;
@@ -135,6 +137,8 @@
 				formData.append('size', detect_res);
 				formData.append('translator', translator);
 				formData.append('tgt_lang', tgt_lang);
+				formData.append('dir', dir);
+				formData.append('detector', detector);
 				XHR.open('POST', BASE_URI + "submit", true);
 				XHR.onload = async function () {
 					if (XHR.status == 200) {
@@ -147,7 +151,7 @@
 						if (STATE !== "error") {
 							document.getElementById("translated-image-div").style.visibility = "";
 							document.getElementById("translated-image").src = "";
-							document.getElementById("translated-image").src = BASE_URI + "result/" + TASKID + "/final.jpg";
+							document.getElementById("translated-image").src = BASE_URI + "result/" + TASKID;
 						}
 						status.innerHTML = '';
 						ProgressBar.end();
@@ -177,6 +181,9 @@
 		<div>
 			<div>
 				<h3>Image/Manga translator</h3>
+				Please support us!</br>
+				<a href="https://ko-fi.com/voilelabs">https://ko-fi.com/voilelabs</a></br>
+				<a href="https://www.patreon.com/voilelabs">https://www.patreon.com/voilelabs</a></br>
 				<a href="https://github.com/zyddnys/manga-image-translator">https://github.com/zyddnys/manga-image-translator</a>
 			</div>
 			<div>
@@ -185,7 +192,7 @@
 			<div>
 				<form id="image-form" action="#" onsubmit="upload_image(event);" method="post" enctype="multipart/form-data">
 					<div style="padding-bottom: 0.5rem;">
-						<span>Detection resolution: </span>
+						<span>Detection resolution </span>
 						<label>
 							<input type="radio" id="detect-res-S" name="detect-size" value="S">
 							<span>1024px</span>
@@ -204,7 +211,18 @@
 						</label>
 					</div>
 					<div style="padding-bottom: 0.5rem;">
-						<span>Translator: </span>
+						<span>Text detector </span>
+						<label>
+							<input type="radio" id="detector-default" name="detector-sel" value="auto" checked>
+							<span>Default</span>
+						</label>
+						<label>
+							<input type="radio" id="detector-ctd"  name="detector-sel" value="ctd">
+							<span>CTD</span>
+						</label>
+					</div>
+					<div style="padding-bottom: 0.5rem;">
+						<span>Translator </span>
 						<label>
 							<input type="radio" id="translator-youdao" name="translator-sel" value="youdao" checked>
 							<span>Youdao</span>
@@ -212,6 +230,25 @@
 						<label>
 							<input type="radio" id="translator-baidu"  name="translator-sel" value="baidu">
 							<span>Baidu</span>
+						</label>
+						<label>
+							<input type="radio" id="translator-google"  name="translator-sel" value="google">
+							<span>Google</span>
+						</label>
+						<label>
+							<input type="radio" id="translator-deepl"  name="translator-sel" value="deepl">
+							<span>DeepL</span>
+						</label>
+					</div>
+					<div style="padding-bottom: 0.5rem;">
+						<span>Render text direction </span>
+						<label>
+							<input type="radio" id="dir-auto" name="dir-sel" value="auto" checked>
+							<span>Auto</span>
+						</label>
+						<label>
+							<input type="radio" id="dir-horizontal"  name="dir-sel" value="horizontal">
+							<span>Horizontal</span>
 						</label>
 					</div>
 					<div style="padding-bottom: 0.5rem;">
@@ -262,7 +299,7 @@
 				</label>
 				<span>Show original size</span>
 			</div>
-			<img id="translated-image" style="max-width: 1024px;" src="file:///media/unknown/dataset/workspace/manga-image-translator/result3.png"></img>
+			<img id="translated-image" style="max-width: 1024px;" src=""></img>
 		</div>
 	</body>
 	<style>

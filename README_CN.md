@@ -1,8 +1,16 @@
+# 支持我们
+请支持我们使用GPU服务器 \
+https://ko-fi.com/voilelabs \
+https://www.patreon.com/voilelabs
+# 浏览器扩展
+https://greasyfork.org/en/scripts/437569-touhou-ai-manga-translator
 # 在线版
 https://touhou.ai/imgtrans/
 * 注意如果在线版无法访问说明Google GCP又在重启我的服务器，此时请等待我重新开启服务。
 * 在线版使用的是目前main分支最新版本。
 # Changelogs
+### 2022-01-24
+1. 增加了来自[dmMaze](https://github.com/dmMaze)的文本检测模型
 ### 2021-08-21
 1. 文本区域合并算法更新，先已经实现几乎完美文本行合并
 2. 增加演示模式百度翻译支持
@@ -61,15 +69,22 @@ https://touhou.ai/imgtrans/
 # 使用说明
 1. Python>=3.8
 2. clone这个repo
-3. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.0) `ocr.ckpt`、`detect.ckpt`和`inpainting.ckpt`，放到这个repo的根目录下
-4. [可选] 申请有道翻译API，把你的APP_KEY和APP_SECRET存到`translators/key.py`里
+3. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.1) `ocr.ckpt`、`detect.ckpt`、`comictextdetector.pt`、`comictextdetector.pt`和`inpainting.ckpt`，放到这个repo的根目录下
+4. [可选] 申请有道翻译或者DeepL的API，把你的APP_KEY和APP_SECRET或AUTH_KEY存到`translators/key.py`里
 5. 运行`python translate_demo.py --image <图片文件路径> [--use-inpainting] [--use-cuda] [--verbose] [--translator=google] [--target-lang=CHS]`，结果会存放到result文件夹里。请加上`--use-inpainting`使用图像修补，请加上`--use-cuda`使用GPU。
+
+# 批量翻译使用说明
+1. Python>=3.8
+2. clone这个repo
+3. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.1) `ocr.ckpt`、`detect.ckpt`、`comictextdetector.pt`、`comictextdetector.pt`和`inpainting.ckpt`，放到这个repo的根目录下
+4. [可选] 申请有道翻译或者DeepL的API，把你的APP_KEY和APP_SECRET或AUTH_KEY存到`translators/key.py`里
+5. 运行`python translate_demo.py --mode batch --image <图片文件夹路径> [--use-inpainting] [--use-cuda] [--verbose] [--translator=google] [--target-lang=CHS]`，结果会存放到`<图片文件夹路径>-translated`文件夹里。请加上`--use-inpainting`使用图像修补，请加上`--use-cuda`使用GPU。
 
 # Web服务使用说明
 1. Python>=3.8
 2. clone这个repo
-3. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.0) `ocr.ckpt`、`detect.ckpt`和`inpainting.ckpt`，放到这个repo的根目录下
-4. [可选] 申请有道翻译API，把你的APP_KEY和APP_SECRET存到`translators/key.py`里
+3. [下载](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.1) `ocr.ckpt`、`detect.ckpt`、`comictextdetector.pt`、`comictextdetector.pt.onnx`和`inpainting.ckpt`，放到这个repo的根目录下
+4. [可选] 申请有道翻译或者DeepL的API，把你的APP_KEY和APP_SECRET或AUTH_KEY存到`translators/key.py`里
 5. 运行`python translate_demo.py --mode web [--use-inpainting] [--use-cuda] [--verbose] [--translator=google] [--target-lang=CHS]`，程序服务会开启在http://127.0.0.1:5003 \
 请加上`--use-inpainting`使用图像修补，请加上`--use-cuda`使用GPU。
 

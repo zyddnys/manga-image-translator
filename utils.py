@@ -5,23 +5,25 @@ import cv2
 import functools
 import shapely
 from shapely.geometry import Polygon, MultiPoint
+from PIL import Image
 
-class AvgMeter() :
-	def __init__(self) :
-		self.reset()
-
-	def reset(self) :
-		self.sum = 0
-		self.count = 0
-
-	def __call__(self, val = None) :
-		if val is not None :
-			self.sum += val
-			self.count += 1
-		if self.count > 0 :
-			return self.sum / self.count
-		else :
-			return 0
+def convert_img(img) :
+	if img.mode == 'RGBA' :
+		# from https://stackoverflow.com/questions/9166400/convert-rgba-png-to-rgb-with-pil
+		img.load()  # needed for split()
+		background = Image.new('RGB', img.size, (255, 255, 255))
+		alpha_ch = img.split()[3]
+		background.paste(img, mask = alpha_ch)  # 3 is the alpha channel
+		return background, alpha_ch
+	elif img.mode == 'P' :
+		img = img.convert('RGBA')
+		img.load()  # needed for split()
+		background = Image.new('RGB', img.size, (255, 255, 255))
+		alpha_ch = img.split()[3]
+		background.paste(img, mask = alpha_ch)  # 3 is the alpha channel
+		return background, alpha_ch
+	else :
+		return img.convert('RGB'), None
 
 def resize_keep_aspect(img, size) :
 	ratio = (float(size)/max(img.shape[0], img.shape[1]))
