@@ -1,14 +1,17 @@
+if __name__ == '__main__' :
+	import sys, os
+	sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 
 from itertools import filterfalse
 import pickle
 from typing import List, Tuple, Optional
 
 import numpy as np
-
 import cv2
 import unicodedata
 import freetype
 from utils import BBox, Quadrilateral
+from PIL import Image
 
 def _is_whitespace(ch):
 	"""Checks whether `chars` is a whitespace character."""
@@ -161,20 +164,29 @@ def rotate_image(image, angle) :
 		return result, (0, 0)
 	return result, (diff_i, diff_j)
 
-def add_color(bw_char_map, color, border_color = None, border_size: int = 0) :
-	fg = np.zeros((bw_char_map.shape[0], bw_char_map.shape[1], 3), dtype = np.uint8)
+def add_color(bw_char_map, color, stroke_char_map, stroke_color) :
+	fg = np.zeros((bw_char_map.shape[0], bw_char_map.shape[1], 4), dtype = np.uint8)
 	if bw_char_map.size == 0 :
-		return fg.astype(np.uint8), bw_char_map, color, border_color if border_size > 0 else None
-	color_np = np.array(color, dtype = np.uint8)
-	if border_color and border_size > 0 :
-		bg_color_np = np.array(border_color, dtype = np.uint8)
-		fg[:] = bg_color_np
-		alpha = cv2.dilate(bw_char_map, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (border_size * 2 + 1, border_size * 2 + 1)))
-		fg[bw_char_map > 127] = color_np
-		return fg.astype(np.uint8), alpha, color, border_color if border_size > 0 else None
-	else :
-		fg[:] = color_np
-		return fg.astype(np.uint8), bw_char_map, color, border_color if border_size > 0 else None
+		fg = np.zeros((bw_char_map.shape[0], bw_char_map.shape[1], 3), dtype = np.uint8)
+		return fg.astype(np.uint8)
+	fg[:,:,0] = color[0]
+	fg[:,:,1] = color[1]
+	fg[:,:,2] = color[2]
+	fg[:,:,3] = bw_char_map
+	fg_pil = Image.fromarray(fg)
+
+	bg = np.zeros((stroke_char_map.shape[0], stroke_char_map.shape[1], 4), dtype = np.uint8)
+	bg[:,:,0] = stroke_color[0]
+	bg[:,:,1] = stroke_color[1]
+	bg[:,:,2] = stroke_color[2]
+	bg[:,:,3] = stroke_char_map
+	bg_pil = Image.fromarray(bg)
+	bg_pil.paste(fg_pil, (0,0), fg_pil)
+
+	result = np.array(bg_pil)
+	alpha_char_map = cv2.add(bw_char_map, stroke_char_map)
+	alpha_char_map[alpha_char_map > 0] = 255
+	return result, alpha_char_map
 
 CACHED_FONT_FACE = []
 
@@ -207,16 +219,24 @@ def get_char_glyph(cdpt, font_size: int, direction: int) :
 		elif direction == 1 :
 			face.set_pixel_sizes( font_size, 0 )
 		face.load_char(cdpt)
-		return Glyph(face.glyph), face.glyph.bitmap.rows * face.glyph.bitmap.width == 0
+		return Glyph(face.glyph)
+
+def get_char_glyph_orig(cdpt, font_size: int, direction: int) :
+	global CACHED_FONT_FACE
+	for i, face in enumerate(CACHED_FONT_FACE) :
+		if face.get_char_index(cdpt) == 0 and i != len(CACHED_FONT_FACE) - 1 :
+			continue
+		if direction == 0 :
+			face.set_pixel_sizes( 0, font_size )
+		elif direction == 1 :
+			face.set_pixel_sizes( font_size, 0 )
+		face.load_char(cdpt, freetype.FT_LOAD_DEFAULT | freetype.FT_LOAD_NO_BITMAP)
+		return face.glyph
 
 def put_char(canvas: np.ndarray, mask: np.ndarray, x: int, y: int, font_size: int, rot: int, cdpt: str, direction: int, char_color = (0,0,0), border_color = (0,255,0), border_size = 2) :
 	is_pun = _is_punctuation(cdpt)
 	cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, direction)
-	old_font_size = font_size
-	font_size += border_size * 2
-	x -= border_size
-	y -= border_size
-	glyph, empty_char = get_char_glyph(cdpt, old_font_size, direction)
+	glyph = get_char_glyph(cdpt, font_size, direction)
 	offset_x = glyph.advance.x>>6
 	offset_y = glyph.advance.y>>6
 	bitmap = glyph.bitmap
@@ -224,42 +244,38 @@ def put_char(canvas: np.ndarray, mask: np.ndarray, x: int, y: int, font_size: in
 		if offset_y == 0 and direction == 1 :
 			offset_y = offset_x
 		return offset_x, offset_y
-
 	char_map = np.array(bitmap.buffer, dtype = np.uint8).reshape((bitmap.rows,bitmap.width))
-	size = font_size
-	if is_pun and direction == 1 :
-		x2, y2, w2, h2 = cv2.boundingRect(char_map.astype(np.uint8) * 255)
-		if w2 > font_size * 0.7 :
-			place_x = glyph.bitmap_left
-		else :
-			place_x = (font_size - w2) // 2
-		if h2 > font_size * 0.7 :
-			place_y = max(3 * font_size // 4 - glyph.bitmap_top, 0)
-		else :
-			place_y = (font_size - h2) // 2
-	else :
-		place_x = glyph.bitmap_left#max((offset_x - bitmap.width) >> 1, 0)
-		place_y = max(3 * font_size // 4 - glyph.bitmap_top, 0)
-	place_x = max(place_x, 0)
-	place_y = max(place_y, 0)
-	new_char_map = np.zeros((size + place_y, size + place_x),dtype=np.uint8)
-	available_region = new_char_map[place_y:place_y+char_map.shape[0], place_x:place_x+char_map.shape[1]]
-	new_char_map[place_y:place_y+char_map.shape[0], place_x:place_x+char_map.shape[1]] = char_map[:available_region.shape[0],:available_region.shape[1]]
+	
+	if border_color and border_size > 0:
+		slot = get_char_glyph_orig(cdpt, font_size, direction)
+		border_glyph = slot.get_glyph()
+		stroker = freetype.Stroker()
+		stroker.set(64*border_size, freetype.FT_STROKER_LINEJOIN_ROUND, freetype.FT_STROKER_LINEJOIN_ROUND, 0)
+		border_glyph.stroke(stroker, destroy=True)
+		blyph = border_glyph.to_bitmap(freetype.FT_RENDER_MODE_NORMAL, freetype.Vector(0,0), True)
+		border_bitmap = blyph.bitmap
+		if not (border_bitmap.rows * border_bitmap.width == 0 or len(border_bitmap.buffer) != border_bitmap.rows * border_bitmap.width) :
+			border_char_map = np.array(border_bitmap.buffer, dtype = np.uint8).reshape(border_bitmap.rows,border_bitmap.width)
+			place_x = max(slot.bitmap_left, 0)
+			place_y = max(border_bitmap.rows - slot.bitmap_top, 0)
+			new_font_size = max(font_size, max(border_bitmap.rows,border_bitmap.width)) + max(place_x, place_y)
+			new_border_char_map = np.zeros((new_font_size, new_font_size),dtype=np.uint8)
+			new_border_char_map[place_y:place_y+border_char_map.shape[0], place_x:place_x+border_char_map.shape[1]] = border_char_map
+			border_char_map = new_border_char_map
+	place_x += border_size#max(glyph.bitmap_left, 0) + border_size
+	place_y += border_size#max(bitmap.rows - glyph.bitmap_top, 0) + border_size
+	new_char_map = np.zeros((new_font_size, new_font_size),dtype=np.uint8)
+	new_char_map[place_y:place_y+char_map.shape[0], place_x:place_x+char_map.shape[1]] = char_map
 	char_map = new_char_map
-	char_map = char_map.reshape((char_map.shape[0],char_map.shape[1],1))
-	available_shape = canvas[y :y+font_size,x: x+font_size,:].shape
-	char_map = char_map[:available_shape[0],:available_shape[1]]
-	if len(char_map.shape) == 3 :
-		char_map = char_map.squeeze(-1)
-	if border_color :
-		char_map, char_map_alpha, char_color, border_color = add_color(char_map, char_color, border_color=border_color, border_size=border_size)
-	else :
-		char_map, char_map_alpha, char_color, border_color = add_color(char_map, char_color)
-	canvas[y:y+font_size,x: x+font_size,:] = char_map
-	mask[y:y+font_size,x: x+font_size] += char_map_alpha
+	if border_color and border_size > 0:
+		char_map, char_map_alpha = add_color(char_map, char_color, border_char_map, border_color)
+	else:
+		char_map, char_map_alpha = add_color(char_map, char_color)
+	canvas[y:y+new_font_size,x: x+new_font_size,:] = char_map
+	mask[y:y+new_font_size,x: x+new_font_size] += char_map_alpha
 	if offset_y == 0 and direction == 1 :
-		offset_y = old_font_size
-	return offset_x, offset_y
+		offset_y = new_font_size
+	return new_font_size, new_font_size
 
 def put_text_vertical(font_size: int, mag_ratio: float, img: np.ndarray, mask: np.ndarray, text: str, line_count: int, lines: List[Quadrilateral], x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
 	x1 = x
@@ -280,9 +296,9 @@ def put_text_vertical(font_size: int, mag_ratio: float, img: np.ndarray, mask: n
 	#	if abs(fg_avg - bg_avg) < 40 :
 	#		bg = None
 	bgsize = int(max(font_size * 0.07, 1)) if bg else 0
-	spacing_y = 0#int(max(font_size * 0.05, 1))
-	spacing_x = spacing_y
-	x = x2 - spacing_x - font_size
+	spacing_y = 0
+	spacing_x = int(max(font_size * 0.2, 0))
+	x = x2 - spacing_x - font_size - bgsize
 	y = y1 + max(spacing_y, 0)
 	txt_i = 0
 	rot = 0
@@ -303,7 +319,7 @@ def put_text_vertical(font_size: int, mag_ratio: float, img: np.ndarray, mask: n
 				break
 			if y > cur_line_bbox.height() * mag_ratio + y1 + font_size * 2 and j + 1 < len(lines) :
 				break
-		x -= spacing_x + font_size
+		x -= spacing_x + font_size#int((font_size + bgsize * 2) * 1.2)
 		j += 1
 	return True
 
@@ -363,9 +379,11 @@ def prepare_renderer(font_filenames = ['fonts/Arial-Unicode-Regular.ttf', 'fonts
 
 def test() :
 	prepare_renderer()
-	canvas = np.ones((4096, 2590, 3), dtype = np.uint8) * 255
-	put_text_vertical(canvas, '《因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉', 4, [], 2143, 3219, 355, 830, (0, 0, 0), None)
-	put_text_horizontal(canvas, '“添加幽默”FOR if else !?xxj', 1, [], 242, 87, 2093, 221, (0, 0, 0), None)
+	#font_size: int, mag_ratio: float, img: np.ndarray, mask: np.ndarray, text: str, line_count: int, lines: List[Quadrilateral], x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]
+	canvas = np.ones((4096, 2590, 4), dtype = np.uint8) * 255
+	mask = np.zeros((4096, 2590), dtype = np.uint8)
+	put_text_vertical(64, 1.0, canvas, mask, '《因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉', 4, [], 2143, 3219, 355, 830, (0, 0, 0), (255, 255, 255))
+	#put_text_horizontal(canvas, '“添加幽默”FOR if else !?xxj', 1, [], 242, 87, 2093, 221, (0, 0, 0), None)
 	cv2.imwrite('text_render_combined.png', canvas)
 
 if __name__ == '__main__' :

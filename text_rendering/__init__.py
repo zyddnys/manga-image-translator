@@ -15,7 +15,7 @@ def fg_bg_compare(fg, bg):
 	max_lumi = max(fg_lumi, bg_lumi)
 	min_lumi = min(fg_lumi, bg_lumi)
 	lumi_contrast = (max_lumi + 0.05) / (min_lumi + 0.05)
-	if lumi_contrast <= 4.5:
+	if lumi_contrast <= 1.5:
 		fg_avg = np.mean(fg)
 		bg = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
 	return bg
@@ -54,6 +54,7 @@ async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translate
 		font_size_enlarged = findNextPowerOf2(font_size) * text_mag_ratio
 		enlarge_ratio = font_size_enlarged / font_size
 		font_size = font_size_enlarged
+		#enlarge_ratio = 1
 		while True :
 			enlarged_w = round(enlarge_ratio * region_aabb.w)
 			enlarged_h = round(enlarge_ratio * region_aabb.h)
@@ -65,7 +66,7 @@ async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translate
 			break
 		print('font_size:', font_size)
 
-		tmp_canvas = np.ones((enlarged_h * 2, enlarged_w * 2, 3), dtype = np.uint8) * 127
+		tmp_canvas = np.zeros((enlarged_h * 2, enlarged_w * 2, 4), dtype = np.uint8)
 		tmp_mask = np.zeros((enlarged_h * 2, enlarged_w * 2), dtype = np.uint16)
 
 		if region.majority_dir == 'h' :
@@ -100,7 +101,6 @@ async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translate
 				fg,
 				bg
 			)
-
 		tmp_mask = np.clip(tmp_mask, 0, 255).astype(np.uint8)
 		x, y, w, h = cv2.boundingRect(tmp_mask)
 		r_prime = w / h
@@ -119,7 +119,7 @@ async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translate
 		src_pts[:, 1] = np.clip(np.round(src_pts[:, 1]), 0, enlarged_h * 2)
 		dst_pts = region.pts
 		M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-		tmp_rgba = np.concatenate([tmp_canvas, tmp_mask[:, :, None]], axis = -1).astype(np.float32)
+		tmp_rgba = tmp_canvas
 		rgba_region = np.clip(cv2.warpPerspective(tmp_rgba, M, (img_canvas.shape[1], img_canvas.shape[0]), flags = cv2.INTER_LINEAR, borderMode = cv2.BORDER_CONSTANT, borderValue = 0), 0, 255)
 		canvas_region = rgba_region[:, :, 0: 3]
 		mask_region = rgba_region[:, :, 3: 4].astype(np.float32) / 255.0
