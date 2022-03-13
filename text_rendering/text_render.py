@@ -278,7 +278,7 @@ def calc_char_vertical(font_size: int, rot: int, text: str, max_height: int, bor
 			line_str = ""
 			line_height = 0
 			line_width_left = 0
-			line_width_left = 0
+			line_width_right = 0
 		line_height += char_offset_y
 		line_str += cdpt
 		line_width_left = max(line_width_left, abs(char_bearing_x) + border_size)
@@ -344,6 +344,53 @@ def put_text_vertical(font_size: int, mag_ratio: float, text: str, h: int, fg: T
 		box[0:line_bitmap.shape[0],x:x+line_bitmap.shape[1]] = line_bitmap
 		x -= spacing_x
 	return box
+
+# WIP
+def calc_char_horizontal(font_size: int, rot: int, text: str, max_width: int, border_size = 2) :
+	line_text_list = []
+	line_max_height_list = []
+	line_base_list = []
+	line_width_list = []
+	line_char_info_list = []
+	line_height = 0
+	line_str = ""
+	line_base_top = 0
+	line_base_bot = 0
+	for i, cdpt in enumerate(text):
+		is_pun = _is_punctuation(cdpt)
+		cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 1)
+		glyph = get_char_glyph(cdpt, font_size, 1)
+		#offset_x = glyph.advance.x>>6
+		#offset_y = glyph.advance.y>>6
+		bitmap = glyph.bitmap
+		# spaces, etc
+		if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width :
+			char_offset_x = glyph.metrics.horiBearingX >> 6
+		else :
+			char_offset_x = (glyph.metrics.horiAdvance >> 6) + border_size * 2
+		#char_width = bitmap.width + border_size * 2
+		char_height = bitmap.rows + border_size * 2
+		#char_bearing_x = glyph.metrics.vertBearingX >> 6
+		char_bearing_y = glyph.metrics.vertBearingY
+		if line_height + char_offset_y > max_height:
+			line_text_list.append(line_str)
+			line_height_list.append(line_height)
+			line_max_width_list.append(line_base_top + line_base_bot)
+			line_base_list.append(line_width_left)
+			line_str = ""
+			line_height = 0
+			line_base_top = 0
+			line_base_bot = 0
+		line_height += char_offset_x
+		line_str += cdpt
+		line_base_top = max(line_width_left, abs(char_bearing_y) + border_size)
+		line_base_bot = max(line_width_right, char_height + border_size - abs(char_bearing_y))
+	# last char
+	line_text_list.append(line_str)
+	line_height_list.append(line_height)
+	line_max_width_list.append(line_width_left + line_width_right)
+	line_center_list.append(line_width_left)
+	return line_text_list, line_max_width_list, line_height_list, line_center_list
 
 def wrap_text(text, boxWidth, font, draw):
 	textArr = text.split(" ")
