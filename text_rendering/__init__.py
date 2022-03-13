@@ -116,7 +116,6 @@ def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_d
 			fg,
 			bg
 		)
-	cv2.imwrite("shill.png", temp_box)
 	h, w, _ = temp_box.shape
 	r_prime = w / h
 	
@@ -153,7 +152,6 @@ def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_d
 
 	M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 	rgba_region = np.clip(cv2.warpPerspective(box, M, (img_canvas.shape[1], img_canvas.shape[0]), flags = cv2.INTER_LINEAR, borderMode = cv2.BORDER_CONSTANT, borderValue = 0), 0, 255)
-	cv2.imwrite("shill2.png", rgba_region)
 	canvas_region = rgba_region[:, :, 0: 3]
 	mask_region = rgba_region[:, :, 3: 4].astype(np.float32) / 255.0
 	img_canvas = np.clip((img_canvas.astype(np.float32) * (1 - mask_region) + canvas_region.astype(np.float32) * mask_region), 0, 255).astype(np.uint8)
