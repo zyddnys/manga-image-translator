@@ -11,9 +11,7 @@ import cv2
 import unicodedata
 import freetype
 from utils import BBox, Quadrilateral
-from PIL import Image, ImageFont, ImageDraw
 import math
-import textwrap
 
 def _is_whitespace(ch):
 	"""Checks whether `chars` is a whitespace character."""
@@ -239,6 +237,20 @@ def get_char_glyph_orig(cdpt, font_size: int, direction: int) :
 		face.load_char(cdpt, freetype.FT_LOAD_DEFAULT | freetype.FT_LOAD_NO_BITMAP)
 		return face.glyph
 
+def get_char_kerning(cdpt, prev, font_size: int, direction: int) :
+	global CACHED_FONT_FACE
+	for i, face in enumerate(CACHED_FONT_FACE) :
+		if face.get_char_index(cdpt) == 0 and i != len(CACHED_FONT_FACE) - 1 :
+			continue
+		if direction == 0 :
+			face.set_pixel_sizes( 0, font_size )
+		elif direction == 1 :
+			face.set_pixel_sizes( font_size, 0 )
+		face.load_char(cdpt, freetype.FT_LOAD_DEFAULT | freetype.FT_LOAD_NO_BITMAP)
+		#print("VV", prev, cdpt, face.get_char_index(prev), face.get_char_index(cdpt))
+		print("VR", face.has_kerning)
+		return face.get_kerning(face.get_char_index(prev), face.get_char_index(cdpt))
+
 def get_font(font_size: int, direction=0) :
 	font_filenames = ['fonts/Arial-Unicode-Regular.ttf', 'fonts/msyh.ttc', 'fonts/msgothic.ttc']
 	for face in font_filenames :
@@ -345,99 +357,111 @@ def put_text_vertical(font_size: int, mag_ratio: float, text: str, h: int, fg: T
 		x -= spacing_x
 	return box
 
-# WIP
 def calc_char_horizontal(font_size: int, rot: int, text: str, max_width: int, border_size = 2) :
 	line_text_list = []
 	line_max_height_list = []
 	line_base_list = []
 	line_width_list = []
 	line_char_info_list = []
-	line_height = 0
+	line_width = 0
 	line_str = ""
-	line_base_top = 0
-	line_base_bot = 0
+	line_max_height = 0
+	line_base = 0
+
+	previous = 0
 	for i, cdpt in enumerate(text):
 		is_pun = _is_punctuation(cdpt)
-		cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 1)
-		glyph = get_char_glyph(cdpt, font_size, 1)
+		cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 0)
+		glyph = get_char_glyph(cdpt, font_size, 0)
 		#offset_x = glyph.advance.x>>6
 		#offset_y = glyph.advance.y>>6
 		bitmap = glyph.bitmap
 		# spaces, etc
 		if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width :
-			char_offset_x = glyph.metrics.horiBearingX >> 6
+			char_offset_x = glyph.advance.x >> 6
 		else :
 			char_offset_x = (glyph.metrics.horiAdvance >> 6) + border_size * 2
 		#char_width = bitmap.width + border_size * 2
 		char_height = bitmap.rows + border_size * 2
-		#char_bearing_x = glyph.metrics.vertBearingX >> 6
-		char_bearing_y = glyph.metrics.vertBearingY
-		if line_height + char_offset_y > max_height:
+		if line_width + char_offset_x > max_width:
 			line_text_list.append(line_str)
-			line_height_list.append(line_height)
-			line_max_width_list.append(line_base_top + line_base_bot)
-			line_base_list.append(line_width_left)
+			line_width_list.append(line_width)
+			line_max_height_list.append(line_max_height)
+			line_base_list.append(line_base)
 			line_str = ""
-			line_height = 0
-			line_base_top = 0
-			line_base_bot = 0
-		line_height += char_offset_x
+			line_width = 0
+			line_max_height = 0
+			line_base = 0
+		line_width += char_offset_x
 		line_str += cdpt
-		line_base_top = max(line_width_left, abs(char_bearing_y) + border_size)
-		line_base_bot = max(line_width_right, char_height + border_size - abs(char_bearing_y))
-	# last char
+		line_max_height = max(line_max_height, char_height + max(0,-(glyph.bitmap_top - bitmap.rows)))
+		line_base = max(line_base, max(0, -(glyph.bitmap_top - bitmap.rows)))
+		#print(cdpt, previous, get_char_kerning(cdpt, previous, font_size, 0).x)
+		previous = cdpt
+	# last charff
 	line_text_list.append(line_str)
-	line_height_list.append(line_height)
-	line_max_width_list.append(line_width_left + line_width_right)
-	line_center_list.append(line_width_left)
-	return line_text_list, line_max_width_list, line_height_list, line_center_list
+	line_width_list.append(line_width)
+	line_max_height_list.append(line_max_height)
+	line_base_list.append(line_base)
+	return line_text_list, line_width_list, line_max_height_list, line_base_list
 
-def wrap_text(text, boxWidth, font, draw):
-	textArr = text.split(" ")
-	newStr = ""
-	line = ""
-	for i, c in enumerate(textArr):
-		if i == 0:
-			line += c
-			if i == len(textArr) - 1:
-				newStr += line
-		else:
-			if draw.textlength(line + " " + c, font=font) > boxWidth:
-				newStr += line + "\n"
-				line = c
-				if i == len(textArr) - 1:
-					newStr += c
-				else:
-					line += " " + c
-					if i == len(textArr) - 1:
-						newStr += line
-	return newStr
+def put_char_horizontal(font_size: int, rot: int, line_text: str, line_width: int, line_height: int, line_base: int, char_color = (0,0,0), border_color = (0,255,0), border_size = 2) :
+	line_box = np.zeros((line_height, line_width), dtype=np.uint8)
+	line_border_box = line_box.copy()
+	x = 0
+	for cdpt in line_text:
+		is_pun = _is_punctuation(cdpt)
+		cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 0)
+		glyph = get_char_glyph(cdpt, font_size, 0)
+		#offset_x = glyph.advance.x>>6
+		#offset_y = glyph.advance.y>>6
+		bitmap = glyph.bitmap
+		char_map = np.array(bitmap.buffer, dtype = np.uint8).reshape((bitmap.rows,bitmap.width))
+		if border_color and border_size > 0:
+			slot = get_char_glyph_orig(cdpt, font_size, 0)
+			border_glyph = slot.get_glyph()
+			stroker = freetype.Stroker()
+			stroker.set(64*border_size, freetype.FT_STROKER_LINEJOIN_ROUND, freetype.FT_STROKER_LINEJOIN_ROUND, 0)
+			border_glyph.stroke(stroker, destroy=True)
+			blyph = border_glyph.to_bitmap(freetype.FT_RENDER_MODE_NORMAL, freetype.Vector(0,0), True)
+			border_bitmap = blyph.bitmap
+			if (border_bitmap.rows * border_bitmap.width == 0 or len(border_bitmap.buffer) != border_bitmap.rows * border_bitmap.width) :
+				x += slot.advance.x >> 6
+				continue
+			place_x = x
+			place_y = max(line_height - line_base - slot.bitmap_top - border_size * 2 - (border_bitmap.rows - bitmap.rows), 0)
+			#print(bitmap.rows, border_bitmap.rows)
+			line_border_box[place_y:place_y+border_bitmap.rows, place_x:place_x+border_bitmap.width] = np.array(border_bitmap.buffer, dtype = np.uint8).reshape(border_bitmap.rows,border_bitmap.width)
+		place_x += border_size
+		place_y += border_size
+		line_box[place_y:place_y+bitmap.rows, place_x:place_x+bitmap.width] = np.array(bitmap.buffer, dtype = np.uint8).reshape((bitmap.rows,bitmap.width))
+		x += (slot.advance.x >> 6) + border_size * 2
+		#cv2.imshow("line_box", line_box)
+		#cv2.waitKey(0)
+	if border_color and border_size > 0:
+		line_box = add_color(line_box, char_color, line_border_box, border_color)
+	else:
+		line_box = add_color(line_box, char_color)
+	return line_box
 
 def put_text_horizontal(font_size: int, mag_ratio: float, text: str, w: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
 	bgsize = int(max(font_size * 0.07, 1)) if bg else 0
 	spacing_y = int(max(font_size * 0.2, 0))
-	#spacing_x = 0
+	spacing_x = 0
 	rot = 0
 
-	leading = 1.2
-	#tracking = 0
-	font = get_font(font_size)
-
-	test_image = Image.new("L", (10000,10000))
-	test_draw = ImageDraw.Draw(test_image)
-	wrapped_text = "\n".join(textwrap.wrap(text, width=w // font_size))#wrap_text(text, w, font, test_draw)
-	x1, y1, x2, y2 = test_draw.multiline_textbbox((0,0), wrapped_text, font=font, spacing=spacing_y, align="center", stroke_width=bgsize)
-	box_width = x2 - x1
-	box_height = y2 - y1
-	new_width = math.ceil(box_width)
-	new_height = math.ceil(box_height) + bgsize * 2
-	canvas = Image.new("RGBA", (new_width, new_height))
-	canvas.putalpha(0)
-	draw = ImageDraw.Draw(canvas)
-	draw.multiline_text((bgsize, bgsize * 2 - spacing_y), wrapped_text, font=font, spacing=spacing_y, align="center", stroke_width=bgsize, fill=fg, stroke_fill=bg)
-	#canvas.save("./shill.png")
-	numpy_image = np.array(canvas)
-	return numpy_image
+	# pre-calculate line breaks
+	line_text_list, line_width_list, line_height_list, line_base_list = calc_char_horizontal(font_size, rot, text, w, border_size=bgsize)
+	#print(line_text_list, line_width_list, line_height_list, line_base_list)
+	# make box
+	box = np.zeros((sum(line_height_list) + (len(line_height_list) - 1) * spacing_y, max(line_width_list), 4),dtype=np.uint8)
+	y = 0
+	# put text
+	for j, (line_text, line_width, line_height, line_base) in enumerate(zip(line_text_list, line_width_list, line_height_list, line_base_list)):
+		line_bitmap = put_char_horizontal(font_size, rot, line_text, line_width, line_height, line_base, char_color=fg,border_color=bg,border_size=bgsize)
+		box[y:y+line_bitmap.shape[0],0:line_bitmap.shape[1]] = line_bitmap
+		y += line_bitmap.shape[0] + spacing_y
+	return box
 
 def put_text(img: np.ndarray, text: str, line_count: int, x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
 	pass
@@ -449,14 +473,8 @@ def prepare_renderer(font_filenames = ['fonts/Arial-Unicode-Regular.ttf', 'fonts
 
 def test() :
 	prepare_renderer()
-	#font_size: int, mag_ratio: float, img: np.ndarray, mask: np.ndarray, text: str, line_count: int, lines: List[Quadrilateral], x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]
-	#canvas = np.ones((4096, 2590, 4), dtype = np.uint8) * 255
-	#mask = np.zeros((4096, 2590), dtype = np.uint8)
-	#《因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉
-	canvas = put_text_vertical(64, 1.0, '因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉', 1000, (0, 0, 0), (255, 128, 128))
-	
-
-	#put_text_horizontal(canvas, '“添加幽默”FOR if else !?xxj', 1, [], 242, 87, 2093, 221, (0, 0, 0), None)
+	#canvas = put_text_vertical(64, 1.0, '因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉', 1000, (0, 0, 0), (255, 128, 128))
+	canvas = put_text_horizontal(64, 1.0, '因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉', 300, (0, 0, 0), (255, 128, 128))
 	cv2.imwrite('text_render_combined.png', canvas)
 
 if __name__ == '__main__' :
