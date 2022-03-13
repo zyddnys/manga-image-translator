@@ -170,6 +170,7 @@ async def dispatch(translator: str, src_lang: str, tgt_lang: str, texts: List[st
 		result = await GOOGLE_CLIENT.translate(concat_texts, tgt_lang, src_lang, *args, **kwargs)
 		if not isinstance(result, list):
 			result = result.text.split(TEXTBLK_BREAK.replace('\n', ''))
+		result = [text.lstrip().rstrip() for text in result]
 	elif translator == 'baidu' :
 		concat_texts = '\n'.join(texts)
 		result = await BAIDU_CLIENT.translate(src_lang, tgt_lang, concat_texts)
