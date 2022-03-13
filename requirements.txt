@@ -15,4 +15,4 @@ tqdm
 sklearn
 deepl
 ImageHash
-pillow
+Pillow
