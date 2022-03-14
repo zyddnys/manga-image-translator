@@ -12,7 +12,7 @@ import networkx as nx
 
 from .model_32px import OCR as OCR_32px
 from .model_48px import OCR as OCR_48px
-from .model_48px_ctc import OCR as OCR_48px_ctc
+from .model_48px_v2 import OCR as OCR_48px_ctc
 
 MODEL_32PX = None
 MODEL_48PX = None
@@ -40,7 +40,7 @@ def load_model(dictionary, cuda: bool, model_name: str = '32px') :
 		MODEL_48PX = model
 	elif model_name == '48px_ctc' and MODEL_48PX_CTC is None :
 		model = OCR_48px_ctc(dictionary, 768)
-		sd = torch.load('ocr_48px_ctc_lstm_9.ckpt', map_location = 'cpu')
+		sd = torch.load('ocr-oldconv2.ckpt', map_location = 'cpu')
 		model.load_state_dict(sd['model'] if 'model' in sd else sd)
 		model.eval()
 		if cuda :

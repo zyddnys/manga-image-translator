@@ -107,7 +107,7 @@ async def infer(
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'ocr')
-	textlines = await dispatch_ocr(img, textlines, args.use_cuda, args)
+	textlines = await dispatch_ocr(img, textlines, args.use_cuda, args, verbose = args.verbose, model_name='48px_ctc')
 
 	if detector == 'default' :
 		text_regions, textlines = await dispatch_textline_merge(textlines, img.shape[1], img.shape[0], verbose = args.verbose)
@@ -204,7 +204,7 @@ async def main(mode = 'demo') :
 	text_render.prepare_renderer()
 	with open('alphabet-all-v5.txt', 'r', encoding = 'utf-8') as fp :
 		dictionary = [s[:-1] for s in fp.readlines()]
-	load_ocr_model(dictionary, args.use_cuda)
+	load_ocr_model(dictionary, args.use_cuda, model_name = '48px_ctc')
 	from textblockdetector import load_model as load_ctd_model
 	load_ctd_model(args.use_cuda)
 	load_detection_model(args.use_cuda)
