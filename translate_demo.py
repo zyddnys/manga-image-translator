@@ -39,7 +39,7 @@ parser.add_argument('--verbose', action='store_true', help='print debug info and
 args = parser.parse_args()
 
 def update_state(task_id, nonce, state) :
-	requests.post('http://127.0.0.1:5003/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state})
+	requests.post('http://127.0.0.1:5003/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 2)
 
 def get_task(nonce) :
 	try :
@@ -193,6 +193,31 @@ async def infer(
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'finished')
 
+
+async def infer_safe(
+	img,
+	mode,
+	nonce,
+	options = None,
+	task_id = '',
+	dst_image_name = '',
+	alpha_ch = None
+	) :
+	try :
+		return await infer(
+			img,
+			mode,
+			nonce,
+			options,
+			task_id,
+			dst_image_name,
+			alpha_ch
+		)
+	except :
+		import traceback
+		traceback.print_exc()
+		update_state(task_id, nonce, 'error')
+
 def replace_prefix(s: str, old: str, new: str) :
 	if s.startswith(old) :
 		s = new + s[len(old):]
@@ -233,7 +258,7 @@ async def main(mode = 'demo') :
 				img, alpha_ch = convert_img(Image.open(f'result/{task_id}/input.png'))
 				img = np.array(img)
 				try :
-					infer_task = asyncio.create_task(infer(img, mode, nonce, options, task_id, alpha_ch = alpha_ch))
+					infer_task = asyncio.create_task(infer_safe(img, mode, nonce, options, task_id, alpha_ch = alpha_ch))
 					asyncio.gather(infer_task)
 				except :
 					import traceback
@@ -251,7 +276,7 @@ async def main(mode = 'demo') :
 				img, alpha_ch = convert_img(Image.open(f'result/{task_id}/input.png'))
 				img = np.array(img)
 				try :
-					infer_task = asyncio.create_task(infer(img, mode, nonce, options, task_id, alpha_ch = alpha_ch))
+					infer_task = asyncio.create_task(infer_safe(img, mode, nonce, options, task_id, alpha_ch = alpha_ch))
 					asyncio.gather(infer_task)
 				except :
 					import traceback

@@ -114,9 +114,9 @@ async def run_async(request) :
 		if task_id not in TASK_STATES :
 			break
 		state = TASK_STATES[task_id]
-		if state == 'finished' :
+		if state in ['finished', 'error', 'error-lang'] :
 			break
-	return web.json_response({'task_id' : task_id, 'status': 'successful'})
+	return web.json_response({'task_id' : task_id, 'status': 'successful' if state == 'finished' else state})
 
 
 @routes.get("/task-internal")
