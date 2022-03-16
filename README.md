@@ -1,6 +1,6 @@
 # 中文说明
 [README_CN.md](README_CN.md)
-# Supporting us
+# Support us
 GPU server is not cheap \
 Please Support us\
 https://ko-fi.com/voilelabs \
@@ -8,7 +8,8 @@ https://www.patreon.com/voilelabs
 # Browser extension
 https://greasyfork.org/en/scripts/437569-touhou-ai-manga-translator
 # Online Demo
-https://touhou.ai/imgtrans/
+Demo 1 (by zyddnys) : https://touhou.ai/imgtrans/
+Demo 2 (by Eidenz) : https://manga.eidenz.com/
 * Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
 * Note this online demo is using the current main branch version.
 # Changelogs
@@ -69,12 +70,15 @@ Primarily designed for translating Japanese text, but also support Chinese and E
 Support inpainting and text rendering \
 Successor to https://github.com/PatchyVideo/MMDOCR-HighPerformance
 
-# How to use
+# How to use (Basic) 
 1. Python>=3.8
 2. Clone this repo
 3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.1) `ocr.ckpt`, `detect.ckpt`, `comictextdetector.pt`, `comictextdetector.pt.onnx` and `inpainting.ckpt`, put them in the root directory of this repo
-4. [Optional if using Google translate] Apply for youdao or deepl translate API, put your APP_KEY and APP_SECRET or AUTH_KEY in `translators/key.py`
-5. Run `python translate_demo.py --image <path_to_image_file> [--use-inpainting] [--verbose] [--use-cuda] [--translator=google] [--target-lang=CHS]`, result can be found in `result/`. Add `--use-inpainting` to enable inpainting, Add `--use-cuda` to use CUDA.
+4. Install requirements with `pip install requirements.txt` command
+5. [Optional if using Google translate] Apply for youdao or deepl translate API, put your APP_KEY and APP_SECRET or AUTH_KEY in `translators/key.py`
+6. Run `python translate_demo.py --image <path_to_image_file> --use-inpainting --verbose --use-cuda --translator=google --target-lang=ENG`
+7. Result can be found in `result/`. Add `--use-inpainting` to enable inpainting, Add `--use-cuda` to use CUDA.
+8. If facing pydensecrf Error on Windows, download precompiled wheels from https://www.lfd.uci.edu/~gohlke/pythonlibs/#pydensecrf according to your python version and install with pip
 
 # Language codes
 Used by `--target-lang` argument
@@ -99,19 +103,21 @@ Used by `--target-lang` argument
 	"VIN": "Vietnamese"
 ```
 
-# How to use (batch translation)
+# How to use (Batch Translation)
 1. Python>=3.8
 2. Clone this repo
 3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.1) `ocr.ckpt`, `detect.ckpt`, `comictextdetector.pt`, `comictextdetector.pt.onnx` and `inpainting.ckpt`, put them in the root directory of this repo
 4. [Optional if using Google translate] Apply for youdao or deepl translate API, put your APP_KEY and APP_SECRET or AUTH_KEY in `translators/key.py`
-5. Run `python translate_demo.py --mode batch --image <path_to_image_folder> [--use-inpainting] [--verbose] [--use-cuda] [--translator=google] [--target-lang=CHS]`, result can be found in `<path_to_image_folder>-translated/`. Add `--use-inpainting` to enable inpainting, Add `--use-cuda` to use CUDA.
+5. Run `python translate_demo.py --mode batch --image <path_to_image_folder> --use-inpainting --verbose --use-cuda --translator=google --target-lang=ENG`
+6. Result can be found in `<path_to_image_folder>-translated/`. Add `--use-inpainting` to enable inpainting, Add `--use-cuda` to use CUDA.
 
-# How to use
+# How to use (Web Mode)
 1. Python>=3.8
 2. Clone this repo
 3. [Download](https://github.com/zyddnys/manga-image-translator/releases/tag/beta-0.2.1) `ocr.ckpt`, `detect.ckpt`, `comictextdetector.pt`, `comictextdetector.pt.onnx` and `inpainting.ckpt`, put them in the root directory of this repo
 4. [Optional if using Google translate] Apply for youdao or deepl translate API, put your APP_KEY and APP_SECRET or AUTH_KEY in `translators/key.py`
-5. Run `python translate_demo.py --mode web [--use-inpainting] [--verbose] [--use-cuda] [--translator=google] [--target-lang=CHS]`, the demo will be serving on http://127.0.0.1:5003
+5. Run `python translate_demo.py --mode web --use-inpainting --verbose --use-cuda --translator=google --target-lang=ENG`
+6. The demo will be serving on http://127.0.0.1:5003
 
 Two modes of translation service are provided by the demo: synchronous mode and asynchronous mode \
 In synchronous mode your HTTP POST request will finish once the translation task is finished. \
@@ -128,7 +134,7 @@ In asynchronous mode your HTTP POST request will respond with a task_id immediat
 5. Find translation result in `result/` directory, e.g. using Nginx to expose `result/`
 
 ### Manual translation
-Manual translation replace machine translation with human translators
+Manual translation replace machine translation with human translators. Basic Manual Translation Demo can be found at http://127.0.0.1:5003/manual
 1. POST a form request with form data `file:<content-of-image>` to http://127.0.0.1:5003/manual-translate
 2. Wait for response
 3. You will obtain a JSON response like this:
