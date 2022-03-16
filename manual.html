@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Manga Image Translator</title>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/picnic">
+	<style type="text/css">
+		#drop-area { border: 2px dashed #ccc; border-radius: 20px; width: 100%; margin: 50px auto; padding: 20px; } #drop-area.highlight { border-color: purple; } p { margin-top: 0; } .my-form { margin-bottom: 10px; } #gallery { text-align: center;} #gallery img { width: 95%; margin-bottom: 10px; vertical-align: middle; } .btn { display: inline-block; padding: 10px; background: #ccc; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; } .btn:hover { background: #ddd; } #fileElem { display: none; }
+	</style>
+</head>
+<body>
+<div>
+	<nav class="demo">
+	  <a href="#" class="brand">Manga Image Translator</a>
+
+	  <!-- responsive-->
+	  <input id="bmenug" type="checkbox" class="show">
+	  <label for="bmenug" class="burger pseudo button">&#8801;</label>
+
+	  <div class="menu">
+	    <a href="https://github.com/zyddnys/manga-image-translator" target="_blank">About</a>
+	  </div>
+	</nav>
+
+ 	<div class="flex one one-600 two-900" style="margin-top: 4em;">
+	  	<div style="margin:50px auto">
+	  		<div class="flex two" id="inputArea">
+	  			<div id="s-area"><h2>Raw Text</h2></div>
+	  			<div id="t-area"><h2>Translation</h2></div>
+	  		</div>
+	  		<div>
+	  			<button type="button" class="button" name="submit" onclick="finish()">Submit</button>
+	  		</div>
+	  	</div>
+	  
+	  	<div>	
+			<div id="drop-area">
+			  <div id="gallery"></div>
+			  <form class="my-form" name="upload_images">
+			    <p>Upload image by dragging and dropping images onto the dashed region</p>
+			    <input type="file" id="fileElem" accept="image/*" onchange="handleFiles(this.files)">
+			    <label class="btn" for="fileElem">Select some files</label>
+			  </form>
+			  <progress id="progress-bar" max=100 value=0 style="width:100%"></progress>
+			  
+			</div>
+	  	</div>
+  
+	</div>
+</div>
+
+
+
+<script type="text/javascript">
+
+var task_id = ""
+var task_status = ""
+
+
+// ************************ Drag and drop ***************** //
+
+let dropArea = document.getElementById("drop-area")
+
+// Prevent default drag behaviors
+;['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  dropArea.addEventListener(eventName, preventDefaults, false)   
+  document.body.addEventListener(eventName, preventDefaults, false)
+})
+
+// Highlight drop area when item is dragged over it
+;['dragenter', 'dragover'].forEach(eventName => {
+  dropArea.addEventListener(eventName, highlight, false)
+})
+
+;['dragleave', 'drop'].forEach(eventName => {
+  dropArea.addEventListener(eventName, unhighlight, false)
+})
+
+// Handle dropped files
+dropArea.addEventListener('drop', handleDrop, false)
+
+function preventDefaults (e) {
+  e.preventDefault()
+  e.stopPropagation()
+}
+
+function highlight(e) {
+  dropArea.classList.add('highlight')
+}
+
+function unhighlight(e) {
+  dropArea.classList.remove('active')
+}
+
+function handleDrop(e) {
+  var dt = e.dataTransfer
+  var files = dt.files
+
+  handleFiles(files)
+}
+
+let uploadProgress = []
+let progressBar = document.getElementById('progress-bar')
+
+function initializeProgress(numFiles) {
+  progressBar.value = 0
+  uploadProgress = []
+
+  for(let i = numFiles; i > 0; i--) {
+    uploadProgress.push(0)
+  }
+}
+
+function updateProgress(fileNumber, percent) {
+  uploadProgress[fileNumber] = percent
+  let total = uploadProgress.reduce((tot, curr) => tot + curr, 0) / uploadProgress.length
+  progressBar.value = total
+}
+
+function handleFiles(files) {
+  files = [...files]
+  initializeProgress(files.length)
+  files.forEach(uploadFile)
+  files.forEach(previewFile)
+}
+
+function previewFile(file) {
+  let reader = new FileReader()
+  reader.readAsDataURL(file)
+  reader.onloadend = function() {
+    let img = document.createElement('img')
+    img.src = reader.result
+    document.getElementById('gallery').appendChild(img)
+  }
+}
+
+function uploadFile(file, i) {
+
+  // ch_images.value = ch_images.value + file.name
+  
+  var url = '/manual-translate'
+  var xhr = new XMLHttpRequest()
+  var formData = new FormData()
+  xhr.open('POST', url, true)
+  xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest')
+
+  // Update progress (can be used to show progress indicator)
+  xhr.upload.addEventListener("progress", function(e) {
+    updateProgress(i, (e.loaded * 100.0 / e.total) || 100)
+  })
+
+  xhr.addEventListener('readystatechange', function(e) {
+    if (xhr.readyState == 4 && xhr.status == 200) {
+      updateProgress(i, 100) 
+
+      const obj = JSON.parse(xhr.response)
+      console.log(obj)
+
+      task_id = obj.task_id
+      task_status = obj.status
+
+      var sArea = document.getElementById('s-area')
+      var tArea = document.getElementById('t-area')
+
+      for (var i = 0; i < obj.trans_result.length; i++) {
+      	var input_s =  document.createElement("input")
+      	var input_t =  document.createElement("input")
+
+      	input_s.value = obj.trans_result[i].s
+      	input_t.value = obj.trans_result[i].t
+
+      	sArea.appendChild(input_s)
+      	tArea.appendChild(input_t)
+
+      	// console.log(obj.trans_result[i-1].s)
+      }
+    }
+    else if (xhr.readyState == 4 && xhr.status != 200) {
+      // Error. Inform the user
+      alert("upload failed for "+file.name)
+    }
+  })
+ 
+
+  
+  formData.append('file', file)
+  xhr.send(formData)
+}
+
+function finish() {
+	var inputs = document.getElementsByTagName("input")
+
+	var trans_result = []
+	var j = ((inputs.length-2)/2)+1 
+	var k = 0
+
+	for (var i = 1; i<=((inputs.length-2)/2); i++) {
+		
+		trans_result[k] = {
+			's' : inputs[i].value,
+			't' : inputs[j].value
+		}
+
+		j++
+		k++
+		console.log("j = "+j)
+	}
+
+	var postData = {
+	    "task_id": task_id,
+	    "status": task_status,
+	    "trans_result": trans_result
+	}
+
+	postData = JSON.stringify(postData)
+
+	var url = '/post-translation-result'
+	var xhr = new XMLHttpRequest()
+	var formData = new FormData()
+	xhr.open('POST', url, true)
+	xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8")
+
+	xhr.addEventListener('readystatechange', function(e) {
+	if (xhr.readyState == 4 && xhr.status == 200) {
+	  var img = document.getElementsByTagName("img")[0]
+	  img.src = "/result/"+task_id
+	}
+	else if (xhr.readyState == 4 && xhr.status != 200) {
+	  // Error. Inform the user
+	  alert("Request failed!")
+	}
+	})
+
+
+	xhr.send(postData)
+
+	
+}
+</script>
+</body>
+</html>
