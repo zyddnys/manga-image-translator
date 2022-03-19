@@ -13,6 +13,9 @@ Demo 2 (by Eidenz) : https://manga.eidenz.com/
 * Note this may not work sometimes due to stupid google gcp kept restarting my instance. In that case you can wait for me to restart the service, which may take up to 24 hrs.
 * Note this online demo is using the current main branch version.
 # Changelogs
+### 2022-03-19
+1. Use new font rendering method by [pokedexter](https://github.com/pokedexter)
+2. Added manual translation UI by [rspreet92](https://github.com/rspreet92)
 ### 2022-01-24
 1. Added text detection model by [dmMaze](https://github.com/dmMaze)
 ### 2021-08-21
@@ -173,7 +176,7 @@ Currently this only a simple demo, many imperfections exist, we need your suppor
 # Next steps
 What need to be done
 1. Inpainting is based on[Aggregated Contextual Transformations for High-Resolution Image Inpainting](https://arxiv.org/abs/2104.01431)
-2. <b>IMPORTANT!!!HELP NEEDED!!!</b> The current text rendering engine is barely usable, we need your help to improve text rendering!
+2. <s><b>IMPORTANT!!!HELP NEEDED!!!</b> The current text rendering engine is barely usable, we need your help to improve text rendering!</s>
 5. Text rendering area is determined by detected text lines, not speech bubbles. This works for images without speech bubbles, but making it impossible to decide where to put translated English text. I have no idea how to solve this.
 6. [Ryota et al.](https://arxiv.org/abs/2012.14271) proposed using multimodal machine translation, maybe we can add ViT features for building custom NMT models.
 7. Make this project works for video(rewrite code in C++ and use GPU/other hardware NN accelerator). Used for detecting hard subtitles in videos, generting ass file and remove them completetly.

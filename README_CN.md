@@ -9,6 +9,9 @@ https://touhou.ai/imgtrans/
 * 注意如果在线版无法访问说明Google GCP又在重启我的服务器，此时请等待我重新开启服务。
 * 在线版使用的是目前main分支最新版本。
 # Changelogs
+### 2022-03-19
+1. 增加了来自[pokedexter](https://github.com/pokedexter)的新文本渲染器
+2. 增加了来自[rspreet92](https://github.com/rspreet92)的人工翻译页面
 ### 2022-01-24
 1. 增加了来自[dmMaze](https://github.com/dmMaze)的文本检测模型
 ### 2021-08-21
@@ -142,7 +145,7 @@ https://touhou.ai/imgtrans/
 # 下一步
 完善这个项目
 1. <s>图片涂改目前只是简单的涂白，图片修补的模型正在训练中！</s>图片修补基于[Aggregated Contextual Transformations for High-Resolution Image Inpainting](https://arxiv.org/abs/2104.01431)
-2. 【重要，请求帮助】目前的文字渲染引擎只能勉强看，和Adobe的渲染引擎差距明显，我们需要您的帮助完善文本渲染！
+2. <s>【重要，请求帮助】目前的文字渲染引擎只能勉强看，和Adobe的渲染引擎差距明显，我们需要您的帮助完善文本渲染！</s>
 3. <s>我尝试了在OCR模型里提取文字颜色，均以失败告终，现在只能用DPGMM凑活提取文字颜色，但是效果欠佳，我会尽量完善文字颜色提取，如果您有好的建议请尽管提issue</s>
 4. <s>文本检测目前不能很好处理英语和韩语，等图片修补模型训练好了我就会训练新版的文字检测模型。</s>韩语支持在做了
 5. 文本渲染区域是根据检测到的文本，而不是汽包决定的，这样可以处理没有汽包的图片但是不能很好进行英语嵌字，目前没有想到好的解决方案。
