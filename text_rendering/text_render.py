@@ -209,6 +209,8 @@ class Glyph :
 		self.metrics = namespace()
 		self.metrics.vertBearingX = glyph.metrics.vertBearingX
 		self.metrics.vertBearingY = glyph.metrics.vertBearingY
+		self.metrics.horiBearingX = glyph.metrics.horiBearingX
+		self.metrics.horiBearingY = glyph.metrics.horiBearingY
 		self.metrics.horiAdvance = glyph.metrics.horiAdvance
 		self.metrics.vertAdvance = glyph.metrics.vertAdvance
 
@@ -225,7 +227,8 @@ def get_char_glyph(cdpt, font_size: int, direction: int) :
 		face.load_char(cdpt)
 		return Glyph(face.glyph)
 
-def get_char_glyph_orig(cdpt, font_size: int, direction: int) :
+#@functools.lru_cache(maxsize = 1024, typed = True)
+def get_char_border(cdpt, font_size: int, direction: int) :
 	global CACHED_FONT_FACE
 	for i, face in enumerate(CACHED_FONT_FACE) :
 		if face.get_char_index(cdpt) == 0 and i != len(CACHED_FONT_FACE) - 1 :
@@ -235,7 +238,8 @@ def get_char_glyph_orig(cdpt, font_size: int, direction: int) :
 		elif direction == 1 :
 			face.set_pixel_sizes( font_size, 0 )
 		face.load_char(cdpt, freetype.FT_LOAD_DEFAULT | freetype.FT_LOAD_NO_BITMAP)
-		return face.glyph
+		slot_border = face.glyph
+		return slot_border.get_glyph()
 
 def get_char_kerning(cdpt, prev, font_size: int, direction: int) :
 	global CACHED_FONT_FACE
@@ -256,212 +260,217 @@ def get_font(font_size: int, direction=0) :
 	for face in font_filenames :
 		return ImageFont.truetype(face, font_size)
 
-def calc_char_vertical(font_size: int, rot: int, text: str, max_height: int, border_size = 2) :
+def calc_vertical(font_size: int, rot: int, text: str, max_height: int, spacing_x: int) :
 	line_text_list = []
-	line_max_width_list = []
-	line_center_list = []
+	line_width_list = []
 	line_height_list = []
-	line_char_info_list = []
-	line_height = 0
+
 	line_str = ""
+	line_height = 0
 	line_width_left = 0
 	line_width_right = 0
 	for i, cdpt in enumerate(text):
 		is_pun = _is_punctuation(cdpt)
 		cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 1)
-		glyph = get_char_glyph(cdpt, font_size, 1)
-		#offset_x = glyph.advance.x>>6
-		#offset_y = glyph.advance.y>>6
-		bitmap = glyph.bitmap
+		slot = get_char_glyph(cdpt, font_size, 1)
+		bitmap = slot.bitmap
 		# spaces, etc
 		if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width :
-			char_offset_y = glyph.metrics.vertBearingY >> 6
+			char_offset_y = slot.metrics.vertBearingY >> 6
 		else :
-			char_offset_y = (glyph.metrics.vertAdvance >> 6) + border_size * 2
-		char_width = bitmap.width + border_size * 2
-		#char_height = bitmap.rows + border_size * 2
-		char_bearing_x = glyph.metrics.vertBearingX >> 6
-		#char_bearing_y = glyph.metrics.vertBearingY
+			char_offset_y = slot.metrics.vertAdvance >> 6
+		char_width = bitmap.width
+		char_bearing_x = slot.metrics.vertBearingX >> 6
 		if line_height + char_offset_y > max_height:
 			line_text_list.append(line_str)
 			line_height_list.append(line_height)
-			line_max_width_list.append(line_width_left + line_width_right)
-			line_center_list.append(line_width_left)
+			line_width_list.append(line_width_left + line_width_right)
 			line_str = ""
 			line_height = 0
 			line_width_left = 0
 			line_width_right = 0
 		line_height += char_offset_y
 		line_str += cdpt
-		line_width_left = max(line_width_left, abs(char_bearing_x) + border_size)
-		line_width_right = max(line_width_right, char_width + border_size - abs(char_bearing_x))
+		line_width_left = max(line_width_left, abs(char_bearing_x))
+		line_width_right = max(line_width_right, char_width - abs(char_bearing_x))
 	# last char
 	line_text_list.append(line_str)
 	line_height_list.append(line_height)
-	line_max_width_list.append(line_width_left + line_width_right)
-	line_center_list.append(line_width_left)
-	return line_text_list, line_max_width_list, line_height_list, line_center_list
+	line_width_list.append(line_width_left + line_width_right)
 
-def put_char_vertical(font_size: int, rot: int, line_text: str, line_width: int, line_height: int, line_center: int, char_color = (0,0,0), border_color = (0,255,0), border_size = 2) :
-	line_box = np.zeros((line_height, line_width), dtype=np.uint8)
-	line_border_box = line_box.copy()
-	y = 0
-	for cdpt in line_text:
-		is_pun = _is_punctuation(cdpt)
-		cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 1)
-		glyph = get_char_glyph(cdpt, font_size, 1)
-		#offset_x = glyph.advance.x>>6
-		#offset_y = glyph.advance.y>>6
-		bitmap = glyph.bitmap
-		char_map = np.array(bitmap.buffer, dtype = np.uint8).reshape((bitmap.rows,bitmap.width))
-		if border_color and border_size > 0:
-			slot = get_char_glyph_orig(cdpt, font_size, 1)
-			border_glyph = slot.get_glyph()
-			stroker = freetype.Stroker()
-			stroker.set(64*border_size, freetype.FT_STROKER_LINEJOIN_ROUND, freetype.FT_STROKER_LINEJOIN_ROUND, 0)
-			border_glyph.stroke(stroker, destroy=True)
-			blyph = border_glyph.to_bitmap(freetype.FT_RENDER_MODE_NORMAL, freetype.Vector(0,0), True)
-			border_bitmap = blyph.bitmap
-			if (border_bitmap.rows * border_bitmap.width == 0 or len(border_bitmap.buffer) != border_bitmap.rows * border_bitmap.width) :
-				y += slot.metrics.vertBearingY >> 6
-				continue
-			place_x = line_center + (slot.metrics.vertBearingX >> 6)
-			place_y = y + (slot.metrics.vertBearingY >> 6)
-			line_border_box[place_y:place_y+border_bitmap.rows, place_x:place_x+border_bitmap.width] = np.array(border_bitmap.buffer, dtype = np.uint8).reshape(border_bitmap.rows,border_bitmap.width)
-		place_x += border_size
-		place_y += border_size
-		line_box[place_y:place_y+bitmap.rows, place_x:place_x+bitmap.width] = np.array(bitmap.buffer, dtype = np.uint8).reshape((bitmap.rows,bitmap.width))
-		y += (slot.metrics.vertAdvance >> 6) + border_size * 2
-	if border_color and border_size > 0:
-		line_box = add_color(line_box, char_color, line_border_box, border_color)
-	else:
-		line_box = add_color(line_box, char_color)
-	return line_box
+	box_calc_x = sum(line_width_list) + (len(line_width_list) - 1) * spacing_x
+	box_calc_y = max(line_height_list)
+	return line_text_list, box_calc_x, box_calc_y
+
+def put_char_vertical(font_size: int, rot: int, cdpt: str, pen_l: Tuple[int, int], canvas_text: np.ndarray, canvas_border: np.ndarray, border_size: int) :
+	pen = pen_l.copy()
+	
+	is_pun = _is_punctuation(cdpt)
+	cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 1)
+	slot = get_char_glyph(cdpt, font_size, 1)
+	bitmap = slot.bitmap
+	if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width :
+		char_offset_y = slot.metrics.vertBearingY >> 6
+		return char_offset_y
+	char_offset_y = slot.metrics.vertAdvance >> 6
+	bitmap_char = np.array(bitmap.buffer, dtype = np.uint8).reshape((bitmap.rows,bitmap.width))
+	pen[0] += slot.metrics.vertBearingX >> 6
+	pen[1] += slot.metrics.vertBearingY >> 6
+	canvas_text[pen[1]:pen[1]+bitmap.rows, pen[0]:pen[0]+bitmap.width] = bitmap_char
+	#print(pen_l, pen, slot.metrics.vertBearingX >> 6, bitmap.width)
+	#border
+	if border_size > 0 :
+		pen_border = (pen[0] - border_size, pen[1] - border_size)
+		#slot_border = 
+		glyph_border = get_char_border(cdpt, font_size, 1)
+		stroker = freetype.Stroker()
+		stroker.set(64 * max(int(0.07 * font_size), 1), freetype.FT_STROKER_LINEJOIN_ROUND, freetype.FT_STROKER_LINEJOIN_ROUND, 0)
+		glyph_border.stroke(stroker, destroy=True)
+		blyph = glyph_border.to_bitmap(freetype.FT_RENDER_MODE_NORMAL, freetype.Vector(0,0), True)
+		bitmap_b = blyph.bitmap
+		bitmap_border = np.array(bitmap_b.buffer, dtype = np.uint8).reshape(bitmap_b.rows,bitmap_b.width)
+		canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width] = cv2.add(canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width], bitmap_border)
+	return char_offset_y
 
 def put_text_vertical(font_size: int, mag_ratio: float, text: str, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
 	bgsize = int(max(font_size * 0.07, 1)) if bg else 0
 	spacing_y = 0
-	spacing_x = int(max(font_size * 0.2, 0))
+	spacing_x = int(font_size * 0.2)
 	rot = 0
 
-	# pre-calculate line breaks
-	line_text_list, line_width_list, line_height_list, line_center_list = calc_char_vertical(font_size, rot, text, h, border_size=bgsize)
-	# make box
-	box = np.zeros((max(line_height_list), sum(line_width_list) + (len(line_width_list) - 1) * spacing_x, 4),dtype=np.uint8)
-	x = box.shape[1]
-	# put text
-	for j, (line_text, line_width, line_height, line_center) in enumerate(zip(line_text_list, line_width_list, line_height_list, line_center_list)):
-		line_bitmap = put_char_vertical(font_size, rot, line_text, line_width, line_height, line_center, char_color=fg,border_color=bg,border_size=bgsize)
-		x -= line_bitmap.shape[1]
-		box[0:line_bitmap.shape[0],x:x+line_bitmap.shape[1]] = line_bitmap
-		x -= spacing_x
-	return box
+	# make large canvas
+	num_char_y = h // font_size
+	num_char_x = len(text) // num_char_y + 1
+	canvas_x = font_size * num_char_x + spacing_x * (num_char_x - 1) + (font_size + bgsize) * 2
+	canvas_y = font_size * num_char_y + (font_size + bgsize) * 2
+	##line_text_list, canvas_x, canvas_y = calc_vertical(font_size, rot, text, h, spacing_x=spacing_x)
+	canvas_text = np.zeros((canvas_y, canvas_x), dtype=np.uint8)
+	canvas_border = canvas_text.copy()
 
-def calc_char_horizontal(font_size: int, rot: int, text: str, max_width: int, border_size = 2) :
+	# pen (x, y)
+	pen_orig = [canvas_text.shape[1] - (font_size + bgsize), font_size + bgsize]
+	line_height = 0
+	# write stuff
+	for t in text:
+		if line_height == 0:
+			pen_line = pen_orig.copy()
+			if t == " ":
+				continue
+		offset_y = put_char_vertical(font_size, rot, t, pen_line, canvas_text, canvas_border, border_size=bgsize)
+		line_height += offset_y
+		if line_height + font_size > h:
+			pen_orig[0] -= spacing_x + font_size
+			line_height = 0
+		else:
+			pen_line[1] += offset_y
+	
+	# colorize
+	canvas_border = np.clip(canvas_border, 0, 255)
+	line_box = add_color(canvas_text, fg, canvas_border, bg)
+	
+	# rect
+	x, y, w, h = cv2.boundingRect(canvas_border)
+	return line_box[y:y+h, x:x+w]
+
+def calc_horizontal(font_size: int, rot: int, text: str, limit_width: int) :
 	line_text_list = []
-	line_max_height_list = []
-	line_base_list = []
 	line_width_list = []
-	line_char_info_list = []
-	line_width = 0
 	line_str = ""
-	line_max_height = 0
-	line_base = 0
-
+	line_width = 0
+	max_width = limit_width + font_size
+	
+	# 1. JPN, CHN : left-align, no spaces, confine to limit_width
 	previous = 0
 	for i, cdpt in enumerate(text):
 		is_pun = _is_punctuation(cdpt)
 		cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 0)
-		glyph = get_char_glyph(cdpt, font_size, 0)
-		#offset_x = glyph.advance.x>>6
-		#offset_y = glyph.advance.y>>6
-		bitmap = glyph.bitmap
+		slot = get_char_glyph(cdpt, font_size, 0)
+		bitmap = slot.bitmap
 		# spaces, etc
 		if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width :
-			char_offset_x = glyph.advance.x >> 6
+			char_offset_x = slot.advance.x >> 6
 		else :
-			char_offset_x = (glyph.metrics.horiAdvance >> 6) + border_size * 2
-		#char_width = bitmap.width + border_size * 2
-		char_height = bitmap.rows + border_size * 2
-		if line_width + char_offset_x > max_width:
+			char_offset_x = slot.metrics.horiAdvance >> 6
+		if line_width + char_offset_x > limit_width:
 			line_text_list.append(line_str)
 			line_width_list.append(line_width)
-			line_max_height_list.append(line_max_height)
-			line_base_list.append(line_base)
 			line_str = ""
 			line_width = 0
-			line_max_height = 0
-			line_base = 0
 		line_width += char_offset_x
 		line_str += cdpt
-		line_max_height = max(line_max_height, char_height + max(0,-(glyph.bitmap_top - bitmap.rows)))
-		line_base = max(line_base, max(0, -(glyph.bitmap_top - bitmap.rows)))
-		#print(cdpt, previous, get_char_kerning(cdpt, previous, font_size, 0).x)
 		previous = cdpt
-	# last charff
+	# last char
 	line_text_list.append(line_str)
 	line_width_list.append(line_width)
-	line_max_height_list.append(line_max_height)
-	line_base_list.append(line_base)
-	return line_text_list, line_width_list, line_max_height_list, line_base_list
 
-def put_char_horizontal(font_size: int, rot: int, line_text: str, line_width: int, line_height: int, line_base: int, char_color = (0,0,0), border_color = (0,255,0), border_size = 2) :
-	line_box = np.zeros((line_height, line_width), dtype=np.uint8)
-	line_border_box = line_box.copy()
-	x = 0
-	for cdpt in line_text:
-		is_pun = _is_punctuation(cdpt)
-		cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 0)
-		glyph = get_char_glyph(cdpt, font_size, 0)
-		#offset_x = glyph.advance.x>>6
-		#offset_y = glyph.advance.y>>6
-		bitmap = glyph.bitmap
-		char_map = np.array(bitmap.buffer, dtype = np.uint8).reshape((bitmap.rows,bitmap.width))
-		if border_color and border_size > 0:
-			slot = get_char_glyph_orig(cdpt, font_size, 0)
-			border_glyph = slot.get_glyph()
-			stroker = freetype.Stroker()
-			stroker.set(64*border_size, freetype.FT_STROKER_LINEJOIN_ROUND, freetype.FT_STROKER_LINEJOIN_ROUND, 0)
-			border_glyph.stroke(stroker, destroy=True)
-			blyph = border_glyph.to_bitmap(freetype.FT_RENDER_MODE_NORMAL, freetype.Vector(0,0), True)
-			border_bitmap = blyph.bitmap
-			if (border_bitmap.rows * border_bitmap.width == 0 or len(border_bitmap.buffer) != border_bitmap.rows * border_bitmap.width) :
-				x += slot.advance.x >> 6
-				continue
-			place_x = x
-			place_y = max(line_height - line_base - slot.bitmap_top - border_size * 2 - (border_bitmap.rows - bitmap.rows), 0)
-			#print(bitmap.rows, border_bitmap.rows)
-			line_border_box[place_y:place_y+border_bitmap.rows, place_x:place_x+border_bitmap.width] = np.array(border_bitmap.buffer, dtype = np.uint8).reshape(border_bitmap.rows,border_bitmap.width)
-		place_x += border_size
-		place_y += border_size
-		line_box[place_y:place_y+bitmap.rows, place_x:place_x+bitmap.width] = np.array(bitmap.buffer, dtype = np.uint8).reshape((bitmap.rows,bitmap.width))
-		x += (slot.advance.x >> 6) + border_size * 2
-		#cv2.imshow("line_box", line_box)
-		#cv2.waitKey(0)
-	if border_color and border_size > 0:
-		line_box = add_color(line_box, char_color, line_border_box, border_color)
-	else:
-		line_box = add_color(line_box, char_color)
-	return line_box
+	# 2. ELSE : center-align, break on spaces, can reach max_width if necessary (one word)
+
+	return line_text_list, line_width_list
+
+def put_char_horizontal(font_size: int, rot: int, cdpt: str, pen_l: Tuple[int, int], canvas_text: np.ndarray, canvas_border: np.ndarray, border_size: int) :
+	pen = pen_l.copy()
+
+	is_pun = _is_punctuation(cdpt)
+	cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 0)
+	slot = get_char_glyph(cdpt, font_size, 0)
+	bitmap = slot.bitmap
+	char_offset_x = slot.advance.x >> 6
+	bitmap_char = np.array(bitmap.buffer, dtype = np.uint8).reshape((bitmap.rows,bitmap.width))
+	if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width :
+		return char_offset_x
+	pen[0] += slot.bitmap_left
+	pen[1] -= slot.bitmap_top
+	canvas_text[pen[1]:pen[1]+bitmap.rows, pen[0]:pen[0]+bitmap.width] = bitmap_char
+	#print(pen_l, pen, slot.metrics.vertBearingX >> 6, bitmap.width)
+	#border
+	if border_size > 0 :
+		pen_border = (pen[0] - border_size, pen[1] - border_size)
+		#slot_border = 
+		glyph_border = get_char_border(cdpt, font_size, 1)
+		stroker = freetype.Stroker()
+		stroker.set(64 * max(int(0.07 * font_size), 1), freetype.FT_STROKER_LINEJOIN_ROUND, freetype.FT_STROKER_LINEJOIN_ROUND, 0)
+		glyph_border.stroke(stroker, destroy=True)
+		blyph = glyph_border.to_bitmap(freetype.FT_RENDER_MODE_NORMAL, freetype.Vector(0,0), True)
+		bitmap_b = blyph.bitmap
+		bitmap_border = np.array(bitmap_b.buffer, dtype = np.uint8).reshape(bitmap_b.rows,bitmap_b.width)
+		
+		canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width] = cv2.add(canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width], bitmap_border)
+	return char_offset_x
 
 def put_text_horizontal(font_size: int, mag_ratio: float, text: str, w: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
 	bgsize = int(max(font_size * 0.07, 1)) if bg else 0
-	spacing_y = int(max(font_size * 0.2, 0))
+	spacing_y = int(font_size * 0.2)
 	spacing_x = 0
 	rot = 0
 
-	# pre-calculate line breaks
-	line_text_list, line_width_list, line_height_list, line_base_list = calc_char_horizontal(font_size, rot, text, w, border_size=bgsize)
-	#print(line_text_list, line_width_list, line_height_list, line_base_list)
-	# make box
-	box = np.zeros((sum(line_height_list) + (len(line_height_list) - 1) * spacing_y, max(line_width_list), 4),dtype=np.uint8)
-	y = 0
-	# put text
-	for j, (line_text, line_width, line_height, line_base) in enumerate(zip(line_text_list, line_width_list, line_height_list, line_base_list)):
-		line_bitmap = put_char_horizontal(font_size, rot, line_text, line_width, line_height, line_base, char_color=fg,border_color=bg,border_size=bgsize)
-		box[y:y+line_bitmap.shape[0],0:line_bitmap.shape[1]] = line_bitmap
-		y += line_bitmap.shape[0] + spacing_y
-	return box
+	# calc
+	line_text_list, line_width_list = calc_horizontal(font_size, rot, text, w)
+	print(line_text_list, line_width_list)
+
+	# make large canvas
+	canvas_x = max(line_width_list) + (font_size + bgsize) * 2
+	canvas_y = font_size * len(line_width_list) + spacing_y * (len(line_width_list) - 1)  + (font_size + bgsize) * 2
+	canvas_text = np.zeros((canvas_y, canvas_x), dtype=np.uint8)
+	canvas_border = canvas_text.copy()
+
+	# pen (x, y)
+	pen_orig = [font_size + bgsize, font_size + bgsize]
+
+	# write stuff
+	for line_text in line_text_list:
+		pen_line = pen_orig.copy()
+		for t in line_text:
+			offset_x = put_char_horizontal(font_size, rot, t, pen_line, canvas_text, canvas_border, border_size=bgsize)
+			pen_line[0] += offset_x
+		pen_orig[1] += spacing_y + font_size
+	
+	# colorize
+	canvas_border = np.clip(canvas_border, 0, 255)
+	line_box = add_color(canvas_text, fg, canvas_border, bg)
+	
+	# rect
+	x, y, w, h = cv2.boundingRect(canvas_border)
+	return line_box[y:y+h, x:x+w]
 
 def put_text(img: np.ndarray, text: str, line_count: int, x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
 	pass
@@ -473,8 +482,8 @@ def prepare_renderer(font_filenames = ['fonts/Arial-Unicode-Regular.ttf', 'fonts
 
 def test() :
 	prepare_renderer()
-	#canvas = put_text_vertical(64, 1.0, '因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉', 1000, (0, 0, 0), (255, 128, 128))
-	canvas = put_text_horizontal(64, 1.0, '因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉', 300, (0, 0, 0), (255, 128, 128))
+	#canvas = put_text_vertical(64, 1.0, '因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉。', 700, (0, 0, 0), (255, 128, 128))
+	canvas = put_text_horizontal(64, 1.0, '因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉', 400, (0, 0, 0), (255, 128, 128))
 	cv2.imwrite('text_render_combined.png', canvas)
 
 if __name__ == '__main__' :
