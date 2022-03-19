@@ -10,15 +10,13 @@ from . import text_render
 from textblockdetector.textblock import TextBlock
 
 def fg_bg_compare(fg, bg):
-	fg_lumi = math.sqrt(0.299 * fg[0] ** 2 + 0.587 * fg[1] ** 2 + 0.114 * fg[2] ** 2)
-	bg_lumi = math.sqrt(0.299 * bg[0] ** 2 + 0.587 * bg[1] ** 2 + 0.114 * bg[2] ** 2)
-	max_lumi = max(fg_lumi, bg_lumi)
-	min_lumi = min(fg_lumi, bg_lumi)
-	lumi_contrast = (max_lumi + 0.05) / (min_lumi + 0.05)
-	if lumi_contrast <= 1.5:
-		fg_avg = np.mean(fg)
+	fg_avg = np.mean(fg)
+	bg_avg = np.mean(bg)
+	if abs(fg_avg - bg_avg) < 40 :
+		#bg = None
+		#fg = (0, 0, 0) if fg_avg <= 127 else (255, 255, 255)
 		bg = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
-	return bg
+	return fg, bg
 
 
 async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], textlines: List[Quadrilateral], text_regions: List[Quadrilateral], text_direction_overwrite: str) -> np.ndarray :
@@ -28,12 +26,17 @@ async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translate
 		if text_direction_overwrite and text_direction_overwrite in ['h', 'v'] :
 			region.majority_dir = text_direction_overwrite
 		majority_dir = region.majority_dir
+
+		#TODO: Delete this
+		if majority_dir == "h":
+			continue
+
 		print(region.text)
 		print(trans_text)
 		#print(region.majority_dir, region.pts)
 		fg = (region.fg_r, region.fg_g, region.fg_b)
 		bg = (region.bg_r, region.bg_g, region.bg_b)
-		bg = fg_bg_compare(fg, bg)
+		fg, bg = fg_bg_compare(fg, bg)
 		font_size = 0
 		n_lines = len(region.textline_indices)
 		for idx in region.textline_indices :
@@ -65,7 +68,7 @@ async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer
 			majority_dir = 'v' if region.vertical else 'h'
 
 		fg, bg = region.get_font_colors()
-		bg = fg_bg_compare(fg, bg)
+		fg, bg = fg_bg_compare(fg, bg)
 		font_size = region.font_size
 		font_size = round(font_size)
 
@@ -151,7 +154,7 @@ def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_d
 		dst_pts = region.pts
 
 	M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-	rgba_region = np.clip(cv2.warpPerspective(box, M, (img_canvas.shape[1], img_canvas.shape[0]), flags = cv2.INTER_LINEAR, borderMode = cv2.BORDER_CONSTANT, borderValue = 0), 0, 255)
+	rgba_region = np.clip(cv2.warpPerspective(box, M, (img_canvas.shape[1], img_canvas.shape[0]), flags = cv2.INTER_CUBIC, borderMode = cv2.BORDER_CONSTANT, borderValue = 0), 0, 255)
 	canvas_region = rgba_region[:, :, 0: 3]
 	mask_region = rgba_region[:, :, 3: 4].astype(np.float32) / 255.0
 	img_canvas = np.clip((img_canvas.astype(np.float32) * (1 - mask_region) + canvas_region.astype(np.float32) * mask_region), 0, 255).astype(np.uint8)
