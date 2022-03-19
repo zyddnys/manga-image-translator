@@ -29,10 +29,7 @@ async def dispatch(use_inpainting: bool, use_poisson_blending: bool, cuda: bool,
 	if not use_inpainting :
 		img = np.copy(img)
 		img[mask > 0] = np.array([255, 255, 255], np.uint8)
-		if verbose :
-			return img, img
-		else :
-			return img
+		return img
 	height, width, c = img.shape
 	if max(img.shape[0: 2]) > inpainting_size :
 		img = resize_keep_aspect(img, inpainting_size)
