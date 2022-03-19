@@ -35,6 +35,11 @@ async def index_async(request) :
 	with open('ui.html', 'r', encoding='utf8') as fp :
 		return web.Response(text=fp.read(), content_type='text/html')
 
+@routes.get("/manual")
+async def index_async(request) :
+	with open('manual.html', 'r', encoding='utf8') as fp :
+		return web.Response(text=fp.read(), content_type='text/html')
+
 @routes.get("/result/{taskid}")
 async def result_async(request) :
         im = Image.open("result/" + request.match_info.get('taskid') + "/final.png")
