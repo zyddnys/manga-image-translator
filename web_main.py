@@ -303,7 +303,7 @@ async def start_async_app() :
 	await runner.setup()
 	site = web.TCPSite(runner, '127.0.0.1', port)
 	await site.start()
-	print(f"Serving up app on 127.0.0.1:{port}")
+	print(f"Serving up app on http://127.0.0.1:{port}")
 	return runner, site
 
 if __name__ == '__main__' :

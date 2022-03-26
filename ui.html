@@ -1,529 +1,305 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-	<head>
-		<meta charset="utf-8">
-		<title>Image/Manga translator</title>
-		<script>
-			var TASKID = "";
-			var STATE = "";
-			const BASE_URI = "/";
-			async function poll(fn, fnCondition, ms) {
-				let result = await fn();
-				while (fnCondition(result)) {
-					await wait(ms);
-					result = await fn();
-				}
-				return result;
-			}
+  <head>
+    <meta charset="utf-8" />
+    <title>Image/Manga Translator</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@unocss/reset/tailwind.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/petite-vue@0.4.1/dist/petite-vue.iife.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@unocss/runtime@0.30.5/uno.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@iconify/iconify@2.2.0/dist/iconify.min.js"></script>
+    <style>
+      [v-cloak],
+      [un-cloak] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <form action="#" class="flex py-8 w-full min-h-100vh justify-center items-center" @submit.prevent="onsubmit" v-scope v-cloak un-cloak>
+      <div class="flex flex-col w-85ch h-full justify-center gap-2">
+        <h1 class="text-center text-lg font-light">Image/Manga Translator</h1>
+        <div class="flex mx-4 justify-start items-end">
+          <div class="flex gap-4">
+            <div class="flex items-center" title="Detection resolution">
+              <i class="iconify" data-icon="carbon:fit-to-screen"></i>
+              <div class="relative">
+                <select class="w-9ch appearance-none bg-transparent border-b border-gray-300" v-model="detectionResolution">
+                  <option value="S">1024px</option>
+                  <option value="M">1536px</option>
+                  <option value="L">2048px</option>
+                  <option value="X">2560px</option>
+                </select>
+                <i class="iconify absolute top-1.5 right-1 pointer-events-none" data-icon="carbon:chevron-down"></i>
+              </div>
+            </div>
+            <div class="flex items-center gap-1" title="Text detector">
+              <i class="iconify" data-icon="carbon:search-locate"></i>
+              <div class="relative">
+                <select class="w-9ch appearance-none bg-transparent border-b border-gray-300" v-model="textDetector">
+                  <option value="auto">Default</option>
+                  <option value="ctd">CTD</option>
+                </select>
+                <i class="iconify absolute top-1.5 right-1 pointer-events-none" data-icon="carbon:chevron-down"></i>
+              </div>
+            </div>
+            <div class="flex items-center gap-1" title="Render text orientation">
+              <i class="iconify" data-icon="carbon:text-align-left"></i>
+              <div class="relative">
+                <select class="w-12ch appearance-none bg-transparent border-b border-gray-300" v-model="renderTextDirection">
+                  <option value="auto">Auto</option>
+                  <option value="ctd">Horizontal</option>
+                </select>
+                <i class="iconify absolute top-1.5 right-1 pointer-events-none" data-icon="carbon:chevron-down"></i>
+              </div>
+            </div>
+            <div class="flex items-center gap-1" title="Translator">
+              <i class="iconify" data-icon="carbon:operations-record"></i>
+              <div class="relative">
+                <select class="w-9ch appearance-none bg-transparent border-b border-gray-300" v-model="translator">
+                  <option value="youdao">Youdao</option>
+                  <option value="baidu">Baidu</option>
+                  <option value="google">Google</option>
+                  <option value="deepl">DeepL</option>
+                </select>
+                <i class="iconify absolute top-1.5 right-1 pointer-events-none" data-icon="carbon:chevron-down"></i>
+              </div>
+            </div>
+            <div class="flex items-center gap-1" title="Target language">
+              <i class="iconify" data-icon="carbon:language"></i>
+              <div class="relative">
+                <select class="w-15ch appearance-none bg-transparent border-b border-gray-300" v-model="targetLanguage">
+                  <option value="CHS">简体中文</option>
+                  <option value="CHT">繁體中文</option>
+                  <option value="JPN">日本語</option>
+                  <option value="ENG">English</option>
+                  <option value="KOR">한국어</option>
+                  <option value="VIN">Tiếng Việt</option>
+                  <option value="CSY">čeština</option>
+                  <option value="NLD">Nederlands</option>
+                  <option value="FRA">français</option>
+                  <option value="DEU">Deutsch</option>
+                  <option value="HUN">magyar nyelv</option>
+                  <option value="ITA">italiano</option>
+                  <option value="PLK">polski</option>
+                  <option value="PTB">português</option>
+                  <option value="ROM">limba română</option>
+                  <option value="RUS">русский язык</option>
+                  <option value="ESP">español</option>
+                  <option value="TRK">Türk dili</option>
+                </select>
+                <i class="iconify absolute top-1.5 right-1 pointer-events-none" data-icon="carbon:chevron-down"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-if="result">
+          <img class="my-2" :src="resultUri" />
+          <div class="flex justify-center">
+            <button class="px-2 py-1 text-center rounded-md text-blue-800 border-2 border-blue-300" @click="clear">Upload another</button>
+          </div>
+        </div>
+        <div v-else-if="status" class="grid w-full h-116 place-content-center rounded-2xl border-2 border-dashed border-gray-600">
+          <div class="flex flex-col items-center gap-2">
+            <i class="iconify w-8 h-8 text-gray-500 animate-spin" data-icon="carbon:progress-bar-round"></i>
+            <div>{{ statusText }}</div>
+          </div>
+        </div>
+        <label
+          v-else
+          class="grid w-full h-116 place-content-center rounded-2xl border-2 border-dashed border-gray-600 cursor-pointer"
+          for="file"
+          @dragenter.prevent
+          @dragover.prevent
+          @dragleave.prevent
+          @drop.prevent="ondrop"
+        >
+          <div v-if="file" class="flex flex-col items-center gap-2">
+            <div><span class="iconify-inline inline-block mr-2 scale-125" data-icon="carbon:image-search"></span>File Preview</div>
+            <img class="max-w-72 max-h-72" :src="fileUri" />
+            <button type="submit" class="px-2 py-1 rounded-md text-blue-800 border-2 border-blue-300">Translate</button>
+            <div class="text-sm text-gray-600">Click the empty space or drag a new one to replace</div>
+          </div>
+          <div v-else class="flex flex-col items-center gap-2">
+            <i class="iconify w-8 h-8 text-gray-500" data-icon="carbon:cloud-upload"></i>
+            <div>Click to select a file or drag and drop here</div>
+          </div>
+          <input id="file" type="file" accept="image/png,image/jpeg,image/bmp" class="hidden" @change="onfilechange" />
+        </label>
+        <div class="flex justify-center gap-2">
+          <div>
+            Please consider supporting us by
+            <a class="underline underline-blue-400" href="https://ko-fi.com/voilelabs" target="_blank" rel="noopener noreferrer">Ko-fi</a>
+            or
+            <a class="underline underline-blue-400" href="https://www.patreon.com/voilelabs" target="_blank" rel="noopener noreferrer"
+              >Patreon</a
+            >!
+          </div>
+          <a
+            class="underline underline-blue-400"
+            href="https://github.com/zyddnys/manga-image-translator"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Source Code</a
+          >
+        </div>
+      </div>
+    </form>
+    <script>
+      const BASE_URI = '/'
 
-			function wait(ms = 1000) {
-				return new Promise(resolve => {
-					setTimeout(resolve, ms);
-				});
-			}
+      function formatSize(bytes) {
+        const k = 1024
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+        if (bytes === 0) return '0B'
+        const i = Math.floor(Math.log(bytes) / Math.log(k))
+        return `${(bytes / k ** i).toFixed(2)}${sizes[i]}`
+      }
+      function formatProgress(loaded, total) {
+        return `${formatSize(loaded)}/${formatSize(total)}`
+      }
 
-			function handle_state(state) {
-				const state2 = state.state;
-				const queue_pos = state.waiting;
-				var status = document.getElementById("status-text");
-				switch (state2) {
-					case "pending":
-						if (queue_pos > 0) {
-							status.innerText = `Queuing, your position is ${queue_pos}`;
-						} else {
-							status.innerText = `Processing`;
-						}
-						break;
-					case "detection":
-						status.innerText = "Detecting texts";
-						if (!ProgressBar.started()) {
-							ProgressBar.start();
-						}
-						break;
-					case "ocr":
-						status.innerText = "Running OCR";
-						if (!ProgressBar.started()) {
-							ProgressBar.start();
-						}
-						break;
-					case "mask_generation":
-						status.innerText = "Generating text mask";
-						if (!ProgressBar.started()) {
-							ProgressBar.start();
-						}
-						break;
-					case "inpainting":
-						status.innerText = "Running inpainting";
-						if (!ProgressBar.started()) {
-							ProgressBar.start();
-						}
-						break;
-					case "translating":
-						status.innerText = "Translating";
-						if (!ProgressBar.started()) {
-							ProgressBar.start();
-						}
-						break;
-					case "render":
-						status.innerText = "Rendering translated texts";
-						if (!ProgressBar.started()) {
-							ProgressBar.start();
-						}
-						break;
-					case "error":
-						status.innerText = "Something went wrong (maybe your language is not supported), please try again";
-						ProgressBar.end();
-						break;
-					case "error-lang":
-						status.innerText = "Your target language is not supported";
-						ProgressBar.end();
-						break;
-				}
-				STATE = state2;
-				if (state2 === "finished" || state2 === "error" || state2 == "error-lang") {
-					return false;
-				} else {
-					return true;
-				}
-			}
+      PetiteVue.createApp({
+        file: null,
+        get fileUri() {
+          return this.file ? URL.createObjectURL(this.file) : null
+        },
+        detectionResolution: 'M',
+        textDetector: 'auto',
+        renderTextDirection: 'auto',
+        translator: 'youdao',
+        targetLanguage: 'CHS',
+        ondrop(e) {
+          const file = e.dataTransfer?.files?.[0]
+          if (file && ['image/png', 'image/jpeg', 'image/bmp'].includes(file.type)) {
+            this.file = file
+          }
+        },
+        onfilechange(e) {
+          const file = e.target.files?.[0]
+          if (file) {
+            this.file = file
+          }
+        },
 
-			function get_state() {
-				return get_json(BASE_URI + "task-state?taskid=" + TASKID)
-			}
+        progress: null,
+        status: null,
+        queuePos: null,
+        get statusText() {
+          switch (this.status) {
+            case 'upload': {
+              if (this.progress) {
+                return `Uploading (${this.progress})`
+              } else {
+                return 'Uploading'
+              }
+            }
+            case 'error-upload':
+              return 'Upload failed, please try again'
+            case 'download':
+              if (this.progress) {
+                return `Downloading (${this.progress})`
+              } else {
+                return 'Downloading'
+              }
 
-			function get_json(url) {
-				return new Promise(function (resolve, reject) {
-					var xhr = new XMLHttpRequest();
-					xhr.open('get', url, true);
-					xhr.onload = function () {
-						var status = xhr.status;
-						if (status == 200) {
-							var obj = JSON.parse(xhr.responseText);
-							resolve(obj);
-						} else {
-							reject(status);
-						}
-					};
-					xhr.send();
-				});
-			}
+            case 'pending':
+              if (this.queuePos) {
+                return `Queuing, your position is ${this.queuePos}`
+              } else {
+                return 'Processing'
+              }
+            case 'detection':
+              return 'Detecting texts'
+            case 'ocr':
+              return 'Running OCR'
+            case 'mask_generation':
+              return 'Generating text mask'
+            case 'inpainting':
+              return 'Running inpainting'
+            case 'translating':
+              return 'Translating'
+            case 'render':
+              return 'Rendering translated texts'
+            case 'error':
+              return 'Something went wrong (maybe your language is not supported), please try again'
+            case 'error-lang':
+              return 'Your target language is not supported'
+          }
+        },
+        result: null,
+        get resultUri() {
+          return this.result ? URL.createObjectURL(this.result) : null
+        },
+        onsubmit(e) {
+          if (!this.file) return
 
-			async function upload_image(event) {
-				event.preventDefault();
-				var detect_res = document.querySelector('input[name="detect-size"]:checked').value;
-				var translator = document.querySelector('input[name="translator-sel"]:checked').value;
-				var dir = document.querySelector('input[name="dir-sel"]:checked').value;
-				var detector = document.querySelector('input[name="detector-sel"]:checked').value;
-				var tgt_lang = document.getElementById("target-language").value;
-				console.log(document.getElementById("target-language"));
-				var files = document.getElementById("image-file").files;
-				var status = document.getElementById("status-text");
-				if (files.length == 0) {
-					return;
-				}
-				document.getElementById("translated-image-div").style.visibility = "hidden";
-				document.getElementById("translated-image").innerHTML = "";
-				document.getElementById("submit-button").disabled = true;
-				status.innerText = "Uploading";
-				const XHR = new XMLHttpRequest();
+          this.progress = null
+          this.queuePos = null
+          this.status = 'upload'
 
-				// Create a FormData object
-				var formData = new FormData();
+          const formData = new FormData()
+          formData.append('file', this.file)
+          formData.append('size', this.detectionResolution)
+          formData.append('detector', this.textDetector)
+          formData.append('dir', this.renderTextDirection)
+          formData.append('translator', this.translator)
+          formData.append('tgt_lang', this.targetLanguage)
 
-				// Select only the first file from the input array
-				var file = files[0];
+          const xhr = new XMLHttpRequest()
+          xhr.open('POST', `${BASE_URI}submit`, true)
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) this.progress = formatProgress(e.loaded, e.total)
+          }
+          xhr.onload = async () => {
+            if (xhr.status !== 200) {
+              this.status = 'error-upload'
+              return
+            }
 
-				formData.append('file', file, file.name);
-				formData.append('size', detect_res);
-				formData.append('translator', translator);
-				formData.append('tgt_lang', tgt_lang);
-				formData.append('dir', dir);
-				formData.append('detector', detector);
-				XHR.open('POST', BASE_URI + "submit", true);
-				XHR.onload = async function () {
-					if (XHR.status == 200) {
-						status.innerHTML = 'Downloading result';
-						var obj = JSON.parse(XHR.responseText);
-						TASKID = obj.task_id;
-						console.log(`task_id: ${TASKID}`);
-						await poll(get_state, handle_state, 1000);
-						document.getElementById("submit-button").disabled = false;
-						if (STATE !== "error") {
-							document.getElementById("translated-image-div").style.visibility = "";
-							document.getElementById("translated-image").src = "";
-							document.getElementById("translated-image").src = BASE_URI + "result/" + TASKID;
-						}
-						status.innerHTML = '';
-						ProgressBar.end();
-					} else {
-						status.innerHTML = 'Upload failed, please try again';
-						document.getElementById("submit-button").disabled = false;
-					}
-				};
+            this.status = 'pending'
+            const { task_id } = JSON.parse(xhr.responseText)
 
-				// Send the data.
-				XHR.send(formData);
-			}
+            for (;;) {
+              const timer = new Promise((resolve) => setTimeout(resolve, 500))
 
-			function onShowOriginalSizeButtonClicked() {
-				var btn = document.getElementById('btn-show-original-size');
-				const limit_size = btn.checked;
-				var image_ele = document.getElementById('translated-image');
-				if (limit_size) {
-					image_ele.style = "max-width: 1024px;";
-				} else {
-					image_ele.style = "";
-				}
-			}
-		</script>
-	</head>
-	<body>
-		<div>
-			<div>
-				<h3>Image/Manga translator</h3>
-				Please support us!</br>
-				<a href="https://ko-fi.com/voilelabs">https://ko-fi.com/voilelabs</a></br>
-				<a href="https://www.patreon.com/voilelabs">https://www.patreon.com/voilelabs</a></br>
-				<a href="https://github.com/zyddnys/manga-image-translator">https://github.com/zyddnys/manga-image-translator</a>
-			</div>
-			<div>
-				<hr>
-			</div>
-			<div>
-				<form id="image-form" action="#" onsubmit="upload_image(event);" method="post" enctype="multipart/form-data">
-					<div style="padding-bottom: 0.5rem;">
-						<span>Detection resolution </span>
-						<label>
-							<input type="radio" id="detect-res-S" name="detect-size" value="S">
-							<span>1024px</span>
-						</label>
-						<label>
-							<input type="radio" id="detect-res-M" name="detect-size" value="M" checked>
-							<span>1536px</span>
-						</label>
-						<label>
-							<input type="radio" id="detect-res-L" name="detect-size" value="L">
-							<span>2048px</span>
-						</label>
-						<label>
-							<input type="radio" id="detect-res-X" name="detect-size" value="X">
-							<span>2560px</span>
-						</label>
-					</div>
-					<div style="padding-bottom: 0.5rem;">
-						<span>Text detector </span>
-						<label>
-							<input type="radio" id="detector-default" name="detector-sel" value="auto" checked>
-							<span>Default</span>
-						</label>
-						<label>
-							<input type="radio" id="detector-ctd"  name="detector-sel" value="ctd">
-							<span>CTD</span>
-						</label>
-					</div>
-					<div style="padding-bottom: 0.5rem;">
-						<span>Translator </span>
-						<label>
-							<input type="radio" id="translator-youdao" name="translator-sel" value="youdao" checked>
-							<span>Youdao</span>
-						</label>
-						<label>
-							<input type="radio" id="translator-baidu"  name="translator-sel" value="baidu">
-							<span>Baidu</span>
-						</label>
-						<label>
-							<input type="radio" id="translator-google"  name="translator-sel" value="google">
-							<span>Google</span>
-						</label>
-						<label>
-							<input type="radio" id="translator-deepl"  name="translator-sel" value="deepl">
-							<span>DeepL</span>
-						</label>
-					</div>
-					<div style="padding-bottom: 0.5rem;">
-						<span>Render text direction </span>
-						<label>
-							<input type="radio" id="dir-auto" name="dir-sel" value="auto" checked>
-							<span>Auto</span>
-						</label>
-						<label>
-							<input type="radio" id="dir-horizontal"  name="dir-sel" value="horizontal">
-							<span>Horizontal</span>
-						</label>
-					</div>
-					<div style="padding-bottom: 0.5rem;">
-						<span>Target language:</span>
-						<select name="tgt_lang" id="target-language">
-							<option value="CHS" selected>简体中文</option>
-							<option value="CHT">繁體中文</option>
-							<option value="JPN">日本語</option>
-							<option value="ENG">English</option>
-							<option value="KOR">한국어</option>
-							<option value="VIN">Tiếng Việt</option>
-							<option value="CSY">čeština</option>
-							<option value="NLD">Nederlands</option>
-							<option value="FRA">français</option>
-							<option value="DEU">Deutsch</option>
-							<option value="HUN">magyar nyelv</option>
-							<option value="ITA">italiano</option>
-							<option value="PLK">polski</option>
-							<option value="PTB">português</option>
-							<option value="ROM">limba română</option>
-							<option value="RUS">русский язык</option>
-							<option value="ESP">español</option>
-							<option value="TRK">Türk dili</option>
-						</select>
-					</div>
-					<div>
-						<input id="image-file" type="file" name="fileToUpload" id="image" accept="image/png, image/jpeg, image/bmp">
-						<input id="submit-button" type="submit" value="Upload" name="submit">
-					</div>
-				</form>
-			</div>
-		</div>
-		<div><h4 id="status-text"></h4></div>
-		<div id="horizontalProgress">
-			<div id="horizontalProgressBar"></div>
-			<div id="horizontalProgressOverlay"></div>
-		</div>
-		<div id="detected-text-div" style="visibility: hidden;">
-			<h3>Detected texts</h3>
-			<div id="detected-text"></div>
-		</div>
-		<div id="translated-image-div" style="visibility: hidden;">
-			<h3>Translated image</h3>
-			<div>
-				<label class="switch">
-					<input id="btn-show-original-size" type="checkbox">
-					<span class="slider round" onclick="onShowOriginalSizeButtonClicked()"></span>
-				</label>
-				<span>Show original size</span>
-			</div>
-			<img id="translated-image" style="max-width: 1024px;" src=""></img>
-		</div>
-	</body>
-	<style>
-		.switch {
-			position: relative;
-			display: inline-block;
-			width: 60px;
-			height: 34px;
-		}
+              const { state, waiting } = await (await fetch(`${BASE_URI}task-state?taskid=${task_id}`)).json()
 
-		.switch input { 
-			opacity: 0;
-			width: 0;
-			height: 0;
-		}
+              if (state === 'finished') {
+                this.progress = null
+                this.status = 'download'
 
-		.slider {
-			position: absolute;
-			cursor: pointer;
-			top: 0;
-			left: 0;
-			right: 0;
-			bottom: 0;
-			background-color: #ccc;
-			-webkit-transition: .4s;
-			transition: .4s;
-		}
+                const xhrDownload = new XMLHttpRequest()
+                xhrDownload.open('GET', `${BASE_URI}result/${task_id}`, true)
+                xhrDownload.responseType = 'blob'
+                xhrDownload.onprogress = (e) => {
+                  if (e.lengthComputable) this.progress = formatProgress(e.loaded, e.total)
+                }
+                xhrDownload.onload = () => {
+                  this.result = xhrDownload.response
+                  this.status = null
+                }
+                xhrDownload.send()
 
-		.slider:before {
-			position: absolute;
-			content: "";
-			height: 26px;
-			width: 26px;
-			left: 4px;
-			bottom: 4px;
-			background-color: white;
-			-webkit-transition: .4s;
-			transition: .4s;
-		}
+                break
+              }
 
-		input:checked + .slider {
-			background-color: #2196F3;
-		}
+              this.status = state
+              this.queuePos = waiting
 
-		input:focus + .slider {
-			box-shadow: 0 0 1px #2196F3;
-		}
+              if (state === 'error' || state == 'error-lang') {
+                break
+              }
 
-		input:checked + .slider:before {
-			-webkit-transform: translateX(26px);
-			-ms-transform: translateX(26px);
-			transform: translateX(26px);
-		}
-
-		/* Rounded sliders */
-		.slider.round {
-			border-radius: 34px;
-		}
-
-		.slider.round:before {
-			border-radius: 50%;
-		}
-	</style>
-	<style>
-		#horizontalProgress {
-			/* CHANGE THIS STYLES AS YOU WISH */
-			position: relative;
-		}
-
-		#horizontalProgressBar {
-			/* DO NOT CHANGE STYLES IN THAT SELECTOR */
-			position: absolute;
-			top: 50%;
-			height: 2px;
-			left: 0px;
-			margin-top: -1px;
-			background: #3A95FF;
-			z-index: 999999;
-			transition: opacity 0.5s, width 0.5s;
-		}
-
-		#horizontalProgressOverlay {
-			/* DO NOT CHANGE STYLES IN THAT SELECTOR */
-			position: absolute;
-			top: 0px;
-			right: 0px;
-			bottom: 0px;
-			left: 0px;
-			background: #fff;
-			background: rgba(255, 255, 255, 0.9);
-			z-index: 999998;
-			transition: opacity 1s;
-		}
-
-		#horizontalProgressOverlay.show {
-			/* DO NOT CHANGE STYLES IN THAT SELECTOR */
-			left: 0%;
-		}
-	</style>
-	<script>
-		window.ProgressBar = (function (me) {
-
-			// SETTINGS
-
-			var ratio = 4;
-			var speed = 5;
-			var frequency = 1;
-			var ease = 'ease';
-
-			// PRIVATE VARIABLES
-
-			var timeout = null;
-			var element = null;
-			var overlay = null;
-			var current = 0;
-			var started_ = false;
-
-			var random = function (min, max) {
-				return Math.floor(Math.random() * (max - min + 1) + min);
-			};
-
-			var time = function () {
-				return random(1, 6) / speed;
-			};
-
-			var delay = function () {
-				return random(1, 2) / speed;
-			};
-
-			var frequency = function () {
-				return random(0, frequency);
-			};
-
-			var width = function () {
-				var min = current;
-				var remain = 100 - current;
-				var distance = Math.floor(remain / ratio);
-				var max = min + distance;
-				current = random(min, max);
-				return current;
-			};
-
-			var next = function () {
-				var t = time();
-				var d = delay();
-
-				element.style.transitionDuration = t + 's';
-				element.style.transitionDelay = d + 's';
-
-				timeout = setTimeout(function () {
-					move();
-				}, ((t * 1000) + (d * 1000)));
-			};
-
-			var move = function () {
-				element.style.width = width() + '%';
-				next();
-			};
-
-			me.init = function (params) {
-				element = params.element;
-				overlay = params.overlay;
-
-				ease = params.ease || ease;
-				ratio = params.ratio || ratio;
-				speed = params.speed || speed;
-				frequency = params.frequency || frequency;
-
-				overlay.style.opacity = '0';
-				element.style.opacity = '0';
-				element.style.transitionDuration = '1s';
-				element.style.transitionTimingFunction = ease;
-				element.style.transitionDelay = '0s';
-			};
-
-			me.start = function () {
-				current = 0;
-				started_ = true;
-
-				element.style.opacity = '1';
-				element.style.width = current + '%';
-				overlay.style.opacity = '1';
-				overlay.style.width = '100%';
-
-				next();
-			};
-
-			me.started = function () {
-				return started_;
-			}
-
-			me.end = function () {
-				started_ = false;
-
-				clearTimeout(timeout);
-
-				element.style.transitionDuration = '0.5s';
-				element.style.width = '100%';
-
-				setTimeout(function () {
-					element.style.opacity = '0';
-					overlay.style.opacity = '0';
-				}, 1000);
-
-				setTimeout(function () {
-					element.style.width = '0%';
-					overlay.style.width = '0%';
-				}, 2000);
-
-			};
-
-			return me;
-
-			}(window.ProgressBar || {}));
-
-			// YOU CAN INIT THAT PROGRESS BARY WHEREVER YOU WANT
-
-			ProgressBar.init({
-			element: document.getElementById('horizontalProgressBar'),
-			overlay: document.getElementById('horizontalProgressOverlay'),
-			ratio: 4,				// DEFAULT, YOU CAN SKIP IT
-			speed: 5,				// DEFAULT, YOU CAN SKIP IT
-			frequency: 1,		// DEFAULT, YOU CAN SKIP IT
-			ease: 'ease'		// DEFAULT, YOU CAN SKIP IT
-			});
-	</script>
+              await timer
+            }
+          }
+          xhr.send(formData)
+        },
+        clear() {
+          this.file = null
+          this.result = null
+        },
+      }).mount()
+    </script>
+  </body>
 </html>
