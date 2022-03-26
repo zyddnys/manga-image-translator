@@ -164,19 +164,23 @@ async def dispatch(translator: str, src_lang: str, tgt_lang: str, texts: List[st
 		
 	if tgt_lang == 'NONE' or src_lang == 'NONE' :
 		raise Exception
-	TEXTBLK_BREAK = '\n###\n'
+
 	if translator == 'google' :
-		if tgt_lang == 'KOR':
-			concat_texts = '\n'.join(texts)
-		else:
-			concat_texts = TEXTBLK_BREAK.join(texts)
+		concat_texts = '\n'.join(texts)
+		empty_l = 0
+		for txt in texts:
+			if txt == '':
+				empty_l += 1
+			else:
+				break
 		result = await GOOGLE_CLIENT.translate(concat_texts, tgt_lang, src_lang, *args, **kwargs)
 		if not isinstance(result, list):
-			if tgt_lang == 'KOR':
-				result = result.text.split('\n')
-			else:
-				result = result.text.split(TEXTBLK_BREAK.replace('\n', ''))
+			result = empty_l * [''] + result.text.split('\n')
+			empty_r = len(concat_texts) - len(result)
+			if empty_r > 0:
+				result = result + empty_r * ['']
 		result = [text.lstrip().rstrip() for text in result]
+
 	elif translator == 'baidu' :
 		concat_texts = '\n'.join(texts)
 		result = await BAIDU_CLIENT.translate(src_lang, tgt_lang, concat_texts)
