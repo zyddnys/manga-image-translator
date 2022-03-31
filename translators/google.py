@@ -8,6 +8,7 @@ import random
 import typing
 import re
 import json
+import urllib
 
 import httpcore
 import httpx
@@ -26,6 +27,13 @@ from googletrans.models import Translated, Detected, TranslatedPart
 EXCLUDES = ('en', 'ca', 'fr')
 
 RPC_ID = 'MkEWBc'
+
+SYS_PROXY = urllib.request.getproxies()
+SYS_HTTP_PROXY = None
+if 'http' in SYS_PROXY:
+    SYS_HTTP_PROXY = {}
+    SYS_HTTP_PROXY['http'] = SYS_PROXY['http']
+    SYS_HTTP_PROXY['https'] = SYS_PROXY['http']
 
 class Translator:
     """Google Translate ajax API implementation class
@@ -64,9 +72,8 @@ class Translator:
                  http2=True,
                  use_fallback=False):
 
-        self.client = httpx.AsyncClient(http2=http2)
-        if proxies is not None:  # pragma: nocover
-            self.client.proxies = proxies
+        self.client = httpx.AsyncClient(http2=http2, proxies=SYS_HTTP_PROXY)
+        # if proxies is not None:  # pragma: nocover
 
         self.client.headers.update({
             'User-Agent': user_agent,
