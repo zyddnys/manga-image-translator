@@ -14,3 +14,4 @@ aiohttp
 tqdm
 sklearn
 deepl
+ImageHash

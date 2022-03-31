@@ -1,6 +1,7 @@
 
 import asyncio
 import argparse
+from PIL import Image
 import cv2
 import numpy as np
 import requests
@@ -13,9 +14,10 @@ from ocr import dispatch as dispatch_ocr, load_model as load_ocr_model
 from inpainting import dispatch as dispatch_inpainting, load_model as load_inpainting_model
 from text_mask import dispatch as dispatch_mask_refinement
 from textline_merge import dispatch as dispatch_textline_merge
-from text_rendering import dispatch as dispatch_rendering
+from text_rendering import dispatch as dispatch_rendering, text_render
 from textblockdetector import dispatch as dispatch_ctd_detection
 from textblockdetector.textblock import visualize_textblocks
+from utils import convert_img
 
 parser = argparse.ArgumentParser(description='Generate text bboxes given a image file')
 parser.add_argument('--mode', default='demo', type=str, help='Run demo in either single image demo mode (demo), web service mode (web) or batch translation mode (batch)')
@@ -35,23 +37,9 @@ parser.add_argument('--target-lang', default='CHS', type=str, help='destination 
 parser.add_argument('--use-ctd', action='store_true', help='use comic-text-detector for text detection')
 parser.add_argument('--verbose', action='store_true', help='print debug info and save intermediate images')
 args = parser.parse_args()
-print(args)
-
-def overlay_image(a, b, wa = 0.7) :
-	return cv2.addWeighted(a, wa, b, 1 - wa, 0)
-
-def overlay_mask(img, mask) :
-	img2 = img.copy().astype(np.float32)
-	mask_fp32 = (mask > 10).astype(np.uint8) * 2
-	mask_fp32[mask_fp32 == 0] = 1
-	mask_fp32 = mask_fp32.astype(np.float32) * 0.5
-	img2 = img2 * mask_fp32[:, :, None]
-	return img2.astype(np.uint8)
-
-from text_rendering import text_render
 
 def update_state(task_id, nonce, state) :
-	requests.post('http://127.0.0.1:5003/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state})
+	requests.post('http://127.0.0.1:5003/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 2)
 
 def get_task(nonce) :
 	try :
@@ -69,7 +57,8 @@ async def infer(
 	nonce,
 	options = None,
 	task_id = '',
-	dst_image_name = ''
+	dst_image_name = '',
+	alpha_ch = None
 	) :
 	options = options or {}
 	img_detect_size = args.size
@@ -93,7 +82,6 @@ async def infer(
 		if options['direction'] == 'horizontal' :
 			render_text_direction_overwrite = 'h'
 	print(f' -- Render text direction is {render_text_direction_overwrite or "auto"}')
-	img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'detection')
@@ -119,7 +107,7 @@ async def infer(
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'ocr')
-	textlines = await dispatch_ocr(img, textlines, args.use_cuda, args)
+	textlines = await dispatch_ocr(img, textlines, args.use_cuda, args, verbose = args.verbose)
 
 	if detector == 'default' :
 		text_regions, textlines = await dispatch_textline_merge(textlines, img.shape[1], img.shape[0], verbose = args.verbose)
@@ -147,8 +135,6 @@ async def infer(
 		else:
 			requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.text for r in text_regions]})
 
-
-
 	print(' -- Running inpainting')
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'inpainting')
@@ -156,10 +142,9 @@ async def infer(
 	if text_regions :
 		img_inpainted = await dispatch_inpainting(args.use_inpainting, False, args.use_cuda, img, final_mask, args.inpainting_size, verbose = args.verbose)
 	else :
-		img_inpainted = img, img
+		img_inpainted = img
 	if args.verbose :
-		img_inpainted, inpaint_input = img_inpainted
-		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input, cv2.COLOR_RGB2BGR))
+		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
 		cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
 		cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
 
@@ -182,9 +167,6 @@ async def infer(
 				translated_sentences = ret['result']
 				break
 			await asyncio.sleep(0.1)
-	# if not translated_sentences and text_regions :
-	# 	update_state(task_id, nonce, 'error')
-	# 	return
 
 	if translated_sentences is not None:
 		print(' -- Rendering translated text')
@@ -198,13 +180,43 @@ async def infer(
 			output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite)
 		
 		print(' -- Saving results')
-		if dst_image_name :
-			cv2.imwrite(dst_image_name, cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
+		if alpha_ch is not None :
+			output = np.concatenate([output.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
 		else :
-			cv2.imwrite(f'result/{task_id}/final.png', cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
+			output = output.astype(np.uint8)
+		img_pil = Image.fromarray(output)
+		if dst_image_name :
+			img_pil.save(dst_image_name)
+		else :
+			img_pil.save(f'result/{task_id}/final.png')
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'finished')
+
+
+async def infer_safe(
+	img,
+	mode,
+	nonce,
+	options = None,
+	task_id = '',
+	dst_image_name = '',
+	alpha_ch = None
+	) :
+	try :
+		return await infer(
+			img,
+			mode,
+			nonce,
+			options,
+			task_id,
+			dst_image_name,
+			alpha_ch
+		)
+	except :
+		import traceback
+		traceback.print_exc()
+		update_state(task_id, nonce, 'error')
 
 def replace_prefix(s: str, old: str, new: str) :
 	if s.startswith(old) :
@@ -229,8 +241,9 @@ async def main(mode = 'demo') :
 			print('please provide an image')
 			parser.print_usage()
 			return
-		img = cv2.imread(args.image)
-		await infer(img, mode, '')
+		img, alpha_ch = convert_img(Image.open(args.image))
+		img = np.array(img)
+		await infer(img, mode, '', alpha_ch = alpha_ch)
 	elif mode == 'web' :
 		print(' -- Running in web service mode')
 		print(' -- Waiting for translation tasks')
@@ -242,9 +255,28 @@ async def main(mode = 'demo') :
 			task_id, options = get_task(nonce)
 			if task_id :
 				print(f' -- Processing task {task_id}')
-				img = cv2.imread(f'result/{task_id}/input.png')
+				img, alpha_ch = convert_img(Image.open(f'result/{task_id}/input.png'))
+				img = np.array(img)
 				try :
-					infer_task = asyncio.create_task(infer(img, mode, nonce, options, task_id))
+					infer_task = asyncio.create_task(infer_safe(img, mode, nonce, options, task_id, alpha_ch = alpha_ch))
+					asyncio.gather(infer_task)
+				except :
+					import traceback
+					traceback.print_exc()
+					update_state(task_id, nonce, 'error')
+			else :
+				await asyncio.sleep(0.1)
+	elif mode == 'web2' :
+		print(' -- Running in web service mode')
+		print(' -- Waiting for translation tasks')
+		while True :
+			task_id, options = get_task(nonce)
+			if task_id :
+				print(f' -- Processing task {task_id}')
+				img, alpha_ch = convert_img(Image.open(f'result/{task_id}/input.png'))
+				img = np.array(img)
+				try :
+					infer_task = asyncio.create_task(infer_safe(img, mode, nonce, options, task_id, alpha_ch = alpha_ch))
 					asyncio.gather(infer_task)
 				except :
 					import traceback
@@ -273,7 +305,8 @@ async def main(mode = 'demo') :
 					continue
 				filename = os.path.join(root, f)
 				try :
-					img = cv2.imread(filename)
+					img, alpha_ch = convert_img(Image.open(filename))
+					img = np.array(img)
 					if img is None :
 						continue
 				except Exception :
@@ -281,12 +314,13 @@ async def main(mode = 'demo') :
 				try :
 					dst_filename = replace_prefix(filename, src, dst)
 					print('Processing', filename, '->', dst_filename)
-					await infer(img, 'demo', '', dst_image_name = dst_filename)
+					await infer(img, 'demo', '', dst_image_name = dst_filename, alpha_ch = alpha_ch)
 				except Exception :
 					import traceback
 					traceback.print_exc()
 					pass
 
 if __name__ == '__main__':
+	print(args)
 	loop = asyncio.get_event_loop()
 	loop.run_until_complete(main(args.mode))
