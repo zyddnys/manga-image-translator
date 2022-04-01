@@ -15,7 +15,15 @@
     </style>
   </head>
   <body>
-    <form action="#" class="flex py-8 w-full min-h-100vh justify-center items-center" @submit.prevent="onsubmit" v-scope v-cloak un-cloak>
+    <form
+      action="#"
+      class="flex py-8 w-full min-h-100vh justify-center items-center"
+      @submit.prevent="onsubmit"
+      @vue:mounted="onmounted"
+      v-scope
+      v-cloak
+      un-cloak
+    >
       <div class="flex flex-col w-85ch h-full justify-center gap-2">
         <h1 class="text-center text-lg font-light">Image/Manga Translator</h1>
         <div class="flex mx-4 justify-start items-end">
@@ -92,11 +100,9 @@
             </div>
           </div>
         </div>
-        <div v-if="result">
+        <div v-if="result" class="flex flex-col items-center">
           <img class="my-2" :src="resultUri" />
-          <div class="flex justify-center">
-            <button class="px-2 py-1 text-center rounded-md text-blue-800 border-2 border-blue-300" @click="clear">Upload another</button>
-          </div>
+          <button class="px-2 py-1 text-center rounded-md text-blue-800 border-2 border-blue-300" @click="clear">Upload another</button>
         </div>
         <div v-else-if="status" class="grid w-full h-116 place-content-center rounded-2xl border-2 border-dashed border-gray-600">
           <div class="flex flex-col items-center gap-2">
@@ -117,11 +123,11 @@
             <div><span class="iconify-inline inline-block mr-2 scale-125" data-icon="carbon:image-search"></span>File Preview</div>
             <img class="max-w-72 max-h-72" :src="fileUri" />
             <button type="submit" class="px-2 py-1 rounded-md text-blue-800 border-2 border-blue-300">Translate</button>
-            <div class="text-sm text-gray-600">Click the empty space or drag a new one to replace</div>
+            <div class="text-sm text-gray-600">Click the empty space or paste/drag a new one to replace</div>
           </div>
           <div v-else class="flex flex-col items-center gap-2">
             <i class="iconify w-8 h-8 text-gray-500" data-icon="carbon:cloud-upload"></i>
-            <div>Click to select a file or drag and drop here</div>
+            <div>Paste an image, click to select one or drag and drop here</div>
           </div>
           <input id="file" type="file" accept="image/png,image/jpeg,image/bmp" class="hidden" @change="onfilechange" />
         </label>
@@ -146,6 +152,7 @@
     </form>
     <script>
       const BASE_URI = '/'
+      const acceptTypes = ['image/png', 'image/jpeg', 'image/bmp']
 
       function formatSize(bytes) {
         const k = 1024
@@ -159,6 +166,10 @@
       }
 
       PetiteVue.createApp({
+        onmounted() {
+          window.addEventListener('paste', this.onpaste)
+        },
+
         file: null,
         get fileUri() {
           return this.file ? URL.createObjectURL(this.file) : null
@@ -170,14 +181,24 @@
         targetLanguage: 'CHS',
         ondrop(e) {
           const file = e.dataTransfer?.files?.[0]
-          if (file && ['image/png', 'image/jpeg', 'image/bmp'].includes(file.type)) {
+          if (file && acceptTypes.includes(file.type)) {
             this.file = file
           }
         },
         onfilechange(e) {
           const file = e.target.files?.[0]
-          if (file) {
+          if (file && acceptTypes.includes(file.type)) {
             this.file = file
+          }
+        },
+        onpaste(e) {
+          const items = (e.clipboardData || e.originalEvent.clipboardData).items
+          for (const item of items) {
+            if (item.kind === 'file') {
+              const file = item.getAsFile()
+              if (!file || !acceptTypes.includes(file.type)) continue
+              this.file = file
+            }
           }
         },
 
