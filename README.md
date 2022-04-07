@@ -22,6 +22,7 @@ GPU server is not cheap, please consider to donate to us.
 
 - Ko-fi: <https://ko-fi.com/voilelabs>
 - Patreon: <https://www.patreon.com/voilelabs>
+- 爱发电: <https://afdian.net/@voilelabs>
 
 ## Online Demo
 
