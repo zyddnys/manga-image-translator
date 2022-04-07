@@ -199,6 +199,8 @@ def run_ocr_48px_ctc(img: np.ndarray, cuda: bool, quadrilaterals: List[Tuple[Qua
 		with torch.inference_mode() :
 			texts = MODEL_48PX_CTC.decode(images, widths, 0, verbose = verbose)
 		for i, single_line in enumerate(texts) :
+			if not single_line :
+				continue
 			cur_texts = []
 			total_fr = AvgMeter()
 			total_fg = AvgMeter()
