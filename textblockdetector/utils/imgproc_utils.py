@@ -27,13 +27,16 @@ def get_yololabel_strings(clslist, labellist):
         content = content[:-1]
     return content
 
-def xywh2xyxypoly(xywh):
+# 4 points bbox to 8 points polygon
+def xywh2xyxypoly(xywh, to_int=True):
     xyxypoly = np.tile(xywh[:, [0, 1]], 4)
     xyxypoly[:, [2, 4]] += xywh[:, [2]]
     xyxypoly[:, [5, 7]] += xywh[:, [3]]
-    return xyxypoly.astype(np.int64)
+    if to_int:
+        xyxypoly = xyxypoly.astype(np.int64)
+    return xyxypoly
 
-def xyxy2yolo(xyxy, w: int, h: int, ordered=False):
+def xyxy2yolo(xyxy, w: int, h: int):
     if xyxy == [] or xyxy == np.array([]) or len(xyxy) == 0:
         return None
     if isinstance(xyxy, list):
@@ -58,7 +61,9 @@ def yolo_xywh2xyxy(xywh: np.array, w: int, h:  int, to_int=True):
     xywh[:, [1, 3]] *= h
     xywh[:, [0, 1]] -= xywh[:, [2, 3]] / 2
     xywh[:, [2, 3]] += xywh[:, [0, 1]]
-    return xywh.astype(np.int64)
+    if to_int:
+        xywh = xywh.astype(np.int64)
+    return xywh
 
 def rotate_polygons(center, polygons, rotation, new_center=None, to_int=True):
     if new_center is None:
@@ -111,10 +116,14 @@ def letterbox(im, new_shape=(640, 640), color=(0, 0, 0), auto=False, scaleFill=F
     im = cv2.copyMakeBorder(im, 0, dh, 0, dw, cv2.BORDER_CONSTANT, value=color)  # add border
     return im, ratio, (dw, dh)
 
-def resize_keepasp(im, new_shape=640, scaleup=True, interpolation=cv2.INTER_LINEAR):
+def resize_keepasp(im, new_shape=640, scaleup=True, interpolation=cv2.INTER_LINEAR, stride=None):
     shape = im.shape[:2]  # current shape [height, width]
-    if not isinstance(new_shape, tuple):
-        new_shape = (new_shape, new_shape)
+
+    if new_shape is not None:
+        if not isinstance(new_shape, tuple):
+            new_shape = (new_shape, new_shape)
+    else:
+        new_shape = shape
 
     # Scale ratio (new / old)
     r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
@@ -122,6 +131,18 @@ def resize_keepasp(im, new_shape=640, scaleup=True, interpolation=cv2.INTER_LINE
         r = min(r, 1.0)
 
     new_unpad = int(round(shape[1] * r)), int(round(shape[0] * r))
+
+    if stride is not None:
+        h, w = new_unpad
+        if new_shape[0] % stride != 0 :
+            new_h = (stride - (new_shape[0] % stride)) + h
+        else :
+            new_h = h
+        if w % stride != 0 :
+            new_w = (stride - (w % stride)) + w
+        else :
+            new_w = w
+        new_unpad = (new_h, new_w)
 
     if shape[::-1] != new_unpad:  # resize
         im = cv2.resize(im, new_unpad, interpolation=interpolation)
