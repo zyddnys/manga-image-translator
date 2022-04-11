@@ -284,6 +284,7 @@ async def submit_async(request) :
 	task_id = f'{phash(img, hash_size = 16)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
 	if os.path.exists(f'result/{task_id}/final.png') :
 		TASK_STATES[task_id] = 'finished'
+		TASK_DATA[task_id] = {'size': size, 'translator': selected_translator, 'tgt': target_language, 'detector': detector, 'direction': direction, 'created_at': time.time()}
 	# elif os.path.exists(f'result/{task_id}') :
 	# 	# either image is being processed or error occurred 
 	# 	if task_id not in TASK_STATES :
