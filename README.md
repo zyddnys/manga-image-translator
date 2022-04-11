@@ -27,7 +27,7 @@ GPU server is not cheap, please consider to donate to us.
 ## Online Demo
 
 Official Demo (by zyddnys): <https://touhou.ai/imgtrans/>\
-Mirror Demo (by Eidenz): <https://manga.eidenz.com/>\
+Mirror Demo (by Eidenz): <https://manga.eidenz.moe/>\
 Browser Userscript (by QiroNT): <https://greasyfork.org/scripts/437569>
 
 - Note this may not work sometimes due to stupid google gcp kept restarting my instance.
