@@ -20,7 +20,7 @@ from translators import VALID_LANGUAGES, dispatch as run_translation
 VALID_DETECTORS = set(['default', 'ctd'])
 VALID_DIRECTIONS = set(['auto', 'horizontal'])
 
-MAX_NUM_TASKS = 3
+MAX_NUM_TASKS = 1
 NUM_ONGOING_TASKS = 0
 NONCE = ''
 QUEUE = deque()
@@ -29,6 +29,26 @@ TASK_STATES = {}
 
 app = web.Application(client_max_size = 1024 * 1024 * 50)
 routes = web.RouteTableDef()
+
+
+def constant_compare(a, b) :
+	try :
+		if isinstance(a, str):
+			a = a.encode('utf-8')
+
+		if isinstance(b, str):
+			b = b.encode('utf-8')
+
+		if len(a) != len(b):
+			return False
+
+		result = 0
+		for x, y in zip(a, b):
+			result |= x ^ y
+		return result == 0
+	except Exception :
+		return False
+
 
 @routes.get("/")
 async def index_async(request) :
@@ -46,6 +66,10 @@ async def result_async(request) :
         stream = BytesIO()
         im.save(stream, "PNG")
         return web.Response(body=stream.getvalue(), content_type='image/png')
+
+@routes.get("/queue-size")
+async def queue_size_async(request) :
+	return web.json_response({'size' : len(QUEUE)})
 
 async def handle_post(request) :
 	data = await request.post()
@@ -68,7 +92,7 @@ async def handle_post(request) :
 			direction = 'auto'
 	if 'translator' in data :
 		selected_translator = data['translator'].lower()
-		if selected_translator not in ['youdao', 'baidu', 'google', 'deepl', 'null'] :
+		if selected_translator not in ['youdao', 'baidu', 'google', 'deepl', 'papago', 'null'] :
 			selected_translator = 'youdao'
 	if 'size' in data :
 		size = data['size'].upper()
@@ -115,7 +139,7 @@ async def run_async(request) :
 		TASK_DATA[task_id] = {'size': size, 'translator': selected_translator, 'tgt': target_language, 'detector': detector, 'direction': direction, 'created_at': time.time()}
 		TASK_STATES[task_id] = 'pending'
 	while True :
-		await asyncio.sleep(0.05)
+		await asyncio.sleep(0.1)
 		if task_id not in TASK_STATES :
 			break
 		state = TASK_STATES[task_id]
@@ -127,37 +151,42 @@ async def run_async(request) :
 @routes.get("/task-internal")
 async def get_task_async(request) :
 	global NONCE, NUM_ONGOING_TASKS
-	if request.rel_url.query['nonce'] == NONCE :
+	if constant_compare(request.rel_url.query['nonce'], NONCE) :
 		if len(QUEUE) > 0 and NUM_ONGOING_TASKS < MAX_NUM_TASKS :
 			task_id = QUEUE.popleft()
-			data = TASK_DATA[task_id]
-			if 'manual' not in TASK_DATA[task_id]:
-				NUM_ONGOING_TASKS += 1
-			return web.json_response({'task_id': task_id, 'data': data})
+			if task_id in TASK_DATA :
+				data = TASK_DATA[task_id]
+				if 'manual' not in TASK_DATA[task_id]:
+					NUM_ONGOING_TASKS += 1
+				return web.json_response({'task_id': task_id, 'data': data})
+			else :
+				return web.json_response({})
 		else :
 			return web.json_response({})
-	else :
-		print('unauthorized', request.rel_url.query['nonce'], NONCE)
 	return web.json_response({})
 
 async def machine_trans_task(task_id, texts, translator = 'youdao', target_language = 'CHS') :
 	print('translator', translator)
 	print('target_language', target_language)
+	if task_id not in TASK_DATA :
+		TASK_DATA[task_id] = {}
 	if texts :
 		success = False
 		for i in range(10) :
 			try :
-				TASK_DATA[task_id]['trans_result'] = await run_translation(translator, 'auto', target_language, texts)
+				TASK_DATA[task_id]['trans_result'] = await asyncio.wait_for(run_translation(translator, 'auto', target_language, texts), timeout = 5)
 				success = True
 				break
 			except Exception as ex :
 				continue
 		if not success :
-			TASK_DATA[task_id]['trans_result'] = ['error'] * len(texts)
+			TASK_DATA[task_id]['trans_result'] = 'error'
 	else :
 		TASK_DATA[task_id]['trans_result'] = []
 
 async def manual_trans_task(task_id, texts) :
+	if task_id not in TASK_DATA :
+		TASK_DATA[task_id] = {}
 	if texts :
 		TASK_DATA[task_id]['trans_request'] = [{'s': txt, 't': ''} for txt in texts]
 	else :
@@ -190,7 +219,7 @@ async def post_translation_result(request) :
 async def request_translation_internal(request) :
 	global NONCE
 	rqjson = (await request.json())
-	if rqjson['nonce'] == NONCE :
+	if constant_compare(rqjson['nonce'], NONCE) :
 		task_id = rqjson['task_id']
 		if task_id in TASK_DATA :
 			if 'manual' in TASK_DATA[task_id] :
@@ -205,7 +234,7 @@ async def request_translation_internal(request) :
 async def get_translation_internal(request) :
 	global NONCE
 	rqjson = (await request.json())
-	if rqjson['nonce'] == NONCE :
+	if constant_compare(rqjson['nonce'], NONCE) :
 		task_id = rqjson['task_id']
 		if task_id in TASK_DATA :
 			if 'trans_result' in TASK_DATA[task_id] :
@@ -215,7 +244,7 @@ async def get_translation_internal(request) :
 @routes.get("/task-state")
 async def get_task_state_async(request) :
 	task_id = request.query.get('taskid')
-	if task_id and task_id in TASK_STATES :
+	if task_id and task_id in TASK_STATES and task_id in TASK_DATA :
 		try :
 			ret = web.json_response({'state': TASK_STATES[task_id], 'waiting': QUEUE.index(task_id) + 1})
 		except :
@@ -236,9 +265,9 @@ async def get_task_state_async(request) :
 async def post_task_update_async(request) :
 	global NONCE, NUM_ONGOING_TASKS
 	rqjson = (await request.json())
-	if rqjson['nonce'] == NONCE :
+	if constant_compare(rqjson['nonce'], NONCE) :
 		task_id = rqjson['task_id']
-		if task_id in TASK_STATES :
+		if task_id in TASK_STATES and task_id in TASK_DATA :
 			TASK_STATES[task_id] = rqjson['state']
 			if rqjson['state'] in ['finished', 'error', 'error-lang'] and 'manual' not in TASK_DATA[task_id] :
 				NUM_ONGOING_TASKS -= 1
@@ -255,6 +284,7 @@ async def submit_async(request) :
 	task_id = f'{phash(img, hash_size = 16)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
 	if os.path.exists(f'result/{task_id}/final.png') :
 		TASK_STATES[task_id] = 'finished'
+		TASK_DATA[task_id] = {'size': size, 'translator': selected_translator, 'tgt': target_language, 'detector': detector, 'direction': direction, 'created_at': time.time()}
 	# elif os.path.exists(f'result/{task_id}') :
 	# 	# either image is being processed or error occurred 
 	# 	if task_id not in TASK_STATES :
@@ -282,7 +312,7 @@ async def manual_translate_async(request) :
 	TASK_DATA[task_id] = {'size': size, 'manual': True, 'detector': detector, 'direction': direction, 'created_at': time.time()}
 	TASK_STATES[task_id] = 'pending'
 	while True :
-		await asyncio.sleep(0.1)
+		await asyncio.sleep(1)
 		if 'trans_request' in TASK_DATA[task_id] :
 			return web.json_response({'task_id' : task_id, 'status': 'pending', 'trans_result': TASK_DATA[task_id]['trans_request']})
 		if TASK_STATES[task_id] in ['error', 'error-lang'] :

@@ -1,6 +1,7 @@
 networkx
 torch
 torchvision
+torch-summary
 einops
 scikit-image
 opencv-python
@@ -15,3 +16,4 @@ tqdm
 sklearn
 deepl
 ImageHash
+kornia

@@ -162,11 +162,19 @@ async def infer(
 			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.text for r in text_regions])
 
 	else :
-		# wait for at most 1 hour
-		for _ in range(36000) :
+		# wait for at most 1 hour for manual translation
+		if 'manual' in options and options['manual'] :
+			wait_n_10ms = 36000
+		else :
+			wait_n_10ms = 300 # 30 seconds for machine translation
+		for _ in range(wait_n_10ms) :
 			ret = requests.post('http://127.0.0.1:5003/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}).json()
 			if 'result' in ret :
 				translated_sentences = ret['result']
+				if isinstance(translated_sentences, str) :
+					if translated_sentences == 'error' :
+						update_state(task_id, nonce, 'error-lang')
+						return
 				break
 			await asyncio.sleep(0.1)
 
