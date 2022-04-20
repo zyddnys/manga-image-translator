@@ -1,12 +1,13 @@
 
-from typing import List
+from typing import List, Union
 from utils import Quadrilateral
 import numpy as np
 import cv2
 import math
 from utils import findNextPowerOf2
-
+import textwrap
 from . import text_render
+from .text_render_eng import render_textblock_list_eng
 from textblockdetector.textblock import TextBlock
 
 def fg_bg_compare(fg, bg):
@@ -155,3 +156,26 @@ def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_d
 	mask_region = rgba_region[:, :, 3: 4].astype(np.float32) / 255.0
 	img_canvas = np.clip((img_canvas.astype(np.float32) * (1 - mask_region) + canvas_region.astype(np.float32) * mask_region), 0, 255).astype(np.uint8)
 	return img_canvas
+
+
+
+
+async def dispatch_eng_render(img_canvas: np.ndarray, text_regions: Union[List[TextBlock], List[Quadrilateral]], translated_sentences: List[str], font_path: str) -> np.ndarray :
+	if len(text_regions) == 0:
+		return img_canvas
+	
+	if isinstance(text_regions[0], 	Quadrilateral):
+		blk_list = []
+		for region, tr in zip(text_regions, translated_sentences):
+			x = np.min(region.pts[:, 0])
+			w = np.max(region.pts[:, 0]) - x
+			y = np.min(region.pts[:, 1])
+			h = np.max(region.pts[:, 1]) - y
+			font_size = region.font_size * 0.7
+			blk = TextBlock([x, y, w, h], lines=[region.pts], translation=tr, angle=region.angle, font_size=font_size)
+			blk_list.append(blk)
+		return render_textblock_list_eng(img_canvas, blk_list, font_path, size_tol=1.1)
+	
+	for blk, tr in zip(text_regions, translated_sentences):
+		blk.translation = tr
+	return render_textblock_list_eng(img_canvas, text_regions, font_path, size_tol=1.2)
