@@ -131,7 +131,7 @@ class TextBlock(object):
         min_bbox = np.array([[min_x, min_y, max_x, min_y, max_x, max_y, min_x, max_y]])
         if angled and rotate_back:
             min_bbox = rotate_polygons(center, min_bbox, -self.angle)
-        return min_bbox.reshape(-1, 4, 2)
+        return min_bbox.reshape(-1, 4, 2).astype(np.int64)
 
     # equivalent to qt's boundingRect, ignore angle
     def bounding_rect(self):
@@ -365,8 +365,8 @@ def try_merge_textline(blk: TextBlock, blk2: TextBlock, fntsize_tol=1.3, distanc
     blk.lines.append(blk2.lines[0])
     blk.vec = vec_sum
     blk.angle = int(round(np.rad2deg(math.atan2(vec_sum[1], vec_sum[0]))))
-    if blk.vertical:
-        blk.angle -= 90
+    # if blk.vertical:
+    #     blk.angle -= 90
     blk.norm = np.linalg.norm(vec_sum)
     blk.distance = np.append(blk.distance, blk2.distance[-1])
     blk.font_size = fntsz_avg

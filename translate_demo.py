@@ -36,6 +36,8 @@ parser.add_argument('--translator', default='google', type=str, help='language t
 parser.add_argument('--target-lang', default='CHS', type=str, help='destination language')
 parser.add_argument('--use-ctd', action='store_true', help='use comic-text-detector for text detection')
 parser.add_argument('--verbose', action='store_true', help='print debug info and save intermediate images')
+parser.add_argument('--manga2eng', action='store_true', help='render English text translated from manga with some typesetting')
+parser.add_argument('--eng-font', default='fonts/comic shanns 2.ttf', type=str, help='font used by manga2eng mode')
 args = parser.parse_args()
 
 def update_state(task_id, nonce, state) :
@@ -173,11 +175,15 @@ async def infer(
 		if mode == 'web' and task_id :
 			update_state(task_id, nonce, 'render')
 		# render translated texts
-		if detector == 'ctd' :
-			from text_rendering import dispatch_ctd_render
-			output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite)
+		if args.target_lang == 'ENG' and args.manga2eng:
+			from text_rendering import dispatch_eng_render
+			output = await dispatch_eng_render(np.copy(img_inpainted), text_regions, translated_sentences, args.eng_font)
 		else:
-			output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite)
+			if detector == 'ctd' :
+				from text_rendering import dispatch_ctd_render
+				output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite)
+			else:
+				output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite)
 		
 		print(' -- Saving results')
 		if alpha_ch is not None :
