@@ -130,11 +130,16 @@ def run_ocr_32px(img: np.ndarray, cuda: bool, quadrilaterals: List[Tuple[Union[Q
 			out_regions.append(cur_region)
 	return out_regions
 
-def run_ocr_48px_ctc(img: np.ndarray, cuda: bool, quadrilaterals: List[Tuple[Quadrilateral, str]], max_chunk_size = 16, verbose: bool = False) :
+def run_ocr_48px_ctc(img: np.ndarray, cuda: bool, quadrilaterals: List[Tuple[Union[Quadrilateral, TextBlock], str]], max_chunk_size = 16, verbose: bool = False) :
 	text_height = 48
 	regions = [q.get_transformed_region(img, d, text_height) for q, d in quadrilaterals]
 	out_regions = []
-	perm = sorted(range(len(regions)), key = lambda x: regions[x].shape[1])
+
+	perm = range(len(regions))
+	if len(quadrilaterals) > 0: 
+		if isinstance(quadrilaterals[0][0], Quadrilateral):
+			perm = sorted(range(len(regions)), key = lambda x: regions[x].shape[1])
+
 	ix = 0
 	for indices in chunks(perm, max_chunk_size) :
 		N = len(indices)
@@ -192,14 +197,23 @@ def run_ocr_48px_ctc(img: np.ndarray, cuda: bool, quadrilaterals: List[Tuple[Qua
 			bb = int(total_bb())
 			print(prob, txt, f'fg: ({fr}, {fg}, {fb})', f'bg: ({br}, {bg}, {bb})')
 			cur_region = quadrilaterals[indices[i]][0]
-			cur_region.text = txt
-			cur_region.prob = prob
-			cur_region.fg_r = fr
-			cur_region.fg_g = fg
-			cur_region.fg_b = fb
-			cur_region.bg_r = br
-			cur_region.bg_g = bg
-			cur_region.bg_b = bb
+			if isinstance(cur_region, Quadrilateral):
+				cur_region.text = txt
+				cur_region.prob = prob
+				cur_region.fg_r = fr
+				cur_region.fg_g = fg
+				cur_region.fg_b = fb
+				cur_region.bg_r = br
+				cur_region.bg_g = bg
+				cur_region.bg_b = bb
+			else:
+				cur_region.text.append(txt)
+				cur_region.fg_r += fr
+				cur_region.fg_g += fg
+				cur_region.fg_b += fb
+				cur_region.bg_r += br
+				cur_region.bg_g += bg
+				cur_region.bg_b += bb
 			out_regions.append(cur_region)
 	return out_regions
 
