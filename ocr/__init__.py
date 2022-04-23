@@ -234,6 +234,6 @@ def generate_text_direction(bboxes: List[Union[Quadrilateral, TextBlock]]) :
 async def dispatch(img: np.ndarray, textlines: List[Union[Quadrilateral, TextBlock]], cuda: bool, args: dict, model_name: str = '32px', batch_size: int = 16, verbose: bool = False) -> List[Quadrilateral] :
 	print(' -- Running OCR')
 	if model_name == '32px' :
-		return run_ocr_32px(img, cuda, list(generate_text_direction(textlines)), batch_size)
+		return run_ocr_32px(img, cuda, list(generate_text_direction(textlines)), batch_size, verbose = verbose)
 	elif model_name == '48px_ctc' :
-		return run_ocr_48px_ctc(img, cuda, list(generate_text_direction(textlines)), batch_size)
+		return run_ocr_48px_ctc(img, cuda, list(generate_text_direction(textlines)), batch_size, verbose = verbose)

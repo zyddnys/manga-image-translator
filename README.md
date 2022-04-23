@@ -9,7 +9,7 @@
 > [中文说明](README_CN.md) | [Change Log](CHANGELOG.md)
 
 Some manga/images will never be translated, therefore this project is born.\
-Primarily designed for translating Japanese text, but also support Chinese and English.\
+Primarily designed for translating Japanese text, but also support Chinese, English and Korean.\
 Support inpainting and text rendering.\
 Successor to <https://github.com/PatchyVideo/MMDOCR-HighPerformance>
 
@@ -48,7 +48,7 @@ $ git clone https://github.com/zyddnys/manga-image-translator.git
 $ pip install -r requirements.txt
 ```
 
-Then, download `ocr.ckpt`, `detect.ckpt`, `comictextdetector.pt`, `comictextdetector.pt.onnx` and `inpainting.ckpt`
+Then, download `ocr.ckpt`, `ocr-ctc.ckpt`, `detect.ckpt`, `comictextdetector.pt`, `comictextdetector.pt.onnx` and `inpainting.ckpt`
 from <https://github.com/zyddnys/manga-image-translator/releases/>, put them in the root directory of this repo.
 
 [Optional if using Google translate]\

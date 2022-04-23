@@ -1,5 +1,13 @@
 # 更新日志 (中文)
 
+### 2022-04-23
+
+版本更新为beta-0.3
+
+1. 增加了来自[dmMaze](https://github.com/pokedexter)的英语文本渲染器
+2. 增加了基于CTC的OCR模型，识别速度大幅提升
+3. 新OCR模型增加韩语识别支持
+
 ### 2022-03-19
 
 1. 增加了来自[pokedexter](https://github.com/pokedexter)的新文本渲染器

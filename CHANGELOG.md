@@ -1,5 +1,13 @@
 # Changelogs
 
+### 2022-04-23
+
+Project version is now at beta-0.3
+
+1. Added English text renderer by [dmMaze](https://github.com/pokedexter)
+2. Added new CTC based OCR engine, significant speed improvement
+3. The new OCR model now support Korean
+
 ### 2022-03-19
 
 1. Use new font rendering method by [pokedexter](https://github.com/pokedexter)
