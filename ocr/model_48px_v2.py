@@ -280,7 +280,7 @@ class OCR(nn.Module) :
 		self.dict_size = len(dictionary)
 		self.backbone = ResNet_FeatureExtractor(3, 320)
 		enc = CustomTransformerEncoderLayer(320, 8, 320 * 4, dropout=0.05,batch_first=True,norm_first=True)
-		self.encoders = nn.TransformerEncoder(enc, 4)
+		self.encoders = nn.TransformerEncoder(enc, 3)
 		self.char_pred_norm = nn.Sequential(nn.LayerNorm(320), nn.Dropout(0.1), nn.GELU())
 		self.char_pred = nn.Linear(320, self.dict_size)
 		self.color_pred1 = nn.Sequential(nn.Linear(320, 6))

@@ -181,7 +181,7 @@ def run_ocr_48px_ctc(img: np.ndarray, cuda: bool, quadrilaterals: List[Tuple[Qua
 	for indices in chunks(perm, max_chunk_size) :
 		N = len(indices)
 		widths = [regions[i].shape[1] for i in indices]
-		max_width = 4 * (max(widths) + 7) // 4
+		max_width = (4 * (max(widths) + 7) // 4) + 128
 		region = np.zeros((N, text_height, max_width, 3), dtype = np.uint8)
 		for i, idx in enumerate(indices) :
 			W = regions[idx].shape[1]
