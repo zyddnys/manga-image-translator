@@ -24,6 +24,7 @@ parser.add_argument('--mode', default='demo', type=str, help='Run demo in either
 parser.add_argument('--image', default='', type=str, help='Image file if using demo mode or Image folder name if using batch mode')
 parser.add_argument('--image-dst', default='', type=str, help='Destination folder for translated images in batch mode')
 parser.add_argument('--size', default=1536, type=int, help='image square size')
+parser.add_argument('--ocr-model', default='48px_ctc', type=str, help='OCR model to use, one of `32px`, `48px_ctc`')
 parser.add_argument('--use-inpainting', action='store_true', help='turn on/off inpainting')
 parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
 parser.add_argument('--force-horizontal', action='store_true', help='force texts rendered horizontally')
@@ -109,7 +110,7 @@ async def infer(
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'ocr')
-	textlines = await dispatch_ocr(img, textlines, args.use_cuda, args, verbose = args.verbose)
+	textlines = await dispatch_ocr(img, textlines, args.use_cuda, args, model_name = args.ocr_model, verbose = args.verbose)
 
 	if detector == 'default' :
 		text_regions, textlines = await dispatch_textline_merge(textlines, img.shape[1], img.shape[0], verbose = args.verbose)
@@ -243,7 +244,7 @@ async def main(mode = 'demo') :
 	text_render.prepare_renderer()
 	with open('alphabet-all-v5.txt', 'r', encoding = 'utf-8') as fp :
 		dictionary = [s[:-1] for s in fp.readlines()]
-	load_ocr_model(dictionary, args.use_cuda)
+	load_ocr_model(dictionary, args.use_cuda, args.ocr_model)
 	from textblockdetector import load_model as load_ctd_model
 	load_ctd_model(args.use_cuda)
 	load_detection_model(args.use_cuda)

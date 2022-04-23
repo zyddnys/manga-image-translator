@@ -12,7 +12,7 @@ import networkx as nx
 
 from .model_32px import OCR as OCR_32px
 from .model_48px import OCR as OCR_48px
-from .model_48px_v2 import OCR as OCR_48px_ctc
+from .model_48px_ctc import OCR as OCR_48px_ctc
 from textblockdetector.textblock import TextBlock
 
 MODEL_32PX = None
@@ -41,7 +41,7 @@ def load_model(dictionary, cuda: bool, model_name: str = '32px') :
 		MODEL_48PX = model
 	elif model_name == '48px_ctc' and MODEL_48PX_CTC is None :
 		model = OCR_48px_ctc(dictionary, 768)
-		sd = torch.load('ocr-oldconv3.ckpt', map_location = 'cpu')
+		sd = torch.load('ocr-ctc.ckpt', map_location = 'cpu')
 		model.load_state_dict(sd['model'] if 'model' in sd else sd)
 		model.eval()
 		if cuda :
@@ -202,7 +202,7 @@ def run_ocr_48px_ctc(img: np.ndarray, cuda: bool, quadrilaterals: List[Tuple[Qua
 			cur_region.bg_b = bb
 			out_regions.append(cur_region)
 	return out_regions
-	
+
 def generate_text_direction(bboxes: List[Union[Quadrilateral, TextBlock]]) :
 	if len(bboxes) > 0:
 		if isinstance(bboxes[0], TextBlock):
@@ -235,3 +235,5 @@ async def dispatch(img: np.ndarray, textlines: List[Union[Quadrilateral, TextBlo
 	print(' -- Running OCR')
 	if model_name == '32px' :
 		return run_ocr_32px(img, cuda, list(generate_text_direction(textlines)), batch_size)
+	elif model_name == '48px_ctc' :
+		return run_ocr_48px_ctc(img, cuda, list(generate_text_direction(textlines)), batch_size)
