@@ -4,7 +4,7 @@
 
 Project version is now at beta-0.3
 
-1. Added English text renderer by [dmMaze](https://github.com/pokedexter)
+1. Added English text renderer by [dmMaze](https://github.com/dmMaze)
 2. Added new CTC based OCR engine, significant speed improvement
 3. The new OCR model now support Korean
 

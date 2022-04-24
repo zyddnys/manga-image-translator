@@ -4,7 +4,7 @@
 
 版本更新为beta-0.3
 
-1. 增加了来自[dmMaze](https://github.com/pokedexter)的英语文本渲染器
+1. 增加了来自[dmMaze](https://github.com/dmMaze)的英语文本渲染器
 2. 增加了基于CTC的OCR模型，识别速度大幅提升
 3. 新OCR模型增加韩语识别支持
 
