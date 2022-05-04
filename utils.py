@@ -7,6 +7,13 @@ import shapely
 from shapely.geometry import Polygon, MultiPoint
 from PIL import Image
 
+try:
+  	functools.cached_property
+except AttributeError: # Supports Python versions below 3.8
+	from backports.cached_property import cached_property
+	functools.cached_property = cached_property
+
+
 class AvgMeter() :
 	def __init__(self) :
 		self.reset()
