@@ -377,7 +377,10 @@ def calc_horizontal(font_size: int, rot: int, text: str, limit_width: int) :
 	line_width_list = []
 	line_str = ""
 	line_width = 0
+	word_str = ""
+	word_width = 0
 	max_width = limit_width + font_size
+	space = False
 	
 	# 1. JPN, CHN : left-align, no spaces, confine to limit_width
 	previous = 0
@@ -386,21 +389,56 @@ def calc_horizontal(font_size: int, rot: int, text: str, limit_width: int) :
 		cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 0)
 		slot = get_char_glyph(cdpt, font_size, 0)
 		bitmap = slot.bitmap
+		next_slot = get_char_glyph(text[min(i+1, len(text)-1)], font_size, 0)
+		next_bitmap = next_slot.bitmap
+		next_is_space = _is_whitespace(text[min(i+1, len(text)-1)]) or _is_punctuation(text[min(i+1, len(text)-1)])
 		# spaces, etc
 		if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width :
 			char_offset_x = slot.advance.x >> 6
+			space = True
 		else :
 			char_offset_x = slot.metrics.horiAdvance >> 6
-		if line_width + char_offset_x > limit_width:
-			line_text_list.append(line_str)
-			line_width_list.append(line_width)
-			line_str = ""
-			line_width = 0
-		line_width += char_offset_x
-		line_str += cdpt
+			space = False
+
+		if space:
+			if line_width + word_width > limit_width or word_width > limit_width:
+				if len(line_str.strip()) > 0: # make sure not to add empty lines
+					line_text_list.append(line_str.strip())
+					line_width_list.append(line_width)
+				line_str = ""
+				line_width = 0
+			line_str += word_str
+			line_width += word_width
+			word_width = 0
+			word_str = ""
+		if line_width + word_width + char_offset_x > limit_width: #force line break mid word
+			if len(word_str) <= 2 or next_is_space: # word is too short or next char would be a space anyway
+				# clear the current line and start a new one
+				if len(line_str.strip()) > 0: # make sure not to add empty lines
+					line_text_list.append(line_str.strip())
+					line_width_list.append(line_width)
+				line_str = ""
+				line_width = 0
+			else:
+				# add a word break with a -
+				word_str += "-"
+				word_width += char_offset_x
+				line_str += word_str
+				line_width += word_width
+				word_width = 0
+				word_str = ""
+				line_text_list.append(line_str.strip())
+				line_width_list.append(line_width)
+				line_str = ""
+				line_width = 0
+		word_str += cdpt
+		word_width += char_offset_x
 		previous = cdpt
+
 	# last char
-	line_text_list.append(line_str)
+	line_str += word_str
+	line_width += word_width
+	line_text_list.append(line_str.strip())
 	line_width_list.append(line_width)
 
 	# 2. ELSE : center-align, break on spaces, can reach max_width if necessary (one word)
