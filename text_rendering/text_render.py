@@ -412,7 +412,7 @@ def calc_horizontal(font_size: int, rot: int, text: str, limit_width: int) :
 			word_width = 0
 			word_str = ""
 		if line_width + word_width + char_offset_x > limit_width: #force line break mid word
-			if len(word_str) <= 2 or next_is_space: # word is too short or next char would be a space anyway
+			if len(word_str) <= 3 or next_is_space: # word is too short or next char would be a space anyway
 				# clear the current line and start a new one
 				if len(line_str.strip()) > 0: # make sure not to add empty lines
 					line_text_list.append(line_str.strip())
