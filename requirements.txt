@@ -17,3 +17,4 @@ sklearn
 deepl
 ImageHash
 kornia
+backports.cached-property
