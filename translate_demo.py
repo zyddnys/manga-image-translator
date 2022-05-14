@@ -267,20 +267,24 @@ async def main(mode = 'demo') :
 		import sys
 		subprocess.Popen([sys.executable, 'web_main.py', nonce, '5003'])
 		while True :
-			task_id, options = get_task(nonce)
-			if task_id :
-				print(f' -- Processing task {task_id}')
-				img, alpha_ch = convert_img(Image.open(f'result/{task_id}/input.png'))
-				img = np.array(img)
-				try :
-					infer_task = asyncio.create_task(infer_safe(img, mode, nonce, options, task_id, alpha_ch = alpha_ch))
-					asyncio.gather(infer_task)
-				except :
-					import traceback
-					traceback.print_exc()
-					update_state(task_id, nonce, 'error')
-			else :
-				await asyncio.sleep(0.1)
+			try :
+				task_id, options = get_task(nonce)
+				if task_id :
+					print(f' -- Processing task {task_id}')
+					img, alpha_ch = convert_img(Image.open(f'result/{task_id}/input.png'))
+					img = np.array(img)
+					try :
+						infer_task = asyncio.create_task(infer_safe(img, mode, nonce, options, task_id, alpha_ch = alpha_ch))
+						asyncio.gather(infer_task)
+					except :
+						import traceback
+						traceback.print_exc()
+						update_state(task_id, nonce, 'error')
+				else :
+					await asyncio.sleep(0.1)
+			except Exception :
+				import traceback
+				traceback.print_exc()
 	elif mode == 'web2' :
 		print(' -- Running in web service mode')
 		print(' -- Waiting for translation tasks')
