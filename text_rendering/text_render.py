@@ -333,7 +333,7 @@ def put_char_vertical(font_size: int, rot: int, cdpt: str, pen_l: Tuple[int, int
 	return char_offset_y
 
 def put_text_vertical(font_size: int, mag_ratio: float, text: str, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
-	bgsize = int(max(font_size * 0.07, 1)) if bg else 0
+	bgsize = int(max(font_size * 0.07, 1)) if bg is not None else 0
 	spacing_y = 0
 	spacing_x = int(font_size * 0.2)
 	rot = 0
@@ -438,7 +438,7 @@ def put_char_horizontal(font_size: int, rot: int, cdpt: str, pen_l: Tuple[int, i
 	return char_offset_x
 
 def put_text_horizontal(font_size: int, mag_ratio: float, text: str, w: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
-	bgsize = int(max(font_size * 0.07, 1)) if bg else 0
+	bgsize = int(max(font_size * 0.07, 1)) if bg is not None else 0
 	spacing_y = int(font_size * 0.2)
 	spacing_x = 0
 	rot = 0
