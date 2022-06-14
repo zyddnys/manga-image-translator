@@ -4,13 +4,14 @@ import cv2
 import numpy as np
 from .inpainting_aot import AOTGenerator
 from .inpainting_lama import get_generator as get_lama_generator
+from .inpainting_lama_mpe import load_lama_mpe, LamaFourier
 from utils import resize_keep_aspect
 
 INPAINTING_MODEL = None
 
 def load_model(cuda: bool, model_name: str = 'default') :
 	global INPAINTING_MODEL
-	if model_name not in ['default', 'lama'] :
+	if model_name not in ['default', 'lama', 'lama_mpe'] :
 		raise Exception
 	if model_name == 'default' and INPAINTING_MODEL is None :
 		model = AOTGenerator()
@@ -28,8 +29,15 @@ def load_model(cuda: bool, model_name: str = 'default') :
 		if cuda :
 			model = model.cuda()
 		INPAINTING_MODEL = model
+	if model_name == 'lama_mpe' and INPAINTING_MODEL is None :
+		model = load_lama_mpe('inpainting_lama_mpe.ckpt', device='cpu')
+		model.eval()
+		if cuda :
+			model = model.cuda()
+		INPAINTING_MODEL = model
 
 async def dispatch(use_inpainting: bool, use_poisson_blending: bool, cuda: bool, img: np.ndarray, mask: np.ndarray, inpainting_size: int = 1024, model_name: str = 'default', verbose: bool = False) -> np.ndarray :
+
 	img_original = np.copy(img)
 	mask_original = np.copy(mask)
 	mask_original[mask_original < 127] = 0
@@ -58,7 +66,10 @@ async def dispatch(use_inpainting: bool, use_poisson_blending: bool, cuda: bool,
 		mask = cv2.resize(mask, (new_w, new_h), interpolation = cv2.INTER_LINEAR)
 	if verbose :
 		print(f'Inpainting resolution: {new_w}x{new_h}')
-	img_torch = torch.from_numpy(img).permute(2, 0, 1).unsqueeze_(0).float() / 127.5 - 1.0
+	if isinstance(INPAINTING_MODEL, LamaFourier):
+		img_torch = torch.from_numpy(img).permute(2, 0, 1).unsqueeze_(0).float() / 255.
+	else:
+		img_torch = torch.from_numpy(img).permute(2, 0, 1).unsqueeze_(0).float() / 127.5 - 1.0
 	mask_torch = torch.from_numpy(mask).unsqueeze_(0).unsqueeze_(0).float() / 255.0
 	mask_torch[mask_torch < 0.5] = 0
 	mask_torch[mask_torch >= 0.5] = 1
@@ -68,7 +79,10 @@ async def dispatch(use_inpainting: bool, use_poisson_blending: bool, cuda: bool,
 	with torch.no_grad() :
 		img_torch *= (1 - mask_torch)
 		img_inpainted_torch = INPAINTING_MODEL(img_torch, mask_torch)
-	img_inpainted = ((img_inpainted_torch.cpu().squeeze_(0).permute(1, 2, 0).numpy() + 1.0) * 127.5).astype(np.uint8)
+	if isinstance(INPAINTING_MODEL, LamaFourier):
+		img_inpainted = (img_inpainted_torch.cpu().squeeze_(0).permute(1, 2, 0).numpy() * 255.).astype(np.uint8)
+	else:
+		img_inpainted = ((img_inpainted_torch.cpu().squeeze_(0).permute(1, 2, 0).numpy() + 1.0) * 127.5).astype(np.uint8)
 	if new_h != height or new_w != width :
 		img_inpainted = cv2.resize(img_inpainted, (width, height), interpolation = cv2.INTER_LINEAR)
 	if use_poisson_blending :

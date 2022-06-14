@@ -26,6 +26,7 @@ parser.add_argument('--image-dst', default='', type=str, help='Destination folde
 parser.add_argument('--size', default=1536, type=int, help='image square size')
 parser.add_argument('--ocr-model', default='48px_ctc', type=str, help='OCR model to use, one of `32px`, `48px_ctc`')
 parser.add_argument('--use-inpainting', action='store_true', help='turn on/off inpainting')
+parser.add_argument('--inpainting-model', default='default', type=str, help='inpainting model to use, one of `default`, `lama_mpe`')
 parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
 parser.add_argument('--force-horizontal', action='store_true', help='force texts rendered horizontally')
 parser.add_argument('--inpainting-size', default=2048, type=int, help='size of image used for inpainting (too large will result in OOM)')
@@ -248,7 +249,7 @@ async def main(mode = 'demo') :
 	from textblockdetector import load_model as load_ctd_model
 	load_ctd_model(args.use_cuda)
 	load_detection_model(args.use_cuda)
-	load_inpainting_model(args.use_cuda)
+	load_inpainting_model(args.use_cuda, args.inpainting_model)
 
 	if mode == 'demo' :
 		print(' -- Running in single image demo mode')
