@@ -1,5 +1,9 @@
 # Changelogs
 
+### 2022-06-15
+
+1. Added New inpainting model LaMa MPE by [dmMaze](https://github.com/dmMaze) and set as default
+
 ### 2022-04-23
 
 Project version is now at beta-0.3

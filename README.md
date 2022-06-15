@@ -53,7 +53,7 @@ On Windows you can download the pre-compiled wheels from <https://www.lfd.uci.ed
 according to your python version and install it with pip.\
 On other platforms, you should be able to install it via `pip install git+https://github.com/lucasb-eyer/pydensecrf.git`.
 
-Then, download `ocr.ckpt`, `ocr-ctc.ckpt`, `detect.ckpt`, `comictextdetector.pt`, `comictextdetector.pt.onnx` and `inpainting.ckpt`
+Then, download `ocr.ckpt`, `ocr-ctc.ckpt`, `detect.ckpt`, `comictextdetector.pt`, `comictextdetector.pt.onnx` and `inpainting_lama_mpe.ckpt`
 from <https://github.com/zyddnys/manga-image-translator/releases/>, put them in the root directory of this repo.
 
 [Optional if using Google translate]\

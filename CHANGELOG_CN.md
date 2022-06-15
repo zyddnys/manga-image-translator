@@ -1,5 +1,9 @@
 # 更新日志 (中文)
 
+### 2022-06-15
+
+1. 增加了来自[dmMaze](https://github.com/dmMaze)的LaMa MPE图像修补模型
+
 ### 2022-04-23
 
 版本更新为beta-0.3
