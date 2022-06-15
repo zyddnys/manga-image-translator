@@ -42,7 +42,13 @@ $ git clone https://github.com/zyddnys/manga-image-translator.git
 $ pip install -r requirements.txt
 ```
 
-之后从 <https://github.com/zyddnys/manga-image-translator/releases/> 下载 `ocr.ckpt`、`ocr-ctc.ckpt`、`detect.ckpt`、`comictextdetector.pt`、`comictextdetector.pt` 和 `inpainting.ckpt`，放到仓库的根目录下。
+注意：`pydensecrf` 并没有作为一个依赖列出，如果你的机器没有安装过，就需要手动安装一下。\
+如果你在使用 Windows，可以尝试在 <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf> (英文)
+找一个对应 Python 版本的预编译包，并使用 `pip` 安装。\
+如果你在使用其它操作系统，可以尝试使用 `pip install git+https://github.com/lucasb-eyer/pydensecrf.git` 安装。
+
+之后从 <https://github.com/zyddnys/manga-image-translator/releases/> 下载
+`ocr.ckpt`、`ocr-ctc.ckpt`、`detect.ckpt`、`comictextdetector.pt`、`comictextdetector.pt` 和 `inpainting.ckpt`，放到仓库的根目录下。
 
 [使用谷歌翻译时可选]\
 申请有道翻译或者 DeepL 的 API，把你的 `APP_KEY` 和 `APP_SECRET` 或 `AUTH_KEY` 写入 `translators/key.py` 中。

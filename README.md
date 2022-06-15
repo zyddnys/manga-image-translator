@@ -48,14 +48,16 @@ $ git clone https://github.com/zyddnys/manga-image-translator.git
 $ pip install -r requirements.txt
 ```
 
+However, `pydensecrf` isn't listed as a dependency, so you need to install it manually.\
+On Windows you can download the pre-compiled wheels from <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf>
+according to your python version and install it with pip.\
+On other platforms, you should be able to install it via `pip install git+https://github.com/lucasb-eyer/pydensecrf.git`.
+
 Then, download `ocr.ckpt`, `ocr-ctc.ckpt`, `detect.ckpt`, `comictextdetector.pt`, `comictextdetector.pt.onnx` and `inpainting.ckpt`
 from <https://github.com/zyddnys/manga-image-translator/releases/>, put them in the root directory of this repo.
 
 [Optional if using Google translate]\
 Apply for Youdao or DeepL translate API, put your `APP_KEY` and `APP_SECRET` or `AUTH_KEY` in `translators/key.py`
-
-If you're facing `pydensecrf` Error on Windows, download the pre-compiled wheels from
-<https://www.lfd.uci.edu/~gohlke/pythonlibs/#pydensecrf> according to your python version and install it with pip.
 
 ### Language Code Reference
 
