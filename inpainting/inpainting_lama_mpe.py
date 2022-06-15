@@ -591,7 +591,7 @@ class LamaFourier:
 		predicted_img = self.generator(img, mask, rel_pos, direct)
 
 		if self.inpaint_only:
-			return predicted_img * mask + (1 - mask) * img
+			return predicted_img# * mask + (1 - mask) * img
 
 		if self.forward_discriminator:
 			predicted_img = predicted_img.detach()
