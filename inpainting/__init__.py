@@ -51,7 +51,7 @@ async def dispatch(use_inpainting: bool, use_poisson_blending: bool, cuda: bool,
 	if max(img.shape[0: 2]) > inpainting_size :
 		img = resize_keep_aspect(img, inpainting_size)
 		mask = resize_keep_aspect(mask, inpainting_size)
-	pad_size = 4
+	pad_size = 8
 	h, w, c = img.shape
 	if h % pad_size != 0 :
 		new_h = (pad_size - (h % pad_size)) + h
