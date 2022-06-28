@@ -47,7 +47,7 @@ def update_state(task_id, nonce, state) :
 
 def get_task(nonce) :
 	try :
-		rjson = requests.get(f'http://127.0.0.1:5003/task-internal?nonce={nonce}').json()
+		rjson = requests.get(f'http://127.0.0.1:5003/task-internal?nonce={nonce}', timeout = 2).json()
 		if 'task_id' in rjson and 'data' in rjson :
 			return rjson['task_id'], rjson['data']
 		else :
@@ -135,9 +135,9 @@ async def infer(
 		update_state(task_id, nonce, 'translating')
 		# in web mode, we can start translation task async
 		if detector == 'ctd':
-			requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]})
+			requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 2)
 		else:
-			requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.text for r in text_regions]})
+			requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.text for r in text_regions]}, timeout = 2)
 
 	print(' -- Running inpainting')
 	if mode == 'web' and task_id :
@@ -154,8 +154,8 @@ async def infer(
 
 	# translate text region texts
 	translated_sentences = None
+	print(' -- Translating')
 	if mode != 'web' :
-		print(' -- Translating')
 		# try:
 		from translators import dispatch as run_translation
 		if detector == 'ctd' :
@@ -170,7 +170,7 @@ async def infer(
 		else :
 			wait_n_10ms = 300 # 30 seconds for machine translation
 		for _ in range(wait_n_10ms) :
-			ret = requests.post('http://127.0.0.1:5003/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}).json()
+			ret = requests.post('http://127.0.0.1:5003/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}, timeout = 2).json()
 			if 'result' in ret :
 				translated_sentences = ret['result']
 				if isinstance(translated_sentences, str) :
@@ -178,10 +178,10 @@ async def infer(
 						update_state(task_id, nonce, 'error-lang')
 						return
 				break
-			await asyncio.sleep(0.1)
+			await asyncio.sleep(0.01)
 
+	print(' -- Rendering translated text')
 	if translated_sentences is not None:
-		print(' -- Rendering translated text')
 		if mode == 'web' and task_id :
 			update_state(task_id, nonce, 'render')
 		# render translated texts
@@ -195,16 +195,16 @@ async def infer(
 			else:
 				output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite)
 		
-		print(' -- Saving results')
-		if alpha_ch is not None :
-			output = np.concatenate([output.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
-		else :
-			output = output.astype(np.uint8)
-		img_pil = Image.fromarray(output)
-		if dst_image_name :
-			img_pil.save(dst_image_name)
-		else :
-			img_pil.save(f'result/{task_id}/final.png')
+	print(' -- Saving results')
+	if alpha_ch is not None :
+		output = np.concatenate([output.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
+	else :
+		output = output.astype(np.uint8)
+	img_pil = Image.fromarray(output)
+	if dst_image_name :
+		img_pil.save(dst_image_name)
+	else :
+		img_pil.save(f'result/{task_id}/final.png')
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'finished')
