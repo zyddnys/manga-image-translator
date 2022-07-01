@@ -159,6 +159,7 @@ async def get_task_async(request) :
 				data = TASK_DATA[task_id]
 				if 'manual' not in TASK_DATA[task_id]:
 					NUM_ONGOING_TASKS += 1
+					print(f'NUM_ONGOING_TASKS = {NUM_ONGOING_TASKS}')
 				return web.json_response({'task_id': task_id, 'data': data})
 			else :
 				return web.json_response({})
@@ -272,6 +273,7 @@ async def post_task_update_async(request) :
 			TASK_STATES[task_id] = rqjson['state']
 			if rqjson['state'] in ['finished', 'error', 'error-lang'] and 'manual' not in TASK_DATA[task_id] :
 				NUM_ONGOING_TASKS -= 1
+				print(f'NUM_ONGOING_TASKS = {NUM_ONGOING_TASKS}')
 			print(f'Task state {task_id} to {TASK_STATES[task_id]}')
 	return web.json_response({})
 

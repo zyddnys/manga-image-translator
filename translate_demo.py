@@ -43,7 +43,15 @@ parser.add_argument('--eng-font', default='fonts/comic shanns 2.ttf', type=str, 
 args = parser.parse_args()
 
 def update_state(task_id, nonce, state) :
-	requests.post('http://127.0.0.1:5003/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 2)
+	while True :
+		try :
+			requests.post('http://127.0.0.1:5003/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 5)
+			return
+		except Exception :
+			if 'error' in state :
+				continue
+			else :
+				break
 
 def get_task(nonce) :
 	try :
@@ -163,7 +171,7 @@ async def infer(
 		else:
 			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.text for r in text_regions])
 
-	else :
+	elif mode == 'web' and task_id :
 		# wait for at most 1 hour for manual translation
 		if 'manual' in options and options['manual'] :
 			wait_n_10ms = 36000
