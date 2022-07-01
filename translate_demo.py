@@ -195,16 +195,16 @@ async def infer(
 			else:
 				output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite)
 		
-	print(' -- Saving results')
-	if alpha_ch is not None :
-		output = np.concatenate([output.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
-	else :
-		output = output.astype(np.uint8)
-	img_pil = Image.fromarray(output)
-	if dst_image_name :
-		img_pil.save(dst_image_name)
-	else :
-		img_pil.save(f'result/{task_id}/final.png')
+		print(' -- Saving results')
+		if alpha_ch is not None :
+			output = np.concatenate([output.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
+		else :
+			output = output.astype(np.uint8)
+		img_pil = Image.fromarray(output)
+		if dst_image_name :
+			img_pil.save(dst_image_name)
+		else :
+			img_pil.save(f'result/{task_id}/final.png')
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'finished')
