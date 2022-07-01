@@ -159,7 +159,7 @@ async def get_task_async(request) :
 				data = TASK_DATA[task_id]
 				if 'manual' not in TASK_DATA[task_id]:
 					NUM_ONGOING_TASKS += 1
-					print(f'NUM_ONGOING_TASKS = {NUM_ONGOING_TASKS}')
+					print(f'NUM_ONGOING_TASKS = {NUM_ONGOING_TASKS}, task_id = {task_id}')
 				return web.json_response({'task_id': task_id, 'data': data})
 			else :
 				return web.json_response({})

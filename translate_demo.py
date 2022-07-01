@@ -56,6 +56,7 @@ def update_state(task_id, nonce, state) :
 def get_task(nonce) :
 	try :
 		rjson = requests.get(f'http://127.0.0.1:5003/task-internal?nonce={nonce}', timeout = 2).json()
+		print(rjson)
 		if 'task_id' in rjson and 'data' in rjson :
 			return rjson['task_id'], rjson['data']
 		else :
