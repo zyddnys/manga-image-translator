@@ -271,13 +271,13 @@ async def main(mode = 'demo') :
 			try :
 				task_id, options = get_task(nonce)
 				if task_id :
-					print(f' -- Processing task {task_id}')
-					img, alpha_ch = convert_img(Image.open(f'result/{task_id}/input.png'))
-					img = np.array(img)
 					try :
+						print(f' -- Processing task {task_id}')
+						img, alpha_ch = convert_img(Image.open(f'result/{task_id}/input.png'))
+						img = np.array(img)
 						infer_task = asyncio.create_task(infer_safe(img, mode, nonce, options, task_id, alpha_ch = alpha_ch))
 						asyncio.gather(infer_task)
-					except :
+					except Exception :
 						import traceback
 						traceback.print_exc()
 						update_state(task_id, nonce, 'error')
