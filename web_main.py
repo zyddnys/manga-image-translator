@@ -157,7 +157,7 @@ async def get_task_async(request) :
 			task_id = QUEUE.popleft()
 			if task_id in TASK_DATA :
 				data = TASK_DATA[task_id]
-				if 'manual' not in TASK_DATA[task_id]:
+				if 'manual' not in TASK_DATA[task_id] :
 					NUM_ONGOING_TASKS += 1
 				return web.json_response({'task_id': task_id, 'data': data})
 			else :

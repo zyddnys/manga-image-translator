@@ -43,16 +43,24 @@ parser.add_argument('--eng-font', default='fonts/comic shanns 2.ttf', type=str, 
 args = parser.parse_args()
 
 def update_state(task_id, nonce, state) :
-	requests.post('http://127.0.0.1:5003/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 2)
+	while True :
+		try :
+			requests.post('http://127.0.0.1:5003/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 10)
+			return
+		except Exception :
+			if 'error' in state or 'finished' in state :
+				continue
+			else :
+				break
 
 def get_task(nonce) :
 	try :
-		rjson = requests.get(f'http://127.0.0.1:5003/task-internal?nonce={nonce}', timeout = 2).json()
+		rjson = requests.get(f'http://127.0.0.1:5003/task-internal?nonce={nonce}', timeout = 3600).json()
 		if 'task_id' in rjson and 'data' in rjson :
 			return rjson['task_id'], rjson['data']
 		else :
 			return None, None
-	except :
+	except Exception :
 		return None, None
 
 async def infer(
@@ -293,12 +301,12 @@ async def main(mode = 'demo') :
 			task_id, options = get_task(nonce)
 			if task_id :
 				print(f' -- Processing task {task_id}')
-				img, alpha_ch = convert_img(Image.open(f'result/{task_id}/input.png'))
-				img = np.array(img)
 				try :
+					img, alpha_ch = convert_img(Image.open(f'result/{task_id}/input.png'))
+					img = np.array(img)
 					infer_task = asyncio.create_task(infer_safe(img, mode, nonce, options, task_id, alpha_ch = alpha_ch))
 					asyncio.gather(infer_task)
-				except :
+				except Exception :
 					import traceback
 					traceback.print_exc()
 					update_state(task_id, nonce, 'error')
