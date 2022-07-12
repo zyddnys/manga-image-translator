@@ -44,13 +44,13 @@ def text_to_word_list(text: str) -> List[str]:
         words.append(word)
     return words
 
-def render_textblock_list_eng(img: np.ndarray, blk_list: List[TextBlock], font_path: str, scale_quality=1.0, align_center=True, size_tol=1.0):
+def render_textblock_list_eng(img: np.ndarray, blk_list: List[TextBlock], font_path: str, scale_quality=1.0, align_center=True, size_tol=1.0, font_size_offset: int = 0):
     pilimg = Image.fromarray(img)
     for blk in blk_list:
         if blk.vertical:
             blk.angle -= 90
         sw_r = 0.1
-        fs = int(blk.font_size / (1 + 2*sw_r) * scale_quality) 
+        fs = int(blk.font_size / (1 + 2*sw_r) * scale_quality) + font_size_offset
         min_bbox = blk.min_rect(rotate_back=False)[0]
         bx, by = min_bbox[0]
         bw, bh = min_bbox[2] - min_bbox[0]

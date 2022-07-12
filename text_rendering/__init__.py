@@ -20,7 +20,7 @@ def fg_bg_compare(fg, bg):
 	return fg, bg
 
 
-async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], textlines: List[Quadrilateral], text_regions: List[Quadrilateral], text_direction_overwrite: str) -> np.ndarray :
+async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], textlines: List[Quadrilateral], text_regions: List[Quadrilateral], text_direction_overwrite: str, font_size_offset: int = 0) -> np.ndarray :
 	for ridx, (trans_text, region) in enumerate(zip(translated_sentences, text_regions)) :
 		if not trans_text :
 			continue
@@ -50,11 +50,11 @@ async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translate
 
 		region_aabb = region.aabb
 		print(region_aabb.x, region_aabb.y, region_aabb.w, region_aabb.h)
-		img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, False)
+		img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, False, font_size_offset)
 	return img_canvas
 
 
-async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], text_regions: List[TextBlock], text_direction_overwrite: str) -> np.ndarray :
+async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], text_regions: List[TextBlock], text_direction_overwrite: str, font_size_offset: int = 0) -> np.ndarray :
 	for ridx, (trans_text, region) in enumerate(zip(translated_sentences, text_regions)) :
 		print(f'text: {region.get_text()} \n trans: {trans_text}')
 		if not trans_text :
@@ -68,17 +68,19 @@ async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer
 		fg, bg = fg_bg_compare(fg, bg)
 		font_size = region.font_size
 		font_size = round(font_size)
+		if not isinstance(font_size, int) :
+			font_size = int(font_size)
 
 		textlines = []
 		for ii, text in enumerate(region.text):
 			textlines.append(Quadrilateral(np.array(region.lines[ii]), text, 1, region.fg_r, region.fg_g, region.fg_b, region.bg_r, region.bg_g, region.bg_b))
 		# region_aabb = region.aabb
 		# print(region_aabb.x, region_aabb.y, region_aabb.w, region_aabb.h)
-		img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, True)
+		img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, True, font_size_offset)
 	return img_canvas
 
 
-def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, is_ctd):
+def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, is_ctd, font_size_offset: int = 0):
 	# round font_size to fixed powers of 2, so later LRU cache can work
 	font_size_enlarged = findNextPowerOf2(font_size) * text_mag_ratio
 	enlarge_ratio = font_size_enlarged / font_size
@@ -97,6 +99,7 @@ def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_d
 			enlarge_ratio *= 1.1
 			continue
 		break
+	font_size += font_size_offset
 	print('font_size:', font_size)
 	if majority_dir == 'h' :
 		temp_box = text_render.put_text_horizontal(
@@ -160,7 +163,7 @@ def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_d
 
 
 
-async def dispatch_eng_render(img_canvas: np.ndarray, text_regions: Union[List[TextBlock], List[Quadrilateral]], translated_sentences: List[str], font_path: str) -> np.ndarray :
+async def dispatch_eng_render(img_canvas: np.ndarray, text_regions: Union[List[TextBlock], List[Quadrilateral]], translated_sentences: List[str], font_path: str, font_size_offset: int = 0) -> np.ndarray :
 	if len(text_regions) == 0:
 		return img_canvas
 	
@@ -174,8 +177,8 @@ async def dispatch_eng_render(img_canvas: np.ndarray, text_regions: Union[List[T
 			font_size = region.font_size * 0.7
 			blk = TextBlock([x, y, w, h], lines=[region.pts], translation=tr, angle=region.angle, font_size=font_size)
 			blk_list.append(blk)
-		return render_textblock_list_eng(img_canvas, blk_list, font_path, size_tol=1.1)
+		return render_textblock_list_eng(img_canvas, blk_list, font_path, size_tol=1.1, font_size_offset = font_size_offset)
 	
 	for blk, tr in zip(text_regions, translated_sentences):
 		blk.translation = tr
-	return render_textblock_list_eng(img_canvas, text_regions, font_path, size_tol=1.2)
+	return render_textblock_list_eng(img_canvas, text_regions, font_path, size_tol=1.2, font_size_offset = font_size_offset)

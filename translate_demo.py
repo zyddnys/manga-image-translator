@@ -34,6 +34,7 @@ parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to
 parser.add_argument('--box-threshold', default=0.7, type=float, help='threshold for bbox generation')
 parser.add_argument('--text-threshold', default=0.5, type=float, help='threshold for text detection')
 parser.add_argument('--text-mag-ratio', default=1, type=int, help='text rendering magnification ratio, larger means higher quality')
+parser.add_argument('--font-size-offset', default=0, type=int, help='offset font size by a given amount, positive number increase font size and vice versa')
 parser.add_argument('--translator', default='google', type=str, help='language translator')
 parser.add_argument('--target-lang', default='CHS', type=str, help='destination language')
 parser.add_argument('--use-ctd', action='store_true', help='use comic-text-detector for text detection')
@@ -195,13 +196,13 @@ async def infer(
 		# render translated texts
 		if args.target_lang == 'ENG' and args.manga2eng:
 			from text_rendering import dispatch_eng_render
-			output = await dispatch_eng_render(np.copy(img_inpainted), text_regions, translated_sentences, args.eng_font)
+			output = await dispatch_eng_render(np.copy(img_inpainted), text_regions, translated_sentences, args.eng_font, args.font_size_offset)
 		else:
 			if detector == 'ctd' :
 				from text_rendering import dispatch_ctd_render
-				output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite)
+				output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, args.font_size_offset)
 			else:
-				output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite)
+				output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite, args.font_size_offset)
 		
 		print(' -- Saving results')
 		if alpha_ch is not None :
