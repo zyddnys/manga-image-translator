@@ -46,7 +46,7 @@ args = parser.parse_args()
 def update_state(task_id, nonce, state) :
 	while True :
 		try :
-			requests.post('http://127.0.0.1:5003/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 10)
+			requests.post('http://127.0.0.1:5003/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 20)
 			return
 		except Exception :
 			if 'error' in state or 'finished' in state :
@@ -144,9 +144,9 @@ async def infer(
 		update_state(task_id, nonce, 'translating')
 		# in web mode, we can start translation task async
 		if detector == 'ctd':
-			requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 2)
+			requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 20)
 		else:
-			requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.text for r in text_regions]}, timeout = 2)
+			requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.text for r in text_regions]}, timeout = 20)
 
 	print(' -- Running inpainting')
 	if mode == 'web' and task_id :
@@ -179,7 +179,7 @@ async def infer(
 		else :
 			wait_n_10ms = 300 # 30 seconds for machine translation
 		for _ in range(wait_n_10ms) :
-			ret = requests.post('http://127.0.0.1:5003/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}, timeout = 2).json()
+			ret = requests.post('http://127.0.0.1:5003/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}, timeout = 20).json()
 			if 'result' in ret :
 				translated_sentences = ret['result']
 				if isinstance(translated_sentences, str) :

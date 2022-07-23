@@ -175,7 +175,7 @@ async def machine_trans_task(task_id, texts, translator = 'youdao', target_langu
 		success = False
 		for i in range(10) :
 			try :
-				TASK_DATA[task_id]['trans_result'] = await asyncio.wait_for(run_translation(translator, 'auto', target_language, texts), timeout = 5)
+				TASK_DATA[task_id]['trans_result'] = await asyncio.wait_for(run_translation(translator, 'auto', target_language, texts), timeout = 15)
 				success = True
 				break
 			except Exception as ex :
