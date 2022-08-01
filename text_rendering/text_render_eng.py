@@ -182,12 +182,12 @@ def layout_lines_with_mask(
 	delimiter: str = ' ',
 	word_break: bool = False)->List[Line]:
 
-	# layout the central line
 	m = cv2.moments(mask)
 	mask = 255 - mask
 	centroid_y = int(m['m01'] / m['m00'])
 	centroid_x = int(m['m10'] / m['m00'])
 	
+	# layout the central line, the center word is approximately aligned with the centroid of the mask
 	num_words = len(words)
 	len_left, len_right = [], []
 	wlst_left, wlst_right = [], []
@@ -319,12 +319,19 @@ def render_textblock_list_eng(
 	line_spacing: float = 1.0,
 	stroke_width: float = 0.1,
 	size_tol=1.0, 
-	ref_textballon=True,
 	ballonarea_thresh=2,
 	downscale_constraint: float = 0.7,
+	ref_textballon=True,
 	original_img: np.ndarray = None,
 ) -> np.ndarray:
 
+	r"""
+	Args:
+		downscale_constraint (float, optional): minimum scaling down ratio, prevent rendered text from being too small
+		ref_textballon (bool, optional): take text balloons as reference for text layout. 
+		original_img (np.ndarray, optional): original image used to extract text balloons.
+	"""
+	
 	def get_font(font_size: int):
 		fs = int(font_size / (1 + 2*stroke_width))
 		font = ImageFont.truetype(font_path, fs)
@@ -354,7 +361,9 @@ def render_textblock_list_eng(
 		font, sw, line_height, delimiter_len, base_length, wl_list = get_font(blk.font_size)
 
 		if ref_textballon:
+			assert original_img is not None
 			br = blk.bounding_rect()
+			# non-dl textballon segmentation
 			ballon_region, ballon_area, xyxy = extract_ballon_region(original_img, br, show_process=False, enlarge_ratio=3.0)
 			# cv2.imshow('ballon_region', ballon_region)
 			# cv2.imshow('cropped', original_img[xyxy[1]:xyxy[3], xyxy[0]:xyxy[2]])
@@ -435,6 +444,7 @@ def render_textblock_list_eng(
 			abs_y = int(abs_cy - raw_lines.height / 2)
 			pilimg.paste(raw_lines, (abs_x, abs_y), mask=raw_lines)
 
+		# older method
 		else:
 			min_bbox = blk.min_rect(rotate_back=False)[0]
 			bx, by = min_bbox[0]
