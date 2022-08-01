@@ -159,6 +159,141 @@ def text_to_word_list(text: str) -> List[str]:
         words.append(word)
     return words
 
+def layout_lines_with_mask(
+    mask: np.ndarray, 
+    words: List[str], 
+    wl_list: List[int], 
+    delimiter_len: int, 
+    line_height: int,
+    delimiter: str = ' ',
+    word_break: bool = False)->List[Line]:
+
+    # layout the central line
+    m = cv2.moments(mask)
+    mask = 255 - mask
+    centroid_y = int(m['m01'] / m['m00'])
+    centroid_x = int(m['m10'] / m['m00'])
+    
+    num_words = len(words)
+    len_left, len_right = [], []
+    wlst_left, wlst_right = [], []
+    sum_left, sum_right = 0, 0
+    if num_words > 1:
+        wl_cumsums = np.cumsum(np.array(wl_list, dtype=np.float64))
+        wl_cumsums -= wl_cumsums[-1] / 2
+        central_index = np.argmin(np.abs(wl_cumsums))
+        if wl_list[central_index] < 0:
+            central_index += 1
+
+        if central_index > 0:
+            wlst_left = words[:central_index]
+            len_left = wl_list[:central_index]
+            sum_left = np.sum(len_left)
+        if central_index < num_words - 1:
+            wlst_right = words[central_index + 1:]
+            len_right = wl_list[central_index + 1:]
+            sum_right = np.sum(len_right)
+    else:
+        central_index = 0
+
+    pos_y = centroid_y - line_height // 2
+    pos_x = centroid_x - wl_list[central_index] // 2
+
+    bh, bw = mask.shape[:2]
+    central_line = Line(words[central_index], pos_x, pos_y, wl_list[central_index])
+    line_bottom = pos_y + line_height
+    while sum_left > 0 or sum_right > 0:
+        insert_left = True
+        if sum_left > sum_right:
+            new_len = central_line.length + len_left[-1] + delimiter_len
+        else:
+            insert_left = False
+            new_len = central_line.length + len_right[0] + delimiter_len
+        new_x = centroid_x - new_len // 2
+        right_x = new_x + new_len
+        if new_x > 0 and right_x < bw:
+            if mask[pos_y: line_bottom, new_x].sum() > 0 or\
+                mask[pos_y: line_bottom, right_x].sum() > 0:
+                break
+            else:
+                if insert_left:
+                    central_line.append_left(wlst_left.pop(-1), len_left[-1] + delimiter_len, delimiter)
+                    sum_left -= len_left.pop(-1)
+                else:
+                    central_line.append_right(wlst_right.pop(0), len_right[0] + delimiter_len, delimiter)
+                    sum_right -= len_right.pop(0)
+                central_line.pos_x = new_x
+        else:
+            break
+
+    raw_lines = [central_line]
+
+    # layout bottom half
+    if sum_right > 0:
+        w, wl = wlst_right.pop(0), len_right.pop(0)
+        pos_x = centroid_x - wl // 2
+        pos_y = centroid_y + line_height // 2
+        line_bottom = pos_y + line_height
+        line = Line(w, pos_x, pos_y, wl)
+        raw_lines.append(line)
+        sum_right -= wl
+        while sum_right > 0:
+            w, wl = wlst_right.pop(0), len_right.pop(0)
+            sum_right -= wl
+            new_len = line.length + wl + delimiter_len
+            new_x = centroid_x - new_len // 2
+            right_x = new_x + new_len
+            if new_x <= 0 or right_x >= bw:
+                line_valid = False
+            elif mask[pos_y: line_bottom, new_x].sum() > 0 or\
+                mask[pos_y: line_bottom, right_x].sum() > 0:
+                line_valid = False
+            else:
+                line_valid = True
+            if line_valid:
+                line.append_right(w, wl+delimiter_len, delimiter)
+                line.pos_x = new_x
+            else:
+                pos_x = centroid_x - wl // 2
+                pos_y = line_bottom
+                line_bottom += line_height
+                line = Line(w, pos_x, pos_y, wl)
+                raw_lines.append(line)
+
+    # layout top half
+    if sum_left > 0:
+        w, wl = wlst_left.pop(-1), len_left.pop(-1)
+        pos_x = centroid_x - wl // 2
+        pos_y = centroid_y - line_height // 2 - line_height
+        line_bottom = pos_y + line_height
+        line = Line(w, pos_x, pos_y, wl)
+        raw_lines.insert(0, line)
+        sum_left -= wl
+        while sum_left > 0:
+            w, wl = wlst_left.pop(-1), len_left.pop(-1)
+            sum_left -= wl
+            new_len = line.length + wl + delimiter_len
+            new_x = centroid_x - new_len // 2
+            right_x = new_x + new_len
+            if new_x <= 0 or right_x >= bw:
+                line_valid = False
+            elif mask[pos_y: line_bottom, new_x].sum() > 0 or\
+                mask[pos_y: line_bottom, right_x].sum() > 0:
+                line_valid = False
+            else:
+                line_valid = True
+            if line_valid:
+                line.append_left(w, wl+delimiter_len, delimiter)
+                line.pos_x = new_x
+            else:
+                pos_x = centroid_x - wl // 2
+                pos_y -= line_height
+                line_bottom = pos_y + line_height
+                line = Line(w, pos_x, pos_y, wl)
+                raw_lines.insert(0, line)
+
+    return raw_lines
+
 def render_textblock_list_eng(img: np.ndarray, blk_list: List[TextBlock], font_path: str, scale_quality=1.0, align_center=True, size_tol=1.0, font_size_offset: int = 0):
     pilimg = Image.fromarray(img)
     for blk in blk_list:
