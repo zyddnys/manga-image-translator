@@ -196,7 +196,7 @@ async def infer(
 		# render translated texts
 		if args.target_lang == 'ENG' and args.manga2eng:
 			from text_rendering import dispatch_eng_render
-			output = await dispatch_eng_render(np.copy(img_inpainted), text_regions, translated_sentences, args.eng_font, args.font_size_offset)
+			output = await dispatch_eng_render(np.copy(img_inpainted), img, text_regions, translated_sentences, args.eng_font)
 		else:
 			if detector == 'ctd' :
 				from text_rendering import dispatch_ctd_render
