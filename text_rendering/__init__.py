@@ -163,7 +163,7 @@ def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_d
 
 
 
-async def dispatch_eng_render(img_canvas: np.ndarray, text_regions: Union[List[TextBlock], List[Quadrilateral]], translated_sentences: List[str], font_path: str, font_size_offset: int = 0) -> np.ndarray :
+async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, text_regions: Union[List[TextBlock], List[Quadrilateral]], translated_sentences: List[str], font_path: str) -> np.ndarray :
 	if len(text_regions) == 0:
 		return img_canvas
 	
@@ -177,8 +177,8 @@ async def dispatch_eng_render(img_canvas: np.ndarray, text_regions: Union[List[T
 			font_size = region.font_size * 0.7
 			blk = TextBlock([x, y, w, h], lines=[region.pts], translation=tr, angle=region.angle, font_size=font_size)
 			blk_list.append(blk)
-		return render_textblock_list_eng(img_canvas, blk_list, font_path, size_tol=1.1, font_size_offset = font_size_offset)
+		return render_textblock_list_eng(img_canvas, blk_list, font_path, size_tol=1.2, original_img=original_img)
 	
 	for blk, tr in zip(text_regions, translated_sentences):
 		blk.translation = tr
-	return render_textblock_list_eng(img_canvas, text_regions, font_path, size_tol=1.2, font_size_offset = font_size_offset)
+	return render_textblock_list_eng(img_canvas, text_regions, font_path, size_tol=1.2, original_img=original_img)
