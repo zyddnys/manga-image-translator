@@ -181,4 +181,4 @@ async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, 
 	
 	for blk, tr in zip(text_regions, translated_sentences):
 		blk.translation = tr
-	return render_textblock_list_eng(img_canvas, text_regions, font_path, size_tol=1.2, original_img=original_img)
+	return render_textblock_list_eng(img_canvas, text_regions, font_path, size_tol=1.2, original_img=original_img, downscale_constraint=0.8)

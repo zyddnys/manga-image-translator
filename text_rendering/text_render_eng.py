@@ -112,7 +112,7 @@ def extract_ballon_region(img: np.ndarray, ballon_rect: List, show_process=False
 	if box_kernel > 1:
 		box_kernel = np.ones((box_kernel,box_kernel),np.uint8)
 		ballon_mask = cv2.dilate(ballon_mask, box_kernel, iterations = 1)
-		# ballon_mask = cv2.erode(ballon_mask, box_kernel, iterations = 1)
+		ballon_mask = cv2.erode(ballon_mask, box_kernel, iterations = 1)
 
 	if scaleR != 1:
 		img = orimg
@@ -214,28 +214,40 @@ def layout_lines_with_mask(
 	central_line = Line(words[central_index], pos_x, pos_y, wl_list[central_index])
 	line_bottom = pos_y + line_height
 	while sum_left > 0 or sum_right > 0:
-		insert_left = True
-		if sum_left > sum_right:
-			new_len = central_line.length + len_left[-1] + delimiter_len
-		else:
-			insert_left = False
-			new_len = central_line.length + len_right[0] + delimiter_len
-		new_x = centroid_x - new_len // 2
-		right_x = new_x + new_len
-		if new_x > 0 and right_x < bw:
-			if mask[pos_y: line_bottom, new_x].sum() > 0 or\
-				mask[pos_y: line_bottom, right_x].sum() > 0:
-				break
-			else:
-				if insert_left:
-					central_line.append_left(wlst_left.pop(-1), len_left[-1] + delimiter_len, delimiter)
-					sum_left -= len_left.pop(-1)
-				else:
-					central_line.append_right(wlst_right.pop(0), len_right[0] + delimiter_len, delimiter)
-					sum_right -= len_right.pop(0)
-				central_line.pos_x = new_x
-		else:
+		left_valid, right_valid = False, False
+
+		if sum_left > 0:
+			new_len_l = central_line.length + len_left[-1] + delimiter_len
+			new_x_l = centroid_x - new_len_l // 2
+			new_r_l = new_x_l + new_len_l
+			if (new_x_l > 0 and new_r_l < bw):
+				if mask[pos_y: line_bottom, new_x_l].sum()==0 and mask[pos_y: line_bottom, new_r_l].sum() == 0:
+					left_valid = True
+		if sum_right > 0:
+			new_len_r = central_line.length + len_right[0] + delimiter_len
+			new_x_r = centroid_x - new_len_r // 2
+			new_r_r = new_x_r + new_len_r
+			if (new_x_r > 0 and new_r_r < bw):
+				if mask[pos_y: line_bottom, new_x_r].sum()==0 and mask[pos_y: line_bottom, new_r_r].sum() == 0:
+					right_valid = True
+
+		insert_left = False
+		if left_valid and right_valid:
+			if sum_left > sum_right:
+				insert_left = True
+		elif left_valid:
+			insert_left = True
+		elif not right_valid:
 			break
+
+		if insert_left:
+			central_line.append_left(wlst_left.pop(-1), len_left[-1] + delimiter_len, delimiter)
+			sum_left -= len_left.pop(-1)
+			central_line.pos_x = new_x_l
+		else:
+			central_line.append_right(wlst_right.pop(0), len_right[0] + delimiter_len, delimiter)
+			sum_right -= len_right.pop(0)
+			central_line.pos_x = new_x_r
 
 	lines = [central_line]
 
@@ -380,13 +392,13 @@ def render_textblock_list_eng(
 			str_length, _ = font.getsize(blk.translation)
 			str_area = str_length * line_height + delimiter_len * (num_words - 1) * line_height
 			area_ratio = ballon_area / str_area
-
 			resize_ratio = 1
 			if area_ratio < ballonarea_thresh:
 				resize_ratio = ballonarea_thresh / area_ratio
 				ballon_area = int(resize_ratio * ballon_area)
-				resize_ratio = np.sqrt(resize_ratio)
+				resize_ratio = min(np.sqrt(resize_ratio), (1 / downscale_constraint) ** 2)
 				rx *= resize_ratio
+				
 				ry *= resize_ratio
 				ballon_region = cv2.resize(ballon_region, (int(resize_ratio * ballon_region.shape[1]), int(resize_ratio * ballon_region.shape[0])))
 
@@ -431,7 +443,7 @@ def render_textblock_list_eng(
 
 			valid_lines_ratio = lines_area / np.sum(cv2.bitwise_and(lines_map, ballon_region))
 			if valid_lines_ratio > 1:
-				resize_ratio = min(resize_ratio * valid_lines_ratio, 1 / downscale_constraint)
+				resize_ratio = min(resize_ratio * valid_lines_ratio, (1 / downscale_constraint) ** 2)
 
 			if rotated:
 				rcx = rel_cx * r_cos - rel_cy * r_sin
@@ -446,16 +458,13 @@ def render_textblock_list_eng(
 			
 			if resize_ratio != 1:
 				raw_lines = raw_lines.resize((int(raw_lines.width / resize_ratio), int(raw_lines.height / resize_ratio)))
-
 			abs_x = int(abs_cx - raw_lines.width / 2)
 			abs_y = int(abs_cy - raw_lines.height / 2)
 			pilimg.paste(raw_lines, (abs_x, abs_y), mask=raw_lines)
-
-			cv2.imshow('ballon_region', ballon_region)
-			cv2.imshow('cropped', original_img[xyxy[1]:xyxy[3], xyxy[0]:xyxy[2]])
-			cv2.imshow('raw_lines', np.array(raw_lines))
-			cv2.waitKey(0)
-
+			# cv2.imshow('ballon_region', ballon_region)
+			# cv2.imshow('cropped', original_img[xyxy[1]:xyxy[3], xyxy[0]:xyxy[2]])
+			# cv2.imshow('raw_lines', np.array(raw_lines))
+			# cv2.waitKey(0)
 		# older method
 		else:
 			min_bbox = blk.min_rect(rotate_back=False)[0]
@@ -496,5 +505,5 @@ def render_textblock_list_eng(
 			
 			pilimg.paste(raw_lines, (paste_x, paste_y), mask=raw_lines)
 
-	pilimg.show()
+	# pilimg.show()
 	return np.array(pilimg)
