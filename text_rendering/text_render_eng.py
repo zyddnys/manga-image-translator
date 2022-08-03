@@ -77,13 +77,10 @@ def extract_ballon_region(img: np.ndarray, ballon_rect: List, show_process=False
 	cpimg = cv2.GaussianBlur(img,(3,3),cv2.BORDER_DEFAULT)
 	detected_edges = cv2.Canny(cpimg, 70, 140, L2gradient=True, apertureSize=3)
 	cv2.rectangle(detected_edges, (0, 0), (w-1, h-1), WHITE, 1, cv2.LINE_8)
-
 	cons, hiers = cv2.findContours(detected_edges, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
-
 	cv2.rectangle(detected_edges, (0, 0), (w-1, h-1), BLACK, 1, cv2.LINE_8)
 
 	ballon_mask, outer_index = np.zeros((h, w), np.uint8), -1
-
 	min_retval = np.inf
 	mask = np.zeros((h, w), np.uint8)
 	difres = 10
@@ -115,6 +112,7 @@ def extract_ballon_region(img: np.ndarray, ballon_rect: List, show_process=False
 	if box_kernel > 1:
 		box_kernel = np.ones((box_kernel,box_kernel),np.uint8)
 		ballon_mask = cv2.dilate(ballon_mask, box_kernel, iterations = 1)
+		# ballon_mask = cv2.erode(ballon_mask, box_kernel, iterations = 1)
 
 	if scaleR != 1:
 		img = orimg
@@ -198,7 +196,6 @@ def layout_lines_with_mask(
 		central_index = np.argmin(np.abs(wl_cumsums))
 		if wl_list[central_index] < 0:
 			central_index += 1
-
 		if central_index > 0:
 			wlst_left = words[:central_index]
 			len_left = wl_list[:central_index]
@@ -240,7 +237,7 @@ def layout_lines_with_mask(
 		else:
 			break
 
-	raw_lines = [central_line]
+	lines = [central_line]
 
 	# layout bottom half
 	if sum_right > 0:
@@ -249,7 +246,7 @@ def layout_lines_with_mask(
 		pos_y = centroid_y + line_height // 2
 		line_bottom = pos_y + line_height
 		line = Line(w, pos_x, pos_y, wl)
-		raw_lines.append(line)
+		lines.append(line)
 		sum_right -= wl
 		while sum_right > 0:
 			w, wl = wlst_right.pop(0), len_right.pop(0)
@@ -272,7 +269,7 @@ def layout_lines_with_mask(
 				pos_y = line_bottom
 				line_bottom += line_height
 				line = Line(w, pos_x, pos_y, wl)
-				raw_lines.append(line)
+				lines.append(line)
 
 	# layout top half
 	if sum_left > 0:
@@ -281,7 +278,7 @@ def layout_lines_with_mask(
 		pos_y = centroid_y - line_height // 2 - line_height
 		line_bottom = pos_y + line_height
 		line = Line(w, pos_x, pos_y, wl)
-		raw_lines.insert(0, line)
+		lines.insert(0, line)
 		sum_left -= wl
 		while sum_left > 0:
 			w, wl = wlst_left.pop(-1), len_left.pop(-1)
@@ -304,9 +301,9 @@ def layout_lines_with_mask(
 				pos_y -= line_height
 				line_bottom = pos_y + line_height
 				line = Line(w, pos_x, pos_y, wl)
-				raw_lines.insert(0, line)
+				lines.insert(0, line)
 
-	return raw_lines
+	return lines
 
 def render_textblock_list_eng(
 	img: np.ndarray, 
@@ -318,10 +315,10 @@ def render_textblock_list_eng(
 	align_center=True, 
 	line_spacing: float = 1.0,
 	stroke_width: float = 0.1,
-	size_tol=1.0, 
-	ballonarea_thresh=2,
+	size_tol: float = 1.0, 
+	ballonarea_thresh: float = 2,
 	downscale_constraint: float = 0.7,
-	ref_textballon=True,
+	ref_textballon: bool = True,
 	original_img: np.ndarray = None,
 ) -> np.ndarray:
 
@@ -364,11 +361,9 @@ def render_textblock_list_eng(
 			assert original_img is not None
 			br = blk.bounding_rect()
 			# non-dl textballon segmentation
-			ballon_region, ballon_area, xyxy = extract_ballon_region(original_img, br, show_process=False, enlarge_ratio=3.0)
-			# cv2.imshow('ballon_region', ballon_region)
-			# cv2.imshow('cropped', original_img[xyxy[1]:xyxy[3], xyxy[0]:xyxy[2]])
-			# cv2.waitKey(0)
-			rotated, r_x, r_y = False, 0, 0
+			enlarge_ratio = min(max(br[2] / br[3], br[3] / br[2]), 3.0)
+			ballon_region, ballon_area, xyxy = extract_ballon_region(original_img, br, show_process=False, enlarge_ratio=enlarge_ratio)
+			rotated, rx, ry = False, 0, 0
 			if abs(blk.angle) > 3:
 				d = np.deg2rad(blk.angle)
 				r_sin = np.sin(d)
@@ -377,9 +372,9 @@ def render_textblock_list_eng(
 				rotated_ballon_region = Image.fromarray(ballon_region).rotate(blk.angle, expand=True)
 				rotated_ballon_region = np.array(rotated_ballon_region)
 				if blk.angle > 0:
-					r_y = abs(ballon_region.shape[1] * r_sin)
+					ry = abs(ballon_region.shape[1] * r_sin)
 				else:
-					r_x = abs(ballon_region.shape[0] * r_sin)
+					rx = abs(ballon_region.shape[0] * r_sin)
 				ballon_region = rotated_ballon_region
 
 			str_length, _ = font.getsize(blk.translation)
@@ -391,11 +386,12 @@ def render_textblock_list_eng(
 				resize_ratio = ballonarea_thresh / area_ratio
 				ballon_area = int(resize_ratio * ballon_area)
 				resize_ratio = np.sqrt(resize_ratio)
-				r_x *= resize_ratio
-				r_y *= resize_ratio
+				rx *= resize_ratio
+				ry *= resize_ratio
 				ballon_region = cv2.resize(ballon_region, (int(resize_ratio * ballon_region.shape[1]), int(resize_ratio * ballon_region.shape[0])))
 
 			region_x, region_y, region_w, region_h = cv2.boundingRect(cv2.findNonZero(ballon_region))
+		
 			new_fnt_size = max(region_w / (base_length + 2*sw), downscale_constraint)
 			if new_fnt_size < 1:
 				font, sw, line_height, delimiter_len, base_length, wl_list = get_font(int(blk.font_size * new_fnt_size))
@@ -404,7 +400,7 @@ def render_textblock_list_eng(
 			
 			line_cy = np.array([line.pos_y for line in lines]).mean() + line_height / 2
 			region_cy = region_y + region_h / 2
-			y_offset = np.clip(region_cy - line_cy, -line_height, line_height)
+			y_offset = int(round(np.clip(region_cy - line_cy, -line_height, line_height)))
 
 			pos_x_lst, pos_right_lst = [], []
 			for line in lines:
@@ -418,13 +414,24 @@ def render_textblock_list_eng(
 
 			canvas_h = int(canvas_b - canvas_t)
 			canvas_w = int(canvas_r - canvas_l)
+			lines_map = np.zeros_like(ballon_region, dtype=np.uint8)
 			for line in lines:
+				# line.pos_y += y_offset
+				cv2.rectangle(lines_map, (line.pos_x - sw, line.pos_y + y_offset), (line.pos_x + line.length + sw, line.pos_y + line_height), 255, -1)
 				line.pos_x -= canvas_l
 				line.pos_y -= canvas_t
 			
 			raw_lines = render_lines(lines, canvas_h, canvas_w, font, sw, font_color, stroke_color)
-			rel_cx = ((canvas_l + canvas_r) / 2 - r_x) / resize_ratio
-			rel_cy = ((canvas_t + canvas_b) / 2 + y_offset - r_y) / resize_ratio
+			rel_cx = ((canvas_l + canvas_r) / 2 - rx) / resize_ratio
+			rel_cy = ((canvas_t + canvas_b) / 2 - ry + y_offset) / resize_ratio
+
+			lines_area = np.sum(lines_map)
+			lines_area += (max(0, region_y - canvas_t) + max(0, canvas_b - region_h - region_y)) * canvas_w * 255 \
+			 + (max(0, region_x - canvas_l) + max(0, canvas_r - region_w - region_x)) * canvas_h * 255
+
+			valid_lines_ratio = lines_area / np.sum(cv2.bitwise_and(lines_map, ballon_region))
+			if valid_lines_ratio > 1:
+				resize_ratio = min(resize_ratio * valid_lines_ratio, 1 / downscale_constraint)
 
 			if rotated:
 				rcx = rel_cx * r_cos - rel_cy * r_sin
@@ -443,6 +450,11 @@ def render_textblock_list_eng(
 			abs_x = int(abs_cx - raw_lines.width / 2)
 			abs_y = int(abs_cy - raw_lines.height / 2)
 			pilimg.paste(raw_lines, (abs_x, abs_y), mask=raw_lines)
+
+			cv2.imshow('ballon_region', ballon_region)
+			cv2.imshow('cropped', original_img[xyxy[1]:xyxy[3], xyxy[0]:xyxy[2]])
+			cv2.imshow('raw_lines', np.array(raw_lines))
+			cv2.waitKey(0)
 
 		# older method
 		else:
@@ -484,5 +496,5 @@ def render_textblock_list_eng(
 			
 			pilimg.paste(raw_lines, (paste_x, paste_y), mask=raw_lines)
 
-	# pilimg.show()
+	pilimg.show()
 	return np.array(pilimg)
