@@ -141,35 +141,23 @@ def render_lines(
 		d.text((line.pos_x, line.pos_y), line.text, font=font, fill=font_color, stroke_width=stroke_width, stroke_fill=stroke_color)
 	return c
 
-def text_to_word_list(text: str) -> List[str]:
-	text = text.upper().replace('  ', ' ')
+def seg_eng(text: str) -> List[str]:
+	text = text.upper().replace('  ', ' ').replace(' .', '.').replace('\n', ' ')
 	processed_text = ''
 
 	# dumb way to insure spaces between words
 	text_len = len(text)
 	for ii, c in enumerate(text):
-			if c in ['.', '?', '!'] and ii < text_len - 1:
-				next_c = text[ii + 1]
-				if next_c.isalpha() or next_c.isnumeric():
-					processed_text += c + ' '
-				else:
-					processed_text += c
+		if c in ['.', '?', '!'] and ii < text_len - 1:
+			next_c = text[ii + 1]
+			if next_c.isalpha() or next_c.isnumeric():
+				processed_text += c + ' '
 			else:
 				processed_text += c
-	word_list = processed_text.split(' ')
-	words = []
-	skip_next = False
-	word_num = len(word_list)
-	for ii, word in enumerate(word_list):
-		if skip_next:
-			skip_next = False
-			continue
-		if ii < word_num - 1:
-			if len(word) == 1 or len(word_list[ii + 1]) == 1:
-				skip_next = True
-				word = word + ' ' + word_list[ii + 1]
-		words.append(word)
-	return words
+		else:
+			processed_text += c
+
+	return processed_text.split(' ')
 
 def layout_lines_with_mask(
 	mask: np.ndarray, 
@@ -362,7 +350,7 @@ def render_textblock_list_eng(
 	for blk in blk_list:
 		if blk.vertical:
 			blk.angle -= 90
-		words = text_to_word_list(blk.translation)
+		words = seg_eng(blk.translation)
 		num_words = len(words)
 		if not num_words:
 			continue
@@ -376,15 +364,24 @@ def render_textblock_list_eng(
 			enlarge_ratio = min(max(br[2] / br[3], br[3] / br[2]), 3.0)
 			ballon_region, ballon_area, xyxy = extract_ballon_region(original_img, br, show_process=False, enlarge_ratio=enlarge_ratio)
 			rotated, rx, ry = False, 0, 0
-			if abs(blk.angle) > 3:
-				d = np.deg2rad(blk.angle)
-				r_sin = np.sin(d)
-				r_cos = np.cos(d)
+			angle = blk.angle
+			if abs(angle) > 3:
 				rotated = True
+				rad = np.deg2rad(angle)
+				r_sin = np.sin(rad)
+				r_cos = np.cos(rad)
 				rotated_ballon_region = Image.fromarray(ballon_region).rotate(blk.angle, expand=True)
 				rotated_ballon_region = np.array(rotated_ballon_region)
-				if blk.angle > 0:
+
+				angle %= 360
+				if angle > 0 and angle <= 90:
 					ry = abs(ballon_region.shape[1] * r_sin)
+				elif angle > 90 and angle <= 180:
+					rx = abs(ballon_region.shape[1] * r_cos)
+					ry = rotated_ballon_region.shape[0]	
+				elif angle > 180 and angle <= 270:
+					ry = abs(ballon_region.shape[0] * r_cos)
+					rx = rotated_ballon_region.shape[1]
 				else:
 					rx = abs(ballon_region.shape[0] * r_sin)
 				ballon_region = rotated_ballon_region
@@ -398,7 +395,6 @@ def render_textblock_list_eng(
 				ballon_area = int(resize_ratio * ballon_area)
 				resize_ratio = min(np.sqrt(resize_ratio), (1 / downscale_constraint) ** 2)
 				rx *= resize_ratio
-				
 				ry *= resize_ratio
 				ballon_region = cv2.resize(ballon_region, (int(resize_ratio * ballon_region.shape[1]), int(resize_ratio * ballon_region.shape[0])))
 
