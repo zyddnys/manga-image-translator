@@ -24,6 +24,9 @@ parser.add_argument('--mode', default='demo', type=str, help='Run demo in either
 parser.add_argument('--image', default='', type=str, help='Image file if using demo mode or Image folder name if using batch mode')
 parser.add_argument('--image-dst', default='', type=str, help='Destination folder for translated images in batch mode')
 parser.add_argument('--size', default=1536, type=int, help='image square size')
+parser.add_argument('--host', default='127.0.0.1', type=str, help='Used by web module to decide which host to attach to')
+parser.add_argument('--port', default=5003, type=int, help='Used by web module to decide which port to attach to')
+parser.add_argument('--log-web', action='store_true', help='Used by web module to decide if web logs should be surfaced')
 parser.add_argument('--ocr-model', default='48px_ctc', type=str, help='OCR model to use, one of `32px`, `48px_ctc`')
 parser.add_argument('--use-inpainting', action='store_true', help='turn on/off inpainting')
 parser.add_argument('--inpainting-model', default='lama_mpe', type=str, help='inpainting model to use, one of `lama_mpe`')
@@ -46,7 +49,7 @@ args = parser.parse_args()
 def update_state(task_id, nonce, state) :
 	while True :
 		try :
-			requests.post('http://127.0.0.1:5003/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 20)
+			requests.post(f'http://{args.host}:{args.port}/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 20)
 			return
 		except Exception :
 			if 'error' in state or 'finished' in state :
@@ -56,7 +59,7 @@ def update_state(task_id, nonce, state) :
 
 def get_task(nonce) :
 	try :
-		rjson = requests.get(f'http://127.0.0.1:5003/task-internal?nonce={nonce}', timeout = 3600).json()
+		rjson = requests.get(f'http://{args.host}:{args.port}/task-internal?nonce={nonce}', timeout = 3600).json()
 		if 'task_id' in rjson and 'data' in rjson :
 			return rjson['task_id'], rjson['data']
 		else :
@@ -144,9 +147,9 @@ async def infer(
 		update_state(task_id, nonce, 'translating')
 		# in web mode, we can start translation task async
 		if detector == 'ctd':
-			requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 20)
+			requests.post(f'http://{args.host}:{args.port}/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 20)
 		else:
-			requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.text for r in text_regions]}, timeout = 20)
+			requests.post(f'http://{args.host}:{args.port}/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.text for r in text_regions]}, timeout = 20)
 
 	print(' -- Running inpainting')
 	if mode == 'web' and task_id :
@@ -179,7 +182,7 @@ async def infer(
 		else :
 			wait_n_10ms = 300 # 30 seconds for machine translation
 		for _ in range(wait_n_10ms) :
-			ret = requests.post('http://127.0.0.1:5003/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}, timeout = 20).json()
+			ret = requests.post(f'http://{args.host}:{args.port}/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}, timeout = 20).json()
 			if 'result' in ret :
 				translated_sentences = ret['result']
 				if isinstance(translated_sentences, str) :
@@ -191,6 +194,7 @@ async def infer(
 
 	print(' -- Rendering translated text')
 	if translated_sentences is not None:
+		
 		if mode == 'web' and task_id :
 			update_state(task_id, nonce, 'render')
 		# render translated texts
@@ -275,7 +279,11 @@ async def main(mode = 'demo') :
 		nonce = crypto_utils.rand_bytes(16).hex()
 		import subprocess
 		import sys
-		subprocess.Popen([sys.executable, 'web_main.py', nonce, '5003'])
+
+		extra_web_args = {'stdout':sys.stdout, 'stderr':sys.stderr} if args.log_web else {}
+		print(extra_web_args)
+		subprocess.Popen([sys.executable, '-u', 'web_main.py', nonce, str(args.host), str(args.port)], **extra_web_args)
+		
 		while True :
 			try :
 				task_id, options = get_task(nonce)

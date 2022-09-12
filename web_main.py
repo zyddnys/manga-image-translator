@@ -331,12 +331,13 @@ async def start_async_app() :
 	# schedule web server to run
 	global NONCE
 	NONCE = sys.argv[1]
-	port = int(sys.argv[2])
+	host = sys.argv[2]
+	port = int(sys.argv[3])
 	runner = web.AppRunner(app)
 	await runner.setup()
-	site = web.TCPSite(runner, '127.0.0.1', port)
+	site = web.TCPSite(runner, host, port)
 	await site.start()
-	print(f"Serving up app on http://127.0.0.1:{port}")
+	print(f"Serving up app on http://{host}:{port}")
 	return runner, site
 
 if __name__ == '__main__' :
