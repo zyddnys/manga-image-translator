@@ -11,8 +11,6 @@ services:
       - ./result:/app/result
     ports:
       - 5003:5003
-    environment:
-      PYTHON_VERSION: 3.8
     ipc: host
     deploy:
       resources:

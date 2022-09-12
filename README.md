@@ -58,6 +58,9 @@ from <https://github.com/zyddnys/manga-image-translator/releases/>, put them in 
 [Optional if using Google translate]\
 Apply for Youdao or DeepL translate API, put your `APP_KEY` and `APP_SECRET` or `AUTH_KEY` in `translators/key.py`
 
+## Docker
+This project has docker support under `ryanolee/manga-image-translator` image. This docker image contains all required dependencies / models for the project. It should be noted that this image is fairly large (~ 5GB).
+
 ### Language Code Reference
 
 Used by the `--target-lang` argument.

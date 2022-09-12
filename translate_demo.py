@@ -281,7 +281,6 @@ async def main(mode = 'demo') :
 		import sys
 
 		extra_web_args = {'stdout':sys.stdout, 'stderr':sys.stderr} if args.log_web else {}
-		print(extra_web_args)
 		subprocess.Popen([sys.executable, '-u', 'web_main.py', nonce, str(args.host), str(args.port)], **extra_web_args)
 		
 		while True :

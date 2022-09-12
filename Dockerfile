@@ -3,8 +3,6 @@ FROM pytorch/pytorch:latest
 ARG RELEASE_VERSION=beta-0.3
 ARG ASSET_BASE_URL=https://github.com/zyddnys/manga-image-translator/releases/download
 
-ENV PYTHON_VERSION=3.8
-
 WORKDIR /app
 
 # Assume root to install required dependencies
@@ -31,4 +29,4 @@ ADD ${ASSET_BASE_URL}/${RELEASE_VERSION}/ocr.ckpt \
 # Copy app
 COPY . /app
 
-CMD ["python", "-u", "/app/translate_demo.py"]
+ENTRYPOINT ["python", "-u", "/app/translate_demo.py"]
