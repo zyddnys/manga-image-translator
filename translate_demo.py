@@ -193,31 +193,35 @@ async def infer(
 			await asyncio.sleep(0.01)
 
 	print(' -- Rendering translated text')
-	if translated_sentences is not None:
-		
+	if translated_sentences == None:
 		if mode == 'web' and task_id :
-			update_state(task_id, nonce, 'render')
-		# render translated texts
-		if args.target_lang == 'ENG' and args.manga2eng:
-			from text_rendering import dispatch_eng_render
-			output = await dispatch_eng_render(np.copy(img_inpainted), img, text_regions, translated_sentences, args.eng_font)
+			print("No text found!")
+			update_state(task_id, nonce, 'error-no-txt')
+		return
+	
+	if mode == 'web' and task_id :
+		update_state(task_id, nonce, 'render')
+	# render translated texts
+	if args.target_lang == 'ENG' and args.manga2eng:
+		from text_rendering import dispatch_eng_render
+		output = await dispatch_eng_render(np.copy(img_inpainted), img, text_regions, translated_sentences, args.eng_font)
+	else:
+		if detector == 'ctd' :
+			from text_rendering import dispatch_ctd_render
+			output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, args.font_size_offset)
 		else:
-			if detector == 'ctd' :
-				from text_rendering import dispatch_ctd_render
-				output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, args.font_size_offset)
-			else:
-				output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite, args.font_size_offset)
-		
-		print(' -- Saving results')
-		if alpha_ch is not None :
-			output = np.concatenate([output.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
-		else :
-			output = output.astype(np.uint8)
-		img_pil = Image.fromarray(output)
-		if dst_image_name :
-			img_pil.save(dst_image_name)
-		else :
-			img_pil.save(f'result/{task_id}/final.png')
+			output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite, args.font_size_offset)
+	
+	print(' -- Saving results')
+	if alpha_ch is not None :
+		output = np.concatenate([output.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
+	else :
+		output = output.astype(np.uint8)
+	img_pil = Image.fromarray(output)
+	if dst_image_name :
+		img_pil.save(dst_image_name)
+	else :
+		img_pil.save(f'result/{task_id}/final.png')
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'finished')
@@ -281,7 +285,9 @@ async def main(mode = 'demo') :
 		import sys
 
 		extra_web_args = {'stdout':sys.stdout, 'stderr':sys.stderr} if args.log_web else {}
-		subprocess.Popen([sys.executable, '-u', 'web_main.py', nonce, str(args.host), str(args.port)], **extra_web_args)
+		web_executable = [sys.executable, '-u'] if args.log_web else [sys.executable]
+		web_process_args = ['web_main.py', nonce, str(args.host), str(args.port)]
+		subprocess.Popen([*web_executable, *web_process_args], **extra_web_args)
 		
 		while True :
 			try :

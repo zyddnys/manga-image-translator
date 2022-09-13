@@ -187,7 +187,7 @@ POST 提交一个带图片，名字是 file 的 form 到 <http://127.0.0.1:5003/
 
 |                                          原始图片                                           |         翻译后图片          |
 | :-----------------------------------------------------------------------------------------: | :-------------------------: |
-|        ![Original](demo/original1.jpg "https://www.pixiv.net/en/artworks/85200179")         | ![Output](demo/result1.png) |
-| ![Original](demo/original2.jpg "https://twitter.com/mmd_96yuki/status/1320122899005460481") | ![Output](demo/result2.png) |
-| ![Original](demo/original3.jpg "https://twitter.com/_taroshin_/status/1231099378779082754") | ![Output](demo/result3.png) |
-|           ![Original](demo/original4.jpg "https://amagi.fanbox.cc/posts/1904941")           | ![Output](demo/result4.png) |
+|        ![Original](demo/image/original1.jpg "https://www.pixiv.net/en/artworks/85200179")         | ![Output](demo/image/result1.png) |
+| ![Original](demo/image/original2.jpg "https://twitter.com/mmd_96yuki/status/1320122899005460481") | ![Output](demo/image/result2.png) |
+| ![Original](demo/image/original3.jpg "https://twitter.com/_taroshin_/status/1231099378779082754") | ![Output](demo/image/result3.png) |
+|           ![Original](demo/image/original4.jpg "https://amagi.fanbox.cc/posts/1904941")           | ![Output](demo/image/result4.png) |

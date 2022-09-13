@@ -204,7 +204,7 @@ async def post_translation_result(request) :
 			TASK_DATA[task_id]['trans_result'] = trans_result
 			while True :
 				await asyncio.sleep(0.1)
-				if TASK_STATES[task_id] in ['error', 'error-lang'] :
+				if TASK_STATES[task_id] in ['error', 'error-lang', 'error-no-txt'] :
 					ret = web.json_response({'task_id' : task_id, 'status': 'failed'})
 					break
 				if TASK_STATES[task_id] == 'finished' :
