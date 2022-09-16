@@ -113,6 +113,8 @@ async def handle_post(request) :
 		return web.json_response({'status' : 'failed'})
 	try :
 		img = Image.open(io.BytesIO(content))
+		if max(img.width, img.height) > 3500 :
+			return web.json_response({'status' : 'failed'})
 	except :
 		return web.json_response({'status' : 'failed'})
 	return img, size, selected_translator, target_language, detector, direction
