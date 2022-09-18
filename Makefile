@@ -1,4 +1,4 @@
-build:
+build-image:
 	docker rmi manga-image-translator || true
 	docker build . --tag=manga-image-translator
 

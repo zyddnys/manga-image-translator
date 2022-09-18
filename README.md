@@ -196,10 +196,11 @@ docker-compose -f demo/doc/docker-compose-web-with-cpu.yml up
 depending on which you prefer. The web server should start on port [5003](http://localhost:5003) and images should become in the `/result` folder.
 
 ### Docker - Using as CLI
-To use docker with the CLI 
+To use docker with the CLI (I.e in batch mode) 
 ```bash
-docker run -v ./<targetFolder>:/app/<targetFolder> -v ./<targetFolder>-translated:/app/<targetFolder>-translated  --ipc=host --rm ryanolee/manga-image-translator <cli flags>
+docker run -v <targetFolder>:/app/<targetFolder> -v <targetFolder>-translated:/app/<targetFolder>-translated  --ipc=host --rm ryanolee/manga-image-translator --mode=batch --image=/app/<targetFolder> <cli flags>
 ```
+
 **Note:** In the event you need to reference files on your host machine you will need to mount the associated files as volumes into the `/app` folder inside the container. Paths for the CLI will need to be the internal docker path `/app/...` instead of the paths on your host machine
 
 ### Docker - Setting Translation Secrets
@@ -221,6 +222,15 @@ Or  (For the web server + GPU)
 docker-compose -f demo/doc/docker-compose-web-with-gpu.yml up
 ```
 
+### Docker - Building locally
+To build the docker image locally you can run (You will require make on your machine)
+```bash
+make build-image
+```
+Then to test the built image run
+```
+make run-web-server
+```
 ## Next steps
 
 A list of what needs to be done next, you're welcome to contribute.
