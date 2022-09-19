@@ -76,7 +76,7 @@ class CustomTransformerEncoderLayer(nn.Module):
 		self.norm2 = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
 		self.dropout1 = nn.Dropout(dropout)
 		self.dropout2 = nn.Dropout(dropout)
-		self.pe = PositionalEncoding(d_model, max_len = 768)
+		self.pe = PositionalEncoding(d_model, max_len = 2048)
 
 		self.activation = F.gelu
 

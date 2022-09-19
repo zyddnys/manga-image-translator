@@ -42,7 +42,11 @@ def load_model(dictionary, cuda: bool, model_name: str = '32px') :
 	elif model_name == '48px_ctc' and MODEL_48PX_CTC is None :
 		model = OCR_48px_ctc(dictionary, 768)
 		sd = torch.load('ocr-ctc.ckpt', map_location = 'cpu')
-		model.load_state_dict(sd['model'] if 'model' in sd else sd)
+		sd = sd['model'] if 'model' in sd else sd
+		del sd['encoders.layers.0.pe.pe']
+		del sd['encoders.layers.1.pe.pe']
+		del sd['encoders.layers.2.pe.pe']
+		model.load_state_dict(sd, strict = False)
 		model.eval()
 		if cuda :
 			model = model.cuda()
