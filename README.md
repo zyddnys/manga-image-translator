@@ -180,13 +180,13 @@ Requirements:
   * Docker Compose (Optional if you want to use files in the `demo/doc` folder)
   * Nvidia Container Runtime (Optional if you want to use CUDA)
 
-This project has docker support under `ryanolee/manga-image-translator` image. This docker image contains all required dependencies / models for the project. It should be noted that this image is fairly large (~ 5GB). 
+This project has docker support under `zyddnys/manga-image-translator` image. This docker image contains all required dependencies / models for the project. It should be noted that this image is fairly large (~ 5GB). 
 
 ### Docker - Hosting the web server
 
 The web server can be hosted using (For CPU)
 ```bash
-docker run -p 5003:5003 -v result:/app/result --ipc=host --rm ryanolee/manga-image-translator --target-lang=ENG --manga2eng --verbose --log-web --mode web --use-inpainting --host=0.0.0.0 --port=5003
+docker run -p 5003:5003 -v result:/app/result --ipc=host --rm zyddnys/manga-image-translator --target-lang=ENG --manga2eng --verbose --log-web --mode web --use-inpainting --host=0.0.0.0 --port=5003
 ``` 
 or
 ```bash
@@ -198,7 +198,7 @@ depending on which you prefer. The web server should start on port [5003](http:/
 ### Docker - Using as CLI
 To use docker with the CLI (I.e in batch mode) 
 ```bash
-docker run -v <targetFolder>:/app/<targetFolder> -v <targetFolder>-translated:/app/<targetFolder>-translated  --ipc=host --rm ryanolee/manga-image-translator --mode=batch --image=/app/<targetFolder> <cli flags>
+docker run -v <targetFolder>:/app/<targetFolder> -v <targetFolder>-translated:/app/<targetFolder>-translated  --ipc=host --rm zyddnys/manga-image-translator --mode=batch --image=/app/<targetFolder> <cli flags>
 ```
 
 **Note:** In the event you need to reference files on your host machine you will need to mount the associated files as volumes into the `/app` folder inside the container. Paths for the CLI will need to be the internal docker path `/app/...` instead of the paths on your host machine
@@ -206,7 +206,7 @@ docker run -v <targetFolder>:/app/<targetFolder> -v <targetFolder>-translated:/a
 ### Docker - Setting Translation Secrets
 Some translation services require API keys to function to set these pass them as env vars into the docker container. For example:
 ```
-docker run --env="DEEPL_AUTH_KEY=xxx" --ipc=host --rm ryanolee/manga-image-translator <cli flags>
+docker run --env="DEEPL_AUTH_KEY=xxx" --ipc=host --rm zyddnys/manga-image-translator <cli flags>
 ```
 
 ### Docker - Using with Nvida GPU
@@ -214,7 +214,7 @@ docker run --env="DEEPL_AUTH_KEY=xxx" --ipc=host --rm ryanolee/manga-image-trans
 
 To run the container with the following flags set:
 ```bash
-docker run ... --gpus=all ... ryanolee/manga-image-translator ... --use-cuda
+docker run ... --gpus=all ... zyddnys/manga-image-translator ... --use-cuda
 ```
 
 Or  (For the web server + GPU)
