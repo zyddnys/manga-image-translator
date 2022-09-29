@@ -1,0 +1,34 @@
+version: "3.8"
+services:
+  manga_image_translator:
+    build:
+      context: ./../../
+    container_name: manga_image_translator_localdev
+    command: --verbose --translator=offline --log-web --mode web --manga2eng --use-inpainting --host=0.0.0.0 --port=5003
+    # Batch Mode
+    #command: --mode=batch --verbose --translator=offline --target-lang=ENG --manga2eng --use-inpainting --image "/app/Manga"
+    volumes:
+      - ./../../result:/app/result
+      - ./../../detection:/app/detection
+      - ./../../fonts:/app/fonts
+      - ./../../inpainting:/app/inpainting
+      - ./../../ocr:/app/ocr
+      - ./../../text_mask:/app/text_mask
+      - ./../../text_rendering:/app/text_rendering
+      - ./../../translators:/app/translators
+      - ./../../textblockdetector:/app/textblockdetector
+      - ./../../textline_merge:/app/textline_merge
+      - ./../../translate_demo.py:/app/translate_demo.py
+      - ./../../web_main.py:/app/web_main.py
+      - ./../../ui.html:/app/ui.html
+      - facehuggingcache:/root/.cache/huggingface/
+
+      # For Batch Mode
+      #- ./../../Manga:/app/Manga
+      #- ./../../Manga-translated:/app/Manga-translated
+    ports:
+      - 5003:5003
+    ipc: host
+
+volumes:
+  facehuggingcache:
