@@ -86,7 +86,7 @@ VIN: Vietnames
 ### Using CLI
 
 ```bash
-# `--use-cuda` is optional, if you have a compatible NVIDIA GPU, you can use it.
+# `--use-cuda` is optional, if you have a compatible NVIDIA GPU, you can use it. (To GPU accelerate offline translation set the USE_CUDA_FOR_OFFLINE_TRANSLATION env var to true)
 # use `--use-inpainting` to enable inpainting.
 # use `--translator=<translator>` to specify a translator.
 # use `--target-lang=<languge_code>` to specify a target language.
@@ -221,6 +221,9 @@ Or  (For the web server + GPU)
 ```bash
 docker-compose -f demo/doc/docker-compose-web-with-gpu.yml up
 ```
+
+### Docker - Offline translation
+When using offline translation the model is downloaded at runtime into a cache within the container. This cache can be cleared when re-creating the container. In order to avoid this you can create a docker volume and mount it under `/root/.cache/huggingface/`
 
 ### Docker - Building locally
 To build the docker image locally you can run (You will require make on your machine)

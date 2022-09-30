@@ -4,9 +4,9 @@ services:
     build:
       context: ./../../
     container_name: manga_image_translator_localdev
-    command: --verbose --translator=offline --log-web --mode web --manga2eng --use-inpainting --host=0.0.0.0 --port=5003
+    command: --verbose --translator=offline --log-web --mode web --manga2eng --use-inpainting --host=0.0.0.0 --port=5003 # (FOR GPU) --use-cuda
     # Batch Mode
-    #command: --mode=batch --verbose --translator=offline --target-lang=ENG --manga2eng --use-inpainting --image "/app/Manga"
+    #command: --mode=batch --verbose --translator=offline --target-lang=ENG --manga2eng --use-inpainting --image "/app/Manga"# (FOR GPU) --use-cuda
     volumes:
       - ./../../result:/app/result
       - ./../../detection:/app/detection
@@ -23,12 +23,22 @@ services:
       - ./../../ui.html:/app/ui.html
       - facehuggingcache:/root/.cache/huggingface/
 
-      # For Batch Mode
-      #- ./../../Manga:/app/Manga
-      #- ./../../Manga-translated:/app/Manga-translated
+    #  # For Batch Mode
+    #  - ./../../Manga:/app/Manga
+    #  - ./../../Manga-translated:/app/Manga-translated
     ports:
       - 5003:5003
+   
     ipc: host
+
+    # For GPU
+    #environment:
+    #  USE_CUDA_FOR_OFFLINE_TRANSLATION: true
+    #deploy:
+    #  resources:
+    #    reservations:
+    #      devices:
+    #        - capabilities: [gpu]
 
 volumes:
   facehuggingcache:

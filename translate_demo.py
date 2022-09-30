@@ -267,7 +267,7 @@ def replace_prefix(s: str, old: str, new: str) :
 async def main(mode = 'demo') :
 	print(' -- Preload Checks')
 	# Add failsafe if torch cannot find cuda support
-	if not torch.cuda.is_available():
+	if not torch.cuda.is_available() and args.use_cuda:
 		print("Warning: CUDA compatible device could not be found while --use_cuda args was set... Deferring to CPU")
 		args.use_cuda = False
 
