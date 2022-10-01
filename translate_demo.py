@@ -8,6 +8,8 @@ import requests
 import os
 from oscrypto import util as crypto_utils
 import asyncio
+import torch
+import huggingface_hub 
 
 from detection import dispatch as dispatch_detection, load_model as load_detection_model
 from ocr import dispatch as dispatch_ocr, load_model as load_ocr_model
@@ -176,13 +178,19 @@ async def infer(
 			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.text for r in text_regions])
 
 	else :
+		translation_request_timeout = 20
+
 		# wait for at most 1 hour for manual translation
 		if 'manual' in options and options['manual'] :
 			wait_n_10ms = 36000
+		# Wait longer for offline translation given it needs to do some crunching
+		elif 'offline' in args.translator:
+			translation_request_timeout = 60
+			wait_n_10ms = 1200 
 		else :
 			wait_n_10ms = 300 # 30 seconds for machine translation
 		for _ in range(wait_n_10ms) :
-			ret = requests.post(f'http://{args.host}:{args.port}/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}, timeout = 20).json()
+			ret = requests.post(f'http://{args.host}:{args.port}/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}, timeout = translation_request_timeout).json()
 			if 'result' in ret :
 				translated_sentences = ret['result']
 				if isinstance(translated_sentences, str) :
@@ -257,6 +265,15 @@ def replace_prefix(s: str, old: str, new: str) :
 	return s
 
 async def main(mode = 'demo') :
+	print(' -- Preload Checks')
+	# Add failsafe if torch cannot find cuda support
+	if not torch.cuda.is_available() and args.use_cuda:
+		print("Warning: CUDA compatible device could not be found while --use_cuda args was set... Deferring to CPU")
+		args.use_cuda = False
+
+	print(' -- Preload optional models')
+	preload_offline_translator(args.translator)
+
 	print(' -- Loading models')
 	os.makedirs('result', exist_ok = True)
 	text_render.prepare_renderer()
@@ -361,6 +378,30 @@ async def main(mode = 'demo') :
 					import traceback
 					traceback.print_exc()
 					pass
+
+
+def preload_offline_translator(translation_mode):
+	# Use Facebook No Language Left Behind Model to enable offline translation
+	translation_model_map = {
+		"offline": "facebook/nllb-200-distilled-600M",
+		"offline_big": "facebook/nllb-200-distilled-1.3B",
+	}
+
+	if translation_mode in translation_model_map.keys():
+		nllb_model_name = translation_model_map[args.translator]
+		
+
+		# Get if repo exists in cache
+		if not huggingface_hub.try_to_load_from_cache(nllb_model_name, 'pytorch_model.bin') is None:
+			print(f"Detected cached model for offline translation: {nllb_model_name}")
+			return
+		
+		# Preload models into cache as part of startup
+		print(f"Detected offline translation mode. Pre-loading offline translation model: {nllb_model_name} " +
+		       "(This can take a long time as multiple GB's worth of data can be downloaded during this step)")
+		huggingface_hub.snapshot_download(nllb_model_name)
+
+
 
 if __name__ == '__main__':
 	print(args)

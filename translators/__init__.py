@@ -1,9 +1,10 @@
 
 from typing import List
-from . import baidu, google, youdao, deepl, papago
+import asyncio
+import torch
+from . import baidu, google, youdao, deepl, papago, offline
 
 import googletrans
-
 
 LANGUAGE_CODE_MAP = {}
 
@@ -133,10 +134,32 @@ LANGUAGE_CODE_MAP['papago'] = {
 	'TRK': 'NONE',
 }
 
+LANGUAGE_CODE_MAP['offline'] = {
+	'CHS': 'zho_Hans',
+	'CHT': 'zho_Hant',
+	'JPN': "jpn_Jpan",
+	'ENG': 'eng_Latn',
+	'KOR': 'kor_Hang',
+	'VIN': 'vie_Latn',
+	'CSY': 'ces_Latn',
+	'NLD': 'nld_Latn',
+	'FRA': 'fra_Latn',
+	'DEU': 'deu_Latn',
+	'HUN': 'hun_Latn',
+	'ITA': 'ita_Latn',
+	'PLK': 'pol_Latn',
+	'PTB': 'por_Latn',
+	'ROM': 'ron_Latn',
+	'RUS': 'rus_Cyrl',
+	'ESP': 'spa_Latn',
+	'TRK': 'tur_Latn',
+}
+
 GOOGLE_CLIENT = google.Translator()
 BAIDU_CLIENT = baidu.Translator()
 YOUDAO_CLIENT = youdao.Translator()
 PAPAGO_CLIENT = papago.Translator()
+OFFLINE_TRANSLATOR = offline.Translator()
 try:
 	DEEPL_CLIENT = deepl.Translator()
 except Exception as e:
@@ -145,7 +168,7 @@ except Exception as e:
 
 
 async def dispatch(translator: str, src_lang: str, tgt_lang: str, texts: List[str], *args, **kwargs) -> List[str] :
-	if translator not in ['google', 'youdao', 'baidu', 'deepl', 'eztrans', 'papago', 'null'] :
+	if translator not in ['google', 'youdao', 'baidu', 'deepl', 'eztrans', 'papago', 'offline', 'offline_big', 'null'] :
 		raise Exception
 	if translator == 'null' :
 		return texts
@@ -159,8 +182,9 @@ async def dispatch(translator: str, src_lang: str, tgt_lang: str, texts: List[st
 		tgt_lang = 'KOR'
 		src_lang = 'JPN'
 	else:
-		tgt_lang = LANGUAGE_CODE_MAP[translator][tgt_lang]
-		src_lang = LANGUAGE_CODE_MAP[translator][src_lang] if src_lang != 'auto' else 'auto'
+		mapped_translator = 'offline' if 'offline' in translator else translator
+		tgt_lang = LANGUAGE_CODE_MAP[mapped_translator][tgt_lang]
+		src_lang = LANGUAGE_CODE_MAP[mapped_translator][src_lang] if src_lang != 'auto' else 'auto'
 		
 	if tgt_lang == 'NONE' or src_lang == 'NONE' :
 		raise Exception
@@ -193,6 +217,13 @@ async def dispatch(translator: str, src_lang: str, tgt_lang: str, texts: List[st
 	elif translator == 'papago' :
 		concat_texts = '\n'.join(texts)
 		result = await PAPAGO_CLIENT.translate(src_lang, tgt_lang, concat_texts)
+	elif translator in ['offline', 'offline_big']:
+		if not OFFLINE_TRANSLATOR.is_loaded():
+			OFFLINE_TRANSLATOR.load(translator)
+
+		concat_texts = '\n'.join(texts)
+		result = await asyncio.create_task(OFFLINE_TRANSLATOR.translate(src_lang, tgt_lang, concat_texts))
+		
 	translated_sentences = []
 	if len(result) < len(texts) :
 		translated_sentences.extend(result)
@@ -203,9 +234,9 @@ async def dispatch(translator: str, src_lang: str, tgt_lang: str, texts: List[st
 		translated_sentences.extend(result)
 	return translated_sentences
 
-async def test() :
+def test() :
 	src = '测试'
-	print(await dispatch('google', 'auto', 'ENG', [src]))
+	print(dispatch('offline', 'auto', 'ENG', [src]))
 
 if __name__ == '__main__' :
 	import asyncio
