@@ -56,7 +56,7 @@ Then, download `ocr.ckpt`, `ocr-ctc.ckpt`, `detect.ckpt`, `comictextdetector.pt`
 from <https://github.com/zyddnys/manga-image-translator/releases/>, put them in the root directory of this repo.
 
 [Optional if using Google translate]\
-Apply for Youdao or DeepL translate API, put your `APP_KEY` and `APP_SECRET` or `AUTH_KEY` in `translators/key.py`
+Apply for Youdao or DeepL translate API, put your `APP_KEY` and `APP_SECRET` or `AUTH_KEY` in `translators/key.py` or export them as environment variables as detailed in the key.py file.
 
 ### Language Code Reference
 
@@ -86,7 +86,7 @@ VIN: Vietnames
 ### Using CLI
 
 ```bash
-# `--use-cuda` is optional, if you have a compatible NVIDIA GPU, you can use it.
+# `--use-cuda` is optional, if you have a compatible NVIDIA GPU, you can use it. (To GPU accelerate offline translation set the USE_CUDA_FOR_OFFLINE_TRANSLATION env var to true)
 # use `--use-inpainting` to enable inpainting.
 # use `--translator=<translator>` to specify a translator.
 # use `--target-lang=<languge_code>` to specify a target language.
@@ -173,6 +173,67 @@ Fill in translated texts:
 Post translated JSON to <http://127.0.0.1:5003/post-translation-result> and wait for response.\
 Then you can find the translation result in `result/` directory, e.g. using Nginx to expose `result/`.
 
+## Docker
+
+Requirements:
+  * Docker (version 19.03+ required for CUDA / GPU accelaration)
+  * Docker Compose (Optional if you want to use files in the `demo/doc` folder)
+  * Nvidia Container Runtime (Optional if you want to use CUDA)
+
+This project has docker support under `zyddnys/manga-image-translator` image. This docker image contains all required dependencies / models for the project. It should be noted that this image is fairly large (~ 5GB). 
+
+### Docker - Hosting the web server
+
+The web server can be hosted using (For CPU)
+```bash
+docker run -p 5003:5003 -v result:/app/result --ipc=host --rm zyddnys/manga-image-translator --target-lang=ENG --manga2eng --verbose --log-web --mode web --use-inpainting --host=0.0.0.0 --port=5003
+``` 
+or
+```bash
+docker-compose -f demo/doc/docker-compose-web-with-cpu.yml up
+``` 
+
+depending on which you prefer. The web server should start on port [5003](http://localhost:5003) and images should become in the `/result` folder.
+
+### Docker - Using as CLI
+To use docker with the CLI (I.e in batch mode) 
+```bash
+docker run -v <targetFolder>:/app/<targetFolder> -v <targetFolder>-translated:/app/<targetFolder>-translated  --ipc=host --rm zyddnys/manga-image-translator --mode=batch --image=/app/<targetFolder> <cli flags>
+```
+
+**Note:** In the event you need to reference files on your host machine you will need to mount the associated files as volumes into the `/app` folder inside the container. Paths for the CLI will need to be the internal docker path `/app/...` instead of the paths on your host machine
+
+### Docker - Setting Translation Secrets
+Some translation services require API keys to function to set these pass them as env vars into the docker container. For example:
+```
+docker run --env="DEEPL_AUTH_KEY=xxx" --ipc=host --rm zyddnys/manga-image-translator <cli flags>
+```
+
+### Docker - Using with Nvida GPU
+> To use with a supported GPU please first read the initial `Docker` section. There are some special dependencies you will need to use
+
+To run the container with the following flags set:
+```bash
+docker run ... --gpus=all ... zyddnys/manga-image-translator ... --use-cuda
+```
+
+Or  (For the web server + GPU)
+```bash
+docker-compose -f demo/doc/docker-compose-web-with-gpu.yml up
+```
+
+### Docker - Offline translation
+When using offline translation the model is downloaded at runtime into a cache within the container. This cache can be cleared when re-creating the container. In order to avoid this you can create a docker volume and mount it under `/root/.cache/huggingface/`
+
+### Docker - Building locally
+To build the docker image locally you can run (You will require make on your machine)
+```bash
+make build-image
+```
+Then to test the built image run
+```
+make run-web-server
+```
 ## Next steps
 
 A list of what needs to be done next, you're welcome to contribute.
@@ -193,7 +254,7 @@ The following samples are from the original version, they do not represent the c
 
 |                                          Original                                           |         Translated          |
 | :-----------------------------------------------------------------------------------------: | :-------------------------: |
-|        ![Original](demo/original1.jpg 'https://www.pixiv.net/en/artworks/85200179')         | ![Output](demo/result1.png) |
-| ![Original](demo/original2.jpg 'https://twitter.com/mmd_96yuki/status/1320122899005460481') | ![Output](demo/result2.png) |
-| ![Original](demo/original3.jpg 'https://twitter.com/_taroshin_/status/1231099378779082754') | ![Output](demo/result3.png) |
-|           ![Original](demo/original4.jpg 'https://amagi.fanbox.cc/posts/1904941')           | ![Output](demo/result4.png) |
+|        ![Original](demo/image/original1.jpg 'https://www.pixiv.net/en/artworks/85200179')         | ![Output](demo/image/result1.png) |
+| ![Original](demo/image/original2.jpg 'https://twitter.com/mmd_96yuki/status/1320122899005460481') | ![Output](demo/image/result2.png) |
+| ![Original](demo/image/original3.jpg 'https://twitter.com/_taroshin_/status/1231099378779082754') | ![Output](demo/image/result3.png) |
+|           ![Original](demo/image/original4.jpg 'https://amagi.fanbox.cc/posts/1904941')           | ![Output](demo/image/result4.png) |

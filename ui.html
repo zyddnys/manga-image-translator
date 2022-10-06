@@ -69,6 +69,7 @@
                   <option value="google">Google</option>
                   <option value="deepl">DeepL</option>
                   <option value="papago">Papago</option>
+                  <option value="offline">Offline</option>
                 </select>
                 <i class="iconify absolute top-1.5 right-1 pointer-events-none" data-icon="carbon:chevron-down"></i>
               </div>
@@ -246,6 +247,8 @@
               return 'Something went wrong (maybe your language is not supported), please try again'
             case 'error-lang':
               return 'Your target language is not supported'
+            case 'error-no-txt':
+              return 'Did not get any text back from the translation service.'
           }
         },
         result: null,
@@ -308,7 +311,7 @@
               this.status = state
               this.queuePos = waiting
 
-              if (state === 'error' || state == 'error-lang') {
+              if (/^error/.test(state)) {
                 break
               }
 

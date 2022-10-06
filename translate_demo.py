@@ -8,6 +8,8 @@ import requests
 import os
 from oscrypto import util as crypto_utils
 import asyncio
+import torch
+import huggingface_hub 
 
 from detection import dispatch as dispatch_detection, load_model as load_detection_model
 from ocr import dispatch as dispatch_ocr, load_model as load_ocr_model
@@ -24,6 +26,9 @@ parser.add_argument('--mode', default='demo', type=str, help='Run demo in either
 parser.add_argument('--image', default='', type=str, help='Image file if using demo mode or Image folder name if using batch mode')
 parser.add_argument('--image-dst', default='', type=str, help='Destination folder for translated images in batch mode')
 parser.add_argument('--size', default=1536, type=int, help='image square size')
+parser.add_argument('--host', default='127.0.0.1', type=str, help='Used by web module to decide which host to attach to')
+parser.add_argument('--port', default=5003, type=int, help='Used by web module to decide which port to attach to')
+parser.add_argument('--log-web', action='store_true', help='Used by web module to decide if web logs should be surfaced')
 parser.add_argument('--ocr-model', default='48px_ctc', type=str, help='OCR model to use, one of `32px`, `48px_ctc`')
 parser.add_argument('--use-inpainting', action='store_true', help='turn on/off inpainting')
 parser.add_argument('--inpainting-model', default='lama_mpe', type=str, help='inpainting model to use, one of `lama_mpe`')
@@ -46,7 +51,7 @@ args = parser.parse_args()
 def update_state(task_id, nonce, state) :
 	while True :
 		try :
-			requests.post('http://127.0.0.1:5003/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 20)
+			requests.post(f'http://{args.host}:{args.port}/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 20)
 			return
 		except Exception :
 			if 'error' in state or 'finished' in state :
@@ -56,7 +61,7 @@ def update_state(task_id, nonce, state) :
 
 def get_task(nonce) :
 	try :
-		rjson = requests.get(f'http://127.0.0.1:5003/task-internal?nonce={nonce}', timeout = 3600).json()
+		rjson = requests.get(f'http://{args.host}:{args.port}/task-internal?nonce={nonce}', timeout = 3600).json()
 		if 'task_id' in rjson and 'data' in rjson :
 			return rjson['task_id'], rjson['data']
 		else :
@@ -144,9 +149,9 @@ async def infer(
 		update_state(task_id, nonce, 'translating')
 		# in web mode, we can start translation task async
 		if detector == 'ctd':
-			requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 20)
+			requests.post(f'http://{args.host}:{args.port}/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 20)
 		else:
-			requests.post('http://127.0.0.1:5003/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.text for r in text_regions]}, timeout = 20)
+			requests.post(f'http://{args.host}:{args.port}/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.text for r in text_regions]}, timeout = 20)
 
 	print(' -- Running inpainting')
 	if mode == 'web' and task_id :
@@ -173,13 +178,19 @@ async def infer(
 			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.text for r in text_regions])
 
 	else :
+		translation_request_timeout = 20
+
 		# wait for at most 1 hour for manual translation
 		if 'manual' in options and options['manual'] :
 			wait_n_10ms = 36000
+		# Wait longer for offline translation given it needs to do some crunching
+		elif 'offline' in args.translator:
+			translation_request_timeout = 60
+			wait_n_10ms = 1200 
 		else :
 			wait_n_10ms = 300 # 30 seconds for machine translation
 		for _ in range(wait_n_10ms) :
-			ret = requests.post('http://127.0.0.1:5003/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}, timeout = 20).json()
+			ret = requests.post(f'http://{args.host}:{args.port}/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}, timeout = translation_request_timeout).json()
 			if 'result' in ret :
 				translated_sentences = ret['result']
 				if isinstance(translated_sentences, str) :
@@ -190,30 +201,35 @@ async def infer(
 			await asyncio.sleep(0.01)
 
 	print(' -- Rendering translated text')
-	if translated_sentences is not None:
+	if translated_sentences == None:
 		if mode == 'web' and task_id :
-			update_state(task_id, nonce, 'render')
-		# render translated texts
-		if args.target_lang == 'ENG' and args.manga2eng:
-			from text_rendering import dispatch_eng_render
-			output = await dispatch_eng_render(np.copy(img_inpainted), img, text_regions, translated_sentences, args.eng_font)
+			print("No text found!")
+			update_state(task_id, nonce, 'error-no-txt')
+		return
+	
+	if mode == 'web' and task_id :
+		update_state(task_id, nonce, 'render')
+	# render translated texts
+	if args.target_lang == 'ENG' and args.manga2eng:
+		from text_rendering import dispatch_eng_render
+		output = await dispatch_eng_render(np.copy(img_inpainted), img, text_regions, translated_sentences, args.eng_font)
+	else:
+		if detector == 'ctd' :
+			from text_rendering import dispatch_ctd_render
+			output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, args.font_size_offset)
 		else:
-			if detector == 'ctd' :
-				from text_rendering import dispatch_ctd_render
-				output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, args.font_size_offset)
-			else:
-				output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite, args.font_size_offset)
-		
-		print(' -- Saving results')
-		if alpha_ch is not None :
-			output = np.concatenate([output.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
-		else :
-			output = output.astype(np.uint8)
-		img_pil = Image.fromarray(output)
-		if dst_image_name :
-			img_pil.save(dst_image_name)
-		else :
-			img_pil.save(f'result/{task_id}/final.png')
+			output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite, args.font_size_offset)
+	
+	print(' -- Saving results')
+	if alpha_ch is not None :
+		output = np.concatenate([output.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
+	else :
+		output = output.astype(np.uint8)
+	img_pil = Image.fromarray(output)
+	if dst_image_name :
+		img_pil.save(dst_image_name)
+	else :
+		img_pil.save(f'result/{task_id}/final.png')
 
 	if mode == 'web' and task_id :
 		update_state(task_id, nonce, 'finished')
@@ -249,6 +265,15 @@ def replace_prefix(s: str, old: str, new: str) :
 	return s
 
 async def main(mode = 'demo') :
+	print(' -- Preload Checks')
+	# Add failsafe if torch cannot find cuda support
+	if not torch.cuda.is_available() and args.use_cuda:
+		print("Warning: CUDA compatible device could not be found while --use_cuda args was set... Deferring to CPU")
+		args.use_cuda = False
+
+	print(' -- Preload optional models')
+	preload_offline_translator(args.translator)
+
 	print(' -- Loading models')
 	os.makedirs('result', exist_ok = True)
 	text_render.prepare_renderer()
@@ -275,7 +300,12 @@ async def main(mode = 'demo') :
 		nonce = crypto_utils.rand_bytes(16).hex()
 		import subprocess
 		import sys
-		subprocess.Popen([sys.executable, 'web_main.py', nonce, '5003'])
+
+		extra_web_args = {'stdout':sys.stdout, 'stderr':sys.stderr} if args.log_web else {}
+		web_executable = [sys.executable, '-u'] if args.log_web else [sys.executable]
+		web_process_args = ['web_main.py', nonce, str(args.host), str(args.port)]
+		subprocess.Popen([*web_executable, *web_process_args], **extra_web_args)
+		
 		while True :
 			try :
 				task_id, options = get_task(nonce)
@@ -348,6 +378,30 @@ async def main(mode = 'demo') :
 					import traceback
 					traceback.print_exc()
 					pass
+
+
+def preload_offline_translator(translation_mode):
+	# Use Facebook No Language Left Behind Model to enable offline translation
+	translation_model_map = {
+		"offline": "facebook/nllb-200-distilled-600M",
+		"offline_big": "facebook/nllb-200-distilled-1.3B",
+	}
+
+	if translation_mode in translation_model_map.keys():
+		nllb_model_name = translation_model_map[args.translator]
+		
+
+		# Get if repo exists in cache
+		if not huggingface_hub.try_to_load_from_cache(nllb_model_name, 'pytorch_model.bin') is None:
+			print(f"Detected cached model for offline translation: {nllb_model_name}")
+			return
+		
+		# Preload models into cache as part of startup
+		print(f"Detected offline translation mode. Pre-loading offline translation model: {nllb_model_name} " +
+		       "(This can take a long time as multiple GB's worth of data can be downloaded during this step)")
+		huggingface_hub.snapshot_download(nllb_model_name)
+
+
 
 if __name__ == '__main__':
 	print(args)

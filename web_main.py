@@ -92,7 +92,7 @@ async def handle_post(request) :
 			direction = 'auto'
 	if 'translator' in data :
 		selected_translator = data['translator'].lower()
-		if selected_translator not in ['youdao', 'baidu', 'google', 'deepl', 'papago', 'null'] :
+		if selected_translator not in ['youdao', 'baidu', 'google', 'deepl', 'papago', 'offline', 'null'] :
 			selected_translator = 'youdao'
 	if 'size' in data :
 		size = data['size'].upper()
@@ -206,7 +206,7 @@ async def post_translation_result(request) :
 			TASK_DATA[task_id]['trans_result'] = trans_result
 			while True :
 				await asyncio.sleep(0.1)
-				if TASK_STATES[task_id] in ['error', 'error-lang'] :
+				if TASK_STATES[task_id] in ['error', 'error-lang', 'error-no-txt'] :
 					ret = web.json_response({'task_id' : task_id, 'status': 'failed'})
 					break
 				if TASK_STATES[task_id] == 'finished' :
@@ -333,12 +333,13 @@ async def start_async_app() :
 	# schedule web server to run
 	global NONCE
 	NONCE = sys.argv[1]
-	port = int(sys.argv[2])
+	host = sys.argv[2]
+	port = int(sys.argv[3])
 	runner = web.AppRunner(app)
 	await runner.setup()
-	site = web.TCPSite(runner, '127.0.0.1', port)
+	site = web.TCPSite(runner, host, port)
 	await site.start()
-	print(f"Serving up app on http://127.0.0.1:{port}")
+	print(f"Serving up app on http://{host}:{port}")
 	return runner, site
 
 if __name__ == '__main__' :

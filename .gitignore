@@ -5,3 +5,5 @@ result
 *.onnx
 __pycache__
 ocrs
+Manga
+Manga-translated
