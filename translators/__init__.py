@@ -10,8 +10,6 @@ from .deepl import DeeplTranslator
 from .papago import PapagoTranslator
 from .offline import OfflineTranslator
 
-import googletrans
-
 LANGUAGE_CODE_MAP = {}
 
 VALID_LANGUAGES = {
@@ -74,9 +72,9 @@ async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: L
 		src_lang = 'JPN'
 
 	if tgt_lang not in VALID_LANGUAGES :
-		raise Exception('Invalid language code: "%s", please choose from the following: %s' % (tgt_lang, '|'.join(VALID_LANGUAGES)))
+		raise Exception('Invalid language code: "%s", please choose from the following: %s' % (tgt_lang, ','.join(VALID_LANGUAGES)))
 	if src_lang not in VALID_LANGUAGES and src_lang != 'auto' :
-		raise Exception('Invalid language code: "%s", please choose from the following: auto|%s' % (src_lang, '|'.join(VALID_LANGUAGES)))
+		raise Exception('Invalid language code: "%s", please choose from the following: auto,%s' % (src_lang, ','.join(VALID_LANGUAGES)))
 	
 	translator = get_translator(translator_key)
 

@@ -41,7 +41,7 @@ parser.add_argument('--text-threshold', default=0.5, type=float, help='threshold
 parser.add_argument('--text-mag-ratio', default=1, type=int, help='text rendering magnification ratio, larger means higher quality')
 parser.add_argument('--font-size-offset', default=0, type=int, help='offset font size by a given amount, positive number increase font size and vice versa')
 parser.add_argument('--translator', default='google', type=str, help='language translator')
-parser.add_argument('--source-lang', default='auto', type=str, help='source language (will exclusively translate chosen language)')
+parser.add_argument('--source-lang', default='auto', type=str, help='source language (translator hint)')
 parser.add_argument('--target-lang', default='CHS', type=str, help='destination language')
 parser.add_argument('--use-ctd', action='store_true', help='use comic-text-detector for text detection')
 parser.add_argument('--verbose', action='store_true', help='print debug info and save intermediate images')

@@ -58,7 +58,7 @@ LANGUAGE_CODE_MAP = {
 	'TRK': 'tr',
 }
 
-class GoogleTranslator():
+class GoogleTranslator(CommonTranslator):
     """Google Translate ajax API implementation class
 
     You have to create an instance of Translator to use this API
@@ -204,13 +204,24 @@ class GoogleTranslator():
         return extra
 
     async def _translate(self, from_lang, to_lang, queries):
-        return await [text.strip() for text in self.__translate()]
+        empty_l = 0
+        for query in queries:
+            if query == '':
+                empty_l += 1
+            else:
+                break
+        query_text = '\n'.join(queries)
+        result = await self.__translate(from_lang, to_lang, query_text)
+        if not isinstance(result, list):
+            result = empty_l * [''] + result.text.split('\n')
+            empty_r = len(query_text) - len(result)
+            if empty_r > 0:
+                result = result + empty_r * ['']
+        return [text.strip() for text in result]
 
-    async def __translate(self, from_lang, to_lang, queries):
+    async def __translate(self, from_lang, to_lang, query_text):
         to_lang = to_lang.lower().split('_', 1)[0]
         from_lang = from_lang.lower().split('_', 1)[0]
-
-        query_text = '\n'.join(queries)
 
         if from_lang != 'auto' and from_lang not in LANGUAGES:
             if from_lang in SPECIAL_CASES:
@@ -404,7 +415,7 @@ class GoogleTranslator():
         return result
 
     async def detect(self, text: str):
-        translated = await self.__translate(text, from_lang='auto', to_lang='en')
+        translated = await self.__translate('auto', 'en', text)
         result = Detected(lang=translated.src, confidence=translated.extra_data.get('confidence', None), response=translated._response)
         return result
 
