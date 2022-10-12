@@ -41,7 +41,6 @@ parser.add_argument('--text-threshold', default=0.5, type=float, help='threshold
 parser.add_argument('--text-mag-ratio', default=1, type=int, help='text rendering magnification ratio, larger means higher quality')
 parser.add_argument('--font-size-offset', default=0, type=int, help='offset font size by a given amount, positive number increase font size and vice versa')
 parser.add_argument('--translator', default='google', type=str, help='language translator')
-parser.add_argument('--source-lang', default='auto', type=str, help='source language (translator hint)')
 parser.add_argument('--target-lang', default='CHS', type=str, help='destination language')
 parser.add_argument('--use-ctd', action='store_true', help='use comic-text-detector for text detection')
 parser.add_argument('--verbose', action='store_true', help='print debug info and save intermediate images')
@@ -174,9 +173,9 @@ async def infer(
 		# try:
 		from translators import dispatch as run_translation
 		if detector == 'ctd' :
-			translated_sentences = await run_translation(args.translator, args.source_lang, args.target_lang, [r.get_text() for r in text_regions])
+			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.get_text() for r in text_regions])
 		else:
-			translated_sentences = await run_translation(args.translator, args.source_lang, args.target_lang, [r.text for r in text_regions])
+			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.text for r in text_regions])
 
 	else :
 		translation_request_timeout = 20

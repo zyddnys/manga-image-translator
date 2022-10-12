@@ -75,9 +75,8 @@ class OfflineTranslator(CommonTranslator):
         return LANGUAGE_CODE_MAP[key]
 
     async def _translate(self, from_lang, to_lang, queries):
-        print(from_lang, to_lang)
         if from_lang == 'auto':
-            detected_lang = detect('\n'.join(queries)) # TODO: Detect language per query
+            detected_lang = detect('\n'.join(queries))
             target_lang = self._map_detected_lang_to_translator(detected_lang)
 
             if target_lang == None:
@@ -90,8 +89,6 @@ class OfflineTranslator(CommonTranslator):
     def translate_sentence(self, from_lang, to_lang, query_text) :
         if not self.is_loaded():
             return ""
-
-        print(from_lang, to_lang)
 
         if from_lang == 'auto':
             detected_lang = detect(query_text)
