@@ -52,6 +52,7 @@ async def do_request(data):
 		async with session.post(YOUDAO_URL, data=data, headers=headers) as resp:
 			return await resp.json()
 
+# FIXME: Youdao translator api outdated
 class YoudaoTranslator(CommonTranslator):
 	def __init__(self):
 		pass

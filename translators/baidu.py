@@ -40,6 +40,7 @@ LANGUAGE_CODE_MAP = {
 
 import aiohttp
 
+# FIXME: Baidu translator api outdated
 class BaiduTranslator(CommonTranslator):
 	def __init__(self):
 		pass

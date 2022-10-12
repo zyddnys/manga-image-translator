@@ -1,6 +1,5 @@
-
-from typing import List
 import asyncio
+from typing import List
 
 from .common import CommonTranslator
 from .baidu import BaiduTranslator
@@ -9,8 +8,6 @@ from .youdao import YoudaoTranslator
 from .deepl import DeeplTranslator
 from .papago import PapagoTranslator
 from .offline import OfflineTranslator
-
-LANGUAGE_CODE_MAP = {}
 
 VALID_LANGUAGES = {
 	"CHS": "Chinese (Simplified)",
@@ -46,7 +43,7 @@ translator_cache = {}
 
 def get_translator(key: str, *args, **kwargs) -> CommonTranslator:
 	if key not in TRANSLATORS:
-		raise Exception(f'Could not find translator for: "{key}"')
+		raise Exception(f'Could not find translator for: "{key}". Choose from the following: %s' % ', '.join(TRANSLATORS))
 	translator = TRANSLATORS[key]
 	if key not in translator_cache :
 		translator_cache[key] = translator(*args, **kwargs)
@@ -59,15 +56,16 @@ async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: L
 		return queries
 
 	if tgt_lang not in VALID_LANGUAGES :
-		raise Exception('Invalid language code: "%s", please choose from the following: %s' % (tgt_lang, ','.join(VALID_LANGUAGES)))
+		raise Exception('Invalid language code: "%s". Choose from the following: %s' % (tgt_lang, ', '.join(VALID_LANGUAGES)))
 	if src_lang not in VALID_LANGUAGES and src_lang != 'auto' :
-		raise Exception('Invalid language code: "%s", please choose from the following: auto,%s' % (src_lang, ','.join(VALID_LANGUAGES)))
+		raise Exception('Invalid language code: "%s". Choose from the following: auto, %s' % (src_lang, ', '.join(VALID_LANGUAGES)))
 	
+	# Might want to remove this fallback in the future, as its misleading
 	if translator_key == 'deepl' :
 		try:
 			translator = get_translator(translator_key)
 		except Exception as e :
-			print(f'Failed to initialize deepl :\n{str(e)}\nSwitching to google translator')
+			print(f'Failed to initialize deepl :\n{str(e)}\nFallback to google translator')
 			translator = get_translator('google')
 	else:
 		translator = get_translator(translator_key)
