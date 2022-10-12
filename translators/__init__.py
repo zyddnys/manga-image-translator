@@ -2,7 +2,7 @@
 from typing import List
 import asyncio
 
-from translators.common import CommonTranslator
+from .common import CommonTranslator
 from .baidu import BaiduTranslator
 from .google import GoogleTranslator
 from .youdao import YoudaoTranslator
@@ -33,56 +33,50 @@ VALID_LANGUAGES = {
 	"VIN": "Vietnamese"
 }
 
-translators = {}
+TRANSLATORS = {
+	'google': GoogleTranslator,
+	'youdao': YoudaoTranslator,
+	'baidu': BaiduTranslator,
+	'deepl': DeeplTranslator,
+	'papago': PapagoTranslator,
+	'offline': OfflineTranslator,
+	'offline_big': OfflineTranslator
+}
+translator_cache = {}
 
 def get_translator(key: str, *args, **kwargs) -> CommonTranslator:
-	def set_and_return(key, translator):
-		if key not in translators:
-			translators[key] = translator(*args, **kwargs)
-		return translators[key]
-
-	if key == 'google':
-		return set_and_return(key, GoogleTranslator)
-	elif key == 'youdao':
-		return set_and_return(key, BaiduTranslator)
-	elif key == 'baidu':
-		return set_and_return(key, YoudaoTranslator)
-	elif key == 'deepl':
-		try:
-			return set_and_return(key, DeeplTranslator)
-		except Exception as e:
-			print(f'failed to initialize deepl :\n{str(e)}\nswitching to google translator')
-			return set_and_return(key, GoogleTranslator)
-	elif key == 'papago':
-		return set_and_return(key, PapagoTranslator)
-	elif key == 'offline' or key == 'offline_big':
-		translator = set_and_return(key, OfflineTranslator)
-		return translator
+	if key not in TRANSLATORS:
+		raise Exception(f'Could not find translator for: "{key}"')
+	translator = TRANSLATORS[key]
+	if key not in translator_cache :
+		translator_cache[key] = translator(*args, **kwargs)
+	return translator_cache[key]
 
 async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: List[str], *args, **kwargs) -> List[str] :
-	if translator_key not in ['google', 'youdao', 'baidu', 'deepl', 'eztrans', 'papago', 'offline', 'offline_big', 'null'] :
-		raise Exception
 	if translator_key == 'null' :
 		return queries
 	if not queries :
 		return queries
-
-	if translator_key == 'eztrans':
-		tgt_lang = 'KOR'
-		src_lang = 'JPN'
 
 	if tgt_lang not in VALID_LANGUAGES :
 		raise Exception('Invalid language code: "%s", please choose from the following: %s' % (tgt_lang, ','.join(VALID_LANGUAGES)))
 	if src_lang not in VALID_LANGUAGES and src_lang != 'auto' :
 		raise Exception('Invalid language code: "%s", please choose from the following: auto,%s' % (src_lang, ','.join(VALID_LANGUAGES)))
 	
-	translator = get_translator(translator_key)
+	if translator_key == 'deepl' :
+		try:
+			translator = get_translator(translator_key)
+		except Exception as e :
+			print(f'Failed to initialize deepl :\n{str(e)}\nSwitching to google translator')
+			translator = get_translator('google')
+	else:
+		translator = get_translator(translator_key)
 
-	if translator_key in ('offline', 'offline_big'):
-		if not translator.is_loaded():
+	if translator_key in ('offline', 'offline_big') :
+		if not translator.is_loaded() :
 			translator.load(translator_key)
 		result = await asyncio.create_task(translator.translate(src_lang, tgt_lang, queries))
-	else:
+	else :
 		result = await translator.translate(src_lang, tgt_lang, queries)
 		
 	translated_sentences = []

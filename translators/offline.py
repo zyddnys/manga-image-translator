@@ -81,7 +81,7 @@ class OfflineTranslator(CommonTranslator):
             target_lang = self._map_detected_lang_to_translator(detected_lang)
 
             if target_lang == None:
-                print("Warning: Could not detect language from over all scentence. Will try per scentece.")
+                print("Warning: Could not detect language from over all scentence. Will try per sentence.")
             else:
                 from_lang = target_lang
 
