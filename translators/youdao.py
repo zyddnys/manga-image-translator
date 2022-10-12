@@ -7,8 +7,31 @@ import time
 import aiohttp
 import time
 
+from translators.common import CommonTranslator
+
 YOUDAO_URL = 'https://openapi.youdao.com/api'
 from .keys import APP_KEY, APP_SECRET
+
+LANGUAGE_CODE_MAP = {
+	'CHS': 'zh-CHS',
+	'CHT': 'NONE',
+	'JPN': "ja",
+	'ENG': 'en',
+	'KOR': 'ko',
+	'VIN': 'vi',
+	'CSY': 'cs',
+	'NLD': 'nl',
+	'FRA': 'fr',
+	'DEU': 'de',
+	'HUN': 'hu',
+	'ITA': 'it',
+	'PLK': 'pl',
+	'PTB': 'pt',
+	'ROM': 'ro',
+	'RUS': 'ru',
+	'ESP': 'es',
+	'TRK': 'tr',
+}
 
 def encrypt(signStr):
 	hash_algorithm = hashlib.sha256()
@@ -29,12 +52,16 @@ async def do_request(data):
 		async with session.post(YOUDAO_URL, data=data, headers=headers) as resp:
 			return await resp.json()
 
-class Translator(object):
+class YoudaoTranslator(CommonTranslator):
 	def __init__(self):
 		pass
 
-	async def translate(self, from_lang, to_lang, query_text):
+	def _get_language_code(self, key):
+		return LANGUAGE_CODE_MAP[key]
+
+	async def _translate(self, from_lang, to_lang, queries):
 		data = {}
+		query_text = '\n'.join(queries)
 		data['from'] = from_lang
 		data['to'] = to_lang
 		data['signType'] = 'v3'

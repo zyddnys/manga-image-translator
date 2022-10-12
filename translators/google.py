@@ -24,6 +24,8 @@ from googletrans.constants import (
 )
 from googletrans.models import Translated, Detected, TranslatedPart
 
+from translators.common import CommonTranslator
+
 EXCLUDES = ('en', 'ca', 'fr')
 
 RPC_ID = 'MkEWBc'
@@ -35,7 +37,28 @@ if 'http' in SYS_PROXY:
     SYS_HTTP_PROXY['http'] = SYS_PROXY['http']
     SYS_HTTP_PROXY['https'] = SYS_PROXY['http']
 
-class Translator:
+LANGUAGE_CODE_MAP = {
+	'CHS': 'zh-CN',
+	'CHT': 'zh-TW',
+	'JPN': "ja",
+	'ENG': 'en',
+	'KOR': 'ko',
+	'VIN': 'vi',
+	'CSY': 'cs',
+	'NLD': 'nl',
+	'FRA': 'fr',
+	'DEU': 'de',
+	'HUN': 'hu',
+	'ITA': 'it',
+	'PLK': 'pl',
+	'PTB': 'pt',
+	'ROM': 'ro',
+	'RUS': 'ru',
+	'ESP': 'es',
+	'TRK': 'tr',
+}
+
+class GoogleTranslator():
     """Google Translate ajax API implementation class
 
     You have to create an instance of Translator to use this API
@@ -96,6 +119,9 @@ class Translator:
 
         self.raise_exception = raise_exception
 
+    def _get_language_code(self, key):
+        return LANGUAGE_CODE_MAP[key]
+
     def _build_rpc_request(self, text: str, dest: str, src: str):
         return json.dumps([[
             [
@@ -111,7 +137,7 @@ class Translator:
             return self.service_urls[0]
         return random.choice(self.service_urls)
 
-    async def _translate(self, text: str, dest: str, src: str):
+    async def _request_translation(self, text: str, dest: str, src: str):
         url = urls.TRANSLATE_RPC.format(host=self._pick_service_url())
         data = {
             'f.req': self._build_rpc_request(text, dest, src),
@@ -177,28 +203,33 @@ class Translator:
 
         return extra
 
-    async def translate(self, text: str, dest='en', src='auto'):
-        dest = dest.lower().split('_', 1)[0]
-        src = src.lower().split('_', 1)[0]
+    async def _translate(self, from_lang, to_lang, queries):
+        return await [text.strip() for text in self.__translate()]
 
-        if src != 'auto' and src not in LANGUAGES:
-            if src in SPECIAL_CASES:
-                src = SPECIAL_CASES[src]
-            elif src in LANGCODES:
-                src = LANGCODES[src]
+    async def __translate(self, from_lang, to_lang, queries):
+        to_lang = to_lang.lower().split('_', 1)[0]
+        from_lang = from_lang.lower().split('_', 1)[0]
+
+        query_text = '\n'.join(queries)
+
+        if from_lang != 'auto' and from_lang not in LANGUAGES:
+            if from_lang in SPECIAL_CASES:
+                from_lang = SPECIAL_CASES[from_lang]
+            elif from_lang in LANGCODES:
+                from_lang = LANGCODES[from_lang]
             else:
                 raise ValueError('invalid source language')
 
-        if dest not in LANGUAGES:
-            if dest in SPECIAL_CASES:
-                dest = SPECIAL_CASES[dest]
-            elif dest in LANGCODES:
-                dest = LANGCODES[dest]
+        if to_lang not in LANGUAGES:
+            if to_lang in SPECIAL_CASES:
+                to_lang = SPECIAL_CASES[to_lang]
+            elif to_lang in LANGCODES:
+                to_lang = LANGCODES[to_lang]
             else:
                 raise ValueError('invalid destination language')
 
-        origin = text
-        data, response = await self._translate(text, dest, src)
+        origin = query_text
+        data, response = await self._request_translation(query_text, to_lang, from_lang)
 
         token_found = False
         square_bracket_counts = [0, 0]
@@ -229,14 +260,14 @@ class Translator:
         translated_parts = list(map(lambda part: TranslatedPart(part[0], part[1] if len(part) >= 2 else []), parsed[1][0][0][5]))
         translated = (' ' if should_spacing else '').join(map(lambda part: part.text, translated_parts))
 
-        if src == 'auto':
+        if from_lang == 'auto':
             try:
-                src = parsed[2]
+                from_lang = parsed[2]
             except:
                 pass
-        if src == 'auto':
+        if from_lang == 'auto':
             try:
-                src = parsed[0][2]
+                from_lang = parsed[0][2]
             except:
                 pass
 
@@ -261,7 +292,7 @@ class Translator:
             'origin_pronunciation': origin_pronunciation,
             'parsed': parsed,
         }
-        result = Translated(src=src, dest=dest, origin=origin,
+        result = Translated(src=from_lang, dest=to_lang, origin=origin,
                             text=translated, pronunciation=pronunciation,
                             parts=translated_parts,
                             extra_data=extra_data,
@@ -373,7 +404,7 @@ class Translator:
         return result
 
     async def detect(self, text: str):
-        translated = await self.translate(text, src='auto', dest='en')
+        translated = await self.__translate(text, from_lang='auto', to_lang='en')
         result = Detected(lang=translated.src, confidence=translated.extra_data.get('confidence', None), response=translated._response)
         return result
 
