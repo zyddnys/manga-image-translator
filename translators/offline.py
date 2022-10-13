@@ -4,9 +4,32 @@ import os
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 from langdetect import detect
 
+from translators.common import CommonTranslator
+
 OFFLINE_TRANSLATOR_MODEL_MAP = {
     "offline": "facebook/nllb-200-distilled-600M",
     "offline_big": "facebook/nllb-200-distilled-1.3B",
+}
+
+LANGUAGE_CODE_MAP = {
+	'CHS': 'zho_Hans',
+	'CHT': 'zho_Hant',
+	'JPN': "jpn_Jpan",
+	'ENG': 'eng_Latn',
+	'KOR': 'kor_Hang',
+	'VIN': 'vie_Latn',
+	'CSY': 'ces_Latn',
+	'NLD': 'nld_Latn',
+	'FRA': 'fra_Latn',
+	'DEU': 'deu_Latn',
+	'HUN': 'hun_Latn',
+	'ITA': 'ita_Latn',
+	'PLK': 'pol_Latn',
+	'PTB': 'por_Latn',
+	'ROM': 'ron_Latn',
+	'RUS': 'rus_Cyrl',
+	'ESP': 'spa_Latn',
+	'TRK': 'tur_Latn',
 }
 
 ISO_639_1_TO_FLORES_200 = {
@@ -30,7 +53,7 @@ ISO_639_1_TO_FLORES_200 = {
 	'tr': 'tur_Latn',
 }
 
-class Translator(object):
+class OfflineTranslator(CommonTranslator):
     def __init__(self):
         self.model_name = None
         self.loaded = False
@@ -47,18 +70,21 @@ class Translator(object):
 
     def is_loaded(self):
         return self.loaded
+    
+    def _get_language_code(self, key):
+        return LANGUAGE_CODE_MAP[key]
 
-    async def translate(self, from_lang, to_lang, query_text):
+    async def _translate(self, from_lang, to_lang, queries):
         if from_lang == 'auto':
-            detected_lang = detect(query_text)
+            detected_lang = detect('\n'.join(queries))
             target_lang = self._map_detected_lang_to_translator(detected_lang)
 
             if target_lang == None:
-                print("Warning: Could not detect language from over all scentence. Will try per scentece.")
+                print("Warning: Could not detect language from over all scentence. Will try per sentence.")
             else:
                 from_lang = target_lang
 
-        return [self.translate_sentence(from_lang, to_lang, text) for text in query_text.split('\n')]
+        return [self.translate_sentence(from_lang, to_lang, query) for query in queries]
 
     def translate_sentence(self, from_lang, to_lang, query_text) :
         if not self.is_loaded():

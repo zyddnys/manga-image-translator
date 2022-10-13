@@ -9,20 +9,47 @@ import traceback
 import json
 import time
 
+from translators.common import CommonTranslator
+
 from .keys import APP_ID, SECRET_KEY
 
 # base api url
 BASE_URL = 'api.fanyi.baidu.com'
 API_URL = '/api/trans/vip/translate'
 
+LANGUAGE_CODE_MAP = {
+	'CHS': 'zh',
+	'CHT': 'cht',
+	'JPN': "ja",
+	'ENG': 'en',
+	'KOR': 'kor',
+	'VIN': 'vie',
+	'CSY': 'cs',
+	'NLD': 'nl',
+	'FRA': 'fra',
+	'DEU': 'de',
+	'HUN': 'hu',
+	'ITA': 'it',
+	'PLK': 'pl',
+	'PTB': 'pt',
+	'ROM': 'rom',
+	'RUS': 'ru',
+	'ESP': 'spa',
+	'TRK': 'NONE',
+}
+
 import aiohttp
 
-class Translator(object):
+# FIXME: Baidu translator api outdated
+class BaiduTranslator(CommonTranslator):
 	def __init__(self):
 		pass
 
-	async def translate(self, from_lang, to_lang, query_text):
-		url = self.get_url(from_lang, to_lang, query_text)
+	def _get_language_code(self, key):
+		return LANGUAGE_CODE_MAP[key]
+
+	async def _translate(self, from_lang, to_lang, queries):
+		url = self.get_url(from_lang, to_lang, '\n'.join(queries))
 		async with aiohttp.ClientSession() as session:
 			async with session.get('https://'+BASE_URL+url) as resp:
 				result = await resp.json()
