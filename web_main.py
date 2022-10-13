@@ -32,23 +32,19 @@ routes = web.RouteTableDef()
 
 
 def constant_compare(a, b) :
-	try :
-		if isinstance(a, str):
-			a = a.encode('utf-8')
-
-		if isinstance(b, str):
-			b = b.encode('utf-8')
-
-		if len(a) != len(b):
-			return False
-
-		result = 0
-		for x, y in zip(a, b):
-			result |= x ^ y
-		return result == 0
-	except Exception :
+	if isinstance(a, str):
+		a = a.encode('utf-8')
+	if isinstance(b, str):
+		b = b.encode('utf-8')
+	if not isinstance(a, bytes) or not isinstance(b, bytes):
+		return False
+	if len(a) != len(b):
 		return False
 
+	result = 0
+	for x, y in zip(a, b):
+		result |= x ^ y
+	return result == 0
 
 @routes.get("/")
 async def index_async(request) :
@@ -154,7 +150,7 @@ async def run_async(request) :
 @routes.get("/task-internal")
 async def get_task_async(request) :
 	global NONCE, NUM_ONGOING_TASKS
-	if constant_compare(request.rel_url.query['nonce'], NONCE) :
+	if constant_compare(request.rel_url.query.get('nonce'), NONCE) :
 		if len(QUEUE) > 0 and NUM_ONGOING_TASKS < MAX_NUM_TASKS :
 			task_id = QUEUE.popleft()
 			if task_id in TASK_DATA :
@@ -222,7 +218,7 @@ async def post_translation_result(request) :
 async def request_translation_internal(request) :
 	global NONCE
 	rqjson = (await request.json())
-	if constant_compare(rqjson['nonce'], NONCE) :
+	if constant_compare(rqjson.get('nonce'), NONCE) :
 		task_id = rqjson['task_id']
 		if task_id in TASK_DATA :
 			if 'manual' in TASK_DATA[task_id] :
@@ -237,7 +233,7 @@ async def request_translation_internal(request) :
 async def get_translation_internal(request) :
 	global NONCE
 	rqjson = (await request.json())
-	if constant_compare(rqjson['nonce'], NONCE) :
+	if constant_compare(rqjson.get('nonce'), NONCE) :
 		task_id = rqjson['task_id']
 		if task_id in TASK_DATA :
 			if 'trans_result' in TASK_DATA[task_id] :
@@ -268,7 +264,7 @@ async def get_task_state_async(request) :
 async def post_task_update_async(request) :
 	global NONCE, NUM_ONGOING_TASKS
 	rqjson = (await request.json())
-	if constant_compare(rqjson['nonce'], NONCE) :
+	if constant_compare(rqjson.get('nonce'), NONCE) :
 		task_id = rqjson['task_id']
 		if task_id in TASK_STATES and task_id in TASK_DATA :
 			TASK_STATES[task_id] = rqjson['state']
