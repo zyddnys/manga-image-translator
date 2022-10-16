@@ -14,6 +14,7 @@ import huggingface_hub
 from detection import dispatch as dispatch_detection, load_model as load_detection_model
 from ocr import dispatch as dispatch_ocr, load_model as load_ocr_model
 from inpainting import dispatch as dispatch_inpainting, load_model as load_inpainting_model
+from translators import TRANSLATORS, VALID_LANGUAGES, dispatch as run_translation
 from text_mask import dispatch as dispatch_mask_refinement
 from textline_merge import dispatch as dispatch_textline_merge
 from text_rendering import dispatch as dispatch_rendering, text_render
@@ -40,8 +41,8 @@ parser.add_argument('--box-threshold', default=0.7, type=float, help='threshold 
 parser.add_argument('--text-threshold', default=0.5, type=float, help='threshold for text detection')
 parser.add_argument('--text-mag-ratio', default=1, type=int, help='text rendering magnification ratio, larger means higher quality')
 parser.add_argument('--font-size-offset', default=0, type=int, help='offset font size by a given amount, positive number increase font size and vice versa')
-parser.add_argument('--translator', default='google', type=str, help='language translator')
-parser.add_argument('--target-lang', default='CHS', type=str, help='destination language')
+parser.add_argument('--translator', default='google', type=str, choices=TRANSLATORS, help='language translator')
+parser.add_argument('--target-lang', default='CHS', type=str, choices=VALID_LANGUAGES, help='destination language')
 parser.add_argument('--use-ctd', action='store_true', help='use comic-text-detector for text detection')
 parser.add_argument('--verbose', action='store_true', help='print debug info and save intermediate images')
 parser.add_argument('--manga2eng', action='store_true', help='render English text translated from manga with some typesetting')
@@ -171,7 +172,6 @@ async def infer(
 	print(' -- Translating')
 	if mode != 'web' :
 		# try:
-		from translators import dispatch as run_translation
 		if detector == 'ctd' :
 			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.get_text() for r in text_regions])
 		else:

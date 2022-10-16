@@ -44,8 +44,8 @@ translator_cache = {}
 def get_translator(key: str, *args, **kwargs) -> CommonTranslator:
 	if key not in TRANSLATORS:
 		raise Exception(f'Could not find translator for: "{key}". Choose from the following: %s' % ', '.join(TRANSLATORS))
-	translator = TRANSLATORS[key]
 	if key not in translator_cache :
+		translator = TRANSLATORS[key]
 		translator_cache[key] = translator(*args, **kwargs)
 	return translator_cache[key]
 
