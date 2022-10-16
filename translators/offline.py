@@ -1,6 +1,3 @@
-from cgitb import reset
-import torch
-import os
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 from langdetect import detect
 
@@ -60,9 +57,10 @@ class OfflineTranslator(CommonTranslator):
         self.model = None
         self.tokenizer = None
 
-    def load(self, translator):
+    def load(self, translator, use_cuda):
         # Lazy load memory heavy models
         if not self.loaded:
+            self.use_cuda = use_cuda
             self.model_name = OFFLINE_TRANSLATOR_MODEL_MAP[translator]
             self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name)
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
@@ -86,7 +84,7 @@ class OfflineTranslator(CommonTranslator):
 
         return [self.translate_sentence(from_lang, to_lang, query) for query in queries]
 
-    def translate_sentence(self, from_lang, to_lang, query_text) :
+    def translate_sentence(self, from_lang, to_lang, query_text):
         if not self.is_loaded():
             return ""
 
@@ -99,12 +97,12 @@ class OfflineTranslator(CommonTranslator):
             return ""
 
         translator = pipeline('translation', 
-            device=self._get_device(),
+            device=0 if self.use_cuda else -1,
             model=self.model,
             tokenizer=self.tokenizer,
             src_lang=from_lang,
             tgt_lang=to_lang,
-            max_length = 512
+            max_length = 512,
         )
 
         result = translator(query_text)
@@ -117,9 +115,3 @@ class OfflineTranslator(CommonTranslator):
             return None
 
         return ISO_639_1_TO_FLORES_200[lang]
-    
-    @staticmethod
-    def _get_device():
-        # -1: CPU
-        # 0: CUDA DEVICE 0
-        return 0 if torch.cuda.is_available() and os.getenv('USE_CUDA_FOR_OFFLINE_TRANSLATION', False) else -1

@@ -173,9 +173,9 @@ async def infer(
 	if mode != 'web' :
 		# try:
 		if detector == 'ctd' :
-			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.get_text() for r in text_regions])
+			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.get_text() for r in text_regions], use_cuda = args.use_cuda)
 		else:
-			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.text for r in text_regions])
+			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.text for r in text_regions], use_cuda = args.use_cuda)
 
 	else :
 		translation_request_timeout = 20
