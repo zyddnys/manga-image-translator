@@ -34,6 +34,7 @@ parser.add_argument('--ocr-model', default='48px_ctc', type=str, help='OCR model
 parser.add_argument('--use-inpainting', action='store_true', help='turn on/off inpainting')
 parser.add_argument('--inpainting-model', default='lama_mpe', type=str, help='inpainting model to use, one of `lama_mpe`')
 parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
+parser.add_argument('--use-cuda-limited', action='store_true', help='turn on/off cuda (excluding offline translator)')
 parser.add_argument('--force-horizontal', action='store_true', help='force texts rendered horizontally')
 parser.add_argument('--inpainting-size', default=2048, type=int, help='size of image used for inpainting (too large will result in OOM)')
 parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to extend text skeleton to form bounding box')
@@ -173,9 +174,9 @@ async def infer(
 	if mode != 'web' :
 		# try:
 		if detector == 'ctd' :
-			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.get_text() for r in text_regions], use_cuda = args.use_cuda)
+			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.get_text() for r in text_regions], use_cuda = args.use_cuda and not args.use_cuda_limited)
 		else:
-			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.text for r in text_regions], use_cuda = args.use_cuda)
+			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.text for r in text_regions], use_cuda = args.use_cuda and not args.use_cuda_limited)
 
 	else :
 		translation_request_timeout = 20
@@ -267,9 +268,13 @@ def replace_prefix(s: str, old: str, new: str) :
 async def main(mode = 'demo') :
 	print(' -- Preload Checks')
 	# Add failsafe if torch cannot find cuda support
+	if args.use_cuda_limited:
+		args.use_cuda = True
 	if not torch.cuda.is_available() and args.use_cuda:
-		print("Warning: CUDA compatible device could not be found while --use_cuda args was set... Deferring to CPU")
+		print("Warning: CUDA compatible device could not be found while %s args was set... Deferring to CPU"
+				% '--use_cuda_limited' if args.use_cuda_limited else '--use_cuda')
 		args.use_cuda = False
+		args.use_cuda_limited = False
 
 	print(' -- Preload optional models')
 	preload_offline_translator(args.translator)
