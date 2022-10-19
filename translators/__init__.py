@@ -27,7 +27,12 @@ VALID_LANGUAGES = {
 	"RUS": "Russian",
 	"ESP": "Spanish",
 	"TRK": "Turkish",
-	"VIN": "Vietnamese"
+	"VIN": "Vietnamese",
+}
+
+OFFLINE_TRANSLATORS = {
+	'offline': OfflineTranslator,
+	'offline_big': OfflineTranslator,
 }
 
 TRANSLATORS = {
@@ -36,8 +41,7 @@ TRANSLATORS = {
 	'baidu': BaiduTranslator,
 	'deepl': DeeplTranslator,
 	'papago': PapagoTranslator,
-	'offline': OfflineTranslator,
-	'offline_big': OfflineTranslator
+	**OFFLINE_TRANSLATORS,
 }
 translator_cache = {}
 

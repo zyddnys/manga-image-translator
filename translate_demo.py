@@ -1,6 +1,7 @@
 
 import asyncio
 import argparse
+import time
 from PIL import Image
 import cv2
 import numpy as np
@@ -14,7 +15,7 @@ import huggingface_hub
 from detection import dispatch as dispatch_detection, load_model as load_detection_model
 from ocr import dispatch as dispatch_ocr, load_model as load_ocr_model
 from inpainting import dispatch as dispatch_inpainting, load_model as load_inpainting_model
-from translators import TRANSLATORS, VALID_LANGUAGES, dispatch as run_translation
+from translators import OFFLINE_TRANSLATORS, TRANSLATORS, VALID_LANGUAGES, dispatch as run_translation
 from text_mask import dispatch as dispatch_mask_refinement
 from textline_merge import dispatch as dispatch_textline_merge
 from text_rendering import dispatch as dispatch_rendering, text_render
@@ -146,10 +147,10 @@ async def infer(
 		# create mask
 		final_mask = await dispatch_mask_refinement(img, mask, textlines)
 
-	if mode == 'web' and task_id :
+	if mode == 'web' and task_id and options.get('translator', '') not in OFFLINE_TRANSLATORS:
 		print(' -- Translating')
 		update_state(task_id, nonce, 'translating')
-		# in web mode, we can start translation task async
+		# in web mode, we can start non offline translation tasks async
 		if detector == 'ctd':
 			requests.post(f'http://{args.host}:{args.port}/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 20)
 		else:
@@ -171,27 +172,31 @@ async def infer(
 	# translate text region texts
 	translated_sentences = None
 	print(' -- Translating')
-	if mode != 'web' :
-		# try:
+	if mode != 'web':
 		if detector == 'ctd' :
-			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.get_text() for r in text_regions], use_cuda = args.use_cuda and not args.use_cuda_limited)
+			regions = [r.get_text() for r in text_regions]
 		else:
-			translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, [r.text for r in text_regions], use_cuda = args.use_cuda and not args.use_cuda_limited)
+			regions = [r.text for r in text_regions]
+		translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, regions, use_cuda = args.use_cuda and not args.use_cuda_limited)
 
-	else :
-		translation_request_timeout = 20
+	elif options.get('translator', '') in OFFLINE_TRANSLATORS:
+		if detector == 'ctd' :
+			regions = [r.get_text() for r in text_regions]
+		else:
+			regions = [r.text for r in text_regions]
+		translated_sentences = await run_translation(options['translator'], 'auto', options['tgt'], regions, use_cuda = args.use_cuda and not args.use_cuda_limited)
 
+	else:
 		# wait for at most 1 hour for manual translation
-		if 'manual' in options and options['manual'] :
-			wait_n_10ms = 36000
-		# Wait longer for offline translation given it needs to do some crunching
-		elif 'offline' in args.translator:
-			translation_request_timeout = 60
-			wait_n_10ms = 1200 
+		if options.get('manual', False) :
+			wait_for = 3600
 		else :
-			wait_n_10ms = 300 # 30 seconds for machine translation
-		for _ in range(wait_n_10ms) :
-			ret = requests.post(f'http://{args.host}:{args.port}/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}, timeout = translation_request_timeout).json()
+			wait_for = 30 # 30 seconds for machine translation
+		wait_until = time.time() + wait_for
+		print(wait_until, time.time(), wait_for)
+		while time.time() < wait_until:
+			print('waiting for tr')
+			ret = requests.post(f'http://{args.host}:{args.port}/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}, timeout = 20).json()
 			if 'result' in ret :
 				translated_sentences = ret['result']
 				if isinstance(translated_sentences, str) :
@@ -290,96 +295,80 @@ async def main(mode = 'demo') :
 	load_detection_model(args.use_cuda)
 	load_inpainting_model(args.use_cuda, args.inpainting_model)
 
-	if mode == 'demo' :
+	if mode == 'demo':
 		print(' -- Running in single image demo mode')
-		if not args.image :
+		if not args.image:
 			print('please provide an image')
 			parser.print_usage()
 			return
 		img, alpha_ch = convert_img(Image.open(args.image))
 		img = np.array(img)
 		await infer(img, mode, '', alpha_ch = alpha_ch)
-	elif mode == 'web' :
+	elif mode == 'web' or mode == 'web2':
 		print(' -- Running in web service mode')
 		print(' -- Waiting for translation tasks')
-		nonce = crypto_utils.rand_bytes(16).hex()
-		import subprocess
-		import sys
 
-		extra_web_args = {'stdout':sys.stdout, 'stderr':sys.stderr} if args.log_web else {}
-		web_executable = [sys.executable, '-u'] if args.log_web else [sys.executable]
-		web_process_args = ['web_main.py', nonce, str(args.host), str(args.port)]
-		subprocess.Popen([*web_executable, *web_process_args], **extra_web_args)
+		if mode == 'web':
+			import subprocess
+			import sys
+			nonce = crypto_utils.rand_bytes(16).hex()
+
+			extra_web_args = {'stdout':sys.stdout, 'stderr':sys.stderr} if args.log_web else {}
+			web_executable = [sys.executable, '-u'] if args.log_web else [sys.executable]
+			web_process_args = ['web_main.py', nonce, str(args.host), str(args.port)]
+			subprocess.Popen([*web_executable, *web_process_args], **extra_web_args)
 		
-		while True :
-			try :
+		while True:
+			try:
 				task_id, options = get_task(nonce)
-				if task_id :
+				if task_id:
 					try :
 						print(f' -- Processing task {task_id}')
 						img, alpha_ch = convert_img(Image.open(f'result/{task_id}/input.png'))
 						img = np.array(img)
 						infer_task = asyncio.create_task(infer_safe(img, mode, nonce, options, task_id, alpha_ch = alpha_ch))
 						asyncio.gather(infer_task)
-					except Exception :
+					except Exception:
 						import traceback
 						traceback.print_exc()
 						update_state(task_id, nonce, 'error')
-				else :
+				else:
 					await asyncio.sleep(0.1)
-			except Exception :
+			except Exception:
 				import traceback
 				traceback.print_exc()
-	elif mode == 'web2' :
-		print(' -- Running in web service mode')
-		print(' -- Waiting for translation tasks')
-		while True :
-			task_id, options = get_task(nonce)
-			if task_id :
-				print(f' -- Processing task {task_id}')
-				try :
-					img, alpha_ch = convert_img(Image.open(f'result/{task_id}/input.png'))
-					img = np.array(img)
-					infer_task = asyncio.create_task(infer_safe(img, mode, nonce, options, task_id, alpha_ch = alpha_ch))
-					asyncio.gather(infer_task)
-				except Exception :
-					import traceback
-					traceback.print_exc()
-					update_state(task_id, nonce, 'error')
-			else :
-				await asyncio.sleep(0.1)
-	elif mode == 'batch' :
+	elif mode == 'batch':
 		src = os.path.abspath(args.image)
-		if src[-1] == '\\' or src[-1] == '/' :
+		if src[-1] == '\\' or src[-1] == '/':
 			src = src[:-1]
 		dst = args.image_dst or src + '-translated'
-		if os.path.exists(dst) and not os.path.isdir(dst) :
+		if os.path.exists(dst) and not os.path.isdir(dst):
 			print(f'Destination `{dst}` already exists and is not a directory! Please specify another directory.')
 			return
-		if os.path.exists(dst) and os.listdir(dst) :
+		if os.path.exists(dst) and os.listdir(dst):
 			print(f'Destination directory `{dst}` already exists! Please specify another directory.')
 			return
 		print('Processing image in source directory')
 		files = []
-		for root, subdirs, files in os.walk(src) :
+		for root, subdirs, files in os.walk(src):
 			dst_root = replace_prefix(root, src, dst)
 			os.makedirs(dst_root, exist_ok = True)
 			for f in files :
-				if f.lower() == '.thumb' :
+				if f.lower() == '.thumb':
 					continue
 				filename = os.path.join(root, f)
-				try :
+				try:
 					img, alpha_ch = convert_img(Image.open(filename))
 					img = np.array(img)
-					if img is None :
+					if img is None:
 						continue
-				except Exception :
+				except Exception:
 					pass
-				try :
+				try:
 					dst_filename = replace_prefix(filename, src, dst)
 					print('Processing', filename, '->', dst_filename)
 					await infer(img, 'demo', '', dst_image_name = dst_filename, alpha_ch = alpha_ch)
-				except Exception :
+				except Exception:
 					import traceback
 					traceback.print_exc()
 					pass
@@ -410,5 +399,6 @@ def preload_offline_translator(translation_mode):
 
 if __name__ == '__main__':
 	print(args)
-	loop = asyncio.get_event_loop()
+	loop = asyncio.new_event_loop()
+	asyncio.set_event_loop(loop)
 	loop.run_until_complete(main(args.mode))

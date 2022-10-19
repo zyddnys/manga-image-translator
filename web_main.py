@@ -3,13 +3,9 @@ import os
 import sys
 import time
 import asyncio
-import traceback
-import PIL
-import copy
 from PIL import Image
 from oscrypto import util as crypto_utils
 from aiohttp import web
-from aiohttp import ClientSession
 from io import BytesIO
 
 from imagehash import phash
@@ -31,7 +27,7 @@ app = web.Application(client_max_size = 1024 * 1024 * 50)
 routes = web.RouteTableDef()
 
 
-def constant_compare(a, b) :
+def constant_compare(a, b):
 	if isinstance(a, str):
 		a = a.encode('utf-8')
 	if isinstance(b, str):
@@ -155,7 +151,7 @@ async def get_task_async(request) :
 			task_id = QUEUE.popleft()
 			if task_id in TASK_DATA :
 				data = TASK_DATA[task_id]
-				if 'manual' not in TASK_DATA[task_id] :
+				if not TASK_DATA[task_id].get('manual', False) :
 					NUM_ONGOING_TASKS += 1
 				return web.json_response({'task_id': task_id, 'data': data})
 			else :
@@ -171,7 +167,7 @@ async def machine_trans_task(task_id, texts, translator = 'youdao', target_langu
 		TASK_DATA[task_id] = {}
 	if texts :
 		success = False
-		for i in range(10) :
+		for _ in range(10) :
 			try :
 				TASK_DATA[task_id]['trans_result'] = await asyncio.wait_for(run_translation(translator, 'auto', target_language, texts), timeout = 15)
 				success = True
@@ -203,10 +199,10 @@ async def post_translation_result(request) :
 			while True :
 				await asyncio.sleep(0.1)
 				if TASK_STATES[task_id] in ['error', 'error-lang', 'error-no-txt'] :
-					ret = web.json_response({'task_id' : task_id, 'status': 'failed'})
+					ret = web.json_response({'task_id': task_id, 'status': 'failed'})
 					break
-				if TASK_STATES[task_id] == 'finished' :
-					ret = web.json_response({'task_id' : task_id, 'status': 'successful'})
+				if TASK_STATES[task_id] == 'finished':
+					ret = web.json_response({'task_id': task_id, 'status': 'successful'})
 					break
 			# remove old tasks
 			del TASK_STATES[task_id]
@@ -221,11 +217,11 @@ async def request_translation_internal(request) :
 	if constant_compare(rqjson.get('nonce'), NONCE) :
 		task_id = rqjson['task_id']
 		if task_id in TASK_DATA :
-			if 'manual' in TASK_DATA[task_id] :
+			if TASK_DATA[task_id].get('manual', False) :
 				# manual translation
 				asyncio.gather(manual_trans_task(task_id, rqjson['texts']))
 			else :
-				# using machine trnaslation
+				# using machine translation
 				asyncio.gather(machine_trans_task(task_id, rqjson['texts'], TASK_DATA[task_id]['translator'], TASK_DATA[task_id]['tgt']))
 	return web.json_response({})
 
@@ -268,7 +264,7 @@ async def post_task_update_async(request) :
 		task_id = rqjson['task_id']
 		if task_id in TASK_STATES and task_id in TASK_DATA :
 			TASK_STATES[task_id] = rqjson['state']
-			if rqjson['state'] in ['finished', 'error', 'error-lang'] and 'manual' not in TASK_DATA[task_id] :
+			if rqjson['state'] in ['finished', 'error', 'error-lang'] and not TASK_DATA[task_id].get('manual', False) :
 				NUM_ONGOING_TASKS -= 1
 			print(f'Task state {task_id} to {TASK_STATES[task_id]}')
 	return web.json_response({})
@@ -325,12 +321,11 @@ async def manual_translate_async(request) :
 
 app.add_routes(routes)
 
-async def start_async_app() :
-	# schedule web server to run
+async def start_async_app(host, port, nonce):
 	global NONCE
-	NONCE = sys.argv[1]
-	host = sys.argv[2]
-	port = int(sys.argv[3])
+	NONCE = nonce
+	port = str(port)
+	# schedule web server to run
 	runner = web.AppRunner(app)
 	await runner.setup()
 	site = web.TCPSite(runner, host, port)
@@ -339,8 +334,14 @@ async def start_async_app() :
 	return runner, site
 
 if __name__ == '__main__' :
-	loop = asyncio.get_event_loop()
-	runner, site = loop.run_until_complete(start_async_app())
+	loop = asyncio.new_event_loop()
+	asyncio.set_event_loop(loop)
+
+	nonce = sys.argv[1]
+	host = sys.argv[2]
+	port = int(sys.argv[3])
+
+	runner, site = loop.run_until_complete(start_async_app(host, port, nonce))
 
 	try:
 		loop.run_forever()
