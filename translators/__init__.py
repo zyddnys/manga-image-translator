@@ -27,7 +27,12 @@ VALID_LANGUAGES = {
 	"RUS": "Russian",
 	"ESP": "Spanish",
 	"TRK": "Turkish",
-	"VIN": "Vietnamese"
+	"VIN": "Vietnamese",
+}
+
+OFFLINE_TRANSLATORS = {
+	'offline': OfflineTranslator,
+	'offline_big': OfflineTranslator,
 }
 
 TRANSLATORS = {
@@ -36,61 +41,60 @@ TRANSLATORS = {
 	'baidu': BaiduTranslator,
 	'deepl': DeeplTranslator,
 	'papago': PapagoTranslator,
-	'offline': OfflineTranslator,
-	'offline_big': OfflineTranslator
+	**OFFLINE_TRANSLATORS,
 }
 translator_cache = {}
 
 def get_translator(key: str, *args, **kwargs) -> CommonTranslator:
 	if key not in TRANSLATORS:
 		raise Exception(f'Could not find translator for: "{key}". Choose from the following: %s' % ', '.join(TRANSLATORS))
-	translator = TRANSLATORS[key]
-	if key not in translator_cache :
+	if key not in translator_cache:
+		translator = TRANSLATORS[key]
 		translator_cache[key] = translator(*args, **kwargs)
 	return translator_cache[key]
 
-async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: List[str], *args, **kwargs) -> List[str] :
-	if translator_key == 'null' :
+async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: List[str], **kwargs) -> List[str]:
+	if translator_key == 'null':
 		return queries
-	if not queries :
+	if not queries:
 		return queries
 
-	if tgt_lang not in VALID_LANGUAGES :
+	if tgt_lang not in VALID_LANGUAGES:
 		raise Exception('Invalid language code: "%s". Choose from the following: %s' % (tgt_lang, ', '.join(VALID_LANGUAGES)))
-	if src_lang not in VALID_LANGUAGES and src_lang != 'auto' :
+	if src_lang not in VALID_LANGUAGES and src_lang != 'auto':
 		raise Exception('Invalid language code: "%s". Choose from the following: auto, %s' % (src_lang, ', '.join(VALID_LANGUAGES)))
 	
 	# Might want to remove this fallback in the future, as its misleading
-	if translator_key == 'deepl' :
+	if translator_key == 'deepl':
 		try:
 			translator = get_translator(translator_key)
-		except Exception as e :
+		except Exception as e:
 			print(f'Failed to initialize deepl :\n{str(e)}\nFallback to google translator')
 			translator = get_translator('google')
 	else:
 		translator = get_translator(translator_key)
 
-	if translator_key in ('offline', 'offline_big') :
-		if not translator.is_loaded() :
-			translator.load(translator_key)
+	if translator_key in ('offline', 'offline_big'):
+		if not translator.is_loaded():
+			translator.load(translator_key, kwargs.get('use_cuda', False))
 		result = await asyncio.create_task(translator.translate(src_lang, tgt_lang, queries))
-	else :
+	else:
 		result = await translator.translate(src_lang, tgt_lang, queries)
 		
 	translated_sentences = []
-	if len(result) < len(queries) :
+	if len(result) < len(queries):
 		translated_sentences.extend(result)
 		translated_sentences.extend([''] * (len(queries) - len(result)))
-	elif len(result) > len(queries) :
-		translated_sentences.extend(result[: len(queries)])
+	elif len(result) > len(queries):
+		translated_sentences.extend(result[:len(queries)])
 	else :
 		translated_sentences.extend(result)
 	return translated_sentences
 
-def test() :
+def test():
 	src = '测试'
 	print(dispatch('offline', 'auto', 'ENG', [src]))
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
 	import asyncio
 	asyncio.run(test())

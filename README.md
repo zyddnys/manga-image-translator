@@ -86,7 +86,8 @@ VIN: Vietnames
 ### Using CLI
 
 ```bash
-# `--use-cuda` is optional, if you have a compatible NVIDIA GPU, you can use it. (To GPU accelerate offline translation set the USE_CUDA_FOR_OFFLINE_TRANSLATION env var to true)
+# `--use-cuda` is optional, if you have a compatible NVIDIA GPU, you can use it.
+# use `--use-cuda-limited` to defer vram expensive language translations to the cpu
 # use `--use-inpainting` to enable inpainting.
 # use `--translator=<translator>` to specify a translator.
 # use `--target-lang=<languge_code>` to specify a target language.

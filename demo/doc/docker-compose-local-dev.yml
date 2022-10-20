@@ -32,8 +32,6 @@ services:
     ipc: host
 
     # For GPU
-    #environment:
-    #  USE_CUDA_FOR_OFFLINE_TRANSLATION: true
     #deploy:
     #  resources:
     #    reservations:
