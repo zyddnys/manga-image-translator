@@ -55,7 +55,7 @@
               <div class="relative">
                 <select class="w-12ch appearance-none bg-transparent border-b border-gray-300" v-model="renderTextDirection">
                   <option value="auto">Auto</option>
-                  <option value="ctd">Horizontal</option>
+                  <option value="horizontal">Horizontal</option>
                 </select>
                 <i class="iconify absolute top-1.5 right-1 pointer-events-none" data-icon="carbon:chevron-down"></i>
               </div>
@@ -266,7 +266,7 @@
           formData.append('file', this.file)
           formData.append('size', this.detectionResolution)
           formData.append('detector', this.textDetector)
-          formData.append('dir', this.renderTextDirection)
+          formData.append('direction', this.renderTextDirection)
           formData.append('translator', this.translator)
           formData.append('tgt_lang', this.targetLanguage)
 

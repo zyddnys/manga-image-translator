@@ -194,11 +194,10 @@ async def infer(
 			wait_for = 30 # 30 seconds for machine translation
 		wait_until = time.time() + wait_for
 		while time.time() < wait_until:
-			print('waiting for tr')
 			ret = requests.post(f'http://{args.host}:{args.port}/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}, timeout = 20).json()
 			if 'result' in ret :
 				translated_sentences = ret['result']
-				if isinstance(translated_sentences, str) :
+				if isinstance(translated_sentences, str):
 					if translated_sentences == 'error' :
 						update_state(task_id, nonce, 'error-lang')
 						return

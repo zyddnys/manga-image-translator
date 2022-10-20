@@ -65,6 +65,7 @@ async def queue_size_async(request) :
 
 async def handle_post(request) :
 	data = await request.post()
+	print(data)
 	size = ''
 	selected_translator = 'youdao'
 	target_language = 'CHS'
@@ -78,8 +79,8 @@ async def handle_post(request) :
 		detector = data['detector'].lower()
 		if detector not in VALID_DETECTORS :
 			detector = 'default'
-	if 'dir' in data :
-		direction = data['dir'].lower()
+	if 'direction' in data :
+		direction = data['direction'].lower()
 		if direction not in VALID_DIRECTIONS :
 			direction = 'auto'
 	if 'translator' in data :
