@@ -374,7 +374,7 @@ def layout_lines_aligncenter(
 						line.strip_spacing()
 						break
 
-			if not line_valid :
+			if not line_valid:
 				pos_x = centroid_x - wl // 2
 				pos_y -= line_height
 				line_bottom = pos_y + line_height

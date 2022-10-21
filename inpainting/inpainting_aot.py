@@ -14,21 +14,21 @@ import torch.nn.functional as F
 
 import numpy as np
 
-def relu_nf(x) :
+def relu_nf(x):
 	return F.relu(x) * 1.7139588594436646
 
-def gelu_nf(x) :
+def gelu_nf(x):
 	return F.gelu(x) * 1.7015043497085571
 
-def silu_nf(x) :
+def silu_nf(x):
 	return F.silu(x) * 1.7881293296813965
 
-class LambdaLayer(nn.Module) :
+class LambdaLayer(nn.Module):
 	def __init__(self, f):
 		super(LambdaLayer, self).__init__()
 		self.f = f
 
-	def forward(self, x) :
+	def forward(self, x):
 		return self.f(x)
 
 class ScaledWSConv2d(nn.Conv2d):
@@ -98,8 +98,8 @@ class ScaledWSTransposeConv2d(nn.ConvTranspose2d):
 		return F.conv_transpose2d(x, self.get_weight(), self.bias, self.stride, self.padding,
 			output_padding, self.groups, self.dilation)
 
-class GatedWSConvPadded(nn.Module) :
-	def __init__(self, in_ch, out_ch, ks, stride = 1, dilation = 1) :
+class GatedWSConvPadded(nn.Module):
+	def __init__(self, in_ch, out_ch, ks, stride = 1, dilation = 1):
 		super(GatedWSConvPadded, self).__init__()
 		self.in_ch = in_ch
 		self.out_ch = out_ch
@@ -107,34 +107,34 @@ class GatedWSConvPadded(nn.Module) :
 		self.conv = ScaledWSConv2d(in_ch, out_ch, kernel_size = ks, stride = stride, dilation = dilation)
 		self.conv_gate = ScaledWSConv2d(in_ch, out_ch, kernel_size = ks, stride = stride, dilation = dilation)
 
-	def forward(self, x) :
+	def forward(self, x):
 		x = self.padding(x)
 		signal = self.conv(x)
 		gate = torch.sigmoid(self.conv_gate(x))
 		return signal * gate * 1.8
 
-class GatedWSTransposeConvPadded(nn.Module) :
-	def __init__(self, in_ch, out_ch, ks, stride = 1) :
+class GatedWSTransposeConvPadded(nn.Module):
+	def __init__(self, in_ch, out_ch, ks, stride = 1):
 		super(GatedWSTransposeConvPadded, self).__init__()
 		self.in_ch = in_ch
 		self.out_ch = out_ch
 		self.conv = ScaledWSTransposeConv2d(in_ch, out_ch, kernel_size = ks, stride = stride, padding = (ks - 1) // 2)
 		self.conv_gate = ScaledWSTransposeConv2d(in_ch, out_ch, kernel_size = ks, stride = stride, padding = (ks - 1) // 2)
 
-	def forward(self, x) :
+	def forward(self, x):
 		signal = self.conv(x)
 		gate = torch.sigmoid(self.conv_gate(x))
 		return signal * gate * 1.8
 
-class ResBlock(nn.Module) :
-	def __init__(self, ch, alpha = 0.2, beta = 1.0, dilation = 1) :
+class ResBlock(nn.Module):
+	def __init__(self, ch, alpha = 0.2, beta = 1.0, dilation = 1):
 		super(ResBlock, self).__init__()
 		self.alpha = alpha
 		self.beta = beta
 		self.c1 = GatedWSConvPadded(ch, ch, 3, dilation = dilation)
 		self.c2 = GatedWSConvPadded(ch, ch, 3, dilation = dilation)
 
-	def forward(self, x) :
+	def forward(self, x):
 		skip = x
 		x = self.c1(relu_nf(x / self.beta))
 		x = self.c2(relu_nf(x))
@@ -186,9 +186,9 @@ class ResBlockDis(nn.Module):
 		self.stride = stride
 
 		self.shortcut = nn.Sequential()
-		if stride > 1 :
+		if stride > 1:
 			self.shortcut = nn.Sequential(nn.AvgPool2d(2, 2), nn.Conv2d(in_planes, planes, kernel_size=1))
-		elif in_planes != planes and stride == 1 :
+		elif in_planes != planes and stride == 1:
 			self.shortcut = nn.Sequential(nn.Conv2d(in_planes, planes, kernel_size=1))
 
 	def forward(self, x):
@@ -197,8 +197,8 @@ class ResBlockDis(nn.Module):
 		x = self.conv2(F.leaky_relu(self.bn2(x), 0.2))
 		return sc + x
 from torch.nn.utils import spectral_norm
-class Discriminator(nn.Module) :
-	def __init__(self, in_ch = 3, in_planes = 64, blocks = [2, 2, 2], alpha = 0.2) :
+class Discriminator(nn.Module):
+	def __init__(self, in_ch = 3, in_planes = 64, blocks = [2, 2, 2], alpha = 0.2):
 		super(Discriminator, self).__init__()
 		self.in_planes = in_planes
 
@@ -214,12 +214,12 @@ class Discriminator(nn.Module) :
 			nn.Conv2d(512, 1, 4, stride=1, padding=1)
 		)
 
-	def forward(self, x) :
+	def forward(self, x):
 		x = self.conv(x)
 		return x
 
-class AOTGenerator(nn.Module) :
-	def __init__(self, in_ch = 4, out_ch = 3, ch = 32, alpha = 0.0) :
+class AOTGenerator(nn.Module):
+	def __init__(self, in_ch = 4, out_ch = 3, ch = 32, alpha = 0.0):
 		super(AOTGenerator, self).__init__()
 
 		self.head = nn.Sequential(
@@ -244,17 +244,17 @@ class AOTGenerator(nn.Module) :
 			GatedWSConvPadded(ch, out_ch, 3, stride = 1),
 		)
 
-	def forward(self, img, mask) :
+	def forward(self, img, mask):
 		x = torch.cat([mask, img], dim = 1)
 		x = self.head(x)
 		conv = self.body_conv(x)
 		x = self.tail(conv)
-		if self.training :
+		if self.training:
 			return x
-		else :
+		else:
 			return torch.clip(x, -1, 1)
 
-def test() :
+def test():
 	img = torch.randn(4, 3, 256, 256).cuda()
 	mask = torch.randn(4, 1, 256, 256).cuda()
 	net = AOTGenerator().cuda()

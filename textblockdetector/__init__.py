@@ -110,9 +110,9 @@ class TextDetector:
         # map output to input img
         mask = mask[: mask.shape[0]-dh, : mask.shape[1]-dw]
         mask = cv2.resize(mask, (im_w, im_h), interpolation=cv2.INTER_LINEAR)
-        if lines.size == 0 :
+        if lines.size == 0:
             lines = []
-        else :
+        else:
             lines = lines.astype(np.float64)
             lines[..., 0] *= resize_ratio[0]
             lines[..., 1] *= resize_ratio[1]
@@ -137,6 +137,6 @@ def load_model(cuda: bool):
 
 async def dispatch(img: np.ndarray, cuda: bool):
     global DEFAULT_MODEL
-    if DEFAULT_MODEL is None :
+    if DEFAULT_MODEL is None:
         load_model(cuda)
     return DEFAULT_MODEL(img, refine_mode=REFINEMASK_INPAINT, keep_undetected_mask=False, bgr2rgb=False)

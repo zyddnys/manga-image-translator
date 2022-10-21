@@ -32,7 +32,7 @@ class DeeplTranslator(CommonTranslator):
 	def _get_language_code(self, key):
 		return LANGUAGE_CODE_MAP[key]
 
-	async def _translate(self, from_lang, to_lang, queries) :
+	async def _translate(self, from_lang, to_lang, queries):
 		return self.translator.translate_text('\n'.join(queries), target_lang = to_lang).text.split('\n')
 
 

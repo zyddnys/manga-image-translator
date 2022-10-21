@@ -10,24 +10,24 @@ from .papago import PapagoTranslator
 from .offline import OfflineTranslator
 
 VALID_LANGUAGES = {
-	"CHS": "Chinese (Simplified)",
-	"CHT": "Chinese (Traditional)",
-	"CSY": "Czech",
-	"NLD": "Dutch",
-	"ENG": "English",
-	"FRA": "French",
-	"DEU": "German",
-	"HUN": "Hungarian",
-	"ITA": "Italian",
-	"JPN": "Japanese",
-	"KOR": "Korean",
-	"PLK": "Polish",
-	"PTB": "Portuguese (Brazil)",
-	"ROM": "Romanian",
-	"RUS": "Russian",
-	"ESP": "Spanish",
-	"TRK": "Turkish",
-	"VIN": "Vietnamese",
+	'CHS': 'Chinese (Simplified)',
+	'CHT': 'Chinese (Traditional)',
+	'CSY': 'Czech',
+	'NLD': 'Dutch',
+	'ENG': 'English',
+	'FRA': 'French',
+	'DEU': 'German',
+	'HUN': 'Hungarian',
+	'ITA': 'Italian',
+	'JPN': 'Japanese',
+	'KOR': 'Korean',
+	'PLK': 'Polish',
+	'PTB': 'Portuguese (Brazil)',
+	'ROM': 'Romanian',
+	'RUS': 'Russian',
+	'ESP': 'Spanish',
+	'TRK': 'Turkish',
+	'VIN': 'Vietnamese',
 }
 
 OFFLINE_TRANSLATORS = {
@@ -87,7 +87,7 @@ async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: L
 		translated_sentences.extend([''] * (len(queries) - len(result)))
 	elif len(result) > len(queries):
 		translated_sentences.extend(result[:len(queries)])
-	else :
+	else:
 		translated_sentences.extend(result)
 	return translated_sentences
 

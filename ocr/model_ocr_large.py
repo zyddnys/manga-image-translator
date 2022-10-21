@@ -214,26 +214,26 @@ class AddCoords(nn.Module):
 
 		return ret
 
-class Beam :
-	def __init__(self, char_seq = [], logprobs = []) :
+class Beam:
+	def __init__(self, char_seq = [], logprobs = []):
 		# L
-		if isinstance(char_seq, list) :
+		if isinstance(char_seq, list):
 			self.chars = torch.tensor(char_seq, dtype=torch.long)
 			self.logprobs = torch.tensor(logprobs, dtype=torch.float32)
-		else :
+		else:
 			self.chars = char_seq.clone()
 			self.logprobs = logprobs.clone()
 
-	def avg_logprob(self) :
+	def avg_logprob(self):
 		return self.logprobs.mean().item()
 	
-	def sort_key(self) :
+	def sort_key(self):
 		return -self.avg_logprob()
 	
-	def seq_end(self, end_tok) :
+	def seq_end(self, end_tok):
 		return self.chars.view(-1)[-1] == end_tok
 
-	def extend(self, idx, logprob) :
+	def extend(self, idx, logprob):
 		return Beam(
 			torch.cat([self.chars, idx.unsqueeze(0)], dim = -1),
 			torch.cat([self.logprobs, logprob.unsqueeze(0)], dim = -1),
@@ -241,8 +241,8 @@ class Beam :
 
 DECODE_BLOCK_LENGTH = 8
 
-class Hypothesis :
-	def __init__(self, device, start_tok: int, end_tok: int, padding_tok: int, memory_idx: int, num_layers: int, embd_dim: int) :
+class Hypothesis:
+	def __init__(self, device, start_tok: int, end_tok: int, padding_tok: int, memory_idx: int, num_layers: int, embd_dim: int):
 		self.device = device
 		self.start_tok = start_tok
 		self.end_tok = end_tok
@@ -256,22 +256,22 @@ class Hypothesis :
 		self.out_logprobs = torch.FloatTensor([0]).to(self.device)
 		self.length = 0
 
-	def seq_end(self) :
+	def seq_end(self):
 		return self.out_idx.view(-1)[-1] == self.end_tok
 
-	def logprob(self) :
+	def logprob(self):
 		return self.out_logprobs.mean().item()
 
-	def sort_key(self) :
+	def sort_key(self):
 		return -self.logprob()
 
-	def prob(self) :
+	def prob(self):
 		return self.out_logprobs.mean().exp().item()
 
-	def __len__(self) :
+	def __len__(self):
 		return self.length
 
-	def extend(self, idx, logprob) :
+	def extend(self, idx, logprob):
 		ret = Hypothesis(self.device, self.start_tok, self.end_tok, self.padding_tok, self.memory_idx, self.num_layers, self.embd_size)
 		ret.cached_activations = [item.clone() for item in self.cached_activations]
 		ret.length = self.length + 1
@@ -279,7 +279,7 @@ class Hypothesis :
 		ret.out_logprobs = torch.cat([self.out_logprobs, torch.FloatTensor([logprob]).to(self.device)], dim = 0)
 		return ret
 
-	def output(self) :
+	def output(self):
 		return self.cached_activations[-1]
 
 def next_token_batch(
@@ -289,7 +289,7 @@ def next_token_batch(
 	decoders: nn.TransformerDecoder,
 	pe: PositionalEncoding,
 	embd: nn.Embedding
-	) :
+	):
 	layer: nn.TransformerDecoderLayer
 	N = len(hyps)
 
@@ -310,13 +310,13 @@ def next_token_batch(
 
 	# S, N, E
 	memory = torch.stack([memory[:, idx, :] for idx in [item.memory_idx for item in hyps]], dim = 1)
-	for l, layer in enumerate(decoders.layers) :
+	for l, layer in enumerate(decoders.layers):
 		# TODO: keys and values are recomputed everytime
 		# L - 1, N, E
 		combined_activations = torch.cat([item.cached_activations[l] for item in hyps], dim = 1)
 		# L, N, E
 		combined_activations = torch.cat([combined_activations, tgt], dim = 0)
-		for i in range(N) :
+		for i in range(N):
 			hyps[i].cached_activations[l] = combined_activations[:, i: i + 1, :]
 		tgt2 = layer.self_attn(tgt, combined_activations, combined_activations)[0]
 		tgt = tgt + layer.dropout1(tgt2)
@@ -329,12 +329,12 @@ def next_token_batch(
 		# 1, N, E
 		tgt = layer.norm3(tgt)
 	#print(tgt[0, 0, 0])
-	for i in range(N) :
+	for i in range(N):
 		hyps[i].cached_activations[decoders.num_layers] = torch.cat([hyps[i].cached_activations[decoders.num_layers], tgt[:, i: i + 1, :]], dim = 0)
 	# N, E
 	return tgt.squeeze_(0)
 
-class OCR(nn.Module) :
+class OCR(nn.Module):
 	def __init__(self, dictionary, max_len):
 		super(OCR, self).__init__()
 		self.max_len = max_len
@@ -363,7 +363,7 @@ class OCR(nn.Module) :
 		char_idx: torch.LongTensor,
 		mask: torch.BoolTensor,
 		source_mask: torch.BoolTensor
-		) :
+		):
 		feats = self.backbone(img)
 		feats = torch.einsum('n e h s -> s n e', feats)
 		feats = self.pe(feats)
@@ -385,14 +385,14 @@ class OCR(nn.Module) :
 			self.bg_g_pred(color_feats), \
 			self.bg_b_pred(color_feats)
 
-	def infer_beam_batch(self, img: torch.FloatTensor, img_widths: List[int], beams_k: int = 5, start_tok = 1, end_tok = 2, pad_tok = 0, max_finished_hypos: int = 2, max_seq_length = 384) :
+	def infer_beam_batch(self, img: torch.FloatTensor, img_widths: List[int], beams_k: int = 5, start_tok = 1, end_tok = 2, pad_tok = 0, max_finished_hypos: int = 2, max_seq_length = 384):
 		N, C, H, W = img.shape
 		assert H == 32 and C == 3
 		feats = self.backbone(img)
 		feats = torch.einsum('n e h s -> s n e', feats)
 		valid_feats_length = [(x + 3) // 4 + 2 for x in img_widths]
 		input_mask = torch.zeros(N, feats.size(0), dtype = torch.bool).to(img.device)
-		for i, l in enumerate(valid_feats_length) :
+		for i, l in enumerate(valid_feats_length):
 			input_mask[i, l:] = True
 		feats = self.pe(feats)
 		memory = self.encoders(feats, src_key_padding_mask = input_mask)
@@ -405,11 +405,11 @@ class OCR(nn.Module) :
 		pred_chars_values, pred_chars_index = torch.topk(pred_char_logprob, beams_k, dim = 1)
 		new_hypos = []
 		finished_hypos = defaultdict(list)
-		for i in range(N) :
-			for k in range(beams_k) :
+		for i in range(N):
+			for k in range(beams_k):
 				new_hypos.append(hypos[i].extend(pred_chars_index[i, k], pred_chars_values[i, k]))
 		hypos = new_hypos
-		for _ in range(max_seq_length) :
+		for _ in range(max_seq_length):
 			# N * k, E
 			decoded = next_token_batch(hypos, memory, torch.stack([input_mask[hyp.memory_idx] for hyp in hypos]) , self.decoders, self.pe, self.embd)
 			# N * k, n_chars
@@ -418,39 +418,39 @@ class OCR(nn.Module) :
 			pred_chars_values, pred_chars_index = torch.topk(pred_char_logprob, beams_k, dim = 1)
 			hypos_per_sample = defaultdict(list)
 			h: Hypothesis
-			for i, h in enumerate(hypos) :
-				for k in range(beams_k) :
+			for i, h in enumerate(hypos):
+				for k in range(beams_k):
 					hypos_per_sample[h.memory_idx].append(h.extend(pred_chars_index[i, k], pred_chars_values[i, k]))
 			hypos = []
 			# hypos_per_sample now contains N * k^2 hypos
-			for i in hypos_per_sample.keys() :
+			for i in hypos_per_sample.keys():
 				cur_hypos: List[Hypothesis] = hypos_per_sample[i]
 				cur_hypos = sorted(cur_hypos, key = lambda a: a.sort_key())[: beams_k + 1]
 				#print(cur_hypos[0].out_idx[-1])
 				to_added_hypos = []
 				sample_done = False
-				for h in cur_hypos :
-					if h.seq_end() :
+				for h in cur_hypos:
+					if h.seq_end():
 						finished_hypos[i].append(h)
-						if len(finished_hypos[i]) >= max_finished_hypos :
+						if len(finished_hypos[i]) >= max_finished_hypos:
 							sample_done = True
 							break
-					else :
-						if len(to_added_hypos) < beams_k :
+					else:
+						if len(to_added_hypos) < beams_k:
 							to_added_hypos.append(h)
-				if not sample_done :
+				if not sample_done:
 					hypos.extend(to_added_hypos)
-			if len(hypos) == 0 :
+			if len(hypos) == 0:
 				break
 		# add remaining hypos to finished
-		for i in range(N) :
-			if i not in finished_hypos :
+		for i in range(N):
+			if i not in finished_hypos:
 				cur_hypos: List[Hypothesis] = hypos_per_sample[i]
 				cur_hypo = sorted(cur_hypos, key = lambda a: a.sort_key())[0]
 				finished_hypos[i].append(cur_hypo)
 		assert len(finished_hypos) == N
 		result = []
-		for i in range(N) :
+		for i in range(N):
 			cur_hypos = finished_hypos[i]
 			cur_hypo = sorted(cur_hypos, key = lambda a: a.sort_key())[0]
 			decoded = cur_hypo.output()
@@ -464,19 +464,19 @@ class OCR(nn.Module) :
 			result.append((cur_hypo.out_idx, cur_hypo.prob(), fg_r, fg_g, fg_b, bg_r, bg_g, bg_b))
 		return result
 
-	def infer_beam(self, img: torch.FloatTensor, beams_k: int = 5, start_tok = 1, end_tok = 2, pad_tok = 0, max_seq_length = 384) :
+	def infer_beam(self, img: torch.FloatTensor, beams_k: int = 5, start_tok = 1, end_tok = 2, pad_tok = 0, max_seq_length = 384):
 		N, C, H, W = img.shape
 		assert H == 32 and N == 1 and C == 3
 		feats = self.backbone(img)
 		feats = torch.einsum('n e h s -> s n e', feats)
 		feats = self.pe(feats)
 		memory = self.encoders(feats)
-		def run(tokens, add_start_tok = True, char_only = True) :
-			if add_start_tok :
-				if isinstance(tokens, list) :
+		def run(tokens, add_start_tok = True, char_only = True):
+			if add_start_tok:
+				if isinstance(tokens, list):
 					# N(=1), L
 					tokens = torch.tensor([start_tok] + tokens, dtype = torch.long, device = img.device).unsqueeze_(0)
-				else :
+				else:
 					# N, L
 					tokens = torch.cat([torch.tensor([start_tok], dtype = torch.long, device = img.device), tokens], dim = -1).unsqueeze_(0)
 			N, L = tokens.shape
@@ -487,9 +487,9 @@ class OCR(nn.Module) :
 			decoded = self.decoders(embd, memory, tgt_mask = casual_mask)
 			decoded = decoded.permute(1, 0, 2)
 			pred_char_logprob = self.pred(self.pred1(decoded)).log_softmax(-1)
-			if char_only :
+			if char_only:
 				return pred_char_logprob
-			else :
+			else:
 				color_feats = self.color_pred1(decoded)
 				return pred_char_logprob, \
 					self.fg_r_pred(color_feats), \
@@ -506,11 +506,11 @@ class OCR(nn.Module) :
 		initial_pred_chars_values = initial_pred_chars_values.squeeze(0).permute(1, 0)
 		initial_pred_chars_index = initial_pred_chars_index.squeeze(0).permute(1, 0)
 		beams = sorted([Beam(tok, logprob) for tok, logprob in zip(initial_pred_chars_index, initial_pred_chars_values)], key = lambda a: a.sort_key())
-		for _ in range(max_seq_length) :
+		for _ in range(max_seq_length):
 			new_beams = []
 			all_ended = True
-			for beam in beams :
-				if not beam.seq_end(end_tok) :
+			for beam in beams:
+				if not beam.seq_end(end_tok):
 					logprobs = run(beam.chars)
 					pred_chars_values, pred_chars_index = torch.topk(logprobs, beams_k, dim = 2)
 					# beams_k, L
@@ -520,18 +520,18 @@ class OCR(nn.Module) :
 					new_beams.extend([beam.extend(tok[-1], logprob[-1]) for tok, logprob in zip(pred_chars_index, pred_chars_values)])
 					#new_beams.extend([Beam(tok, logprob) for tok, logprob in zip(pred_chars_index, pred_chars_values)]) # extend other top k
 					all_ended = False
-				else :
+				else:
 					new_beams.append(beam) # seq ended, add back to queue
 			beams = sorted(new_beams, key = lambda a: a.sort_key())[: beams_k] # keep top k
 			#print(beams[0].chars)
-			if all_ended :
+			if all_ended:
 				break
 		final_tokens = beams[0].chars[:-1]
 		#print(beams[0].logprobs.mean().exp())
 		return run(final_tokens, char_only = False), beams[0].logprobs.mean().exp().item()
 
-def test() :
-	with open('../SynthText/alphabet-all-v2.txt', 'r') as fp :
+def test():
+	with open('../SynthText/alphabet-all-v2.txt', 'r') as fp:
 		dictionary = [s[:-1] for s in fp.readlines()]
 	img = torch.randn(4, 3, 32, 1224)
 	idx = torch.zeros(4, 32).long()
@@ -539,9 +539,9 @@ def test() :
 	model = ResNet_FeatureExtractor(3, 256)
 	out = model(img)
 
-def test_inference() :
-	with torch.no_grad() :
-		with open('../SynthText/alphabet-all-v3.txt', 'r') as fp :
+def test_inference():
+	with torch.no_grad():
+		with open('../SynthText/alphabet-all-v3.txt', 'r') as fp:
 			dictionary = [s[:-1] for s in fp.readlines()]
 		img = torch.zeros(1, 3, 32, 128)
 		model = OCR(dictionary, 32)
@@ -552,9 +552,9 @@ def test_inference() :
 		_, pred_chars_index = char_probs.max(2)
 		pred_chars_index = pred_chars_index.squeeze_(0)
 		seq = []
-		for chid in pred_chars_index :
+		for chid in pred_chars_index:
 			ch = dictionary[chid]
-			if ch == '<SP>' :
+			if ch == '<SP>':
 				ch == ' '
 			seq.append(ch)
 		print(''.join(seq))

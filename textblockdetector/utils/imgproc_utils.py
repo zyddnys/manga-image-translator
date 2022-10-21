@@ -134,13 +134,13 @@ def resize_keepasp(im, new_shape=640, scaleup=True, interpolation=cv2.INTER_LINE
 
     if stride is not None:
         h, w = new_unpad
-        if new_shape[0] % stride != 0 :
+        if new_shape[0] % stride != 0:
             new_h = (stride - (new_shape[0] % stride)) + h
-        else :
+        else:
             new_h = h
-        if w % stride != 0 :
+        if w % stride != 0:
             new_w = (stride - (w % stride)) + w
-        else :
+        else:
             new_w = w
         new_unpad = (new_h, new_w)
 

@@ -55,7 +55,7 @@ class BaiduTranslator(CommonTranslator):
 				result = await resp.json()
 		result_list = []
 		for ret in result["trans_result"]:
-			for v in ret["dst"].split('\n') :
+			for v in ret["dst"].split('\n'):
 				result_list.append(v)
 		return result_list
 

@@ -31,12 +31,12 @@ class double_conv_up_c3(nn.Module):
 class double_conv_c3(nn.Module):
     def __init__(self, in_ch, out_ch, stride=1, act=True):
         super(double_conv_c3, self).__init__()
-        if stride > 1 :
+        if stride > 1:
             self.down = nn.AvgPool2d(2,stride=2) if stride > 1 else None
         self.conv = C3(in_ch, out_ch, act=act)
 
     def forward(self, x):
-        if self.down is not None :
+        if self.down is not None:
             x = self.down(x)
         x = self.conv(x)
         return x

@@ -185,7 +185,7 @@ class TextBlock(object):
 		blk_dict = copy.deepcopy(vars(self))
 		return blk_dict
 
-	def get_transformed_region(self, img: np.ndarray, idx: int, textheight: int, maxwidth: int = None) -> np.ndarray :
+	def get_transformed_region(self, img: np.ndarray, idx: int, textheight: int, maxwidth: int = None) -> np.ndarray:
 		direction = 'v' if self.vertical else 'h'
 		src_pts = np.array(self.lines[idx], dtype=np.float64)
 
@@ -194,13 +194,13 @@ class TextBlock(object):
 		vec_h = middle_pnt[1] - middle_pnt[3]   # horizontal vectors of textlines
 		ratio = np.linalg.norm(vec_v) / np.linalg.norm(vec_h)
 
-		if direction == 'h' :
+		if direction == 'h':
 			h = int(textheight)
 			w = int(round(textheight / ratio))
 			dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
 			M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 			region = cv2.warpPerspective(img, M, (w, h))
-		elif direction == 'v' :
+		elif direction == 'v':
 			w = int(textheight)
 			h = int(round(textheight * ratio))
 			dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)

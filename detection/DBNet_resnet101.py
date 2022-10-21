@@ -8,11 +8,11 @@ from torchvision.models import resnet101
 import DBHead
 import einops
 
-class ImageMultiheadSelfAttention(nn.Module) :
+class ImageMultiheadSelfAttention(nn.Module):
 	def __init__(self, planes):
 		super(ImageMultiheadSelfAttention, self).__init__()
 		self.attn = nn.MultiheadAttention(planes, 8)
-	def forward(self, x) :
+	def forward(self, x):
 		res = x
 		n, c, h, w = x.shape
 		x = einops.rearrange(x, 'n c h w -> (h w) n c')
@@ -25,13 +25,13 @@ class double_conv(nn.Module):
 		super(double_conv, self).__init__()
 		self.planes = planes
 		# down = None
-		# if stride > 1 :
+		# if stride > 1:
 		# 	down = nn.Sequential(
 		# 		nn.AvgPool2d(2, 2),
 		# 		nn.Conv2d(in_ch + mid_ch, self.planes * Bottleneck.expansion, kernel_size=1, stride=1, bias=False),nn.BatchNorm2d(self.planes * Bottleneck.expansion)
 		# 		)
 		self.down = None
-		if stride > 1 :
+		if stride > 1:
 			self.down = nn.AvgPool2d(2,stride=2)
 		self.conv = nn.Sequential(
 			nn.Conv2d(in_ch + mid_ch, mid_ch, kernel_size=3, padding=1, stride = 1, bias=False),
@@ -44,7 +44,7 @@ class double_conv(nn.Module):
 		)
 
 	def forward(self, x):
-		if self.down is not None :
+		if self.down is not None:
 			x = self.down(x)
 		x = self.conv(x)
 		return x
@@ -54,13 +54,13 @@ class double_conv_up(nn.Module):
 		super(double_conv_up, self).__init__()
 		self.planes = planes
 		# down = None
-		# if stride > 1 :
+		# if stride > 1:
 		# 	down = nn.Sequential(
 		# 		nn.AvgPool2d(2, 2),
 		# 		nn.Conv2d(in_ch + mid_ch, self.planes * Bottleneck.expansion, kernel_size=1, stride=1, bias=False),nn.BatchNorm2d(self.planes * Bottleneck.expansion)
 		# 		)
 		self.down = None
-		if stride > 1 :
+		if stride > 1:
 			self.down = nn.AvgPool2d(2,stride=2)
 		self.conv = nn.Sequential(
 			nn.Conv2d(in_ch + mid_ch, mid_ch, kernel_size=3, padding=1, stride = 1, bias=False),
@@ -76,13 +76,13 @@ class double_conv_up(nn.Module):
 		)
 
 	def forward(self, x):
-		if self.down is not None :
+		if self.down is not None:
 			x = self.down(x)
 		x = self.conv(x)
 		return x
 
-class TextDetection(nn.Module) :
-	def __init__(self, pretrained=None) :
+class TextDetection(nn.Module):
+	def __init__(self, pretrained=None):
 		super(TextDetection, self).__init__()
 		self.backbone = resnet101(pretrained=True if pretrained else False)
 
@@ -113,7 +113,7 @@ class TextDetection(nn.Module) :
 		self.proj_h16 = nn.Conv2d(256 * 4, 256, 1)
 		self.proj_h32 = nn.Conv2d(512 * 4, 512, 1)
 
-	def forward(self, x) :
+	def forward(self, x):
 		x = self.backbone.conv1(x)
 		x = self.backbone.bn1(x)
 		x = self.backbone.relu(x)
@@ -143,7 +143,7 @@ class TextDetection(nn.Module) :
 
 		return self.conv_db(up8), self.conv_mask(up4)
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
 	device = torch.device("cuda:0")
 	net = TextDetection().to(device)
 	img = torch.randn(2, 3, 1024, 1024).to(device)

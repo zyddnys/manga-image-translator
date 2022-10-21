@@ -272,7 +272,7 @@ class ResNet_FeatureExtractor(nn.Module):
 	def forward(self, input):
 		return self.ConvNet(input)
 		
-class OCR(nn.Module) :
+class OCR(nn.Module):
 	def __init__(self, dictionary, max_len):
 		super(OCR, self).__init__()
 		self.max_len = max_len
@@ -287,14 +287,14 @@ class OCR(nn.Module) :
 
 	def forward(self,
 		img: torch.FloatTensor
-		) :
+		):
 		feats = self.backbone(img).squeeze(2)
 		feats = self.encoders(feats.permute(0, 2, 1))
 		pred_char_logits = self.char_pred(self.char_pred_norm(feats))
 		pred_color_values = self.color_pred1(feats)
 		return pred_char_logits, pred_color_values
 
-	def decode(self, img: torch.Tensor, img_widths: List[int], blank, verbose = False) -> List[List[Tuple[str, float, int, int, int, int, int, int]]] :
+	def decode(self, img: torch.Tensor, img_widths: List[int], blank, verbose = False) -> List[List[Tuple[str, float, int, int, int, int, int, int]]]:
 		N, C, H, W = img.shape
 		assert H == 48 and C == 3
 		feats = self.backbone(img).squeeze(2)
@@ -303,32 +303,32 @@ class OCR(nn.Module) :
 		pred_color_values = self.color_pred1(feats)
 		return self.decode_ctc_top1(pred_char_logits, pred_color_values, blank, verbose = verbose)
 
-	def decode_ctc_top1(self, pred_char_logits, pred_color_values, blank, verbose = False) -> List[List[Tuple[str, float, int, int, int, int, int, int]]] :
+	def decode_ctc_top1(self, pred_char_logits, pred_color_values, blank, verbose = False) -> List[List[Tuple[str, float, int, int, int, int, int, int]]]:
 		pred_chars: List[List[Tuple[str, float, int, int, int, int, int, int]]] = []
-		for _ in range(pred_char_logits.size(0)) :
+		for _ in range(pred_char_logits.size(0)):
 			pred_chars.append([])
 		logprobs = pred_char_logits.log_softmax(2)
 		_, preds_index = logprobs.max(2)
 		preds_index = preds_index.cpu()
 		pred_color_values = pred_color_values.cpu().clamp_(0, 1)
-		for b in range(pred_char_logits.size(0)) :
-			if verbose :
+		for b in range(pred_char_logits.size(0)):
+			if verbose:
 				print('------------------------------')
 			last_ch = blank
-			for t in range(pred_char_logits.size(1)) :
+			for t in range(pred_char_logits.size(1)):
 				pred_ch = preds_index[b, t]
-				if pred_ch != last_ch and pred_ch != blank :
+				if pred_ch != last_ch and pred_ch != blank:
 					lp = logprobs[b, t, pred_ch].item()
-					if verbose :
-						if lp < math.log(0.9) :
+					if verbose:
+						if lp < math.log(0.9):
 							top5 = torch.topk(logprobs[b, t], 5)
 							top5_idx = top5.indices
 							top5_val = top5.values
 							r = ''
-							for i in range(5) :
+							for i in range(5):
 								r += f'{self.dictionary[top5_idx[i]]}: {math.exp(top5_val[i])}, '
 							print(r)
-						else :
+						else:
 							print(f'{self.dictionary[pred_ch]}: {math.exp(lp)}')
 					pred_chars[b].append((
 						pred_ch,
@@ -343,34 +343,34 @@ class OCR(nn.Module) :
 				last_ch = pred_ch
 		return pred_chars
 
-	def eval_ocr(self, input_lengths, target_lengths, pred_char_logits, pred_color_values, gt_char_index, gt_color_values, blank, blank1) :
+	def eval_ocr(self, input_lengths, target_lengths, pred_char_logits, pred_color_values, gt_char_index, gt_color_values, blank, blank1):
 		correct_char = 0
 		total_char = 0
 		color_diff = 0
 		color_diff_dom = 0
 		_, preds_index = pred_char_logits.max(2)
 		pred_chars = torch.zeros_like(gt_char_index).cpu()
-		for b in range(pred_char_logits.size(0)) :
+		for b in range(pred_char_logits.size(0)):
 			last_ch = blank
 			i = 0
-			for t in range(input_lengths[b]) :
+			for t in range(input_lengths[b]):
 				pred_ch = preds_index[b, t]
-				if pred_ch != last_ch and pred_ch != blank :
+				if pred_ch != last_ch and pred_ch != blank:
 					total_char += 1
-					if gt_char_index[b, i] == pred_ch :
+					if gt_char_index[b, i] == pred_ch:
 						correct_char += 1
-						if pred_ch != blank1 :
+						if pred_ch != blank1:
 							color_diff += ((pred_color_values[b, t] - gt_color_values[b, i]).abs().mean() * 255.0).item()
 							color_diff_dom += 1
 					pred_chars[b, i] = pred_ch
 					i += 1
-					if i >= gt_color_values.size(1) or i >= gt_char_index.size(1) :
+					if i >= gt_color_values.size(1) or i >= gt_char_index.size(1):
 						break
 				last_ch = pred_ch
 		return correct_char / (total_char + 1), color_diff / (color_diff_dom + 1), pred_chars
 
-def test2() :
-	with open('alphabet-all-v5.txt', 'r') as fp :
+def test2():
+	with open('alphabet-all-v5.txt', 'r') as fp:
 		dictionary = [s[:-1] for s in fp.readlines()]
 	img = torch.randn(4, 3, 48, 1536)
 	idx = torch.zeros(4, 32).long()
@@ -380,9 +380,9 @@ def test2() :
 	print(pred_char_logits.shape, pred_color_values.shape)
 
 
-def test_inference() :
-	with torch.no_grad() :
-		with open('../SynthText/alphabet-all-v3.txt', 'r') as fp :
+def test_inference():
+	with torch.no_grad():
+		with open('../SynthText/alphabet-all-v3.txt', 'r') as fp:
 			dictionary = [s[:-1] for s in fp.readlines()]
 		img = torch.zeros(1, 3, 32, 128)
 		model = OCR(dictionary, 32)
@@ -393,9 +393,9 @@ def test_inference() :
 		_, pred_chars_index = char_probs.max(2)
 		pred_chars_index = pred_chars_index.squeeze_(0)
 		seq = []
-		for chid in pred_chars_index :
+		for chid in pred_chars_index:
 			ch = dictionary[chid]
-			if ch == '<SP>' :
+			if ch == '<SP>':
 				ch == ' '
 			seq.append(ch)
 		print(''.join(seq))

@@ -51,25 +51,25 @@ parser.add_argument('--manga2eng', action='store_true', help='render English tex
 parser.add_argument('--eng-font', default='fonts/comic shanns 2.ttf', type=str, help='font used by manga2eng mode')
 args = parser.parse_args()
 
-def update_state(task_id, nonce, state) :
-	while True :
-		try :
+def update_state(task_id, nonce, state):
+	while True:
+		try:
 			requests.post(f'http://{args.host}:{args.port}/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 20)
 			return
-		except Exception :
-			if 'error' in state or 'finished' in state :
+		except Exception:
+			if 'error' in state or 'finished' in state:
 				continue
-			else :
+			else:
 				break
 
-def get_task(nonce) :
-	try :
+def get_task(nonce):
+	try:
 		rjson = requests.get(f'http://{args.host}:{args.port}/task-internal?nonce={nonce}', timeout = 3600).json()
-		if 'task_id' in rjson and 'data' in rjson :
+		if 'task_id' in rjson and 'data' in rjson:
 			return rjson['task_id'], rjson['data']
-		else :
+		else:
 			return None, None
-	except Exception :
+	except Exception:
 		return None, None
 
 async def infer(
@@ -80,69 +80,69 @@ async def infer(
 	task_id = '',
 	dst_image_name = '',
 	alpha_ch = None
-	) :
+	):
 	options = options or {}
 	img_detect_size = args.size
-	if 'size' in options :
+	if 'size' in options:
 		size_ind = options['size']
-		if size_ind == 'S' :
+		if size_ind == 'S':
 			img_detect_size = 1024
-		elif size_ind == 'M' :
+		elif size_ind == 'M':
 			img_detect_size = 1536
-		elif size_ind == 'L' :
+		elif size_ind == 'L':
 			img_detect_size = 2048
-		elif size_ind == 'X' :
+		elif size_ind == 'X':
 			img_detect_size = 2560
 	print(f' -- Detection resolution {img_detect_size}')
 	detector = 'ctd' if args.use_ctd else 'default'
-	if 'detector' in options :
+	if 'detector' in options:
 		detector = options['detector']
 	print(f' -- Detector using {detector}')
 	render_text_direction_overwrite = 'h' if args.force_horizontal else ''
-	if 'direction' in options :
-		if options['direction'] == 'horizontal' :
+	if 'direction' in options:
+		if options['direction'] == 'horizontal':
 			render_text_direction_overwrite = 'h'
 	print(f' -- Render text direction is {render_text_direction_overwrite or "auto"}')
 
-	if mode == 'web' and task_id :
+	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'detection')
 	
-	if detector == 'ctd' :
+	if detector == 'ctd':
 		mask, final_mask, textlines = await dispatch_ctd_detection(img, args.use_cuda)
 		text_regions = textlines
 	else:
 		textlines, mask = await dispatch_detection(img, img_detect_size, args.use_cuda, args, verbose = args.verbose)
 
-	if args.verbose :
-		if detector == 'ctd' :
+	if args.verbose:
+		if detector == 'ctd':
 			bboxes = visualize_textblocks(cv2.cvtColor(img,cv2.COLOR_BGR2RGB), textlines)
 			cv2.imwrite(f'result/{task_id}/bboxes.png', bboxes)
 			cv2.imwrite(f'result/{task_id}/mask_raw.png', mask)
 			cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
 		else:
 			img_bbox_raw = np.copy(img)
-			for txtln in textlines :
+			for txtln in textlines:
 				cv2.polylines(img_bbox_raw, [txtln.pts], True, color = (255, 0, 0), thickness = 2)
 			cv2.imwrite(f'result/{task_id}/bbox_unfiltered.png', cv2.cvtColor(img_bbox_raw, cv2.COLOR_RGB2BGR))
 			cv2.imwrite(f'result/{task_id}/mask_raw.png', mask)
 
-	if mode == 'web' and task_id :
+	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'ocr')
 	textlines = await dispatch_ocr(img, textlines, args.use_cuda, args, model_name = args.ocr_model, verbose = args.verbose)
 
-	if detector == 'default' :
+	if detector == 'default':
 		text_regions, textlines = await dispatch_textline_merge(textlines, img.shape[1], img.shape[0], verbose = args.verbose)
-		if args.verbose :
+		if args.verbose:
 			img_bbox = np.copy(img)
-			for region in text_regions :
-				for idx in region.textline_indices :
+			for region in text_regions:
+				for idx in region.textline_indices:
 					txtln = textlines[idx]
 					cv2.polylines(img_bbox, [txtln.pts], True, color = (255, 0, 0), thickness = 2)
 				img_bbox = cv2.polylines(img_bbox, [region.pts], True, color = (0, 0, 255), thickness = 2)
 			cv2.imwrite(f'result/{task_id}/bbox.png', cv2.cvtColor(img_bbox, cv2.COLOR_RGB2BGR))
 
 		print(' -- Generating text mask')
-		if mode == 'web' and task_id :
+		if mode == 'web' and task_id:
 			update_state(task_id, nonce, 'mask_generation')
 		# create mask
 		final_mask = await dispatch_mask_refinement(img, mask, textlines)
@@ -157,14 +157,14 @@ async def infer(
 			requests.post(f'http://{args.host}:{args.port}/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.text for r in text_regions]}, timeout = 20)
 
 	print(' -- Running inpainting')
-	if mode == 'web' and task_id :
+	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'inpainting')
 	# run inpainting
-	if text_regions :
+	if text_regions:
 		img_inpainted = await dispatch_inpainting(args.use_inpainting, False, args.use_cuda, img, final_mask, args.inpainting_size, verbose = args.verbose)
-	else :
+	else:
 		img_inpainted = img
-	if args.verbose :
+	if args.verbose:
 		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
 		cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
 		cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
@@ -173,7 +173,7 @@ async def infer(
 	translated_sentences = None
 	print(' -- Translating')
 	if mode != 'web':
-		if detector == 'ctd' :
+		if detector == 'ctd':
 			regions = [r.get_text() for r in text_regions]
 		else:
 			regions = [r.text for r in text_regions]
@@ -181,7 +181,7 @@ async def infer(
 
 	elif options.get('translator', '') in OFFLINE_TRANSLATORS:
 		update_state(task_id, nonce, 'translating')
-		if detector == 'ctd' :
+		if detector == 'ctd':
 			regions = [r.get_text() for r in text_regions]
 		else:
 			regions = [r.text for r in text_regions]
@@ -189,17 +189,17 @@ async def infer(
 
 	else:
 		# wait for at most 1 hour for manual translation
-		if options.get('manual', False) :
+		if options.get('manual', False):
 			wait_for = 3600
-		else :
+		else:
 			wait_for = 30 # 30 seconds for machine translation
 		wait_until = time.time() + wait_for
 		while time.time() < wait_until:
 			ret = requests.post(f'http://{args.host}:{args.port}/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}, timeout = 20).json()
-			if 'result' in ret :
+			if 'result' in ret:
 				translated_sentences = ret['result']
 				if isinstance(translated_sentences, str):
-					if translated_sentences == 'error' :
+					if translated_sentences == 'error':
 						update_state(task_id, nonce, 'error-lang')
 						return
 				break
@@ -207,36 +207,36 @@ async def infer(
 
 	print(' -- Rendering translated text')
 	if translated_sentences == None:
-		if mode == 'web' and task_id :
+		if mode == 'web' and task_id:
 			print("No text found!")
 			update_state(task_id, nonce, 'error-no-txt')
 		return
 	
-	if mode == 'web' and task_id :
+	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'render')
 	# render translated texts
 	if args.target_lang == 'ENG' and args.manga2eng:
 		from text_rendering import dispatch_eng_render
 		output = await dispatch_eng_render(np.copy(img_inpainted), img, text_regions, translated_sentences, args.eng_font)
 	else:
-		if detector == 'ctd' :
+		if detector == 'ctd':
 			from text_rendering import dispatch_ctd_render
 			output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, args.font_size_offset)
 		else:
 			output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite, args.font_size_offset)
 	
 	print(' -- Saving results')
-	if alpha_ch is not None :
+	if alpha_ch is not None:
 		output = np.concatenate([output.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
-	else :
+	else:
 		output = output.astype(np.uint8)
 	img_pil = Image.fromarray(output)
-	if dst_image_name :
+	if dst_image_name:
 		img_pil.save(dst_image_name)
-	else :
+	else:
 		img_pil.save(f'result/{task_id}/final.png')
 
-	if mode == 'web' and task_id :
+	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'finished')
 
 
@@ -248,8 +248,8 @@ async def infer_safe(
 	task_id = '',
 	dst_image_name = '',
 	alpha_ch = None
-	) :
-	try :
+	):
+	try:
 		return await infer(
 			img,
 			mode,
@@ -259,17 +259,17 @@ async def infer_safe(
 			dst_image_name,
 			alpha_ch
 		)
-	except :
+	except:
 		import traceback
 		traceback.print_exc()
 		update_state(task_id, nonce, 'error')
 
-def replace_prefix(s: str, old: str, new: str) :
-	if s.startswith(old) :
+def replace_prefix(s: str, old: str, new: str):
+	if s.startswith(old):
 		s = new + s[len(old):]
 	return s
 
-async def main(mode = 'demo') :
+async def main(mode = 'demo'):
 	print(' -- Preload Checks')
 	# Add failsafe if torch cannot find cuda support
 	if args.use_cuda_limited:
@@ -286,7 +286,7 @@ async def main(mode = 'demo') :
 	print(' -- Loading models')
 	os.makedirs('result', exist_ok = True)
 	text_render.prepare_renderer()
-	with open('alphabet-all-v5.txt', 'r', encoding = 'utf-8') as fp :
+	with open('alphabet-all-v5.txt', 'r', encoding = 'utf-8') as fp:
 		dictionary = [s[:-1] for s in fp.readlines()]
 	load_ocr_model(dictionary, args.use_cuda, args.ocr_model)
 	from textblockdetector import load_model as load_ctd_model
@@ -321,7 +321,7 @@ async def main(mode = 'demo') :
 			try:
 				task_id, options = get_task(nonce)
 				if task_id:
-					try :
+					try:
 						print(f' -- Processing task {task_id}')
 						img, alpha_ch = convert_img(Image.open(f'result/{task_id}/input.png'))
 						img = np.array(img)
@@ -352,7 +352,7 @@ async def main(mode = 'demo') :
 		for root, subdirs, files in os.walk(src):
 			dst_root = replace_prefix(root, src, dst)
 			os.makedirs(dst_root, exist_ok = True)
-			for f in files :
+			for f in files:
 				if f.lower() == '.thumb':
 					continue
 				filename = os.path.join(root, f)
