@@ -180,6 +180,7 @@ async def infer(
 		translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, regions, use_cuda = args.use_cuda and not args.use_cuda_limited)
 
 	elif options.get('translator', '') in OFFLINE_TRANSLATORS:
+		update_state(task_id, nonce, 'translating')
 		if detector == 'ctd' :
 			regions = [r.get_text() for r in text_regions]
 		else:
@@ -194,11 +195,10 @@ async def infer(
 			wait_for = 30 # 30 seconds for machine translation
 		wait_until = time.time() + wait_for
 		while time.time() < wait_until:
-			print('waiting for tr')
 			ret = requests.post(f'http://{args.host}:{args.port}/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}, timeout = 20).json()
 			if 'result' in ret :
 				translated_sentences = ret['result']
-				if isinstance(translated_sentences, str) :
+				if isinstance(translated_sentences, str):
 					if translated_sentences == 'error' :
 						update_state(task_id, nonce, 'error-lang')
 						return

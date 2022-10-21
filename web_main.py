@@ -63,52 +63,52 @@ async def result_async(request) :
 async def queue_size_async(request) :
 	return web.json_response({'size' : len(QUEUE)})
 
-async def handle_post(request) :
+async def handle_post(request):
 	data = await request.post()
 	size = ''
 	selected_translator = 'youdao'
 	target_language = 'CHS'
 	detector = 'default'
 	direction = 'auto'
-	if 'tgt_lang' in data :
+	if 'tgt_lang' in data:
 		target_language = data['tgt_lang'].upper()
-		if target_language not in VALID_LANGUAGES :
+		if target_language not in VALID_LANGUAGES:
 			target_language = 'CHS'
-	if 'detector' in data :
+	if 'detector' in data:
 		detector = data['detector'].lower()
-		if detector not in VALID_DETECTORS :
+		if detector not in VALID_DETECTORS:
 			detector = 'default'
-	if 'dir' in data :
-		direction = data['dir'].lower()
-		if direction not in VALID_DIRECTIONS :
+	if 'direction' in data:
+		direction = data['direction'].lower()
+		if direction not in VALID_DIRECTIONS:
 			direction = 'auto'
-	if 'translator' in data :
+	if 'translator' in data:
 		selected_translator = data['translator'].lower()
 		if selected_translator not in ['youdao', 'baidu', 'google', 'deepl', 'papago', 'offline', 'null'] :
 			selected_translator = 'youdao'
-	if 'size' in data :
+	if 'size' in data:
 		size = data['size'].upper()
-		if size not in ['S', 'M', 'L', 'X'] :
+		if size not in ['S', 'M', 'L', 'X']:
 			size = ''
-	if 'file' in data :
+	if 'file' in data:
 		file_field = data['file']
 		content = file_field.file.read()
-	elif 'url' in data :
+	elif 'url' in data:
 		from aiohttp import ClientSession
 		async with ClientSession() as session:
 			async with session.get(data['url']) as resp:
-				if resp.status == 200 :
+				if resp.status == 200:
 					content = await resp.read()
-				else :
-					return web.json_response({'status' : 'failed'})
-	else :
-		return web.json_response({'status' : 'failed'})
-	try :
+				else:
+					return web.json_response({'status': 'error'})
+	else:
+		return web.json_response({'status': 'error'})
+	try:
 		img = Image.open(io.BytesIO(content))
-		if max(img.width, img.height) > 3500 :
-			return web.json_response({'status' : 'failed'})
-	except :
-		return web.json_response({'status' : 'failed'})
+		if max(img.width, img.height) > 4000:
+			return web.json_response({'status': 'error-too-large'})
+	except:
+		return web.json_response({'status': 'error-img-corrupt'})
 	return img, size, selected_translator, target_language, detector, direction
 
 @routes.post("/run")
@@ -199,7 +199,7 @@ async def post_translation_result(request) :
 			while True :
 				await asyncio.sleep(0.1)
 				if TASK_STATES[task_id] in ['error', 'error-lang', 'error-no-txt'] :
-					ret = web.json_response({'task_id': task_id, 'status': 'failed'})
+					ret = web.json_response({'task_id': task_id, 'status': 'error'})
 					break
 				if TASK_STATES[task_id] == 'finished':
 					ret = web.json_response({'task_id': task_id, 'status': 'successful'})
@@ -245,14 +245,11 @@ async def get_task_state_async(request) :
 		except :
 			ret = web.json_response({'state': TASK_STATES[task_id], 'waiting': 0})
 		now = time.time()
-		to_del_task_ids = set()
-		for tid in TASK_STATES :
-			if tid in TASK_DATA and TASK_STATES[tid] in ['finished', 'error', 'error-lang'] and now - TASK_DATA[tid]['created_at'] > 1800 :
+		for tid, state in TASK_STATES.items():
+			if state in ['finished', 'error', 'error-lang'] and now - state['created_at'] > 1800 :
 				# remove old tasks
-				to_del_task_ids.add(tid)
-		for tid in to_del_task_ids :
-			del TASK_STATES[tid]
-			del TASK_DATA[tid]
+				TASK_STATES.pop(tid)
+				TASK_DATA.pop(tid)
 		return ret
 	return web.json_response({'state': 'error'})
 
@@ -317,7 +314,7 @@ async def manual_translate_async(request) :
 		if TASK_STATES[task_id] == 'finished' :
 			# no texts detected
 			return web.json_response({'task_id' : task_id, 'status': 'successful'})
-	return web.json_response({'task_id' : task_id, 'status': 'failed'})
+	return web.json_response({'task_id' : task_id, 'status': 'error'})
 
 app.add_routes(routes)
 

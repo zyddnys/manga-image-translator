@@ -55,7 +55,7 @@
               <div class="relative">
                 <select class="w-12ch appearance-none bg-transparent border-b border-gray-300" v-model="renderTextDirection">
                   <option value="auto">Auto</option>
-                  <option value="ctd">Horizontal</option>
+                  <option value="horizontal">Horizontal</option>
                 </select>
                 <i class="iconify absolute top-1.5 right-1 pointer-events-none" data-icon="carbon:chevron-down"></i>
               </div>
@@ -107,7 +107,11 @@
           <button class="px-2 py-1 text-center rounded-md text-blue-800 border-2 border-blue-300" @click="clear">Upload another</button>
         </div>
         <div v-else-if="status" class="grid w-full h-116 place-content-center rounded-2xl border-2 border-dashed border-gray-600">
-          <div class="flex flex-col items-center gap-2">
+          <div v-if="error" class="flex flex-col items-center gap-2">
+            <div style="color: crimson">{{ statusText }}</div>
+            <button class="px-2 py-1 text-center rounded-md text-blue-800 border-2 border-blue-300" @click="clear">Upload another</button>
+          </div>
+          <div v-else class="flex flex-col items-center gap-2">
             <i class="iconify w-8 h-8 text-gray-500 animate-spin" data-icon="carbon:progress-bar-round"></i>
             <div>{{ statusText }}</div>
           </div>
@@ -216,8 +220,6 @@
                 return 'Uploading'
               }
             }
-            case 'error-upload':
-              return 'Upload failed, please try again'
             case 'download':
               if (this.progress) {
                 return `Downloading (${this.progress})`
@@ -245,11 +247,20 @@
               return 'Rendering translated texts'
             case 'error':
               return 'Something went wrong (maybe your language is not supported), please try again'
+            case 'error-upload':
+              return 'Upload failed, please try again'
             case 'error-lang':
               return 'Your target language is not supported'
             case 'error-no-txt':
               return 'Did not get any text back from the translation service.'
+            case 'error-too-large':
+              return 'Image size too large. A side length should not exceed 4000px.'
+            default:
+              return 'Error'
           }
+        },
+        get error() {
+          return /^error/.test(this.status)
         },
         result: null,
         get resultUri() {
@@ -266,7 +277,7 @@
           formData.append('file', this.file)
           formData.append('size', this.detectionResolution)
           formData.append('detector', this.textDetector)
-          formData.append('dir', this.renderTextDirection)
+          formData.append('direction', this.renderTextDirection)
           formData.append('translator', this.translator)
           formData.append('tgt_lang', this.targetLanguage)
 
@@ -281,8 +292,13 @@
               return
             }
 
+            response = JSON.parse(xhr.responseText)
+            const task_id = response['task_id']
+            this.status = response['status']
+            if (this.error)
+              return
+            
             this.status = 'pending'
-            const { task_id } = JSON.parse(xhr.responseText)
 
             for (;;) {
               const timer = new Promise((resolve) => setTimeout(resolve, 500))
@@ -323,6 +339,7 @@
         clear() {
           this.file = null
           this.result = null
+          this.status = null
         },
       }).mount()
     </script>
