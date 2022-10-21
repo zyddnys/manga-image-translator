@@ -63,7 +63,7 @@ async def result_async(request) :
 async def queue_size_async(request) :
 	return web.json_response({'size' : len(QUEUE)})
 
-async def handle_post(request) :
+async def handle_post(request):
 	data = await request.post()
 	print(data)
 	size = ''
@@ -71,45 +71,45 @@ async def handle_post(request) :
 	target_language = 'CHS'
 	detector = 'default'
 	direction = 'auto'
-	if 'tgt_lang' in data :
+	if 'tgt_lang' in data:
 		target_language = data['tgt_lang'].upper()
-		if target_language not in VALID_LANGUAGES :
+		if target_language not in VALID_LANGUAGES:
 			target_language = 'CHS'
-	if 'detector' in data :
+	if 'detector' in data:
 		detector = data['detector'].lower()
-		if detector not in VALID_DETECTORS :
+		if detector not in VALID_DETECTORS:
 			detector = 'default'
-	if 'direction' in data :
+	if 'direction' in data:
 		direction = data['direction'].lower()
-		if direction not in VALID_DIRECTIONS :
+		if direction not in VALID_DIRECTIONS:
 			direction = 'auto'
-	if 'translator' in data :
+	if 'translator' in data:
 		selected_translator = data['translator'].lower()
 		if selected_translator not in ['youdao', 'baidu', 'google', 'deepl', 'papago', 'offline', 'null'] :
 			selected_translator = 'youdao'
-	if 'size' in data :
+	if 'size' in data:
 		size = data['size'].upper()
-		if size not in ['S', 'M', 'L', 'X'] :
+		if size not in ['S', 'M', 'L', 'X']:
 			size = ''
-	if 'file' in data :
+	if 'file' in data:
 		file_field = data['file']
 		content = file_field.file.read()
-	elif 'url' in data :
+	elif 'url' in data:
 		from aiohttp import ClientSession
 		async with ClientSession() as session:
 			async with session.get(data['url']) as resp:
-				if resp.status == 200 :
+				if resp.status == 200:
 					content = await resp.read()
-				else :
+				else:
 					return web.json_response({'status' : 'failed'})
-	else :
+	else:
 		return web.json_response({'status' : 'failed'})
-	try :
+	try:
 		img = Image.open(io.BytesIO(content))
-		if max(img.width, img.height) > 3500 :
-			return web.json_response({'status' : 'failed'})
-	except :
-		return web.json_response({'status' : 'failed'})
+		if max(img.width, img.height) > 4000:
+			return web.json_response({'status': 'failed'})
+	except:
+		return web.json_response({'status': 'failed'})
 	return img, size, selected_translator, target_language, detector, direction
 
 @routes.post("/run")

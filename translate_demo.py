@@ -180,6 +180,7 @@ async def infer(
 		translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, regions, use_cuda = args.use_cuda and not args.use_cuda_limited)
 
 	elif options.get('translator', '') in OFFLINE_TRANSLATORS:
+		update_state(task_id, nonce, 'translating')
 		if detector == 'ctd' :
 			regions = [r.get_text() for r in text_regions]
 		else:
