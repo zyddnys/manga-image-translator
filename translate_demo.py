@@ -404,7 +404,10 @@ def preload_offline_translator(translation_mode):
 
 
 if __name__ == '__main__':
-	print(args)
-	loop = asyncio.new_event_loop()
-	asyncio.set_event_loop(loop)
-	loop.run_until_complete(main(args.mode))
+	try:
+		print(args)
+		loop = asyncio.new_event_loop()
+		asyncio.set_event_loop(loop)
+		loop.run_until_complete(main(args.mode))
+	except KeyboardInterrupt:
+		print()
