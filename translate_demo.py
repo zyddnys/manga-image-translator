@@ -1,4 +1,3 @@
-
 import asyncio
 import argparse
 import time
@@ -37,6 +36,7 @@ parser.add_argument('--inpainting-model', default='lama_mpe', type=str, help='in
 parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
 parser.add_argument('--use-cuda-limited', action='store_true', help='turn on/off cuda (excluding offline translator)')
 parser.add_argument('--force-horizontal', action='store_true', help='force texts rendered horizontally')
+parser.add_argument('--force-vertical', action='store_true', help='force texts rendered vertically')
 parser.add_argument('--inpainting-size', default=2048, type=int, help='size of image used for inpainting (too large will result in OOM)')
 parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to extend text skeleton to form bounding box')
 parser.add_argument('--box-threshold', default=0.7, type=float, help='threshold for bbox generation')
@@ -93,15 +93,23 @@ async def infer(
 			img_detect_size = 2048
 		elif size_ind == 'X':
 			img_detect_size = 2560
-	print(f' -- Detection resolution {img_detect_size}')
-	detector = 'ctd' if args.use_ctd else 'default'
+
 	if 'detector' in options:
 		detector = options['detector']
-	print(f' -- Detector using {detector}')
-	render_text_direction_overwrite = 'h' if args.force_horizontal else ''
-	if 'direction' in options:
-		if options['direction'] == 'horizontal':
+	else:
+		detector = 'ctd' if args.use_ctd else 'default'
+
+	render_text_direction_overwrite = ''
+	if options.get('direction') == 'horizontal':
+		render_text_direction_overwrite = 'h'
+	else:
+		if args.force_horizontal:
 			render_text_direction_overwrite = 'h'
+		elif args.force_vertical:
+			render_text_direction_overwrite = 'v'
+
+	print(f' -- Detection resolution {img_detect_size}')
+	print(f' -- Detector using {detector}')
 	print(f' -- Render text direction is {render_text_direction_overwrite or "auto"}')
 
 	if mode == 'web' and task_id:
@@ -118,15 +126,14 @@ async def infer(
 			bboxes = visualize_textblocks(cv2.cvtColor(img,cv2.COLOR_BGR2RGB), textlines)
 			cv2.imwrite(f'result/{task_id}/bboxes.png', bboxes)
 			cv2.imwrite(f'result/{task_id}/mask_raw.png', mask)
-			cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
 		else:
 			img_bbox_raw = np.copy(img)
 			for txtln in textlines:
 				cv2.polylines(img_bbox_raw, [txtln.pts], True, color = (255, 0, 0), thickness = 2)
-			cv2.imwrite(f'result/{task_id}/bbox_unfiltered.png', cv2.cvtColor(img_bbox_raw, cv2.COLOR_RGB2BGR))
+			cv2.imwrite(f'result/{task_id}/bboxes_unfiltered.png', cv2.cvtColor(img_bbox_raw, cv2.COLOR_RGB2BGR))
 			cv2.imwrite(f'result/{task_id}/mask_raw.png', mask)
 
-	if mode == 'web' and task_id:
+	# if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'ocr')
 	textlines = await dispatch_ocr(img, textlines, args.use_cuda, args, model_name = args.ocr_model, verbose = args.verbose)
 
@@ -139,7 +146,7 @@ async def infer(
 					txtln = textlines[idx]
 					cv2.polylines(img_bbox, [txtln.pts], True, color = (255, 0, 0), thickness = 2)
 				img_bbox = cv2.polylines(img_bbox, [region.pts], True, color = (0, 0, 255), thickness = 2)
-			cv2.imwrite(f'result/{task_id}/bbox.png', cv2.cvtColor(img_bbox, cv2.COLOR_RGB2BGR))
+			cv2.imwrite(f'result/{task_id}/bboxes.png', cv2.cvtColor(img_bbox, cv2.COLOR_RGB2BGR))
 
 		print(' -- Generating text mask')
 		if mode == 'web' and task_id:
@@ -223,7 +230,7 @@ async def infer(
 			from text_rendering import dispatch_ctd_render
 			output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, args.font_size_offset)
 		else:
-			output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite, args.font_size_offset)
+			output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite, args.target_lang, args.font_size_offset)
 
 	print(' -- Saving results')
 	if alpha_ch is not None:

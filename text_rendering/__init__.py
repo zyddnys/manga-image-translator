@@ -9,23 +9,44 @@ from utils import findNextPowerOf2, color_difference
 from textblockdetector.textblock import TextBlock
 
 
+LANGAUGE_ORIENTATION_PRESETS = {
+	'CHS': 'auto',
+	'CHT': 'auto',
+	'CSY': 'h',
+	'NLD': 'h',
+	'ENG': 'h',
+	'FRA': 'h',
+	'DEU': 'h',
+	'HUN': 'h',
+	'ITA': 'h',
+	'JPN': 'auto',
+	'KOR': 'auto',
+	'PLK': 'h',
+	'PTB': 'h',
+	'ROM': 'h',
+	'RUS': 'h',
+	'ESP': 'h',
+	'TRK': 'h',
+	'VIN': 'h',
+}
+
 def fg_bg_compare(fg, bg):
 	fg_avg = np.mean(fg)
-	bg_avg = np.mean(bg)
 	if color_difference(fg, bg) < 15:
-		#bg = None
-		#fg = (0, 0, 0) if fg_avg <= 127 else (255, 255, 255)
 		bg = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
 	return fg, bg
 
-
-async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], textlines: List[Quadrilateral], text_regions: List[Quadrilateral], text_direction_overwrite: str, font_size_offset: int = 0) -> np.ndarray:
+async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], textlines: List[Quadrilateral], text_regions: List[Quadrilateral], text_direction_overwrite: str, target_language: str, font_size_offset: int = 0) -> np.ndarray:
 	for trans_text, region in zip(translated_sentences, text_regions):
 		if not trans_text:
 			continue
-		if text_direction_overwrite and text_direction_overwrite in ['h', 'v']:
-			region.majority_dir = text_direction_overwrite
-		majority_dir = region.majority_dir
+		majority_dir = None
+		if text_direction_overwrite:
+			majority_dir = text_direction_overwrite
+		elif target_language in LANGAUGE_ORIENTATION_PRESETS:
+			majority_dir = LANGAUGE_ORIENTATION_PRESETS[target_language]
+		if majority_dir not in ['h', 'v']:
+			majority_dir = region.majority_dir
 
 		print(region.text)
 		print(trans_text)
