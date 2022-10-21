@@ -228,10 +228,10 @@ class Beam:
 
 	def avg_logprob(self):
 		return self.logprobs.mean().item()
-	
+
 	def sort_key(self):
 		return -self.avg_logprob()
-	
+
 	def seq_end(self, end_tok):
 		return self.chars.view(-1)[-1] == end_tok
 

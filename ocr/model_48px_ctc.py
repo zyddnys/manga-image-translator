@@ -271,7 +271,7 @@ class ResNet_FeatureExtractor(nn.Module):
 
 	def forward(self, input):
 		return self.ConvNet(input)
-		
+
 class OCR(nn.Module):
 	def __init__(self, dictionary, max_len):
 		super(OCR, self).__init__()

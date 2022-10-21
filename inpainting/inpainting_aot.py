@@ -56,7 +56,7 @@ class ScaledWSConv2d(nn.Conv2d):
 			var * fan_in, torch.tensor(self.eps).to(var.device))) * self.gain.view_as(var).to(var.device)
 		shift = mean * scale
 		return self.weight * scale - shift
-		
+
 	def forward(self, x):
 		return F.conv2d(x, self.get_weight(), self.bias,
 			self.stride, self.padding,
@@ -91,7 +91,7 @@ class ScaledWSTransposeConv2d(nn.ConvTranspose2d):
 			var * fan_in, torch.tensor(self.eps).to(var.device))) * self.gain.view_as(var).to(var.device)
 		shift = mean * scale
 		return self.weight * scale - shift
-		
+
 	def forward(self, x, output_size: Optional[List[int]] = None):
 		output_padding = self._output_padding(
 			input, output_size, self.stride, self.padding, self.kernel_size, self.dilation)

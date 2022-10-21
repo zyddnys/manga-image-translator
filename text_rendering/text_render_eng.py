@@ -48,7 +48,7 @@ class Line:
 
 def enlarge_window(rect, im_w, im_h, ratio=2.5, aspect_ratio=1.0) -> List:
 	assert ratio > 1.0
-	
+
 	x1, y1, x2, y2 = rect
 	w = x2 - x1
 	h = y2 - y1
@@ -93,7 +93,7 @@ def extract_ballon_region(img: np.ndarray, ballon_rect: List, show_process=False
 	cv2.rectangle(detected_edges, (0, 0), (w-1, h-1), WHITE, 1, cv2.LINE_8)
 	cons, hiers = cv2.findContours(detected_edges, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
 	cv2.rectangle(detected_edges, (0, 0), (w-1, h-1), BLACK, 1, cv2.LINE_8)
-	
+
 	ballon_mask, outer_index = np.zeros((h, w), np.uint8), -1
 	min_retval = np.inf
 	mask = np.zeros((h, w), np.uint8)
@@ -103,7 +103,7 @@ def extract_ballon_region(img: np.ndarray, ballon_rect: List, show_process=False
 		rect = cv2.boundingRect(cons[ii])
 		if rect[2]*rect[3] < img_area*0.4:
 			continue
-		
+
 		mask = cv2.drawContours(mask, cons, ii, (255), 2)
 		cpmask = np.copy(mask)
 		cv2.rectangle(mask, (0, 0), (w-1, h-1), WHITE, 1, cv2.LINE_8)
@@ -228,7 +228,7 @@ def layout_lines_aligncenter(
 	mask = 255 - mask
 	centroid_y = int(m['m01'] / m['m00'])
 	centroid_x = int(m['m10'] / m['m00'])
-	
+
 	# layout the central line, the center word is approximately aligned with the centroid of the mask
 	num_words = len(words)
 	len_left, len_right = [], []
@@ -388,7 +388,7 @@ def layout_lines_aligncenter(
 	# 	cv2.rectangle(rbgmsk, (line.pos_x, line.pos_y), (line.pos_x + line.length, line.pos_y + line_height), (0, 255, 0))
 	# cv2.imshow('mask', rbgmsk)
 	# cv2.waitKey(0)
-	
+
 	return lines
 
 def render_textblock_list_eng(
@@ -414,7 +414,7 @@ def render_textblock_list_eng(
 		ref_textballon (bool, optional): take text balloons as reference for text layout. 
 		original_img (np.ndarray, optional): original image used to extract text balloons.
 	"""
-	
+
 	def get_font(font_size: int):
 		fs = int(font_size / (1 + 2*stroke_width))
 		font = ImageFont.truetype(font_path, fs)
@@ -430,7 +430,7 @@ def render_textblock_list_eng(
 			if wl > base_length:
 				base_length = wl
 		return font, sw, line_height, delimiter_len, base_length, wl_list
-	
+
 	pilimg = Image.fromarray(img)
 
 	for blk in blk_list:
@@ -483,13 +483,13 @@ def render_textblock_list_eng(
 				ballon_region = cv2.resize(ballon_region, (int(resize_ratio * ballon_region.shape[1]), int(resize_ratio * ballon_region.shape[0])))
 
 			region_x, region_y, region_w, region_h = cv2.boundingRect(cv2.findNonZero(ballon_region))
-		
+
 			new_fnt_size = max(region_w / (base_length + 2*sw), downscale_constraint)
 			if new_fnt_size < 1:
 				font, sw, line_height, delimiter_len, base_length, wl_list = get_font(int(blk.font_size * new_fnt_size))
-			
+
 			lines = layout_lines_aligncenter(ballon_region, words, wl_list, delimiter_len, line_height, delimiter=delimiter)
-			
+
 			line_cy = np.array([line.pos_y for line in lines]).mean() + line_height / 2
 			region_cy = region_y + region_h / 2
 			y_offset = int(round(np.clip(region_cy - line_cy, -line_height, line_height)))
@@ -512,7 +512,7 @@ def render_textblock_list_eng(
 				cv2.rectangle(lines_map, (line.pos_x - sw, line.pos_y + y_offset), (line.pos_x + line.length + sw, line.pos_y + line_height), 255, -1)
 				line.pos_x -= canvas_l
 				line.pos_y -= canvas_t
-			
+
 			raw_lines = render_lines(lines, canvas_h, canvas_w, font, sw, font_color, stroke_color)
 			rel_cx = ((canvas_l + canvas_r) / 2 - rx) / resize_ratio
 			rel_cy = ((canvas_t + canvas_b) / 2 - ry + y_offset) / resize_ratio
@@ -535,7 +535,7 @@ def render_textblock_list_eng(
 
 			abs_cx = rel_cx + xyxy[0]
 			abs_cy = rel_cy + xyxy[1]
-			
+
 			if resize_ratio != 1:
 				raw_lines = raw_lines.resize((int(raw_lines.width / resize_ratio), int(raw_lines.height / resize_ratio)))
 			abs_x = int(abs_cx - raw_lines.width / 2)
@@ -582,7 +582,7 @@ def render_textblock_list_eng(
 
 			im_w, im_h = raw_lines.size
 			paste_x, paste_y = int(cx - im_w / 2), int(cy - im_h / 2)
-			
+
 			pilimg.paste(raw_lines, (paste_x, paste_y), mask=raw_lines)
 
 	return np.array(pilimg)

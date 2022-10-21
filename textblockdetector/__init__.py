@@ -74,7 +74,7 @@ class TextDetector:
         else:
             self.net = TextDetBase(model_path, device=device, act=act)
             self.backend = 'torch'
-        
+
         if isinstance(input_size, int):
             input_size = (input_size, input_size)
         self.input_size = input_size
@@ -91,7 +91,7 @@ class TextDetector:
         im_h, im_w = img.shape[:2]
 
         blks, mask, lines_map = self.net(img_in)
-        
+
         resize_ratio = (im_w / (self.input_size[0] - dw), im_h / (self.input_size[1] - dh))
         blks = postprocess_yolo(blks, self.conf_thresh, self.nms_thresh, resize_ratio)
 
@@ -101,12 +101,12 @@ class TextDetector:
                 mask = lines_map
                 lines_map = tmp
         mask = postprocess_mask(mask)
-        
+
         lines, scores = self.seg_rep(self.input_size, lines_map)
         box_thresh = 0.6
         idx = np.where(scores[0] > box_thresh)
         lines, scores = lines[0][idx], scores[0][idx]
-        
+
         # map output to input img
         mask = mask[: mask.shape[0]-dh, : mask.shape[1]-dw]
         mask = cv2.resize(mask, (im_w, im_h), interpolation=cv2.INTER_LINEAR)
@@ -121,7 +121,7 @@ class TextDetector:
         mask_refined = refine_mask(img, mask, blk_list, refine_mode=refine_mode)
         if keep_undetected_mask:
             mask_refined = refine_undetected_mask(img, mask, mask_refined, blk_list, refine_mode=refine_mode)
-    
+
         return mask, mask_refined, blk_list
 
 DEFAULT_MODEL = None

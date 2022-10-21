@@ -30,7 +30,7 @@ class AvgMeter():
 			return self.sum / self.count
 		else:
 			return 0
-			
+
 def convert_img(img):
 	if img.mode == 'RGBA':
 		# from https://stackoverflow.com/questions/9166400/convert-rgba-png-to-rgb-with-pil
@@ -54,7 +54,7 @@ def resize_keep_aspect(img, size):
 	new_width = round(img.shape[1] * ratio)
 	new_height = round(img.shape[0] * ratio)
 	return cv2.resize(img, (new_width, new_height), interpolation = cv2.INTER_LINEAR_EXACT)
-	
+
 def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
 	# initialize the dimensions of the image to be resized and
 	# grab the image size
@@ -110,7 +110,7 @@ class BBox(object):
 	def to_points(self):
 		tl, tr, br, bl = np.array([self.x, self.y]), np.array([self.x + self.w, self.y]), np.array([self.x + self.w, self.y+ self.h]), np.array([self.x, self.y + self.h])
 		return tl, tr, br, bl
-		
+
 class Quadrilateral(object):
 	def __init__(self, pts: np.ndarray, text: str, prob: float, fg_r: int = 0, fg_g: int = 0, fg_b: int = 0, bg_r: int = 0, bg_g: int = 0, bg_b: int = 0):
 		self.pts = pts
@@ -462,7 +462,7 @@ class Point:
 	def __init__(self, x = 0, y = 0):
 		self.x = x
 		self.y = y
-	
+
 	def length2(self) -> float:
 		return self.x * self.x + self.y * self.y
 

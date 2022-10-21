@@ -71,7 +71,7 @@ def rotate_polygons(center, polygons, rotation, new_center=None, to_int=True):
     rotation = np.deg2rad(rotation)
     s, c = np.sin(rotation), np.cos(rotation)
     polygons = polygons.astype(np.float32)
-    
+
     polygons[:, 1::2] -= center[1]
     polygons[:, ::2] -= center[0]
     rotated = np.copy(polygons)
@@ -165,7 +165,7 @@ def draw_connected_labels(num_labels, labels, stats, centroids, names="draw_conn
     max_ind = 0
     if isinstance(num_labels, int):
         num_labels = range(num_labels)
-    
+
     # for ind, lab in enumerate((range(num_labels))):
     for lab in num_labels:
         if skip_background and lab == 0:

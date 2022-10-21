@@ -300,7 +300,7 @@ def calc_vertical(font_size: int, rot: int, text: str, max_height: int, spacing_
 
 def put_char_vertical(font_size: int, rot: int, cdpt: str, pen_l: Tuple[int, int], canvas_text: np.ndarray, canvas_border: np.ndarray, border_size: int):
 	pen = pen_l.copy()
-	
+
 	is_pun = _is_punctuation(cdpt)
 	cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 1)
 	slot = get_char_glyph(cdpt, font_size, 1)
@@ -359,11 +359,11 @@ def put_text_vertical(font_size: int, mag_ratio: float, text: str, h: int, fg: T
 			line_height = 0
 		else:
 			pen_line[1] += offset_y
-	
+
 	# colorize
 	canvas_border = np.clip(canvas_border, 0, 255)
 	line_box = add_color(canvas_text, fg, canvas_border, bg)
-	
+
 	# rect
 	x, y, w, h = cv2.boundingRect(canvas_border)
 	return line_box[y:y+h, x:x+w]
@@ -377,7 +377,7 @@ def calc_horizontal(font_size: int, rot: int, text: str, limit_width: int):
 	word_width = 0
 	max_width = limit_width + font_size
 	space = False
-	
+
 	# 1. JPN, CHN : left-align, no spaces, confine to limit_width
 	previous = 0
 	for i, cdpt in enumerate(text):
@@ -467,7 +467,7 @@ def put_char_horizontal(font_size: int, rot: int, cdpt: str, pen_l: Tuple[int, i
 		blyph = glyph_border.to_bitmap(freetype.FT_RENDER_MODE_NORMAL, freetype.Vector(0,0), True)
 		bitmap_b = blyph.bitmap
 		bitmap_border = np.array(bitmap_b.buffer, dtype = np.uint8).reshape(bitmap_b.rows,bitmap_b.width)
-		
+
 		canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width] = cv2.add(canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width], bitmap_border)
 	return char_offset_x
 
@@ -497,11 +497,11 @@ def put_text_horizontal(font_size: int, mag_ratio: float, text: str, w: int, fg:
 			offset_x = put_char_horizontal(font_size, rot, t, pen_line, canvas_text, canvas_border, border_size=bgsize)
 			pen_line[0] += offset_x
 		pen_orig[1] += spacing_y + font_size
-	
+
 	# colorize
 	canvas_border = np.clip(canvas_border, 0, 255)
 	line_box = add_color(canvas_text, fg, canvas_border, bg)
-	
+
 	# rect
 	x, y, w, h = cv2.boundingRect(canvas_border)
 	return line_box[y:y+h, x:x+w]

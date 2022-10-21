@@ -138,7 +138,7 @@ class TextBlock(object):
 		if angled:
 			polygons = rotate_polygons(center, polygons, self.angle)
 		return angled, center, polygons
-	
+
 	def min_rect(self, rotate_back=True) -> List[int]:
 		angled, center, polygons = self.unrotated_polygons()
 		min_x = polygons[:, ::2].min()
@@ -267,7 +267,7 @@ class TextBlock(object):
 			return 1
 		angled, center, polygons = self.unrotated_polygons()
 		polygons = polygons.reshape(-1, 4, 2)
-		
+
 		left_std = np.std(polygons[:, 0, 0])
 		# right_std = np.std(polygons[:, 1, 0])
 		center_std = np.std((polygons[:, 0, 0] + polygons[:, 1, 0]) / 2)
@@ -315,7 +315,7 @@ def sort_textblk_list(blk_list: List[TextBlock], im_w: int, im_h: int) -> List[T
 	grid_weights = grid_indices * img_area + 1.2 * (center_x - grid_x * im_w / num_gridx) + (center_y - grid_y * im_h / num_gridy)
 	if im_w != im_oriw:
 		grid_weights[np.where(grid_x >= num_gridx)] += img_area * num_gridy * num_gridx
-	
+
 	for blk, weight in zip(blk_list, grid_weights):
 		blk.sort_weight = weight
 	blk_list.sort(key=lambda blk: blk.sort_weight)
@@ -344,7 +344,7 @@ def examine_textblk(blk: TextBlock, im_w: int, im_h: int, sort: bool = False) ->
 		primary_vec, primary_norm = h, norm_h
 		distance_vectors = center_pnts - np.array([[0, 0]], dtype=np.float64)
 		font_size = int(round(norm_v / len(lines)))
-	
+
 	rotation_angle = int(math.atan2(primary_vec[1], primary_vec[0]) / math.pi * 180)	 # rotation angle of textlines
 	distance = np.linalg.norm(distance_vectors, axis=1)	 # distance between textlinecenters and origin
 	rad_matrix = np.arccos(np.einsum('ij, j->i', distance_vectors, primary_vec) / (distance * primary_norm))
@@ -487,7 +487,7 @@ def group_output(blks, lines, im_w, im_h, mask=None, sort_blklist=True) -> List[
 			xywh = np.array([[bx1, by1, bx2-bx1, by2-by1]])
 			blk.lines = xywh2xyxypoly(xywh).reshape(-1, 4, 2).tolist()
 		examine_textblk(blk, im_w, im_h, sort=True)
-		
+
 		# split manga text if there is a distance gap
 		textblock_splitted = False
 		if len(blk.lines) > 1:
@@ -526,7 +526,7 @@ def group_output(blks, lines, im_w, im_h, mask=None, sort_blklist=True) -> List[
 			lines[..., 1] = np.clip(lines[..., 1], 0, im_h-1)
 			blk.lines = lines.astype(np.int64).tolist()
 			blk.font_size += expand_size
-			
+
 	return final_blk_list
 
 def visualize_textblocks(canvas, blk_list:  List[TextBlock]):

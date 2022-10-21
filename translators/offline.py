@@ -68,7 +68,7 @@ class OfflineTranslator(CommonTranslator):
 
     def is_loaded(self):
         return self.loaded
-    
+
     def _get_language_code(self, key):
         return LANGUAGE_CODE_MAP[key]
 

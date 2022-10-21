@@ -81,7 +81,7 @@ def merge_mask_list(mask_list, pred_mask, blk: TextBlock = None, pred_thresh=30,
             line[..., 1] -= text_window[1]
             cv2.fillPoly(linemask, [line], 255)
         linemask = cv2.dilate(linemask, np.ones((3, 3), np.uint8), iterations=3)
-    
+
     if pred_thresh > 0:
         e_size = 1
         element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * e_size + 1, 2 * e_size + 1),(e_size, e_size))      

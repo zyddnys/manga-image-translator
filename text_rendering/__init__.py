@@ -111,7 +111,7 @@ def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_d
 		)
 	h, w, _ = temp_box.shape
 	r_prime = w / h
-	
+
 	if is_ctd:
 		r = region.aspect_ratio()
 		if majority_dir != 'v':
@@ -132,7 +132,7 @@ def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_d
 	#region_ext = round(min(w, h) * 0.05)
 	#h_ext += region_ext
 	#w_ext += region_ext
-	
+
 	src_pts = np.array([[0, 0], [box.shape[1], 0], [box.shape[1], box.shape[0]], [0, box.shape[0]]]).astype(np.float32)
 	#src_pts[:, 0] = np.clip(np.round(src_pts[:, 0]), 0, enlarged_w * 2)
 	#src_pts[:, 1] = np.clip(np.round(src_pts[:, 1]), 0, enlarged_h * 2)
@@ -156,7 +156,7 @@ def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_d
 async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, text_regions: Union[List[TextBlock], List[Quadrilateral]], translated_sentences: List[str], font_path: str) -> np.ndarray:
 	if len(text_regions) == 0:
 		return img_canvas
-	
+
 	if isinstance(text_regions[0], 	Quadrilateral):
 		blk_list = []
 		for region, tr in zip(text_regions, translated_sentences):
@@ -171,9 +171,9 @@ async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, 
 			blk = TextBlock([x1, y1, x2, y2], lines=[region.pts], translation=tr, angle=angle, font_size=font_size)
 			blk_list.append(blk)
 		return render_textblock_list_eng(img_canvas, blk_list, font_path, size_tol=1.2, original_img=original_img, downscale_constraint=0.5)
-	
+
 	for blk, tr in zip(text_regions, translated_sentences):
 		blk.translation = tr
-		
+
 
 	return render_textblock_list_eng(img_canvas, text_regions, font_path, size_tol=1.2, original_img=original_img, downscale_constraint=0.8)

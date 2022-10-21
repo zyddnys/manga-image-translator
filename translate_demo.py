@@ -106,7 +106,7 @@ async def infer(
 
 	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'detection')
-	
+
 	if detector == 'ctd':
 		mask, final_mask, textlines = await dispatch_ctd_detection(img, args.use_cuda)
 		text_regions = textlines
@@ -211,7 +211,7 @@ async def infer(
 			print("No text found!")
 			update_state(task_id, nonce, 'error-no-txt')
 		return
-	
+
 	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'render')
 	# render translated texts
@@ -224,7 +224,7 @@ async def infer(
 			output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, args.font_size_offset)
 		else:
 			output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite, args.font_size_offset)
-	
+
 	print(' -- Saving results')
 	if alpha_ch is not None:
 		output = np.concatenate([output.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
@@ -316,7 +316,7 @@ async def main(mode = 'demo'):
 			web_executable = [sys.executable, '-u'] if args.log_web else [sys.executable]
 			web_process_args = ['web_main.py', nonce, str(args.host), str(args.port)]
 			subprocess.Popen([*web_executable, *web_process_args], **extra_web_args)
-		
+
 		while True:
 			try:
 				task_id, options = get_task(nonce)
@@ -382,13 +382,13 @@ def preload_offline_translator(translation_mode):
 
 	if translation_mode in translation_model_map.keys():
 		nllb_model_name = translation_model_map[args.translator]
-		
+
 
 		# Get if repo exists in cache
 		if not huggingface_hub.try_to_load_from_cache(nllb_model_name, 'pytorch_model.bin') is None:
 			print(f"Detected cached model for offline translation: {nllb_model_name}")
 			return
-		
+
 		# Preload models into cache as part of startup
 		print(f"Detected offline translation mode. Pre-loading offline translation model: {nllb_model_name} " +
 		       "(This can take a long time as multiple GB's worth of data can be downloaded during this step)")
