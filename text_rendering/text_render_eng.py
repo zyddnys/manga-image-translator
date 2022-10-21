@@ -382,10 +382,10 @@ def layout_lines_aligncenter(
 				line = Line(w, pos_x, pos_y, wl, spacing)
 				lines.insert(0, line)
 
-	rbgmsk = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-	cv2.circle(rbgmsk, (centroid_x, centroid_y), 10, (255, 0, 0))
-	for line in lines:
-		cv2.rectangle(rbgmsk, (line.pos_x, line.pos_y), (line.pos_x + line.length, line.pos_y + line_height), (0, 255, 0))
+	# rbgmsk = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+	# cv2.circle(rbgmsk, (centroid_x, centroid_y), 10, (255, 0, 0))
+	# for line in lines:
+	# 	cv2.rectangle(rbgmsk, (line.pos_x, line.pos_y), (line.pos_x + line.length, line.pos_y + line_height), (0, 255, 0))
 	# cv2.imshow('mask', rbgmsk)
 	# cv2.waitKey(0)
 	
