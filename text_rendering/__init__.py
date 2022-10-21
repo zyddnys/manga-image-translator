@@ -4,7 +4,7 @@ from utils import Quadrilateral
 import numpy as np
 import cv2
 import math
-from utils import findNextPowerOf2
+from utils import findNextPowerOf2, color_difference
 import textwrap
 from . import text_render
 from .text_render_eng import render_textblock_list_eng
@@ -13,7 +13,7 @@ from textblockdetector.textblock import TextBlock
 def fg_bg_compare(fg, bg):
 	fg_avg = np.mean(fg)
 	bg_avg = np.mean(bg)
-	if abs(fg_avg - bg_avg) < 40 :
+	if color_difference(fg, bg) < 15 :
 		#bg = None
 		#fg = (0, 0, 0) if fg_avg <= 127 else (255, 255, 255)
 		bg = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)

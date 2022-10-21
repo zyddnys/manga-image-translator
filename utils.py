@@ -351,7 +351,7 @@ def rect_distance(x1, y1, x1b, y1b, x2, y2, x2b, y2b):
 		return y1 - y2b
 	elif top:
 		return y2 - y1b
-	else:             # rectangles intersect
+	else:			 # rectangles intersect
 		return 0
 
 def distance_point_point(a: np.ndarray, b: np.ndarray) -> float :
@@ -564,6 +564,15 @@ def gjk_distance(s1: List[Point], s2: List[Point]) -> float :
 			d = p2
 		s.append(c)
 	return 0
+
+def color_difference(rgb1: List, rgb2: List) -> float:
+	# https://en.wikipedia.org/wiki/Color_difference#CIE76
+	color1 = np.array(rgb1, dtype=np.uint8).reshape(1, 1, 3)
+	color2 = np.array(rgb2, dtype=np.uint8).reshape(1, 1, 3)
+	diff = cv2.cvtColor(color1, cv2.COLOR_RGB2LAB).astype(np.float64) - cv2.cvtColor(color2, cv2.COLOR_RGB2LAB).astype(np.float64)
+	diff[..., 0] *= 0.392
+	diff = np.linalg.norm(diff, axis=2) 
+	return diff.item()
 
 def main() :
 	s1 = [Point(0, 0), Point(0, 2), Point(2, 2), Point(2, 0)]
