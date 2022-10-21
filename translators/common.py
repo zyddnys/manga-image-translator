@@ -15,7 +15,7 @@ class CommonTranslator:
         except KeyError as e:
             print(f'Could not parse language key: "{e}"')
             raise e
-        return await self._translate(_from_lang, _to_lang, queries)
+        return [t.strip() for t in await self._translate(_from_lang, _to_lang, queries)]
 
     async def _translate(self, from_lang, to_lang, queries):
         raise NotImplementedError()

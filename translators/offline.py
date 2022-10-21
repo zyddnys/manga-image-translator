@@ -1,5 +1,6 @@
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 from langdetect import detect
+import re
 
 from translators.common import CommonTranslator
 
@@ -106,9 +107,24 @@ class OfflineTranslator(CommonTranslator):
         )
 
         result = translator(query_text)
-        translated_text = result[0]['translation_text']
+        translated_text = self._clean_translation_output(result[0]['translation_text'])
+
         print(f"Offline Translation[{from_lang} -> {to_lang}] \"{query_text}\" -> \"{translated_text}\"")
         return translated_text
+
+    def _clean_translation_output(self, text: str) -> str:
+        words = text.split()
+        elements = list(set(words))
+        if len(elements) / len(words) < 0.1:
+            words = words[:int(len(words) / 1.75)]
+            text = ' '.join(words)
+
+            # For parts that appear more then four times consecutively, remove the excess
+            for el in elements:
+                el = re.escape(el)
+                text = re.sub(r'(?: ' + el + r'){4} (' + el + r' )+', ' ', text)
+
+        return text
 
     def _map_detected_lang_to_translator(self, lang):
         if not lang in ISO_639_1_TO_FLORES_200.keys():
