@@ -94,7 +94,14 @@ class TextDetector:
         
         resize_ratio = (im_w / (self.input_size[0] - dw), im_h / (self.input_size[1] - dh))
         blks = postprocess_yolo(blks, self.conf_thresh, self.nms_thresh, resize_ratio)
+
+        if self.backend == 'opencv':
+            if mask.shape[1] == 2:     # some version of opencv spit out reversed result
+                tmp = mask
+                mask = lines_map
+                lines_map = tmp
         mask = postprocess_mask(mask)
+        
         lines, scores = self.seg_rep(self.input_size, lines_map)
         box_thresh = 0.6
         idx = np.where(scores[0] > box_thresh)

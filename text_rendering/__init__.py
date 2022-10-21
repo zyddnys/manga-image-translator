@@ -4,7 +4,7 @@ from utils import Quadrilateral
 import numpy as np
 import cv2
 import math
-from utils import findNextPowerOf2
+from utils import findNextPowerOf2, color_difference
 import textwrap
 from . import text_render
 from .text_render_eng import render_textblock_list_eng
@@ -13,7 +13,7 @@ from textblockdetector.textblock import TextBlock
 def fg_bg_compare(fg, bg):
 	fg_avg = np.mean(fg)
 	bg_avg = np.mean(bg)
-	if abs(fg_avg - bg_avg) < 40 :
+	if color_difference(fg, bg) < 15 :
 		#bg = None
 		#fg = (0, 0, 0) if fg_avg <= 127 else (255, 255, 255)
 		bg = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
@@ -170,15 +170,20 @@ async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, 
 	if isinstance(text_regions[0], 	Quadrilateral):
 		blk_list = []
 		for region, tr in zip(text_regions, translated_sentences):
-			x = np.min(region.pts[:, 0])
-			w = np.max(region.pts[:, 0]) - x
-			y = np.min(region.pts[:, 1])
-			h = np.max(region.pts[:, 1]) - y
-			font_size = region.font_size * 0.7
-			blk = TextBlock([x, y, w, h], lines=[region.pts], translation=tr, angle=region.angle, font_size=font_size)
+			x1 = np.min(region.pts[:, 0])
+			x2 = np.max(region.pts[:, 0])
+			y1 = np.min(region.pts[:, 1])
+			y2 = np.max(region.pts[:, 1])
+			font_size = region.font_size * 0.75		# default detector generate larger text polygons in my exp
+			angle = np.rad2deg(region.angle) - 90
+			if abs(angle) < 3:
+				angle = 0
+			blk = TextBlock([x1, y1, x2, y2], lines=[region.pts], translation=tr, angle=angle, font_size=font_size)
 			blk_list.append(blk)
 		return render_textblock_list_eng(img_canvas, blk_list, font_path, size_tol=1.2, original_img=original_img, downscale_constraint=0.5)
 	
 	for blk, tr in zip(text_regions, translated_sentences):
 		blk.translation = tr
+		
+
 	return render_textblock_list_eng(img_canvas, text_regions, font_path, size_tol=1.2, original_img=original_img, downscale_constraint=0.8)

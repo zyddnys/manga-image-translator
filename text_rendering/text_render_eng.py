@@ -7,10 +7,12 @@ from textblockdetector import TextBlock
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
+PUNSET_RIGHT_ENG = {'.', '?', '!', ':', ';', ')', '}', "\""}
+
 
 class Line:
 
-	def __init__(self, text: str = '', pos_x: int = 0, pos_y: int = 0, length: float = 0) -> None:
+	def __init__(self, text: str = '', pos_x: int = 0, pos_y: int = 0, length: float = 0, spacing: int = 0) -> None:
 		self.text = text
 		self.pos_x = pos_x
 		self.pos_y = pos_y
@@ -18,6 +20,8 @@ class Line:
 		self.num_words = 0
 		if text:
 			self.num_words += 1
+		self.spacing = 0
+		self.add_spacing(spacing)
 
 	def append_right(self, word: str, w_len: int, delimiter: str = ''):
 		self.text = self.text + delimiter + word
@@ -30,6 +34,16 @@ class Line:
 		if word:
 			self.num_words += 1
 		self.length += w_len
+
+	def add_spacing(self, spacing: int):
+		self.spacing = spacing
+		self.pos_x -= spacing
+		self.length += 2 * spacing
+
+	def strip_spacing(self):
+		self.length -= self.spacing * 2
+		self.pos_x += self.spacing
+		self.spacing = 0
 
 
 def enlarge_window(rect, im_w, im_h, ratio=2.5, aspect_ratio=1.0) -> List:
@@ -50,7 +64,7 @@ def enlarge_window(rect, im_w, im_h, ratio=2.5, aspect_ratio=1.0) -> List:
 	rect = np.array([x1-delta_w, y1-delta, x2+delta_w, y2+delta], dtype=np.int64)
 	return rect.tolist()
 
-def extract_ballon_region(img: np.ndarray, ballon_rect: List, show_process=False, enlarge_ratio=2.0) -> Tuple[np.ndarray, int, List]:
+def extract_ballon_region(img: np.ndarray, ballon_rect: List, show_process=False, enlarge_ratio=2.0, cal_region_rect=False) -> Tuple[np.ndarray, int, List]:
 
 	x1, y1, x2, y2 = ballon_rect[0], ballon_rect[1], \
 		ballon_rect[2] + ballon_rect[0], ballon_rect[3] + ballon_rect[1]
@@ -79,7 +93,7 @@ def extract_ballon_region(img: np.ndarray, ballon_rect: List, show_process=False
 	cv2.rectangle(detected_edges, (0, 0), (w-1, h-1), WHITE, 1, cv2.LINE_8)
 	cons, hiers = cv2.findContours(detected_edges, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
 	cv2.rectangle(detected_edges, (0, 0), (w-1, h-1), BLACK, 1, cv2.LINE_8)
-
+	
 	ballon_mask, outer_index = np.zeros((h, w), np.uint8), -1
 	min_retval = np.inf
 	mask = np.zeros((h, w), np.uint8)
@@ -122,7 +136,8 @@ def extract_ballon_region(img: np.ndarray, ballon_rect: List, show_process=False
 		cv2.imshow('ballon_mask', ballon_mask)
 		cv2.imshow('img', img)
 		cv2.waitKey(0)
-
+	if cal_region_rect:
+		return ballon_mask, (ballon_mask > 0).sum(), [x1, y1, x2, y2], cv2.boundingRect(ballon_mask)
 	return ballon_mask, (ballon_mask > 0).sum(), [x1, y1, x2, y2]
 
 def render_lines(
@@ -141,43 +156,72 @@ def render_lines(
 		d.text((line.pos_x, line.pos_y), line.text, font=font, fill=font_color, stroke_width=stroke_width, stroke_fill=stroke_color)
 	return c
 
-def text_to_word_list(text: str) -> List[str]:
-	text = text.upper().replace('  ', ' ')
+def seg_eng(text: str) -> List[str]:
+	text = text.upper().replace('  ', ' ').replace(' .', '.').replace('\n', ' ')
 	processed_text = ''
 
 	# dumb way to insure spaces between words
 	text_len = len(text)
 	for ii, c in enumerate(text):
-			if c in ['.', '?', '!'] and ii < text_len - 1:
-				next_c = text[ii + 1]
-				if next_c.isalpha() or next_c.isnumeric():
-					processed_text += c + ' '
-				else:
-					processed_text += c
+		if c in PUNSET_RIGHT_ENG and ii < text_len - 1:
+			next_c = text[ii + 1]
+			if next_c.isalpha() or next_c.isnumeric():
+				processed_text += c + ' '
 			else:
 				processed_text += c
+		else:
+			processed_text += c
+
 	word_list = processed_text.split(' ')
+	word_num = len(word_list)
+	if word_num <= 1:
+		return word_list
+
 	words = []
 	skip_next = False
-	word_num = len(word_list)
 	for ii, word in enumerate(word_list):
 		if skip_next:
 			skip_next = False
 			continue
-		if ii < word_num - 1:
-			if len(word) == 1 or len(word_list[ii + 1]) == 1:
+		if len(word) < 3:
+			append_left, append_right = False, False
+			len_word, len_next, len_prev = len(word), -1, -1
+			if ii < word_num - 1:
+				len_next = len(word_list[ii + 1])
+			if ii > 0:
+				len_prev = len(words[-1])
+			cond_next = (len_word == 2 and len_next <= 4) or len_word == 1
+			cond_prev = (len_word == 2 and len_prev <= 4) or len_word == 1
+			if len_next > 0 and len_prev > 0:
+				if len_next < len_prev:
+					append_right = cond_next
+				else:
+					append_left = cond_prev
+			elif len_next > 0:
+				append_right = cond_next
+			elif len_prev:
+				append_left = cond_prev
+
+			if append_left:
+				words[-1] = words[-1] + ' ' + word
+			elif append_right:
+				words.append(word + ' ' + word_list[ii + 1])
 				skip_next = True
-				word = word + ' ' + word_list[ii + 1]
+			else:
+				words.append(word)
+			continue
 		words.append(word)
 	return words
 
-def layout_lines_with_mask(
+def layout_lines_aligncenter(
 	mask: np.ndarray, 
 	words: List[str], 
 	wl_list: List[int], 
 	delimiter_len: int, 
 	line_height: int,
+	spacing: int = 0,
 	delimiter: str = ' ',
+	max_central_width: float = np.inf,
 	word_break: bool = False)->List[Line]:
 
 	m = cv2.moments(mask)
@@ -191,11 +235,11 @@ def layout_lines_with_mask(
 	wlst_left, wlst_right = [], []
 	sum_left, sum_right = 0, 0
 	if num_words > 1:
-		wl_cumsums = np.cumsum(np.array(wl_list, dtype=np.float64))
-		wl_cumsums -= wl_cumsums[-1] / 2
+		wl_array = np.array(wl_list, dtype=np.float64)
+		wl_cumsums = np.cumsum(wl_array)
+		wl_cumsums = wl_cumsums - wl_cumsums[-1] / 2 - wl_array / 2
 		central_index = np.argmin(np.abs(wl_cumsums))
-		if wl_list[central_index] < 0:
-			central_index += 1
+
 		if central_index > 0:
 			wlst_left = words[:central_index]
 			len_left = wl_list[:central_index]
@@ -211,7 +255,7 @@ def layout_lines_with_mask(
 	pos_x = centroid_x - wl_list[central_index] // 2
 
 	bh, bw = mask.shape[:2]
-	central_line = Line(words[central_index], pos_x, pos_y, wl_list[central_index])
+	central_line = Line(words[central_index], pos_x, pos_y, wl_list[central_index], spacing)
 	line_bottom = pos_y + line_height
 	while sum_left > 0 or sum_right > 0:
 		left_valid, right_valid = False, False
@@ -248,7 +292,10 @@ def layout_lines_with_mask(
 			central_line.append_right(wlst_right.pop(0), len_right[0] + delimiter_len, delimiter)
 			sum_right -= len_right.pop(0)
 			central_line.pos_x = new_x_r
+		if central_line.length > max_central_width:
+			break
 
+	central_line.strip_spacing()
 	lines = [central_line]
 
 	# layout bottom half
@@ -257,7 +304,7 @@ def layout_lines_with_mask(
 		pos_x = centroid_x - wl // 2
 		pos_y = centroid_y + line_height // 2
 		line_bottom = pos_y + line_height
-		line = Line(w, pos_x, pos_y, wl)
+		line = Line(w, pos_x, pos_y, wl, spacing)
 		lines.append(line)
 		sum_right -= wl
 		while sum_right > 0:
@@ -276,11 +323,21 @@ def layout_lines_with_mask(
 			if line_valid:
 				line.append_right(w, wl+delimiter_len, delimiter)
 				line.pos_x = new_x
-			else:
+				if new_len > max_central_width:
+					line_valid = False
+					if sum_right > 0:
+						w, wl = wlst_right.pop(0), len_right.pop(0)
+						sum_right -= wl
+					else:
+						line.strip_spacing()
+						break
+
+			if not line_valid:
 				pos_x = centroid_x - wl // 2
 				pos_y = line_bottom
 				line_bottom += line_height
-				line = Line(w, pos_x, pos_y, wl)
+				line.strip_spacing()
+				line = Line(w, pos_x, pos_y, wl, spacing)
 				lines.append(line)
 
 	# layout top half
@@ -289,7 +346,7 @@ def layout_lines_with_mask(
 		pos_x = centroid_x - wl // 2
 		pos_y = centroid_y - line_height // 2 - line_height
 		line_bottom = pos_y + line_height
-		line = Line(w, pos_x, pos_y, wl)
+		line = Line(w, pos_x, pos_y, wl, spacing)
 		lines.insert(0, line)
 		sum_left -= wl
 		while sum_left > 0:
@@ -308,13 +365,30 @@ def layout_lines_with_mask(
 			if line_valid:
 				line.append_left(w, wl+delimiter_len, delimiter)
 				line.pos_x = new_x
-			else:
+				if new_len > max_central_width:
+					line_valid = False
+					if sum_left > 0:
+						w, wl = wlst_left.pop(-1), len_left.pop(-1)
+						sum_left -= wl
+					else:
+						line.strip_spacing()
+						break
+
+			if not line_valid :
 				pos_x = centroid_x - wl // 2
 				pos_y -= line_height
 				line_bottom = pos_y + line_height
-				line = Line(w, pos_x, pos_y, wl)
+				line.strip_spacing()
+				line = Line(w, pos_x, pos_y, wl, spacing)
 				lines.insert(0, line)
 
+	# rbgmsk = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+	# cv2.circle(rbgmsk, (centroid_x, centroid_y), 10, (255, 0, 0))
+	# for line in lines:
+	# 	cv2.rectangle(rbgmsk, (line.pos_x, line.pos_y), (line.pos_x + line.length, line.pos_y + line_height), (0, 255, 0))
+	# cv2.imshow('mask', rbgmsk)
+	# cv2.waitKey(0)
+	
 	return lines
 
 def render_textblock_list_eng(
@@ -360,9 +434,7 @@ def render_textblock_list_eng(
 	pilimg = Image.fromarray(img)
 
 	for blk in blk_list:
-		if blk.vertical:
-			blk.angle -= 90
-		words = text_to_word_list(blk.translation)
+		words = seg_eng(blk.translation)
 		num_words = len(words)
 		if not num_words:
 			continue
@@ -373,18 +445,27 @@ def render_textblock_list_eng(
 			assert original_img is not None
 			br = blk.bounding_rect()
 			# non-dl textballon segmentation
-			enlarge_ratio = min(max(br[2] / br[3], br[3] / br[2]), 3.0)
+			enlarge_ratio = min(max(br[2] / br[3], br[3] / br[2]) * 1.5, 3)
 			ballon_region, ballon_area, xyxy = extract_ballon_region(original_img, br, show_process=False, enlarge_ratio=enlarge_ratio)
 			rotated, rx, ry = False, 0, 0
-			if abs(blk.angle) > 3:
-				d = np.deg2rad(blk.angle)
-				r_sin = np.sin(d)
-				r_cos = np.cos(d)
+			angle = blk.angle
+			if abs(angle) > 3:
 				rotated = True
+				rad = np.deg2rad(angle)
+				r_sin = np.sin(rad)
+				r_cos = np.cos(rad)
 				rotated_ballon_region = Image.fromarray(ballon_region).rotate(blk.angle, expand=True)
 				rotated_ballon_region = np.array(rotated_ballon_region)
-				if blk.angle > 0:
+
+				angle %= 360
+				if angle > 0 and angle <= 90:
 					ry = abs(ballon_region.shape[1] * r_sin)
+				elif angle > 90 and angle <= 180:
+					rx = abs(ballon_region.shape[1] * r_cos)
+					ry = rotated_ballon_region.shape[0]	
+				elif angle > 180 and angle <= 270:
+					ry = abs(ballon_region.shape[0] * r_cos)
+					rx = rotated_ballon_region.shape[1]
 				else:
 					rx = abs(ballon_region.shape[0] * r_sin)
 				ballon_region = rotated_ballon_region
@@ -398,7 +479,6 @@ def render_textblock_list_eng(
 				ballon_area = int(resize_ratio * ballon_area)
 				resize_ratio = min(np.sqrt(resize_ratio), (1 / downscale_constraint) ** 2)
 				rx *= resize_ratio
-				
 				ry *= resize_ratio
 				ballon_region = cv2.resize(ballon_region, (int(resize_ratio * ballon_region.shape[1]), int(resize_ratio * ballon_region.shape[0])))
 
@@ -407,8 +487,8 @@ def render_textblock_list_eng(
 			new_fnt_size = max(region_w / (base_length + 2*sw), downscale_constraint)
 			if new_fnt_size < 1:
 				font, sw, line_height, delimiter_len, base_length, wl_list = get_font(int(blk.font_size * new_fnt_size))
-
-			lines = layout_lines_with_mask(ballon_region, words, wl_list, delimiter_len, line_height, delimiter)
+			
+			lines = layout_lines_aligncenter(ballon_region, words, wl_list, delimiter_len, line_height, delimiter=delimiter)
 			
 			line_cy = np.array([line.pos_y for line in lines]).mean() + line_height / 2
 			region_cy = region_y + region_h / 2
@@ -505,5 +585,4 @@ def render_textblock_list_eng(
 			
 			pilimg.paste(raw_lines, (paste_x, paste_y), mask=raw_lines)
 
-	# pilimg.show()
 	return np.array(pilimg)
