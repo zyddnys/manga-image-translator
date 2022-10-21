@@ -174,7 +174,7 @@ async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, 
 			x2 = np.max(region.pts[:, 0])
 			y = np.min(region.pts[:, 1])
 			y2 = np.max(region.pts[:, 1])
-			font_size = region.font_size		# default detector generate larger text polygons in my exp
+			font_size = region.font_size * 0.75		# default detector generate larger text polygons in my exp
 			angle = np.rad2deg(region.angle) - 90
 			if abs(angle) < 3:
 				angle = 0
