@@ -348,8 +348,8 @@ def render_textblock_list_eng(
 	pilimg = Image.fromarray(img)
 
 	for blk in blk_list:
-		if blk.vertical:
-			blk.angle -= 90
+		# if blk.vertical:
+		# 	blk.angle -= 90
 		words = seg_eng(blk.translation)
 		num_words = len(words)
 		if not num_words:
