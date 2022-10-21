@@ -82,6 +82,7 @@ VIN: Vietnames
 
 ```bash
 # 如果机器有支持 CUDA 的 NVIDIA GPU，可以添加 `--use-cuda` 参数
+# 使用 `--use-cuda-limited` 将需要使用大量显存的翻译交由CPU执行，这样可以减少显存占用
 # 使用 `--use-inpainting` 开启图片修补
 # 使用 `--translator=<翻译器名称>` 来指定翻译器
 # 使用 `--target-lang=<语言代码>` 来指定目标语言
