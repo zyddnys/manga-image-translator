@@ -246,7 +246,7 @@ async def get_task_state_async(request) :
 			ret = web.json_response({'state': TASK_STATES[task_id], 'waiting': 0})
 		now = time.time()
 		for tid, state in TASK_STATES.items():
-			if state in ['finished', 'error', 'error-lang'] and now - state['created_at'] > 1800 :
+			if state in ['finished', 'error', 'error-lang'] and now - TASK_DATA[tid]['created_at'] > 1800 :
 				# remove old tasks
 				TASK_STATES.pop(tid)
 				TASK_DATA.pop(tid)
