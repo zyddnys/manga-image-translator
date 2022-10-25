@@ -264,7 +264,7 @@ async def post_task_update_async(request) :
 		task_id = rqjson['task_id']
 		if task_id in TASK_STATES and task_id in TASK_DATA :
 			TASK_STATES[task_id] = rqjson['state']
-			if rqjson['state'] in ['finished', 'error', 'error-lang'] and not TASK_DATA[task_id].get('manual', False) :
+			if rqjson['state'] in ['finished', 'error', 'error-lang', 'error-no-text'] and not TASK_DATA[task_id].get('manual', False) :
 				NUM_ONGOING_TASKS -= 1
 			print(f'Task state {task_id} to {TASK_STATES[task_id]}')
 	return web.json_response({})
