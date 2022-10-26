@@ -107,7 +107,7 @@ async def handle_post(request):
 		img = Image.open(io.BytesIO(content))
 		if max(img.width, img.height) > 4000:
 			return web.json_response({'status': 'error-too-large'})
-	except:
+	except Exception:
 		return web.json_response({'status': 'error-img-corrupt'})
 	return img, size, selected_translator, target_language, detector, direction
 
@@ -242,7 +242,7 @@ async def get_task_state_async(request):
 	if task_id and task_id in TASK_STATES and task_id in TASK_DATA:
 		try:
 			ret = web.json_response({'state': TASK_STATES[task_id], 'waiting': QUEUE.index(task_id) + 1})
-		except:
+		except Exception:
 			ret = web.json_response({'state': TASK_STATES[task_id], 'waiting': 0})
 		now = time.time()
 		to_del_task_ids = set()

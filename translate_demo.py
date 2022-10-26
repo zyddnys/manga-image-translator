@@ -273,7 +273,7 @@ async def infer_safe(
 			dst_image_name,
 			alpha_ch
 		)
-	except:
+	except Exception:
 		import traceback
 		traceback.print_exc()
 		update_state(task_id, nonce, 'error')

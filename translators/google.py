@@ -274,12 +274,12 @@ class GoogleTranslator(CommonTranslator):
         if from_lang == 'auto':
             try:
                 from_lang = parsed[2]
-            except:
+            except Exception:
                 pass
         if from_lang == 'auto':
             try:
                 from_lang = parsed[0][2]
-            except:
+            except Exception:
                 pass
 
         # currently not available
@@ -288,13 +288,13 @@ class GoogleTranslator(CommonTranslator):
         origin_pronunciation = None
         try:
             origin_pronunciation = parsed[0][0]
-        except:
+        except Exception:
             pass
 
         pronunciation = None
         try:
             pronunciation = parsed[1][0][0][1]
-        except:
+        except Exception:
             pass
 
         extra_data = {
@@ -400,7 +400,7 @@ class GoogleTranslator(CommonTranslator):
         if pron is None:
             try:
                 pron = data[0][1][2]
-            except:  # pragma: nocover
+            except Exception:  # pragma: nocover
                 pass
 
         if dest in EXCLUDES and pron == origin:

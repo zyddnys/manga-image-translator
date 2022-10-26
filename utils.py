@@ -308,7 +308,9 @@ class ModelWrapper():
 		'''
 		Makes a forward pass through the network.
 		'''
-		if not self.is_loaded() or not self.is_downloaded():
+		if not self.is_downloaded():
+			await self.download()
+		if not self.is_loaded():
 			raise Exception(f'{self.__class__.__name__}: Tried to forward pass without having loaded the model.')
 		return await self._forward(*args, **kwargs)
 

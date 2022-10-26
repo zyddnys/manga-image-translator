@@ -65,7 +65,7 @@ def get_translator(key: str, src_lang: str = None, tgt_lang: str = None, *args, 
 		if not src_lang or not tgt_lang:
 			raise Exception(f'Translator key: "{key}" required src_lang and tgt_lang to be set.')
 		key = get_suitable_offline_translator_key(src_lang, tgt_lang, key == 'offline_big')
-	if key not in translator_cache:
+	if not translator_cache.get(key):
 		translator = TRANSLATORS[key]
 		translator_cache[key] = translator(*args, **kwargs)
 	return translator_cache[key]
@@ -74,10 +74,10 @@ async def prepare(translator_key: str, src_lang: str, tgt_lang: str):
 	translator = get_translator(translator_key, src_lang, tgt_lang)
 	if src_lang not in translator.supported_src_languages:
 		raise ValueError(f'Translator "{translator_key}" does not support language "{src_lang}". ' +
-						  'Please choose from: {",".join(translator.supported_src_languages)}.')
+						 f'Please choose from: {",".join(translator.supported_src_languages)}.')
 	if tgt_lang not in translator.supported_tgt_languages:
 		raise ValueError(f'Translator "{translator_key}" does not support language "{tgt_lang}". ' +
-						   'Please choose from: {",".join(translator.supported_tgt_languages)}.')
+						 f'Please choose from: {",".join(translator.supported_tgt_languages)}.')
 	if isinstance(translator, OfflineTranslator):
 		await translator.download()
 
