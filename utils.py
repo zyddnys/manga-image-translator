@@ -1,17 +1,328 @@
-
+import os
 from typing import List
 import numpy as np
 import cv2
 import functools
-import shapely
+from abc import abstractmethod
 from shapely.geometry import Polygon, MultiPoint
 from PIL import Image
+import tqdm
+import requests
+import sys
+import hashlib
+import tempfile
+import re
+import torch
+import shutil
+import filecmp
 
 try:
   	functools.cached_property
 except AttributeError: # Supports Python versions below 3.8
 	from backports.cached_property import cached_property
 	functools.cached_property = cached_property
+
+
+def get_digest(file_path: str) -> str:
+	h = hashlib.sha256()
+	BUF_SIZE = 65536 
+
+	with open(file_path, 'rb') as file:
+		while True:
+			# Reading is buffered, so we can read smaller chunks.
+			chunk = file.read(BUF_SIZE)
+			if not chunk:
+				break
+			h.update(chunk)
+	return h.hexdigest()
+
+def get_filename_from_url(url: str, default: str = '') -> str:
+	m = re.search(r'/([^/?]+)[^/]*$', url)
+	if m:
+		return m.group(1)
+	return default
+
+def download_url_with_progressbar(url: str, path: str, do_hash: bool = False):
+	if os.path.basename(path) in ('.', '') or os.path.isdir(path):
+		path = os.path.join(path, get_filename_from_url(url, 'default'))
+	headers = {}
+	downloaded_size = 0
+	# TODO: Implement partial downloads
+	# if os.path.isfile(path):
+	# 	downloaded_size = os.path.getsize(path)
+	# 	headers['Range'] = 'bytes=%d-' % downloaded_size
+	r = requests.get(url, stream=True, allow_redirects=True, headers=headers)
+	# if downloaded_size and r.headers.get('Accept-Ranges') != 'bytes':
+	# 	print('Error: Webserver does not support partial downloads. Restarting from the beginning!')
+	# 	r = requests.get(url, stream=True, allow_redirects=True)
+	# 	downloaded_size = 0
+	total = int(r.headers.get('content-length', 0))
+	chunk_size = 1024
+	if r.ok:
+		with tqdm.tqdm(
+			desc=os.path.basename(path),
+			initial=downloaded_size,
+			total=total,
+			unit='iB',
+			unit_scale=True,
+			unit_divisor=chunk_size,
+		) as bar:
+			if do_hash:
+				h = hashlib.sha256()
+				# if downloaded_size:
+				# 	with open(path, 'rb') as f:
+				# 		h.update(f.read())
+			with open(path, 'ab' if downloaded_size else 'wb') as f:
+				is_tty = sys.stdout.isatty()
+				downloaded_chunks = 0
+				for data in r.iter_content(chunk_size=chunk_size):
+					size = f.write(data)
+					bar.update(size)
+					if do_hash:
+						h.update(data)
+
+					# Fallback for non TTYs so output still shown
+					downloaded_chunks += 1
+					if not is_tty and downloaded_chunks % 1000 == 0:
+						print(bar)
+		if do_hash:
+			return h.hexdigest()
+	else:
+		raise Exception(f'Couldn\'t resolve url: "{url}"')
+
+def prompt_yes_no(query: str, default: bool = None) -> bool:
+	s = '%s (%s/%s): ' % (query, 'Y' if default == True else 'y', 'N' if default == False else 'n')
+	while True:
+		inp = input(s).lower()
+		if inp in ('yes', 'y'):
+			return True
+		elif inp in ('no', 'n'):
+			return False
+		elif default != None:
+			return default
+		if inp:
+			print('Error: Could not parse input')
+
+MODULE_PATH = os.path.dirname(os.path.realpath(__file__))
+
+class ModelVerificationException(Exception):
+	pass
+
+class ModelWrapper():
+	_MODEL_DIR = os.path.join(MODULE_PATH, 'models')
+	_MODEL_MAPPING = {}
+
+	def __init__(self):
+		self._check_for_malformed_model_mapping()
+		os.makedirs(self._MODEL_DIR, exist_ok=True)
+		self._downloaded = self._check_downloaded()
+		self._loaded = False
+
+	def is_loaded(self) -> bool:
+		return self._loaded
+
+	def is_downloaded(self) -> bool:
+		return self._downloaded
+
+	def _get_file_path(self, relative_path: str) -> str:
+		return os.path.join(self._MODEL_DIR, relative_path)
+
+	def _get_used_gpu_memory(self) -> bool:
+		"""
+		Gets the total amount of GPU memory used by model (Can be used in the future
+		to determine whether a model should be loaded into vram or ram).
+		TODO: Use together with `--use-cuda-limited` flag to enforce stricter memory checks
+		"""
+		return torch.cuda.mem_get_info()
+
+	def _check_for_malformed_model_mapping(self):
+		for map_key, map in self._MODEL_MAPPING.items():
+			if 'url' not in map:
+				raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. Missing url property.')
+			if 'file' not in map and 'archive-files' not in map:
+				map['file'] = '.'
+			if 'file' in map and 'archive-files' in map:
+				raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. Properties file and archive-files are mutually exclusive.')
+
+	async def _download_file(self, url: str, path: str):
+		print(f'-- Downloading {url}:')
+		download_url_with_progressbar(url, path)
+
+	async def _verify_file(self, path: str, sha256_pre_calculated: str):
+		print(f'-- Verifying: "{path}"')
+		sha256_calculated = get_digest(path)
+
+		if sha256_calculated.capitalize() != sha256_pre_calculated.capitalize():
+			self._on_verify_failure(sha256_calculated, sha256_pre_calculated)
+		else:
+			print('-- Verifying: OK!')
+
+	async def _download_and_verify_file(self, url: str, path: str, sha256_pre_calculated: str):
+		sha256_calculated = download_url_with_progressbar(url, path, True)
+
+		print(f'-- Verifying: "{path}"')
+		if sha256_calculated.upper() != sha256_pre_calculated.upper():
+			self._on_verify_failure(sha256_calculated.upper(), sha256_pre_calculated.upper())
+		else:
+			print('-- Verifying: OK!')
+
+	def _on_verify_failure(self, sha256_calculated: str, sha256_pre_calculated: str):
+		print(f'-- Mismatch between downloaded and created hash: "{sha256_calculated}" <-> "{sha256_pre_calculated}"')
+		raise ModelVerificationException()
+
+	@functools.cached_property
+	def _temp_working_directory(self):
+		p = os.path.join(tempfile.gettempdir(), 'manga-image-translator', self.__class__.__name__.lower())
+		os.makedirs(p, exist_ok=True)
+		return p
+
+	async def download(self, force=False):
+		'''
+		Downloads required models.
+		'''
+		if force or not self.is_downloaded():
+			while True:
+				try:
+					await self._download()
+					self._downloaded = True
+					break
+				except ModelVerificationException:
+					if not prompt_yes_no('Failed to verify signature. Do you want to restart the download?', default=True):
+						print('Aborting.')
+						raise KeyboardInterrupt
+
+	async def _download(self):
+		'''
+		Downloads models as defined in `_MODEL_MAPPING`. Can be overwritten (together
+		with `_check_downloaded`) to implement unconventional download logic.
+		'''
+		print('\nDownloading models')
+		for map_key, map in self._MODEL_MAPPING.items():
+			if self._check_downloaded_map(map_key):
+				print(f'-- Skipping {map_key} as it\'s already downloaded')
+				continue
+
+			is_archive = 'archive-files' in map
+			if is_archive:
+				download_path = os.path.join(self._temp_working_directory, map_key, '')
+			else:
+				download_path = self._get_file_path(map['file'])
+			if not os.path.basename(download_path):
+				os.makedirs(download_path, exist_ok=True)
+			if os.path.basename(download_path) in ('', '.'):
+				download_path = os.path.join(download_path, get_filename_from_url(map['url'], map_key))
+
+			print()
+			print(f'-- Downloading: "{map["url"]}"')
+			if 'hash' in map:
+				downloaded = False
+				if os.path.isfile(download_path):
+					try:
+						print('-- Found existing file')
+						await self._verify_file(download_path, map['hash'])
+						downloaded = True
+					except ModelVerificationException:
+						# print('-- Resuming interrupted download')
+						print('-- Hash mismatch. Restarting download!')
+				if not downloaded:
+					await self._download_and_verify_file(map['url'], download_path, map['hash'])
+			else:
+				await self._download_file(map['url'], download_path)
+
+			if is_archive:
+				extracted_path = os.path.join(os.path.dirname(download_path), 'extracted')
+				shutil.unpack_archive(download_path, extracted_path)
+				
+				def get_real_archive_files():
+					archive_files = []
+					for root, dirs, files in os.walk(extracted_path):
+						for name in files:
+							file_path = os.path.join(root, name)
+							archive_files.append(file_path)
+					return archive_files
+
+				for orig, dest in map['archive-files'].items():
+					p1 = os.path.join(extracted_path, orig)
+					if os.path.exists(p1):
+						p2 = self._get_file_path(dest)
+						if os.path.basename(p2) in ('', '.'):
+							p2 = os.path.join(p2, os.path.basename(p1))
+						if os.path.isfile(p2):
+							if filecmp.cmp(p1, p2):
+								continue
+							raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. File "{orig}" already exists at "{dest}".')
+						os.makedirs(os.path.dirname(p2), exist_ok=True)
+						shutil.move(p1, p2)
+					else:
+						raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. File "{orig}" does not exist within archive.' +
+										 '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
+				if len(map['archive-files']) == 0:
+					raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. No archive files specified.' +
+									 '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
+			print()
+
+	def _check_downloaded(self) -> bool:
+		'''
+		Scans filesystem for required files as defined in `_MODEL_MAPPING`.
+		Returns `False` if files should be redownloaded.
+		'''
+		for map_key in self._MODEL_MAPPING:
+			if not self._check_downloaded_map(map_key):
+				return False
+		return True
+ 
+	def _check_downloaded_map(self, map_key: str) -> str:
+		map = self._MODEL_MAPPING[map_key]
+		if 'file' in map:
+			path = map['file']
+			if os.path.basename(path) in ('.', ''):
+				path = os.path.join(path, get_filename_from_url(map['url'], map_key))
+			if not os.path.exists(self._get_file_path(path)):
+				return False
+		elif 'archive-files' in map:
+			for original_path, moved_path in map['archive-files'].items():
+				if os.path.basename(moved_path) in ('.', ''):
+					moved_path = os.path.join(moved_path, os.path.basename(original_path))
+				if not os.path.exists(self._get_file_path(moved_path)):
+					return False
+		return True
+
+	async def reload(self, device: str, *args, **kwargs):
+		await self.unload()
+		await self.load(*args, **kwargs, device=device)
+
+	async def load(self, device: str, *args, **kwargs):
+		'''
+		Loads models into memory. Has to be called before `forward`.
+		'''
+		if not self.is_loaded():
+			await self._load(*args, **kwargs, device=device)
+			self._loaded = True
+
+	async def unload(self):
+		if self.is_loaded():
+			await self._unload()
+			self._loaded = False
+
+	async def forward(self, *args, **kwargs):
+		'''
+		Makes a forward pass through the network.
+		'''
+		if not self.is_loaded() or not self.is_downloaded():
+			raise Exception(f'{self.__class__.__name__}: Tried to forward pass without having loaded the model.')
+		return await self._forward(*args, **kwargs)
+
+	@abstractmethod
+	async def _load(self, device: str, *args, **kwargs):
+		pass
+	
+	@abstractmethod
+	async def _unload(self):
+		pass
+
+	@abstractmethod
+	async def _forward(self, *args, **kwargs):
+		pass
 
 
 class AvgMeter():

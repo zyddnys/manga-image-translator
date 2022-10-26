@@ -5,3 +5,4 @@ result
 *.onnx
 __pycache__
 ocrs
+models/*

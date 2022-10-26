@@ -250,7 +250,7 @@ async def get_task_state_async(request):
 			if state in ['finished', 'error', 'error-lang'] and now - TASK_DATA[tid]['created_at'] > 1800:
 				# remove old tasks
 				to_del_task_ids.add(tid)
-		for tid in to_del_task_ids :
+		for tid in to_del_task_ids:
 			del TASK_STATES[tid]
 			del TASK_DATA[tid]
 		return ret

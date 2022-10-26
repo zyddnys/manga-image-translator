@@ -9,12 +9,11 @@ import os
 from oscrypto import util as crypto_utils
 import asyncio
 import torch
-import huggingface_hub 
 
 from detection import dispatch as dispatch_detection, load_model as load_detection_model
 from ocr import dispatch as dispatch_ocr, load_model as load_ocr_model
 from inpainting import dispatch as dispatch_inpainting, load_model as load_inpainting_model
-from translators import OFFLINE_TRANSLATORS, TRANSLATORS, VALID_LANGUAGES, dispatch as run_translation
+from translators import OFFLINE_TRANSLATORS, TRANSLATORS, VALID_LANGUAGES, dispatch as run_translation, prepare as prepare_translation
 from text_mask import dispatch as dispatch_mask_refinement
 from textline_merge import dispatch as dispatch_textline_merge
 from text_rendering import dispatch as dispatch_rendering, text_render
@@ -22,7 +21,7 @@ from textblockdetector import dispatch as dispatch_ctd_detection
 from textblockdetector.textblock import visualize_textblocks
 from utils import convert_img
 
-parser = argparse.ArgumentParser(description='Generate text bboxes given a image file')
+parser = argparse.ArgumentParser(description='Seamlessly translate mangas into a chosen language')
 parser.add_argument('--mode', default='demo', type=str, help='Run demo in either single image demo mode (demo), web service mode (web) or batch translation mode (batch)')
 parser.add_argument('--image', default='', type=str, help='Image file if using demo mode or Image folder name if using batch mode')
 parser.add_argument('--image-dst', default='', type=str, help='Destination folder for translated images in batch mode')
@@ -35,8 +34,8 @@ parser.add_argument('--use-inpainting', action='store_true', help='turn on/off i
 parser.add_argument('--inpainting-model', default='lama_mpe', type=str, help='inpainting model to use, one of `lama_mpe`')
 parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
 parser.add_argument('--use-cuda-limited', action='store_true', help='turn on/off cuda (excluding offline translator)')
-parser.add_argument('--force-horizontal', action='store_true', help='force texts rendered horizontally')
-parser.add_argument('--force-vertical', action='store_true', help='force texts rendered vertically')
+parser.add_argument('--force-horizontal', action='store_true', help='force text to be rendered horizontally')
+parser.add_argument('--force-vertical', action='store_true', help='force text to be rendered vertically')
 parser.add_argument('--inpainting-size', default=2048, type=int, help='size of image used for inpainting (too large will result in OOM)')
 parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to extend text skeleton to form bounding box')
 parser.add_argument('--box-threshold', default=0.7, type=float, help='threshold for bbox generation')
@@ -47,7 +46,7 @@ parser.add_argument('--translator', default='google', type=str, choices=TRANSLAT
 parser.add_argument('--target-lang', default='CHS', type=str, choices=VALID_LANGUAGES, help='destination language')
 parser.add_argument('--use-ctd', action='store_true', help='use comic-text-detector for text detection')
 parser.add_argument('--verbose', action='store_true', help='print debug info and save intermediate images')
-parser.add_argument('--manga2eng', action='store_true', help='render English text translated from manga with some typesetting')
+parser.add_argument('--manga2eng', action='store_true', help='render english text translated from manga with some typesetting')
 parser.add_argument('--eng-font', default='fonts/comic shanns 2.ttf', type=str, help='font used by manga2eng mode')
 args = parser.parse_args()
 
@@ -108,9 +107,22 @@ async def infer(
 		elif args.force_vertical:
 			render_text_direction_overwrite = 'v'
 
+	src_lang = 'auto'
+	if 'tgt' in options:
+		tgt_lang = options['tgt']
+	else:
+		tgt_lang = args.target_lang
+	if 'translator' in options:
+		translator = options['translator']
+	else:
+		translator = args.translator
+
 	print(f' -- Detection resolution {img_detect_size}')
 	print(f' -- Detector using {detector}')
 	print(f' -- Render text direction is {render_text_direction_overwrite or "auto"}')
+
+	print(' -- Preparing translator model')
+	await prepare_translation(translator, src_lang, tgt_lang)
 
 	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'detection')
@@ -179,20 +191,15 @@ async def infer(
 	# translate text region texts
 	translated_sentences = None
 	print(' -- Translating')
-	if mode != 'web':
-		if detector == 'ctd':
-			regions = [r.get_text() for r in text_regions]
-		else:
-			regions = [r.text for r in text_regions]
-		translated_sentences = await run_translation(args.translator, 'auto', args.target_lang, regions, use_cuda = args.use_cuda and not args.use_cuda_limited)
+	if mode != 'web' or translator in OFFLINE_TRANSLATORS:
+		if mode == 'web':
+			update_state(task_id, nonce, 'translating')
 
-	elif options.get('translator', '') in OFFLINE_TRANSLATORS:
-		update_state(task_id, nonce, 'translating')
 		if detector == 'ctd':
 			regions = [r.get_text() for r in text_regions]
 		else:
 			regions = [r.text for r in text_regions]
-		translated_sentences = await run_translation(options['translator'], 'auto', options['tgt'], regions, use_cuda = args.use_cuda and not args.use_cuda_limited)
+		translated_sentences = await run_translation(translator, src_lang, tgt_lang, regions, use_cuda = args.use_cuda and not args.use_cuda_limited)
 
 	else:
 		# wait for at most 1 hour for manual translation
@@ -287,9 +294,6 @@ async def main(mode = 'demo'):
 		args.use_cuda = False
 		args.use_cuda_limited = False
 
-	print(' -- Preload optional models')
-	preload_offline_translator(args.translator)
-
 	print(' -- Loading models')
 	os.makedirs('result', exist_ok = True)
 	text_render.prepare_renderer()
@@ -378,30 +382,6 @@ async def main(mode = 'demo'):
 					import traceback
 					traceback.print_exc()
 					pass
-
-
-def preload_offline_translator(translation_mode):
-	# Use Facebook No Language Left Behind Model to enable offline translation
-	translation_model_map = {
-		"offline": "facebook/nllb-200-distilled-600M",
-		"offline_big": "facebook/nllb-200-distilled-1.3B",
-	}
-
-	if translation_mode in translation_model_map.keys():
-		nllb_model_name = translation_model_map[args.translator]
-
-
-		# Get if repo exists in cache
-		if not huggingface_hub.try_to_load_from_cache(nllb_model_name, 'pytorch_model.bin') is None:
-			print(f"Detected cached model for offline translation: {nllb_model_name}")
-			return
-
-		# Preload models into cache as part of startup
-		print(f"Detected offline translation mode. Pre-loading offline translation model: {nllb_model_name} " +
-		       "(This can take a long time as multiple GB's worth of data can be downloaded during this step)")
-		huggingface_hub.snapshot_download(nllb_model_name)
-
-
 
 if __name__ == '__main__':
 	try:
