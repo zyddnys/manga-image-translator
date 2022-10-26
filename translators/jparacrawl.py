@@ -160,7 +160,7 @@ class JParaCrawlBigTranslator(JParaCrawlTranslator):
         },
         'model-en-ja': {
             'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/pretrained_models/en-ja/big.tar.gz',
-            'hash': '',
+            'hash': '520CD7C2B4B84C3FBB5A7A948E5183B7BCA4DC551F91268F0E2DBEB98CB8B77D',
             'archive-files': {
                 'big/dict.en.txt': 'jparacrawl/',
                 'big/dict.ja.txt': 'jparacrawl/',
