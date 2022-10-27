@@ -43,7 +43,7 @@ def resize_aspect_ratio(img, square_size, interpolation, mag_ratio=1):
     # set original image size
     # if target_size > square_size:
     #     target_size = square_size
-    
+
     ratio = target_size / max(height, width)    
 
     target_h, target_w = int(round(height * ratio)), int(round(width * ratio))

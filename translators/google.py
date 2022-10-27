@@ -6,9 +6,9 @@ You can translate text using this module.
 """
 import random
 import typing
-import re
 import json
 import urllib
+from typing import List
 
 import httpcore
 import httpx
@@ -37,26 +37,6 @@ if 'http' in SYS_PROXY:
     SYS_HTTP_PROXY['http'] = SYS_PROXY['http']
     SYS_HTTP_PROXY['https'] = SYS_PROXY['http']
 
-LANGUAGE_CODE_MAP = {
-	'CHS': 'zh-CN',
-	'CHT': 'zh-TW',
-	'JPN': "ja",
-	'ENG': 'en',
-	'KOR': 'ko',
-	'VIN': 'vi',
-	'CSY': 'cs',
-	'NLD': 'nl',
-	'FRA': 'fr',
-	'DEU': 'de',
-	'HUN': 'hu',
-	'ITA': 'it',
-	'PLK': 'pl',
-	'PTB': 'pt',
-	'ROM': 'ro',
-	'RUS': 'ru',
-	'ESP': 'es',
-	'TRK': 'tr',
-}
 
 class GoogleTranslator(CommonTranslator):
     """Google Translate ajax API implementation class
@@ -88,12 +68,35 @@ class GoogleTranslator(CommonTranslator):
     :type raise_exception: boolean
     """
 
+    _LANGUAGE_CODE_MAP = {
+        'CHS': 'zh-CN',
+        'CHT': 'zh-TW',
+        'JPN': 'ja',
+        'ENG': 'en',
+        'KOR': 'ko',
+        'VIN': 'vi',
+        'CSY': 'cs',
+        'NLD': 'nl',
+        'FRA': 'fr',
+        'DEU': 'de',
+        'HUN': 'hu',
+        'ITA': 'it',
+        'PLK': 'pl',
+        'PTB': 'pt',
+        'ROM': 'ro',
+        'RUS': 'ru',
+        'ESP': 'es',
+        'TRK': 'tr',
+    }
+
     def __init__(self, service_urls=DEFAULT_CLIENT_SERVICE_URLS, user_agent=DEFAULT_USER_AGENT,
                  raise_exception=DEFAULT_RAISE_EXCEPTION,
                  proxies: typing.Dict[str, httpcore.AsyncHTTPTransport] = None,
                  timeout: Timeout = None,
                  http2=True,
                  use_fallback=False):
+
+        super().__init__()
 
         self.client = httpx.AsyncClient(http2=http2, proxies=SYS_HTTP_PROXY)
         # if proxies is not None:  # pragma: nocover
@@ -118,9 +121,6 @@ class GoogleTranslator(CommonTranslator):
                 client=self.client, host=self.service_urls[0])
 
         self.raise_exception = raise_exception
-
-    def _get_language_code(self, key):
-        return LANGUAGE_CODE_MAP[key]
 
     def _build_rpc_request(self, text: str, dest: str, src: str):
         return json.dumps([[
@@ -203,7 +203,7 @@ class GoogleTranslator(CommonTranslator):
 
         return extra
 
-    async def _translate(self, from_lang, to_lang, queries):
+    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         empty_l = 0
         for query in queries:
             if query == '':
@@ -219,7 +219,7 @@ class GoogleTranslator(CommonTranslator):
                 result = result + empty_r * ['']
         return [text.strip() for text in result]
 
-    async def __translate(self, from_lang, to_lang, query_text):
+    async def __translate(self, from_lang: str, to_lang: str, query: str) -> List[str]:
         to_lang = to_lang.lower().split('_', 1)[0]
         from_lang = from_lang.lower().split('_', 1)[0]
 
@@ -239,8 +239,8 @@ class GoogleTranslator(CommonTranslator):
             else:
                 raise ValueError('invalid destination language')
 
-        origin = query_text
-        data, response = await self._request_translation(query_text, to_lang, from_lang)
+        origin = query
+        data, response = await self._request_translation(query, to_lang, from_lang)
 
         token_found = False
         square_bracket_counts = [0, 0]
@@ -274,12 +274,12 @@ class GoogleTranslator(CommonTranslator):
         if from_lang == 'auto':
             try:
                 from_lang = parsed[2]
-            except:
+            except Exception:
                 pass
         if from_lang == 'auto':
             try:
                 from_lang = parsed[0][2]
-            except:
+            except Exception:
                 pass
 
         # currently not available
@@ -288,13 +288,13 @@ class GoogleTranslator(CommonTranslator):
         origin_pronunciation = None
         try:
             origin_pronunciation = parsed[0][0]
-        except:
+        except Exception:
             pass
 
         pronunciation = None
         try:
             pronunciation = parsed[1][0][0][1]
-        except:
+        except Exception:
             pass
 
         extra_data = {
@@ -400,7 +400,7 @@ class GoogleTranslator(CommonTranslator):
         if pron is None:
             try:
                 pron = data[0][1][2]
-            except:  # pragma: nocover
+            except Exception:  # pragma: nocover
                 pass
 
         if dest in EXCLUDES and pron == origin:

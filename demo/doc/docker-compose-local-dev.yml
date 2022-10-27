@@ -28,7 +28,7 @@ services:
     #  - ./../../Manga-translated:/app/Manga-translated
     ports:
       - 5003:5003
-   
+
     ipc: host
 
     # For GPU

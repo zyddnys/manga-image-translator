@@ -263,7 +263,7 @@ def load_yolov5(weights, map_location='cuda', fuse=True, inplace=True, out_indic
         ckpt = torch.load(weights, map_location=map_location)  # load
     else:
         ckpt = weights
-    
+
     if fuse:
         model = ckpt['model'].float().fuse().eval()  # FP32 model
     else:
@@ -288,10 +288,10 @@ def load_yolov5_ckpt(weights, map_location='cpu', fuse=True, inplace=True, out_i
         ckpt = torch.load(weights, map_location=map_location)  # load
     else:
         ckpt = weights
-    
+
     model = Model(ckpt['cfg'])
     model.load_state_dict(ckpt['weights'], strict=True)
-    
+
     if fuse:
         model = model.float().fuse().eval()  # FP32 model
     else:

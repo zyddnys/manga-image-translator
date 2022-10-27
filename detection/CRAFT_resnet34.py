@@ -9,11 +9,11 @@ from torchvision.models import resnet34
 import einops
 import math
 
-class ImageMultiheadSelfAttention(nn.Module) :
+class ImageMultiheadSelfAttention(nn.Module):
 	def __init__(self, planes):
 		super(ImageMultiheadSelfAttention, self).__init__()
 		self.attn = nn.MultiheadAttention(planes, 4)
-	def forward(self, x) :
+	def forward(self, x):
 		res = x
 		n, c, h, w = x.shape
 		x = einops.rearrange(x, 'n c h w -> (h w) n c')
@@ -26,13 +26,13 @@ class double_conv(nn.Module):
 		super(double_conv, self).__init__()
 		self.planes = planes
 		# down = None
-		# if stride > 1 :
+		# if stride > 1:
 		# 	down = nn.Sequential(
 		# 		nn.AvgPool2d(2, 2),
 		# 		nn.Conv2d(in_ch + mid_ch, self.planes * Bottleneck.expansion, kernel_size=1, stride=1, bias=False),nn.BatchNorm2d(self.planes * Bottleneck.expansion)
 		# 		)
 		self.down = None
-		if stride > 1 :
+		if stride > 1:
 			self.down = nn.AvgPool2d(2,stride=2)
 		self.conv = nn.Sequential(
 			nn.Conv2d(in_ch + mid_ch, mid_ch, kernel_size=3, padding=1, stride = 1, bias=False),
@@ -45,13 +45,13 @@ class double_conv(nn.Module):
 		)
 
 	def forward(self, x):
-		if self.down is not None :
+		if self.down is not None:
 			x = self.down(x)
 		x = self.conv(x)
 		return x
 
-class CRAFT_net(nn.Module) :
-	def __init__(self) :
+class CRAFT_net(nn.Module):
+	def __init__(self):
 		super(CRAFT_net, self).__init__()
 		self.backbone = resnet34()
 
@@ -93,7 +93,7 @@ class CRAFT_net(nn.Module) :
 		self.upconv6 = double_conv(128, 128, 64, planes = 32)
 		self.upconv7 = double_conv(64, 64, 64, planes = 16)
 
-	def forward_train(self, x) :
+	def forward_train(self, x):
 		x = self.backbone.conv1(x)
 		x = self.backbone.bn1(x)
 		x = self.backbone.relu(x)
@@ -120,7 +120,7 @@ class CRAFT_net(nn.Module) :
 
 		return torch.cat([rscore, ascore], dim = 1), self.conv_mask(up4)
 
-	def forward(self, x) :
+	def forward(self, x):
 		x = self.backbone.conv1(x)
 		x = self.backbone.bn1(x)
 		x = self.backbone.relu(x)
@@ -147,7 +147,7 @@ class CRAFT_net(nn.Module) :
 
 		return torch.cat([rscore, ascore], dim = 1), self.conv_mask(up4)
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
 	net = CRAFT_net().cuda()
 	img = torch.randn(2, 3, 1536, 1536).cuda()
 	print(net.forward_train(img)[0].shape)

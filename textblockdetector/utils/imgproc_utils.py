@@ -71,7 +71,7 @@ def rotate_polygons(center, polygons, rotation, new_center=None, to_int=True):
     rotation = np.deg2rad(rotation)
     s, c = np.sin(rotation), np.cos(rotation)
     polygons = polygons.astype(np.float32)
-    
+
     polygons[:, 1::2] -= center[1]
     polygons[:, ::2] -= center[0]
     rotated = np.copy(polygons)
@@ -134,13 +134,13 @@ def resize_keepasp(im, new_shape=640, scaleup=True, interpolation=cv2.INTER_LINE
 
     if stride is not None:
         h, w = new_unpad
-        if new_shape[0] % stride != 0 :
+        if new_shape[0] % stride != 0:
             new_h = (stride - (new_shape[0] % stride)) + h
-        else :
+        else:
             new_h = h
-        if w % stride != 0 :
+        if w % stride != 0:
             new_w = (stride - (w % stride)) + w
-        else :
+        else:
             new_w = w
         new_unpad = (new_h, new_w)
 
@@ -165,7 +165,7 @@ def draw_connected_labels(num_labels, labels, stats, centroids, names="draw_conn
     max_ind = 0
     if isinstance(num_labels, int):
         num_labels = range(num_labels)
-    
+
     # for ind, lab in enumerate((range(num_labels))):
     for lab in num_labels:
         if skip_background and lab == 0:

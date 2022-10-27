@@ -31,12 +31,12 @@ class double_conv_up_c3(nn.Module):
 class double_conv_c3(nn.Module):
     def __init__(self, in_ch, out_ch, stride=1, act=True):
         super(double_conv_c3, self).__init__()
-        if stride > 1 :
+        if stride > 1:
             self.down = nn.AvgPool2d(2,stride=2) if stride > 1 else None
         self.conv = C3(in_ch, out_ch, act=act)
 
     def forward(self, x):
-        if self.down is not None :
+        if self.down is not None:
             x = self.down(x)
         x = self.conv(x)
         return x
@@ -73,7 +73,7 @@ class UnetHead(nn.Module):
                 return mask
             else:
                 return mask, [f80, f40, u40]
-            
+
     def init_weight(self, init_func):
         self.apply(init_func)
 
@@ -108,7 +108,7 @@ class DBHead(nn.Module):
         threshold_maps = self.thresh(x)
         x = self.binarize(x)
         shrink_maps = torch.sigmoid(x)
-        
+
         if self.training:
             binary_maps = self.step_function(shrink_maps, threshold_maps)
             if shrink_with_sigmoid:
@@ -187,7 +187,7 @@ class TextDetector(nn.Module):
         del self.seg_net.upconv5
         del self.seg_net.upconv6
         # del self.seg_net.conv_mask
-    
+
     def train_db(self):
         self.forward_mode = TEXTDET_DET
         self.backbone.eval()
@@ -245,7 +245,7 @@ class TextDetBaseDNN:
         self.input_size = input_size
         self.model = cv2.dnn.readNetFromONNX(model_path)
         self.uoln = self.model.getUnconnectedOutLayersNames()
-    
+
     def __call__(self, im_in):
         blob = cv2.dnn.blobFromImage(im_in, scalefactor=1 / 255.0, size=(self.input_size, self.input_size))
         self.model.setInput(blob)

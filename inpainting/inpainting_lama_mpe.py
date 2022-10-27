@@ -480,7 +480,7 @@ class FFCResNetGenerator(nn.Module):
 		if rel_pos is None:
 			return self.model(masked_img)
 		else:
-			
+
 			x_l, x_g = self.model[:2](masked_img)
 			x_l = x_l.to(torch.float32)
 			x_l += rel_pos
@@ -601,7 +601,7 @@ class LamaFourier:
 		discr_real_pred, discr_real_features = self.discriminator(img)
 		discr_fake_pred, discr_fake_features = self.discriminator(predicted_img)
 		# fp = discr_fake_pred.detach().mean()
-	
+
 		if self.forward_discriminator:
 			return  {
 				'predicted_img': predicted_img, 

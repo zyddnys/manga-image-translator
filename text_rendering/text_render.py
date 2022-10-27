@@ -1,17 +1,13 @@
-if __name__ == '__main__' :
+if __name__ == '__main__':
 	import sys, os
 	sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
-
-from itertools import filterfalse
-import pickle
-from typing import List, Tuple, Optional
 
 import numpy as np
 import cv2
 import unicodedata
 import freetype
-from utils import BBox, Quadrilateral
-import math
+from PIL import ImageFont
+from typing import Tuple, Optional
 
 def _is_whitespace(ch):
 	"""Checks whether `chars` is a whitespace character."""
@@ -132,25 +128,25 @@ CJK_V2H = {
 	"⋮": "…"
 }
 
-def CJK_Compatibility_Forms_translate(cdpt: str, direction: int) :
-	if cdpt == 'ー' and direction == 1 :
+def CJK_Compatibility_Forms_translate(cdpt: str, direction: int):
+	if cdpt == 'ー' and direction == 1:
 		return 'ー', 90
-	if cdpt in ["︰", "︱", "︲", "︳", "︴", "︵", "︶", "︷", "︸", "︹", "︺", "︻", "︼", "︽", "︾", "︿", "﹀", "﹁", "﹂", "﹃", "﹄", "﹅", "﹆", "﹇", "﹈", "﹉", "﹊", "﹋", "﹌", "﹍", "﹎", "﹏", "⋮"] :
-		if direction == 0 :
+	if cdpt in ["︰", "︱", "︲", "︳", "︴", "︵", "︶", "︷", "︸", "︹", "︺", "︻", "︼", "︽", "︾", "︿", "﹀", "﹁", "﹂", "﹃", "﹄", "﹅", "﹆", "﹇", "﹈", "﹉", "﹊", "﹋", "﹌", "﹍", "﹎", "﹏", "⋮"]:
+		if direction == 0:
 			# translate
 			return CJK_V2H[cdpt], 0
-		else :
+		else:
 			return cdpt, 0
-	elif cdpt in ["‥", "—", "–", "_", "_", "(", ")", "（", "）", "{", "}", "〔", "〕", "【", "】", "《", "》", "〈", "〉", "「", "」", "『", "』", "﹑", "﹆", "[", "]", "﹉", "﹊", "﹋", "﹌", "﹍", "﹎", "﹏", "…"] :
-		if direction == 1 :
+	elif cdpt in ["‥", "—", "–", "_", "_", "(", ")", "（", "）", "{", "}", "〔", "〕", "【", "】", "《", "》", "〈", "〉", "「", "」", "『", "』", "﹑", "﹆", "[", "]", "﹉", "﹊", "﹋", "﹌", "﹍", "﹎", "﹏", "…"]:
+		if direction == 1:
 			# translate
 			return CJK_H2V[cdpt], 0
-		else :
+		else:
 			return cdpt, 0
 	return cdpt, 0
 
-def rotate_image(image, angle) :
-	if angle == 0 :
+def rotate_image(image, angle):
+	if angle == 0:
 		return image, (0, 0)
 	image_exp = np.zeros((round(image.shape[0] * 1.5), round(image.shape[1] * 1.5), image.shape[2]), dtype = np.uint8)
 	diff_i = (image_exp.shape[0] - image.shape[0]) // 2
@@ -160,13 +156,13 @@ def rotate_image(image, angle) :
 	image_center = tuple(np.array(image_exp.shape[1::-1]) / 2)
 	rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
 	result = cv2.warpAffine(image_exp, rot_mat, image_exp.shape[1::-1], flags=cv2.INTER_LINEAR)
-	if angle == 90 :
+	if angle == 90:
 		return result, (0, 0)
 	return result, (diff_i, diff_j)
 
-def add_color(bw_char_map, color, stroke_char_map, stroke_color) :
+def add_color(bw_char_map, color, stroke_char_map, stroke_color):
 	fg = np.zeros((bw_char_map.shape[0], bw_char_map.shape[1], 4), dtype = np.uint8)
-	if bw_char_map.size == 0 :
+	if bw_char_map.size == 0:
 		fg = np.zeros((bw_char_map.shape[0], bw_char_map.shape[1], 3), dtype = np.uint8)
 		return fg.astype(np.uint8)
 	fg[:,:,0] = color[0]
@@ -192,11 +188,11 @@ CACHED_FONT_FACE = []
 import functools
 import copy
 
-class namespace :
+class namespace:
 	pass
 
-class Glyph :
-	def __init__(self, glyph) :
+class Glyph:
+	def __init__(self, glyph):
 		self.bitmap = namespace()
 		self.bitmap.buffer = glyph.bitmap.buffer
 		self.bitmap.rows = glyph.bitmap.rows
@@ -215,52 +211,52 @@ class Glyph :
 		self.metrics.vertAdvance = glyph.metrics.vertAdvance
 
 @functools.lru_cache(maxsize = 1024, typed = True)
-def get_char_glyph(cdpt, font_size: int, direction: int) :
+def get_char_glyph(cdpt, font_size: int, direction: int):
 	global CACHED_FONT_FACE
-	for i, face in enumerate(CACHED_FONT_FACE) :
-		if face.get_char_index(cdpt) == 0 and i != len(CACHED_FONT_FACE) - 1 :
+	for i, face in enumerate(CACHED_FONT_FACE):
+		if face.get_char_index(cdpt) == 0 and i != len(CACHED_FONT_FACE) - 1:
 			continue
-		if direction == 0 :
+		if direction == 0:
 			face.set_pixel_sizes( 0, font_size )
-		elif direction == 1 :
+		elif direction == 1:
 			face.set_pixel_sizes( font_size, 0 )
 		face.load_char(cdpt)
 		return Glyph(face.glyph)
 
 #@functools.lru_cache(maxsize = 1024, typed = True)
-def get_char_border(cdpt, font_size: int, direction: int) :
+def get_char_border(cdpt, font_size: int, direction: int):
 	global CACHED_FONT_FACE
-	for i, face in enumerate(CACHED_FONT_FACE) :
-		if face.get_char_index(cdpt) == 0 and i != len(CACHED_FONT_FACE) - 1 :
+	for i, face in enumerate(CACHED_FONT_FACE):
+		if face.get_char_index(cdpt) == 0 and i != len(CACHED_FONT_FACE) - 1:
 			continue
-		if direction == 0 :
+		if direction == 0:
 			face.set_pixel_sizes( 0, font_size )
-		elif direction == 1 :
+		elif direction == 1:
 			face.set_pixel_sizes( font_size, 0 )
 		face.load_char(cdpt, freetype.FT_LOAD_DEFAULT | freetype.FT_LOAD_NO_BITMAP)
 		slot_border = face.glyph
 		return slot_border.get_glyph()
 
-def get_char_kerning(cdpt, prev, font_size: int, direction: int) :
+def get_char_kerning(cdpt, prev, font_size: int, direction: int):
 	global CACHED_FONT_FACE
-	for i, face in enumerate(CACHED_FONT_FACE) :
-		if face.get_char_index(cdpt) == 0 and i != len(CACHED_FONT_FACE) - 1 :
+	for i, face in enumerate(CACHED_FONT_FACE):
+		if face.get_char_index(cdpt) == 0 and i != len(CACHED_FONT_FACE) - 1:
 			continue
-		if direction == 0 :
+		if direction == 0:
 			face.set_pixel_sizes( 0, font_size )
-		elif direction == 1 :
+		elif direction == 1:
 			face.set_pixel_sizes( font_size, 0 )
 		face.load_char(cdpt, freetype.FT_LOAD_DEFAULT | freetype.FT_LOAD_NO_BITMAP)
 		#print("VV", prev, cdpt, face.get_char_index(prev), face.get_char_index(cdpt))
 		print("VR", face.has_kerning)
 		return face.get_kerning(face.get_char_index(prev), face.get_char_index(cdpt))
 
-def get_font(font_size: int, direction=0) :
+def get_font(font_size: int, direction=0):
 	font_filenames = ['fonts/Arial-Unicode-Regular.ttf', 'fonts/msyh.ttc', 'fonts/msgothic.ttc']
-	for face in font_filenames :
+	for face in font_filenames:
 		return ImageFont.truetype(face, font_size)
 
-def calc_vertical(font_size: int, rot: int, text: str, max_height: int, spacing_x: int) :
+def calc_vertical(font_size: int, rot: int, text: str, max_height: int, spacing_x: int):
 	line_text_list = []
 	line_width_list = []
 	line_height_list = []
@@ -275,9 +271,9 @@ def calc_vertical(font_size: int, rot: int, text: str, max_height: int, spacing_
 		slot = get_char_glyph(cdpt, font_size, 1)
 		bitmap = slot.bitmap
 		# spaces, etc
-		if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width :
+		if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width:
 			char_offset_y = slot.metrics.vertBearingY >> 6
-		else :
+		else:
 			char_offset_y = slot.metrics.vertAdvance >> 6
 		char_width = bitmap.width
 		char_bearing_x = slot.metrics.vertBearingX >> 6
@@ -302,14 +298,14 @@ def calc_vertical(font_size: int, rot: int, text: str, max_height: int, spacing_
 	box_calc_y = max(line_height_list)
 	return line_text_list, box_calc_x, box_calc_y
 
-def put_char_vertical(font_size: int, rot: int, cdpt: str, pen_l: Tuple[int, int], canvas_text: np.ndarray, canvas_border: np.ndarray, border_size: int) :
+def put_char_vertical(font_size: int, rot: int, cdpt: str, pen_l: Tuple[int, int], canvas_text: np.ndarray, canvas_border: np.ndarray, border_size: int):
 	pen = pen_l.copy()
-	
+
 	is_pun = _is_punctuation(cdpt)
 	cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 1)
 	slot = get_char_glyph(cdpt, font_size, 1)
 	bitmap = slot.bitmap
-	if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width :
+	if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width:
 		char_offset_y = slot.metrics.vertBearingY >> 6
 		return char_offset_y
 	char_offset_y = slot.metrics.vertAdvance >> 6
@@ -319,7 +315,7 @@ def put_char_vertical(font_size: int, rot: int, cdpt: str, pen_l: Tuple[int, int
 	canvas_text[pen[1]:pen[1]+bitmap.rows, pen[0]:pen[0]+bitmap.width] = bitmap_char
 	#print(pen_l, pen, slot.metrics.vertBearingX >> 6, bitmap.width)
 	#border
-	if border_size > 0 :
+	if border_size > 0:
 		pen_border = (pen[0] - border_size, pen[1] - border_size)
 		#slot_border = 
 		glyph_border = get_char_border(cdpt, font_size, 1)
@@ -332,7 +328,7 @@ def put_char_vertical(font_size: int, rot: int, cdpt: str, pen_l: Tuple[int, int
 		canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width] = cv2.add(canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width], bitmap_border)
 	return char_offset_y
 
-def put_text_vertical(font_size: int, mag_ratio: float, text: str, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
+def put_text_vertical(font_size: int, mag_ratio: float, text: str, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
 	bgsize = int(max(font_size * 0.07, 1)) if bg is not None else 0
 	spacing_y = 0
 	spacing_x = int(font_size * 0.2)
@@ -363,16 +359,16 @@ def put_text_vertical(font_size: int, mag_ratio: float, text: str, h: int, fg: T
 			line_height = 0
 		else:
 			pen_line[1] += offset_y
-	
+
 	# colorize
 	canvas_border = np.clip(canvas_border, 0, 255)
 	line_box = add_color(canvas_text, fg, canvas_border, bg)
-	
+
 	# rect
 	x, y, w, h = cv2.boundingRect(canvas_border)
 	return line_box[y:y+h, x:x+w]
 
-def calc_horizontal(font_size: int, rot: int, text: str, limit_width: int) :
+def calc_horizontal(font_size: int, rot: int, text: str, limit_width: int):
 	line_text_list = []
 	line_width_list = []
 	line_str = ""
@@ -381,7 +377,7 @@ def calc_horizontal(font_size: int, rot: int, text: str, limit_width: int) :
 	word_width = 0
 	max_width = limit_width + font_size
 	space = False
-	
+
 	# 1. JPN, CHN : left-align, no spaces, confine to limit_width
 	previous = 0
 	for i, cdpt in enumerate(text):
@@ -393,10 +389,10 @@ def calc_horizontal(font_size: int, rot: int, text: str, limit_width: int) :
 		next_bitmap = next_slot.bitmap
 		next_is_space = _is_whitespace(text[min(i+1, len(text)-1)]) or _is_punctuation(text[min(i+1, len(text)-1)])
 		# spaces, etc
-		if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width :
+		if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width:
 			char_offset_x = slot.advance.x >> 6
 			space = True
-		else :
+		else:
 			char_offset_x = slot.metrics.horiAdvance >> 6
 			space = False
 
@@ -445,7 +441,7 @@ def calc_horizontal(font_size: int, rot: int, text: str, limit_width: int) :
 
 	return line_text_list, line_width_list
 
-def put_char_horizontal(font_size: int, rot: int, cdpt: str, pen_l: Tuple[int, int], canvas_text: np.ndarray, canvas_border: np.ndarray, border_size: int) :
+def put_char_horizontal(font_size: int, rot: int, cdpt: str, pen_l: Tuple[int, int], canvas_text: np.ndarray, canvas_border: np.ndarray, border_size: int):
 	pen = pen_l.copy()
 
 	is_pun = _is_punctuation(cdpt)
@@ -454,14 +450,14 @@ def put_char_horizontal(font_size: int, rot: int, cdpt: str, pen_l: Tuple[int, i
 	bitmap = slot.bitmap
 	char_offset_x = slot.advance.x >> 6
 	bitmap_char = np.array(bitmap.buffer, dtype = np.uint8).reshape((bitmap.rows,bitmap.width))
-	if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width :
+	if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width:
 		return char_offset_x
 	pen[0] += slot.bitmap_left
 	pen[1] -= slot.bitmap_top
 	canvas_text[pen[1]:pen[1]+bitmap.rows, pen[0]:pen[0]+bitmap.width] = bitmap_char
 	#print(pen_l, pen, slot.metrics.vertBearingX >> 6, bitmap.width)
 	#border
-	if border_size > 0 :
+	if border_size > 0:
 		pen_border = (pen[0] - border_size, pen[1] - border_size)
 		#slot_border = 
 		glyph_border = get_char_border(cdpt, font_size, 1)
@@ -471,11 +467,11 @@ def put_char_horizontal(font_size: int, rot: int, cdpt: str, pen_l: Tuple[int, i
 		blyph = glyph_border.to_bitmap(freetype.FT_RENDER_MODE_NORMAL, freetype.Vector(0,0), True)
 		bitmap_b = blyph.bitmap
 		bitmap_border = np.array(bitmap_b.buffer, dtype = np.uint8).reshape(bitmap_b.rows,bitmap_b.width)
-		
+
 		canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width] = cv2.add(canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width], bitmap_border)
 	return char_offset_x
 
-def put_text_horizontal(font_size: int, mag_ratio: float, text: str, w: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
+def put_text_horizontal(font_size: int, mag_ratio: float, text: str, w: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
 	bgsize = int(max(font_size * 0.07, 1)) if bg is not None else 0
 	spacing_y = int(font_size * 0.2)
 	spacing_x = 0
@@ -501,28 +497,28 @@ def put_text_horizontal(font_size: int, mag_ratio: float, text: str, w: int, fg:
 			offset_x = put_char_horizontal(font_size, rot, t, pen_line, canvas_text, canvas_border, border_size=bgsize)
 			pen_line[0] += offset_x
 		pen_orig[1] += spacing_y + font_size
-	
+
 	# colorize
 	canvas_border = np.clip(canvas_border, 0, 255)
 	line_box = add_color(canvas_text, fg, canvas_border, bg)
-	
+
 	# rect
 	x, y, w, h = cv2.boundingRect(canvas_border)
 	return line_box[y:y+h, x:x+w]
 
-def put_text(img: np.ndarray, text: str, line_count: int, x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]) :
+def put_text(img: np.ndarray, text: str, line_count: int, x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
 	pass
 
-def prepare_renderer(font_filenames = ['fonts/Arial-Unicode-Regular.ttf', 'fonts/msyh.ttc', 'fonts/msgothic.ttc']) :
+def prepare_renderer(font_filenames = ['fonts/Arial-Unicode-Regular.ttf', 'fonts/msyh.ttc', 'fonts/msgothic.ttc']):
 	global CACHED_FONT_FACE
-	for font_filename in font_filenames :
+	for font_filename in font_filenames:
 		CACHED_FONT_FACE.append(freetype.Face(font_filename))
 
-def test() :
+def test():
 	prepare_renderer()
 	#canvas = put_text_vertical(64, 1.0, '因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉。', 700, (0, 0, 0), (255, 128, 128))
 	canvas = put_text_horizontal(64, 1.0, '因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉', 400, (0, 0, 0), (255, 128, 128))
 	cv2.imwrite('text_render_combined.png', canvas)
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
 	test()

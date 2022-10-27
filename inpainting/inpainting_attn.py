@@ -6,21 +6,21 @@ import torch.nn.functional as F
 
 import numpy as np
 
-def relu_nf(x) :
+def relu_nf(x):
 	return F.relu(x) * 1.7139588594436646
 
-def gelu_nf(x) :
+def gelu_nf(x):
 	return F.gelu(x) * 1.7015043497085571
 
-def silu_nf(x) :
+def silu_nf(x):
 	return F.silu(x) * 1.7881293296813965
 
-class LambdaLayer(nn.Module) :
+class LambdaLayer(nn.Module):
 	def __init__(self, f):
 		super(LambdaLayer, self).__init__()
 		self.f = f
 
-	def forward(self, x) :
+	def forward(self, x):
 		return self.f(x)
 
 class ScaledWSConv2d(nn.Conv2d):
@@ -48,7 +48,7 @@ class ScaledWSConv2d(nn.Conv2d):
 			var * fan_in, torch.tensor(self.eps).to(var.device))) * self.gain.view_as(var).to(var.device)
 		shift = mean * scale
 		return self.weight * scale - shift
-		
+
 	def forward(self, x):
 		return F.conv2d(x, self.get_weight(), self.bias,
 			self.stride, self.padding,
@@ -83,15 +83,15 @@ class ScaledWSTransposeConv2d(nn.ConvTranspose2d):
 			var * fan_in, torch.tensor(self.eps).to(var.device))) * self.gain.view_as(var).to(var.device)
 		shift = mean * scale
 		return self.weight * scale - shift
-		
+
 	def forward(self, x, output_size: Optional[List[int]] = None):
 		output_padding = self._output_padding(
 			input, output_size, self.stride, self.padding, self.kernel_size, self.dilation)
 		return F.conv_transpose2d(x, self.get_weight(), self.bias, self.stride, self.padding,
 			output_padding, self.groups, self.dilation)
 
-class GatedWSConvPadded(nn.Module) :
-	def __init__(self, in_ch, out_ch, ks, stride = 1, dilation = 1) :
+class GatedWSConvPadded(nn.Module):
+	def __init__(self, in_ch, out_ch, ks, stride = 1, dilation = 1):
 		super(GatedWSConvPadded, self).__init__()
 		self.in_ch = in_ch
 		self.out_ch = out_ch
@@ -99,34 +99,34 @@ class GatedWSConvPadded(nn.Module) :
 		self.conv = ScaledWSConv2d(in_ch, out_ch, kernel_size = ks, stride = stride)
 		self.conv_gate = ScaledWSConv2d(in_ch, out_ch, kernel_size = ks, stride = stride)
 
-	def forward(self, x) :
+	def forward(self, x):
 		x = self.padding(x)
 		signal = self.conv(x)
 		gate = torch.sigmoid(self.conv_gate(x))
 		return signal * gate * 1.8
 
-class GatedWSTransposeConvPadded(nn.Module) :
-	def __init__(self, in_ch, out_ch, ks, stride = 1) :
+class GatedWSTransposeConvPadded(nn.Module):
+	def __init__(self, in_ch, out_ch, ks, stride = 1):
 		super(GatedWSTransposeConvPadded, self).__init__()
 		self.in_ch = in_ch
 		self.out_ch = out_ch
 		self.conv = ScaledWSTransposeConv2d(in_ch, out_ch, kernel_size = ks, stride = stride, padding = (ks - 1) // 2)
 		self.conv_gate = ScaledWSTransposeConv2d(in_ch, out_ch, kernel_size = ks, stride = stride, padding = (ks - 1) // 2)
 
-	def forward(self, x) :
+	def forward(self, x):
 		signal = self.conv(x)
 		gate = torch.sigmoid(self.conv_gate(x))
 		return signal * gate * 1.8
 
-class ResBlock(nn.Module) :
-	def __init__(self, ch, alpha = 0.2, beta = 1.0, dilation = 1) :
+class ResBlock(nn.Module):
+	def __init__(self, ch, alpha = 0.2, beta = 1.0, dilation = 1):
 		super(ResBlock, self).__init__()
 		self.alpha = alpha
 		self.beta = beta
 		self.c1 = GatedWSConvPadded(ch, ch, 3, dilation = dilation)
 		self.c2 = GatedWSConvPadded(ch, ch, 3, dilation = dilation)
 
-	def forward(self, x) :
+	def forward(self, x):
 		skip = x
 		x = self.c1(relu_nf(x / self.beta))
 		x = self.c2(relu_nf(x))
@@ -166,8 +166,8 @@ class GlobalAttention(nn.Module):
 		out = a * c + self.gamma *  (1.0 - c) * out
 		return out
 
-class CoarseGenerator(nn.Module) :
-	def __init__(self, in_ch = 4, out_ch = 3, ch = 32, alpha = 0.2) :
+class CoarseGenerator(nn.Module):
+	def __init__(self, in_ch = 4, out_ch = 3, ch = 32, alpha = 0.2):
 		super(CoarseGenerator, self).__init__()
 
 		self.head = nn.Sequential(
@@ -228,7 +228,7 @@ class CoarseGenerator(nn.Module) :
 		self.body_attn_6 = ResBlock(ch * 4, self.alpha, self.beta)
 		self.beta = (self.beta ** 2 + self.alpha ** 2) ** 0.5
 
-	def forward(self, img, mask) :
+	def forward(self, img, mask):
 		x = torch.cat([mask, img], dim = 1)
 		x = self.head(x)
 		attn = self.body_attn_1(x)

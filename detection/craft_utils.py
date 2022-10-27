@@ -100,7 +100,7 @@ def getPoly_core(boxes, labels, mapper, linkmap):
         word_label = cv2.warpPerspective(labels, M, (w, h), flags=cv2.INTER_NEAREST)
         try:
             Minv = np.linalg.inv(M)
-        except:
+        except Exception:
             polys.append(None); continue
 
         # binarization for selected label

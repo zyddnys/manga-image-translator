@@ -33,7 +33,7 @@
 	  			<button type="button" class="button" name="submit" onclick="finish()">Submit</button>
 	  		</div>
 	  	</div>
-	  
+
 	  	<div>	
 			<div id="drop-area">
 			  <div id="gallery"></div>
@@ -43,10 +43,10 @@
 			    <label class="btn" for="fileElem">Select some files</label>
 			  </form>
 			  <progress id="progress-bar" max=100 value=0 style="width:100%"></progress>
-			  
+
 			</div>
 	  	</div>
-  
+
 	</div>
 </div>
 
@@ -138,7 +138,7 @@ function previewFile(file) {
 function uploadFile(file, i) {
 
   // ch_images.value = ch_images.value + file.name
-  
+
   var url = '/manual-translate'
   var xhr = new XMLHttpRequest()
   var formData = new FormData()
@@ -181,9 +181,9 @@ function uploadFile(file, i) {
       alert("upload failed for "+file.name)
     }
   })
- 
 
-  
+
+
   formData.append('file', file)
   xhr.send(formData)
 }
@@ -196,7 +196,7 @@ function finish() {
 	var k = 0
 
 	for (var i = 1; i<=((inputs.length-2)/2); i++) {
-		
+
 		trans_result[k] = {
 			's' : inputs[i].value,
 			't' : inputs[j].value
@@ -235,7 +235,7 @@ function finish() {
 
 	xhr.send(postData)
 
-	
+
 }
 </script>
 </body>

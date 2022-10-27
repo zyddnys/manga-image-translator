@@ -19,10 +19,10 @@ class DepthWiseSeperableConv(nn.Module):
 		if 'groups' in kwargs:
 			# ignoring groups for Depthwise Sep Conv
 			del kwargs['groups']
-		
+
 		self.depthwise = nn.Conv2d(in_dim, in_dim, *args, groups=in_dim, **kwargs)
 		self.pointwise = nn.Conv2d(in_dim, out_dim, kernel_size=1)
-		
+
 	def forward(self, x):
 		out = self.depthwise(x)
 		out = self.pointwise(out)
@@ -566,7 +566,7 @@ class FFCResNetGenerator(nn.Module):
 		self.model = nn.Sequential(*model)
 
 	def forward(self, input, mask = None):
-		if mask is not None :
+		if mask is not None:
 			input = torch.cat([mask, input], dim = 1)
 		return self.model(input)
 
@@ -636,7 +636,7 @@ class FFCNLayerDiscriminator(BaseDiscriminator):
 			feats.append(out)
 		return act[-1], feats
 
-def get_generator(n_blocks: int = 9) :
+def get_generator(n_blocks: int = 9):
 	init_conv_kwargs = {
 		'ratio_gin': 0,
 		'ratio_gout': 0,
@@ -654,7 +654,7 @@ def get_generator(n_blocks: int = 9) :
 	}
 	return FFCResNetGenerator(4, 3, ngf=64, n_blocks=n_blocks,add_out_act=False,init_conv_kwargs=init_conv_kwargs,downsample_conv_kwargs=downsample_conv_kwargs,resnet_conv_kwargs=resnet_conv_kwargs)
 
-def get_discriminator() :
+def get_discriminator():
 	init_conv_kwargs = {
 		'ratio_gin': 0,
 		'ratio_gout': 0,
@@ -669,7 +669,7 @@ def get_discriminator() :
 
 from torchsummary import summary
 
-def test_model() :
+def test_model():
 	dis = get_generator()
 	image = torch.randn((1, 4, 640, 640))
 	final = dis(image)
@@ -677,5 +677,5 @@ def test_model() :
 	print(final.shape)
 
 
-if __name__ == '__main__' :
+if __name__ == '__main__':
 	test_model()

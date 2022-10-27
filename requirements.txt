@@ -21,3 +21,7 @@ backports.cached-property
 huggingface_hub
 transformers
 langdetect
+sentencepiece
+fairseq
+numpy
+tensorboardX
