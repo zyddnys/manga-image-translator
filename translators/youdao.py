@@ -36,6 +36,11 @@ class YoudaoTranslator(CommonTranslator):
 	}
 	_API_URL = 'https://openapi.youdao.com/api'
 
+	def __init__(self) -> None:
+		super().__init__()
+		if not YOUDAO_APP_KEY or not YOUDAO_SECRET_KEY:
+			raise ValueError('Please set the YOUDAO_APP_KEY and YOUDAO_SECRET_KEY environment variables before using the youdao translator.')
+
 	async def _translate(self, from_lang, to_lang, queries):
 		data = {}
 		query_text = '\n'.join(queries)
