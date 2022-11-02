@@ -1,5 +1,4 @@
 from translators.common import CommonTranslator
-
 class NoTranslator(CommonTranslator):
 	_LANGUAGE_CODE_MAP = {
 		'CHS': 'no',
@@ -8,7 +7,7 @@ class NoTranslator(CommonTranslator):
 		'KOR': 'no',
 		'ENG': 'no',
 		'CSY': 'no',
-		'NLD': 'No',
+		'NLD': 'no',
 		'FRA': 'no',
 		'DEU': 'no',
 		'HUN': 'no',
@@ -23,5 +22,3 @@ class NoTranslator(CommonTranslator):
 	}
 	async def _translate(self, from_lang, to_lang, queries):
 		return " "
-
-
