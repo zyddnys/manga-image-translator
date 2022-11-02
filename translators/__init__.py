@@ -9,6 +9,7 @@ from .deepl import DeeplTranslator
 from .papago import PapagoTranslator
 from .nnlb import NNLBTranslator, NNLBBigTranslator
 from .jparacrawl import JParaCrawlTranslator, JParaCrawlSmallTranslator, JParaCrawlBigTranslator
+from .no import NoTranslator
 
 VALID_LANGUAGES = {
 	'CHS': 'Chinese (Simplified)',
@@ -48,6 +49,7 @@ TRANSLATORS = {
 	'baidu': BaiduTranslator,
 	'deepl': DeeplTranslator,
 	'papago': PapagoTranslator,
+	'no': NoTranslator,
 	**OFFLINE_TRANSLATORS,
 }
 translator_cache = {}
