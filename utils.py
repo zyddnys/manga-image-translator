@@ -130,7 +130,7 @@ class ModelWrapper():
 	def _get_used_gpu_memory(self) -> bool:
 		"""
 		Gets the total amount of GPU memory used by model (Can be used in the future
-		to determine whether a model should be loaded into vram or ram).
+		to determine whether a model should be loaded into vram or ram or automatically choose a model size).
 		TODO: Use together with `--use-cuda-limited` flag to enforce stricter memory checks
 		"""
 		return torch.cuda.mem_get_info()
@@ -232,7 +232,7 @@ class ModelWrapper():
 			if is_archive:
 				extracted_path = os.path.join(os.path.dirname(download_path), 'extracted')
 				shutil.unpack_archive(download_path, extracted_path)
-				
+
 				def get_real_archive_files():
 					archive_files = []
 					for root, dirs, files in os.walk(extracted_path):
@@ -270,7 +270,7 @@ class ModelWrapper():
 			if not self._check_downloaded_map(map_key):
 				return False
 		return True
- 
+
 	def _check_downloaded_map(self, map_key: str) -> str:
 		map = self._MODEL_MAPPING[map_key]
 		if 'file' in map:
@@ -317,7 +317,7 @@ class ModelWrapper():
 	@abstractmethod
 	async def _load(self, device: str, *args, **kwargs):
 		pass
-	
+
 	@abstractmethod
 	async def _unload(self):
 		pass

@@ -35,6 +35,11 @@ class BaiduTranslator(CommonTranslator):
 		'ESP': 'spa',
 	}
 
+	def __init__(self) -> None:
+		super().__init__()
+		if not BAIDU_APP_ID or not BAIDU_SECRET_KEY:
+			raise ValueError('Please set the BAIDU_APP_ID and BAIDU_SECRET_KEY environment variables before using the baidu translator.')
+
 	async def _translate(self, from_lang, to_lang, queries):
 		url = self.get_url(from_lang, to_lang, '\n'.join(queries))
 		async with aiohttp.ClientSession() as session:

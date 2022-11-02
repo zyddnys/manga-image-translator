@@ -55,6 +55,10 @@ class NNLBTranslator(OfflineTranslator):
         self.model = AutoModelForSeq2SeqLM.from_pretrained(self._TRANSLATOR_MODEL)
         self.tokenizer = AutoTokenizer.from_pretrained(self._TRANSLATOR_MODEL)
 
+    async def _unload(self):
+        del self.model
+        del self.tokenizer
+
     async def _forward(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         if from_lang == 'auto':
             detected_lang = detect('\n'.join(queries))
@@ -122,7 +126,7 @@ class NNLBTranslator(OfflineTranslator):
         print(f'Detected offline translation mode. Pre-loading offline translation model: {self._TRANSLATOR_MODEL} ' +
               f'(This can take a long time as multiple GB\'s worth of data can be downloaded during this step)')
         huggingface_hub.snapshot_download(self._TRANSLATOR_MODEL)
-    
+
     def _check_downloaded(self) -> bool:
         print(f'Detected cached model for offline translation: {self._TRANSLATOR_MODEL}')
         return huggingface_hub.try_to_load_from_cache(self._TRANSLATOR_MODEL, 'pytorch_model.bin') is not None
