@@ -34,14 +34,12 @@ class CommonTranslator():
             return False
         return True
 
-    def parse_language_codes(self, from_lang: str, to_lang: str) -> Tuple[str, str]:
-        _from_lang = self._LANGUAGE_CODE_MAP.get(from_lang, None) if from_lang != 'auto' else 'auto'
-        if not _from_lang:
-            raise LanguageUnsupportedException(from_lang, self.__class__.__name__, self.supported_src_languages)
+    def parse_language_codes(self, from_lang: str, to_lang: str, fatal: bool = False) -> Tuple[str, str]:
+        if not self.supports_languages(from_lang, to_lang, fatal):
+            return None, None
 
-        _to_lang = self._LANGUAGE_CODE_MAP.get(to_lang, None)
-        if not _to_lang:
-            raise LanguageUnsupportedException(to_lang, self.__class__.__name__, self.supported_tgt_languages)
+        _from_lang = self._LANGUAGE_CODE_MAP.get(from_lang) if from_lang != 'auto' else 'auto'
+        _to_lang = self._LANGUAGE_CODE_MAP.get(to_lang)
         return _from_lang, _to_lang
 
     async def translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
@@ -50,7 +48,7 @@ class CommonTranslator():
         '''
         if from_lang == to_lang:
             return []
-        return await self._translate(*self.parse_language_codes(from_lang, to_lang), queries)
+        return await self._translate(*self.parse_language_codes(from_lang, to_lang, fatal=True), queries)
 
     @abstractmethod
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
