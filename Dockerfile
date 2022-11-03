@@ -8,8 +8,7 @@ WORKDIR /app
 # Assume root to install required dependencies
 RUN apt-get update && \
     apt-get install -y git g++ ffmpeg libsm6 libxext6 && \
-    pip install git+https://github.com/lucasb-eyer/pydensecrf.git &&\
-    apt-get remove -y g++
+    pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 
 # Install pip dependencies
 
@@ -17,6 +16,8 @@ COPY requirements.txt /app/requirements.txt
 
 RUN pip install -r /app/requirements.txt
 
+RUN apt-get remove -y g++
+    
 # Copy remaing dependencies
 ADD ${ASSET_BASE_URL}/${RELEASE_VERSION}/ocr.ckpt \
      ${ASSET_BASE_URL}/${RELEASE_VERSION}/ocr-ctc.ckpt \
