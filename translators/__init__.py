@@ -8,7 +8,7 @@ from .youdao import YoudaoTranslator
 from .deepl import DeeplTranslator
 from .papago import PapagoTranslator
 from .nnlb import NNLBTranslator, NNLBBigTranslator
-from .jparacrawl import JParaCrawlTranslator, JParaCrawlSmallTranslator, JParaCrawlBigTranslator
+from .sugoi import SugoiTranslator, SugoiSmallTranslator, SugoiBigTranslator
 from .selective import SelectiveOfflineTranslator, SelectiveBigOfflineTranslator, prepare as prepare_selective_translator
 from .none import NoneTranslator
 
@@ -39,9 +39,9 @@ OFFLINE_TRANSLATORS = {
 	'offline_big': SelectiveBigOfflineTranslator,
 	'nnlb': NNLBTranslator,
 	'nnlb_big': NNLBBigTranslator,
-	'sugoi': JParaCrawlTranslator,
-	'sugoi_small': JParaCrawlSmallTranslator,
-	'sugoi_big': JParaCrawlBigTranslator,
+	'sugoi': SugoiTranslator,
+	'sugoi_small': SugoiSmallTranslator,
+	'sugoi_big': SugoiBigTranslator,
 }
 
 TRANSLATORS = {

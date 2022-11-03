@@ -3,7 +3,7 @@ from langdetect import detect
 
 from .common import OfflineTranslator
 from .nnlb import NNLBTranslator
-from .jparacrawl import JParaCrawlTranslator
+from .sugoi import SugoiTranslator
 
 ISO_639_1_TO_VALID_LANGUAGES = {
     'zh-cn': 'CHS',
@@ -41,7 +41,7 @@ class SelectiveOfflineTranslator(OfflineTranslator):
 
     _LANGUAGE_CODE_MAP = {
         **NNLBTranslator._LANGUAGE_CODE_MAP,
-        **JParaCrawlTranslator._LANGUAGE_CODE_MAP,
+        **SugoiTranslator._LANGUAGE_CODE_MAP,
     }
 
     def __init__(self):
@@ -49,17 +49,19 @@ class SelectiveOfflineTranslator(OfflineTranslator):
         self._cached_load_params = None
         self._real_translator: OfflineTranslator = None
 
-    def _select_translator(self, from_lang: str, to_lang: str, queries: List[str]) -> OfflineTranslator:
+    def select_translator(self, from_lang: str, to_lang: str, queries: List[str]) -> OfflineTranslator:
         if from_lang == 'auto':
             detected_lang = detect(' '.join(queries))
             if detected_lang in ISO_639_1_TO_VALID_LANGUAGES:
                 from_lang = ISO_639_1_TO_VALID_LANGUAGES[detected_lang]
+        return self._select_translator(from_lang, to_lang)
 
-        sugoi_translator = get_translator('sugoi')
-        if sugoi_translator.supports_languages(from_lang, to_lang):
-            return sugoi_translator
-        else:
-            return get_translator('nnlb')
+    def _select_translator(self, from_lang: str, to_lang: str) -> OfflineTranslator:
+        if from_lang != 'auto':
+            sugoi_translator = get_translator('sugoi')
+            if sugoi_translator.supports_languages(from_lang, to_lang):
+                return sugoi_translator
+        return get_translator('nnlb')
 
     async def translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         self._real_translator = self._select_translator(from_lang, to_lang, queries)
@@ -78,14 +80,9 @@ class SelectiveOfflineTranslator(OfflineTranslator):
         self._cached_load_params = [from_lang, to_lang, device]
 
 class SelectiveBigOfflineTranslator(SelectiveOfflineTranslator):
-    def _select_translator(self, from_lang: str, to_lang: str, queries: List[str]) -> OfflineTranslator:
-        if from_lang == 'auto':
-            detected_lang = detect(' '.join(queries))
-            if detected_lang in ISO_639_1_TO_VALID_LANGUAGES:
-                from_lang = ISO_639_1_TO_VALID_LANGUAGES[detected_lang]
-
-        sugoi_translator = get_translator('sugoi_big')
-        if sugoi_translator.supports_languages(from_lang, to_lang):
-            return sugoi_translator
-        else:
-            return get_translator('nnlb_big')
+    def _select_translator(self, from_lang: str, to_lang: str) -> OfflineTranslator:
+        if from_lang != 'auto':
+            sugoi_translator = get_translator('sugoi_big')
+            if sugoi_translator.supports_languages(from_lang, to_lang):
+                return sugoi_translator
+        return get_translator('nnlb_big')
