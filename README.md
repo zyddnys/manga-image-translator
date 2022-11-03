@@ -80,6 +80,7 @@ ROM: Romanian
 RUS: Russian
 ESP: Spanish
 TRK: Turkish
+UKR: Ukrainian
 VIN: Vietnames
 ```
 
@@ -90,6 +91,7 @@ VIN: Vietnames
 # use `--use-cuda-limited` to defer vram expensive language translations to the cpu
 # use `--use-inpainting` to enable inpainting.
 # use `--translator=<translator>` to specify a translator.
+# use `--translator=none` if you only want to use inpainting (blank bubbles)
 # use `--target-lang=<languge_code>` to specify a target language.
 # replace <path_to_image_file> with the path to the image file.
 $ python translate_demo.py --verbose --use-inpainting --use-cuda --translator=google --target-lang=ENG --image <path_to_image_file>

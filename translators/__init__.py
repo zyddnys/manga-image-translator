@@ -30,6 +30,7 @@ VALID_LANGUAGES = {
 	'RUS': 'Russian',
 	'ESP': 'Spanish',
 	'TRK': 'Turkish',
+	'UKR': 'Ukrainian',
 	'VIN': 'Vietnamese',
 }
 
