@@ -121,7 +121,7 @@ async def infer(
 	print(f' -- Detector using {detector}')
 	print(f' -- Render text direction is {render_text_direction_overwrite or "auto"}')
 
-	print(' -- Preparing translator model')
+	print(' -- Preparing translator')
 	await prepare_translation(translator, src_lang, tgt_lang)
 
 	if mode == 'web' and task_id:
@@ -355,9 +355,6 @@ async def main(mode = 'demo'):
 		if os.path.exists(dst) and not os.path.isdir(dst):
 			print(f'Destination `{dst}` already exists and is not a directory! Please specify another directory.')
 			return
-		if os.path.exists(dst) and os.listdir(dst):
-			print(f'Destination directory `{dst}` already exists! Please specify another directory.')
-			return
 		print('Processing image in source directory')
 		files = []
 		for root, subdirs, files in os.walk(src):
@@ -367,6 +364,9 @@ async def main(mode = 'demo'):
 				if f.lower() == '.thumb':
 					continue
 				filename = os.path.join(root, f)
+				dst_filename = replace_prefix(filename, src, dst)
+				if os.path.exists(dst_filename):
+					continue
 				try:
 					img, alpha_ch = convert_img(Image.open(filename))
 					img = np.array(img)
@@ -375,7 +375,6 @@ async def main(mode = 'demo'):
 				except Exception:
 					pass
 				try:
-					dst_filename = replace_prefix(filename, src, dst)
 					print('Processing', filename, '->', dst_filename)
 					await infer(img, 'demo', '', dst_image_name = dst_filename, alpha_ch = alpha_ch)
 				except Exception:

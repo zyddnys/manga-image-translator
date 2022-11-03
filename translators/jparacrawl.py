@@ -1,4 +1,3 @@
-import os
 from typing import List
 import unicodedata
 import sentencepiece as spm
@@ -52,13 +51,12 @@ class JParaCrawlTranslator(OfflineTranslator):
                 from_lang = 'ja'
             else:
                 from_lang = 'en'
+
         self.load_params = {
             'from_lang': from_lang,
             'to_lang': to_lang,
             'device': device,
         }
-        print('Loading model')
-
         self.model = TransformerModel.from_pretrained(
             self._get_file_path('jparacrawl/'),
             checkpoint_file=self._MODEL_FILES[f'{from_lang}-{to_lang}'],
@@ -82,14 +80,15 @@ class JParaCrawlTranslator(OfflineTranslator):
                 from_lang = 'ja'
             else:
                 from_lang = 'en'
-        if self.is_loaded() and (from_lang != self.load_params['from_lang'] or to_lang != self.load_params['to_lang']):
+        if self.is_loaded() and to_lang != self.load_params['to_lang']:
             await self.reload(self.load_params['device'], from_lang, to_lang)
+
         return await super().forward(from_lang, to_lang, queries)
 
     async def _forward(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         # return self._translate_sentence(from_lang, to_lang, ' # '.join(queries)).split(' # ')
         return [self._translate_sentence(from_lang, to_lang, query) for query in queries]
-    
+
     def _translate_sentence(self, from_lang: str, to_lang: str, query: str) -> str:
         query = self._preprocess(from_lang, query)
         translated = self.model.translate(query)
@@ -105,7 +104,7 @@ class JParaCrawlTranslator(OfflineTranslator):
         text = spp.encode(text, out_type = int)
         text = ' '.join([spp.IdToPiece(i) for i in text])
         return text
-    
+
     def _postprocess(self, lang: str, text: str) -> str:
         spp = self.sentence_piece_processors[lang]
         text = spp.decode(text.split(' '))
