@@ -84,7 +84,7 @@ async def handle_post(request):
 			direction = 'auto'
 	if 'translator' in data:
 		selected_translator = data['translator'].lower()
-		if selected_translator not in ['youdao', 'baidu', 'google', 'deepl', 'papago', 'offline', 'null']:
+		if selected_translator not in ['youdao', 'baidu', 'google', 'deepl', 'papago', 'offline', 'none']:
 			selected_translator = 'youdao'
 	if 'size' in data:
 		size = data['size'].upper()

@@ -10,7 +10,7 @@ from .papago import PapagoTranslator
 from .nnlb import NNLBTranslator, NNLBBigTranslator
 from .jparacrawl import JParaCrawlTranslator, JParaCrawlSmallTranslator, JParaCrawlBigTranslator
 from .selective import SelectiveOfflineTranslator, SelectiveBigOfflineTranslator, prepare as prepare_selective_translator
-from .none import NoTranslator
+from .none import NoneTranslator
 
 VALID_LANGUAGES = {
 	'CHS': 'Chinese (Simplified)',
@@ -50,7 +50,7 @@ TRANSLATORS = {
 	'baidu': BaiduTranslator,
 	'deepl': DeeplTranslator,
 	'papago': PapagoTranslator,
-	'none': NoTranslator,
+	'none': NoneTranslator,
 	**OFFLINE_TRANSLATORS,
 }
 translator_cache = {}
@@ -72,8 +72,6 @@ async def prepare(translator_key: str, src_lang: str, tgt_lang: str):
 		await translator.download()
 
 async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: List[str], **kwargs) -> List[str]:
-	if translator_key == 'null':
-		return queries
 	if not queries:
 		return queries
 

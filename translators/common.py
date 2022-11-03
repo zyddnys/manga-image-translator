@@ -1,4 +1,3 @@
-from functools import cached_property
 from typing import List, Tuple
 from abc import abstractmethod
 import os
@@ -15,22 +14,17 @@ class LanguageUnsupportedException(Exception):
 class CommonTranslator():
     _LANGUAGE_CODE_MAP = {}
 
-    @cached_property
-    def supported_src_languages(self) -> List[str]:
-        return ['auto'] + list(self._LANGUAGE_CODE_MAP)
+    def supports_languages(self, from_lang: str, to_lang: str, fatal: bool = False) -> bool:
+        supported_src_languages = ['auto'] + list(self._LANGUAGE_CODE_MAP)
+        supported_tgt_languages = list(self._LANGUAGE_CODE_MAP)
 
-    @cached_property
-    def supported_tgt_languages(self) -> List[str]:
-        return list(self._LANGUAGE_CODE_MAP)
-
-    def supports_languages(self, from_lang: str, to_lang: str, fatal: bool = False):
-        if from_lang not in self.supported_src_languages:
+        if from_lang not in supported_src_languages:
             if fatal:
-                raise LanguageUnsupportedException(from_lang, self.__class__.__name__, self.supported_src_languages)
+                raise LanguageUnsupportedException(from_lang, self.__class__.__name__, supported_src_languages)
             return False
-        if to_lang not in self.supported_tgt_languages:
+        if to_lang not in supported_tgt_languages:
             if fatal:
-                raise LanguageUnsupportedException(to_lang, self.__class__.__name__, self.supported_tgt_languages)
+                raise LanguageUnsupportedException(to_lang, self.__class__.__name__, supported_tgt_languages)
             return False
         return True
 
