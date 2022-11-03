@@ -22,6 +22,7 @@ huggingface_hub
 transformers
 langdetect
 sentencepiece
+editdistance
 fairseq
 numpy
 tensorboardX
