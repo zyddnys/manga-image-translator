@@ -1,4 +1,5 @@
 import os
+import shutil
 from typing import List
 from collections import Counter
 import networkx as nx
@@ -57,6 +58,11 @@ class Model32pxOCR(OfflineOCR):
             'file': '.',
         },
     }
+
+    def __init__(self):
+        if os.path.exists('ocr.ckpt'):
+            shutil.move('ocr.ckpt', self._get_file_path('ocr.ckpt'))
+        super().__init__()
 
     async def _load(self, device: str):
         with open('alphabet-all-v5.txt', 'r', encoding = 'utf-8') as fp:
@@ -158,6 +164,11 @@ class Model48pxCTCOCR(OfflineOCR):
             'file': '.',
         },
     }
+
+    def __init__(self):
+        if os.path.exists('ocr-ctc.ckpt'):
+            shutil.move('ocr-ctc.ckpt', self._get_file_path('ocr-ctc.ckpt'))
+        super().__init__()
 
     async def _load(self, device: str):
         with open('alphabet-all-v5.txt', 'r', encoding = 'utf-8') as fp:
