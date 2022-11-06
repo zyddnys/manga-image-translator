@@ -11,13 +11,13 @@ import asyncio
 import torch
 
 from detection import dispatch as dispatch_detection, load_model as load_detection_model
-from ocr import dispatch as dispatch_ocr, load_model as load_ocr_model
+from ocr import OCRS, dispatch as dispatch_ocr, prepare as prepare_ocr
 from inpainting import dispatch as dispatch_inpainting, load_model as load_inpainting_model
-from translators import OFFLINE_TRANSLATORS, TRANSLATORS, VALID_LANGUAGES, dispatch as run_translation, prepare as prepare_translation
+from translators import OFFLINE_TRANSLATORS, TRANSLATORS, VALID_LANGUAGES, dispatch as dispatch_translation, prepare as prepare_translation
 from text_mask import dispatch as dispatch_mask_refinement
 from textline_merge import dispatch as dispatch_textline_merge
 from text_rendering import dispatch as dispatch_rendering, text_render
-from textblockdetector import dispatch as dispatch_ctd_detection
+from textblockdetector import dispatch as dispatch_ctd_detection, load_model as load_ctd_model
 from textblockdetector.textblock import visualize_textblocks
 from utils import convert_img
 
@@ -29,7 +29,7 @@ parser.add_argument('--size', default=1536, type=int, help='image square size')
 parser.add_argument('--host', default='127.0.0.1', type=str, help='Used by web module to decide which host to attach to')
 parser.add_argument('--port', default=5003, type=int, help='Used by web module to decide which port to attach to')
 parser.add_argument('--log-web', action='store_true', help='Used by web module to decide if web logs should be surfaced')
-parser.add_argument('--ocr-model', default='48px_ctc', type=str, help='OCR model to use, one of `32px`, `48px_ctc`')
+parser.add_argument('--ocr-model', default='48px_ctc', type=str, choices=OCRS, help='OCR model to use, one of `32px`, `48px_ctc`')
 parser.add_argument('--use-inpainting', action='store_true', help='turn on/off inpainting')
 parser.add_argument('--inpainting-model', default='lama_mpe', type=str, help='inpainting model to use, one of `lama_mpe`')
 parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
@@ -124,12 +124,12 @@ async def infer(
 	print(' -- Preparing translator')
 	await prepare_translation(translator, src_lang, tgt_lang)
 
+	print(' -- Running text detection')
 	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'detection')
 
 	if detector == 'ctd':
 		mask, final_mask, textlines = await dispatch_ctd_detection(img, args.use_cuda)
-		text_regions = textlines
 	else:
 		textlines, mask = await dispatch_detection(img, img_detect_size, args.use_cuda, args, verbose = args.verbose)
 
@@ -145,11 +145,14 @@ async def infer(
 			cv2.imwrite(f'result/{task_id}/bboxes_unfiltered.png', cv2.cvtColor(img_bbox_raw, cv2.COLOR_RGB2BGR))
 			cv2.imwrite(f'result/{task_id}/mask_raw.png', mask)
 
-	# if mode == 'web' and task_id:
+	print(' -- Running OCR')
+	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'ocr')
-	textlines = await dispatch_ocr(img, textlines, args.use_cuda, args, model_name = args.ocr_model, verbose = args.verbose)
+	textlines = await dispatch_ocr(args.ocr_model, img, textlines, args.use_cuda, verbose = args.verbose)
 
-	if detector == 'default':
+	if detector == 'ctd':
+		text_regions = textlines
+	else:
 		text_regions, textlines = await dispatch_textline_merge(textlines, img.shape[1], img.shape[0], verbose = args.verbose)
 		if args.verbose:
 			img_bbox = np.copy(img)
@@ -167,7 +170,6 @@ async def infer(
 		final_mask = await dispatch_mask_refinement(img, mask, textlines)
 
 	if mode == 'web' and task_id and options.get('translator', '') not in OFFLINE_TRANSLATORS:
-		print(' -- Translating')
 		update_state(task_id, nonce, 'translating')
 		# in web mode, we can start non offline translation tasks async
 		if detector == 'ctd':
@@ -178,7 +180,7 @@ async def infer(
 	print(' -- Running inpainting')
 	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'inpainting')
-	# run inpainting
+
 	if text_regions:
 		img_inpainted = await dispatch_inpainting(args.use_inpainting, False, args.use_cuda, img, final_mask, args.inpainting_size, verbose = args.verbose)
 	else:
@@ -188,19 +190,16 @@ async def infer(
 		cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
 		cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
 
-	# translate text region texts
-	translated_sentences = None
 	print(' -- Translating')
+	translated_sentences = None
 	if mode != 'web' or translator in OFFLINE_TRANSLATORS:
-		if mode == 'web':
+		if mode == 'web' and task_id:
 			update_state(task_id, nonce, 'translating')
-
 		if detector == 'ctd':
-			regions = [r.get_text() for r in text_regions]
+			queries = [r.get_text() for r in text_regions]
 		else:
-			regions = [r.text for r in text_regions]
-		translated_sentences = await run_translation(translator, src_lang, tgt_lang, regions, use_cuda = args.use_cuda and not args.use_cuda_limited)
-
+			queries = [r.text for r in text_regions]
+		translated_sentences = await dispatch_translation(translator, src_lang, tgt_lang, queries, use_cuda = args.use_cuda and not args.use_cuda_limited)
 	else:
 		# wait for at most 1 hour for manual translation
 		if options.get('manual', False):
@@ -221,8 +220,8 @@ async def infer(
 
 	print(' -- Rendering translated text')
 	if translated_sentences == None:
+		print("No text found!")
 		if mode == 'web' and task_id:
-			print("No text found!")
 			update_state(task_id, nonce, 'error-no-txt')
 		return
 
@@ -289,18 +288,13 @@ async def main(mode = 'demo'):
 	if args.use_cuda_limited:
 		args.use_cuda = True
 	if not torch.cuda.is_available() and args.use_cuda:
-		print("Warning: CUDA compatible device could not be found while %s args was set... Deferring to CPU"
-				% '--use_cuda_limited' if args.use_cuda_limited else '--use_cuda')
-		args.use_cuda = False
-		args.use_cuda_limited = False
+		raise Exception('CUDA compatible device could not be found while %s args was set...'
+						% '--use_cuda_limited' if args.use_cuda_limited else '--use_cuda')
 
 	print(' -- Loading models')
 	os.makedirs('result', exist_ok = True)
 	text_render.prepare_renderer()
-	with open('alphabet-all-v5.txt', 'r', encoding = 'utf-8') as fp:
-		dictionary = [s[:-1] for s in fp.readlines()]
-	load_ocr_model(dictionary, args.use_cuda, args.ocr_model)
-	from textblockdetector import load_model as load_ctd_model
+	await prepare_ocr(args.ocr_model, args.use_cuda)
 	load_ctd_model(args.use_cuda)
 	load_detection_model(args.use_cuda)
 	load_inpainting_model(args.use_cuda, args.inpainting_model)

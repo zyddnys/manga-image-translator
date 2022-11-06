@@ -59,7 +59,6 @@ async def run_default(img: np.ndarray, detect_size: int, cuda: bool, verbose: bo
 	return textlines, np.clip(mask_resized * 255, 0, 255).astype(np.uint8)
 
 async def dispatch(img: np.ndarray, detect_size: int, cuda: bool, args: dict, model_name: str = 'default', verbose: bool = False) -> List[Quadrilateral]:
-	print(' -- Running text detection')
 	if model_name == 'default':
 		global DEFAULT_MODEL
 		if DEFAULT_MODEL is None:

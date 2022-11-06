@@ -7,11 +7,10 @@ from PIL import Image
 from oscrypto import util as crypto_utils
 from aiohttp import web
 from io import BytesIO
-
 from imagehash import phash
 from collections import deque
 
-from translators import VALID_LANGUAGES, dispatch as run_translation
+from translators import VALID_LANGUAGES, dispatch as dispatch_translation
 
 VALID_DETECTORS = set(['default', 'ctd'])
 VALID_DIRECTIONS = set(['auto', 'horizontal'])
@@ -169,7 +168,7 @@ async def machine_trans_task(task_id, texts, translator = 'youdao', target_langu
 		success = False
 		for _ in range(10):
 			try:
-				TASK_DATA[task_id]['trans_result'] = await asyncio.wait_for(run_translation(translator, 'auto', target_language, texts), timeout = 15)
+				TASK_DATA[task_id]['trans_result'] = await asyncio.wait_for(dispatch_translation(translator, 'auto', target_language, texts), timeout = 15)
 				success = True
 				break
 			except Exception as ex:

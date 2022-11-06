@@ -64,7 +64,7 @@ class SelectiveOfflineTranslator(OfflineTranslator):
         return get_translator('nnlb')
 
     async def translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
-        self._real_translator = self._select_translator(from_lang, to_lang, queries)
+        self._real_translator = self.select_translator(from_lang, to_lang, queries)
         print(f'-- Selected translator: {self._real_translator.__class__.__name__}')
 
         if self._cached_load_params:
@@ -78,6 +78,15 @@ class SelectiveOfflineTranslator(OfflineTranslator):
 
     async def reload(self, from_lang: str, to_lang: str, device: str):
         self._cached_load_params = [from_lang, to_lang, device]
+
+    async def _load(self, from_lang: str, to_lang: str, device: str):
+        pass
+
+    async def _unload(self):
+        pass
+
+    async def _forward(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+        pass
 
 class SelectiveBigOfflineTranslator(SelectiveOfflineTranslator):
     def _select_translator(self, from_lang: str, to_lang: str) -> OfflineTranslator:

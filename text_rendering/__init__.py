@@ -40,6 +40,7 @@ async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translate
 	for trans_text, region in zip(translated_sentences, text_regions):
 		if not trans_text:
 			continue
+
 		majority_dir = None
 		if text_direction_overwrite:
 			majority_dir = text_direction_overwrite
@@ -63,7 +64,6 @@ async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translate
 		print(region_aabb.x, region_aabb.y, region_aabb.w, region_aabb.h)
 		img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, False, font_size_offset)
 	return img_canvas
-
 
 async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], text_regions: List[TextBlock], text_direction_overwrite: str, font_size_offset: int = 0) -> np.ndarray:
 	for ridx, (trans_text, region) in enumerate(zip(translated_sentences, text_regions)):
@@ -89,7 +89,6 @@ async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer
 		# print(region_aabb.x, region_aabb.y, region_aabb.w, region_aabb.h)
 		img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, True, font_size_offset)
 	return img_canvas
-
 
 def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, is_ctd, font_size_offset: int = 0):
 	# round font_size to fixed powers of 2, so later LRU cache can work
@@ -154,31 +153,28 @@ def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_d
 	#h_ext += region_ext
 	#w_ext += region_ext
 
-	src_pts = np.array([[0, 0], [box.shape[1], 0], [box.shape[1], box.shape[0]], [0, box.shape[0]]]).astype(np.float32)
+	src_points = np.array([[0, 0], [box.shape[1], 0], [box.shape[1], box.shape[0]], [0, box.shape[0]]]).astype(np.float32)
 	#src_pts[:, 0] = np.clip(np.round(src_pts[:, 0]), 0, enlarged_w * 2)
 	#src_pts[:, 1] = np.clip(np.round(src_pts[:, 1]), 0, enlarged_h * 2)
 	if is_ctd:
-		dst_pts = region.min_rect()
+		dst_points = region.min_rect()
 		if majority_dir == 'v':
-			dst_pts = dst_pts[:, [3, 0, 1, 2]]
+			dst_points = dst_points[:, [3, 0, 1, 2]]
 	else:
-		dst_pts = region.pts
+		dst_points = region.pts
 
-	M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+	M, _ = cv2.findHomography(src_points, dst_points, cv2.RANSAC, 5.0)
 	rgba_region = np.clip(cv2.warpPerspective(box, M, (img_canvas.shape[1], img_canvas.shape[0]), flags = cv2.INTER_LINEAR, borderMode = cv2.BORDER_CONSTANT, borderValue = 0), 0, 255)
 	canvas_region = rgba_region[:, :, 0: 3]
 	mask_region = rgba_region[:, :, 3: 4].astype(np.float32) / 255.0
 	img_canvas = np.clip((img_canvas.astype(np.float32) * (1 - mask_region) + canvas_region.astype(np.float32) * mask_region), 0, 255).astype(np.uint8)
 	return img_canvas
 
-
-
-
 async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, text_regions: Union[List[TextBlock], List[Quadrilateral]], translated_sentences: List[str], font_path: str) -> np.ndarray:
 	if len(text_regions) == 0:
 		return img_canvas
 
-	if isinstance(text_regions[0], 	Quadrilateral):
+	if isinstance(text_regions[0], Quadrilateral):
 		blk_list = []
 		for region, tr in zip(text_regions, translated_sentences):
 			x1 = np.min(region.pts[:, 0])
@@ -195,6 +191,5 @@ async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, 
 
 	for blk, tr in zip(text_regions, translated_sentences):
 		blk.translation = tr
-
 
 	return render_textblock_list_eng(img_canvas, text_regions, font_path, size_tol=1.2, original_img=original_img, downscale_constraint=0.8)

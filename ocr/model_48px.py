@@ -1,14 +1,10 @@
-
+import math
+from typing import List
 from collections import defaultdict
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-import heapq
-import math
-import einops
-
-from typing import List, Tuple, Optional
 
 class ResNet(nn.Module):
 

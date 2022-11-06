@@ -71,7 +71,7 @@ async def prepare(translator_key: str, src_lang: str, tgt_lang: str):
 	if isinstance(translator, OfflineTranslator):
 		await translator.download()
 
-async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: List[str], **kwargs) -> List[str]:
+async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: List[str], use_cuda: bool = False) -> List[str]:
 	if not queries:
 		return queries
 
@@ -84,7 +84,7 @@ async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: L
 
 	if isinstance(translator, OfflineTranslator):
 		if not translator.is_loaded():
-			device = 'cuda' if kwargs.get('use_cuda', False) else 'cpu'
+			device = 'cuda' if use_cuda else 'cpu'
 			await translator.load(src_lang, tgt_lang, device)
 		result = await asyncio.create_task(translator.translate(src_lang, tgt_lang, queries))
 	else:
