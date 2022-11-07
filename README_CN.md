@@ -1,7 +1,8 @@
 # 漫画图片翻译器 (中文说明)
 
 > 一键翻译各类图片内文字\
-> [English](README.md) | [更新日志](CHANGELOG_CN.md)
+> [English](README.md) | [更新日志](CHANGELOG_CN.md) \
+> 欢迎加入我们的Discord https://discord.gg/Ak8APNy4vb
 
 针对群内、各个图站上大量不太可能会有人去翻译的图片设计，让我这种日语小白能够勉强看懂图片\
 主要支持日语，汉语、英文和韩语\

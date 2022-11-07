@@ -4,9 +4,11 @@
 ![Lines of code](https://img.shields.io/tokei/lines/github/zyddnys/manga-image-translator?label=lines%20of%20code)
 ![License](https://img.shields.io/github/license/zyddnys/manga-image-translator)
 ![Contributors](https://img.shields.io/github/contributors/zyddnys/manga-image-translator)
+![Discord](https://img.shields.io/discord/739305951085199490?logo=discord&label=discord&logoColor=white)
 
 > Translate texts in manga/images.\
-> [中文说明](README_CN.md) | [Change Log](CHANGELOG.md)
+> [中文说明](README_CN.md) | [Change Log](CHANGELOG.md) \
+> Join us on discord https://discord.gg/Ak8APNy4vb
 
 Some manga/images will never be translated, therefore this project is born.\
 Primarily designed for translating Japanese text, but also support Chinese, English and Korean.\
