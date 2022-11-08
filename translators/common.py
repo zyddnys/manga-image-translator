@@ -1,36 +1,30 @@
-from functools import cached_property
 from typing import List, Tuple
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 import os
 
 from utils import ModelWrapper
 
 class LanguageUnsupportedException(Exception):
-    def __init__(self, language_code: str, translator: str = None, supported_languages: List[str] = None, *args: object) -> None:
+    def __init__(self, language_code: str, translator: str = None, supported_languages: List[str] = None) -> None:
         error = 'Language not supported for %s: "%s"' % (translator if translator else 'chosen translator', language_code)
         if supported_languages:
             error += '. Supported languages: "%s"' % ','.join(supported_languages)
-        super().__init__(error, *args)
+        super().__init__(error)
 
-class CommonTranslator():
+class CommonTranslator(ABC):
     _LANGUAGE_CODE_MAP = {}
 
-    @cached_property
-    def supported_src_languages(self) -> List[str]:
-        return ['auto'] + list(self._LANGUAGE_CODE_MAP)
+    def supports_languages(self, from_lang: str, to_lang: str, fatal: bool = False) -> bool:
+        supported_src_languages = ['auto'] + list(self._LANGUAGE_CODE_MAP)
+        supported_tgt_languages = list(self._LANGUAGE_CODE_MAP)
 
-    @cached_property
-    def supported_tgt_languages(self) -> List[str]:
-        return list(self._LANGUAGE_CODE_MAP)
-
-    def supports_languages(self, from_lang: str, to_lang: str, fatal: bool = False):
-        if from_lang not in self.supported_src_languages:
+        if from_lang not in supported_src_languages:
             if fatal:
-                raise LanguageUnsupportedException(from_lang, self.__class__.__name__, self.supported_src_languages)
+                raise LanguageUnsupportedException(from_lang, self.__class__.__name__, supported_src_languages)
             return False
-        if to_lang not in self.supported_tgt_languages:
+        if to_lang not in supported_tgt_languages:
             if fatal:
-                raise LanguageUnsupportedException(to_lang, self.__class__.__name__, self.supported_tgt_languages)
+                raise LanguageUnsupportedException(to_lang, self.__class__.__name__, supported_tgt_languages)
             return False
         return True
 
@@ -57,8 +51,8 @@ class CommonTranslator():
 class OfflineTranslator(CommonTranslator, ModelWrapper):
     _MODEL_DIR = os.path.join(ModelWrapper._MODEL_DIR, 'translators')
 
-    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
-        return await self.forward(from_lang, to_lang, queries)
+    async def _translate(self, *args, **kwargs):
+        return await self.forward(*args, **kwargs)
 
     @abstractmethod
     async def _forward(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:

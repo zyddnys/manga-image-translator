@@ -3,7 +3,7 @@ from typing import List
 import numpy as np
 import cv2
 import functools
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from shapely.geometry import Polygon, MultiPoint
 from PIL import Image
 import tqdm
@@ -42,9 +42,12 @@ def get_filename_from_url(url: str, default: str = '') -> str:
 		return m.group(1)
 	return default
 
-def download_url_with_progressbar(url: str, path: str, do_hash: bool = False):
+def download_url_with_progressbar(url: str, path: str, calc_sha256: bool = False):
 	if os.path.basename(path) in ('.', '') or os.path.isdir(path):
-		path = os.path.join(path, get_filename_from_url(url, 'default'))
+		new_filename = get_filename_from_url(url)
+		if not new_filename:
+			raise Exception('Could not determine filename')
+		path = os.path.join(path, new_filename)
 	headers = {}
 	downloaded_size = 0
 	# TODO: Implement partial downloads
@@ -67,7 +70,7 @@ def download_url_with_progressbar(url: str, path: str, do_hash: bool = False):
 			unit_scale=True,
 			unit_divisor=chunk_size,
 		) as bar:
-			if do_hash:
+			if calc_sha256:
 				h = hashlib.sha256()
 				# if downloaded_size:
 				# 	with open(path, 'rb') as f:
@@ -78,14 +81,14 @@ def download_url_with_progressbar(url: str, path: str, do_hash: bool = False):
 				for data in r.iter_content(chunk_size=chunk_size):
 					size = f.write(data)
 					bar.update(size)
-					if do_hash:
+					if calc_sha256:
 						h.update(data)
 
 					# Fallback for non TTYs so output still shown
 					downloaded_chunks += 1
 					if not is_tty and downloaded_chunks % 1000 == 0:
 						print(bar)
-		if do_hash:
+		if calc_sha256:
 			return h.hexdigest()
 	else:
 		raise Exception(f'Couldn\'t resolve url: "{url}"')
@@ -108,7 +111,7 @@ MODULE_PATH = os.path.dirname(os.path.realpath(__file__))
 class ModelVerificationException(Exception):
 	pass
 
-class ModelWrapper():
+class ModelWrapper(ABC):
 	_MODEL_DIR = os.path.join(MODULE_PATH, 'models')
 	_MODEL_MAPPING = {}
 
@@ -137,37 +140,37 @@ class ModelWrapper():
 
 	def _check_for_malformed_model_mapping(self):
 		for map_key, map in self._MODEL_MAPPING.items():
-			if 'url' not in map:
+			if 'url' not in map and not re.search(r'^https?://', map['url']):
 				raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. Missing url property.')
 			if 'file' not in map and 'archive-files' not in map:
 				map['file'] = '.'
-			if 'file' in map and 'archive-files' in map:
+			elif 'file' in map and 'archive-files' in map:
 				raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. Properties file and archive-files are mutually exclusive.')
 
 	async def _download_file(self, url: str, path: str):
-		print(f'-- Downloading {url}:')
+		print(f' -- Downloading {url}:')
 		download_url_with_progressbar(url, path)
 
 	async def _verify_file(self, path: str, sha256_pre_calculated: str):
-		print(f'-- Verifying: "{path}"')
+		print(f' -- Verifying: "{path}"')
 		sha256_calculated = get_digest(path)
 
 		if sha256_calculated.capitalize() != sha256_pre_calculated.capitalize():
 			self._on_verify_failure(sha256_calculated, sha256_pre_calculated)
 		else:
-			print('-- Verifying: OK!')
+			print(' -- Verifying: OK!')
 
 	async def _download_and_verify_file(self, url: str, path: str, sha256_pre_calculated: str):
 		sha256_calculated = download_url_with_progressbar(url, path, True)
 
-		print(f'-- Verifying: "{path}"')
+		print(f' -- Verifying: "{path}"')
 		if sha256_calculated.upper() != sha256_pre_calculated.upper():
 			self._on_verify_failure(sha256_calculated.upper(), sha256_pre_calculated.upper())
 		else:
-			print('-- Verifying: OK!')
+			print(' -- Verifying: OK!')
 
 	def _on_verify_failure(self, sha256_calculated: str, sha256_pre_calculated: str):
-		print(f'-- Mismatch between downloaded and created hash: "{sha256_calculated}" <-> "{sha256_pre_calculated}"')
+		print(f' -- Mismatch between downloaded and created hash: "{sha256_calculated}" <-> "{sha256_pre_calculated}"')
 		raise ModelVerificationException()
 
 	@functools.cached_property
@@ -199,7 +202,7 @@ class ModelWrapper():
 		print('\nDownloading models')
 		for map_key, map in self._MODEL_MAPPING.items():
 			if self._check_downloaded_map(map_key):
-				print(f'-- Skipping {map_key} as it\'s already downloaded')
+				print(f' -- Skipping {map_key} as it\'s already downloaded')
 				continue
 
 			is_archive = 'archive-files' in map
@@ -213,21 +216,24 @@ class ModelWrapper():
 				download_path = os.path.join(download_path, get_filename_from_url(map['url'], map_key))
 
 			print()
-			print(f'-- Downloading: "{map["url"]}"')
+			print(f' -- Downloading: "{map["url"]}"')
+
+			temporary_download_path = download_path + '.part'
 			if 'hash' in map:
 				downloaded = False
-				if os.path.isfile(download_path):
+				if os.path.isfile(temporary_download_path):
 					try:
-						print('-- Found existing file')
-						await self._verify_file(download_path, map['hash'])
+						print(' -- Found existing file')
+						await self._verify_file(temporary_download_path, map['hash'])
 						downloaded = True
 					except ModelVerificationException:
-						# print('-- Resuming interrupted download')
-						print('-- Hash mismatch. Restarting download!')
+						# print(' -- Resuming interrupted download')
+						print(' -- Hash mismatch. Restarting download!')
 				if not downloaded:
-					await self._download_and_verify_file(map['url'], download_path, map['hash'])
+					await self._download_and_verify_file(map['url'], temporary_download_path, map['hash'])
 			else:
-				await self._download_file(map['url'], download_path)
+				await self._download_file(map['url'], temporary_download_path)
+			shutil.move(temporary_download_path, download_path)
 
 			if is_archive:
 				extracted_path = os.path.join(os.path.dirname(download_path), 'extracted')
@@ -295,6 +301,8 @@ class ModelWrapper():
 		'''
 		Loads models into memory. Has to be called before `forward`.
 		'''
+		if not self.is_downloaded():
+			self.download()
 		if not self.is_loaded():
 			await self._load(*args, **kwargs, device=device)
 			self._loaded = True

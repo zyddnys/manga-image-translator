@@ -8,9 +8,9 @@ from .youdao import YoudaoTranslator
 from .deepl import DeeplTranslator
 from .papago import PapagoTranslator
 from .nnlb import NNLBTranslator, NNLBBigTranslator
-from .jparacrawl import JParaCrawlTranslator, JParaCrawlSmallTranslator, JParaCrawlBigTranslator
+from .sugoi import SugoiTranslator, SugoiSmallTranslator, SugoiBigTranslator
 from .selective import SelectiveOfflineTranslator, SelectiveBigOfflineTranslator, prepare as prepare_selective_translator
-from .none import NoTranslator
+from .none import NoneTranslator
 
 VALID_LANGUAGES = {
 	'CHS': 'Chinese (Simplified)',
@@ -39,9 +39,9 @@ OFFLINE_TRANSLATORS = {
 	'offline_big': SelectiveBigOfflineTranslator,
 	'nnlb': NNLBTranslator,
 	'nnlb_big': NNLBBigTranslator,
-	'sugoi': JParaCrawlTranslator,
-	'sugoi_small': JParaCrawlSmallTranslator,
-	'sugoi_big': JParaCrawlBigTranslator,
+	'sugoi': SugoiTranslator,
+	'sugoi_small': SugoiSmallTranslator,
+	'sugoi_big': SugoiBigTranslator,
 }
 
 TRANSLATORS = {
@@ -50,7 +50,7 @@ TRANSLATORS = {
 	'baidu': BaiduTranslator,
 	'deepl': DeeplTranslator,
 	'papago': PapagoTranslator,
-	'none': NoTranslator,
+	'none': NoneTranslator,
 	**OFFLINE_TRANSLATORS,
 }
 translator_cache = {}
@@ -71,9 +71,7 @@ async def prepare(translator_key: str, src_lang: str, tgt_lang: str):
 	if isinstance(translator, OfflineTranslator):
 		await translator.download()
 
-async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: List[str], **kwargs) -> List[str]:
-	if translator_key == 'null':
-		return queries
+async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: List[str], use_cuda: bool = False) -> List[str]:
 	if not queries:
 		return queries
 
@@ -86,7 +84,7 @@ async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: L
 
 	if isinstance(translator, OfflineTranslator):
 		if not translator.is_loaded():
-			device = 'cuda' if kwargs.get('use_cuda', False) else 'cpu'
+			device = 'cuda' if use_cuda else 'cpu'
 			await translator.load(src_lang, tgt_lang, device)
 		result = await asyncio.create_task(translator.translate(src_lang, tgt_lang, queries))
 	else:

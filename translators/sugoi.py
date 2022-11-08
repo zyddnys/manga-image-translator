@@ -5,7 +5,7 @@ from fairseq.models.transformer import TransformerModel
 
 from .common import OfflineTranslator
 
-class JParaCrawlTranslator(OfflineTranslator):
+class SugoiTranslator(OfflineTranslator):
     _LANGUAGE_CODE_MAP = {
         'JPN': 'ja',
         'ENG': 'en',
@@ -111,13 +111,13 @@ class JParaCrawlTranslator(OfflineTranslator):
         #text = ' '.join(text.split()).replace('▁', '').strip()
         return text
 
-class JParaCrawlSmallTranslator(JParaCrawlTranslator):
+class SugoiSmallTranslator(SugoiTranslator):
     _MODEL_FILES = {
         'ja-en': 'small.pretrain.ja-en.pt',
         'en-ja': 'small.pretrain.en-ja.pt',
     }
     _MODEL_MAPPING = {
-        **JParaCrawlTranslator._MODEL_MAPPING,
+        **SugoiTranslator._MODEL_MAPPING,
         'model-ja-en': {
             'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/pretrained_models/ja-en/small.tar.gz',
             'hash': '7136FE12841C626B105A9E588F858A8E0B76E451B19839457D7473EC705D12B3',
@@ -140,13 +140,13 @@ class JParaCrawlSmallTranslator(JParaCrawlTranslator):
         },
     }
 
-class JParaCrawlBigTranslator(JParaCrawlTranslator):
+class SugoiBigTranslator(SugoiTranslator):
     _MODEL_FILES = {
         'ja-en': 'big.pretrain.ja-en.pt',
         'en-ja': 'big.pretrain.en-ja.pt',
     }
     _MODEL_MAPPING = {
-        **JParaCrawlTranslator._MODEL_MAPPING,
+        **SugoiTranslator._MODEL_MAPPING,
         'model-ja-en': {
             'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/pretrained_models/ja-en/big.tar.gz',
             'hash': '7517753B6FEB8594D3C86AD7742DBC49203115ADD21E8A6C7542AA2AC0DF1C6A',
