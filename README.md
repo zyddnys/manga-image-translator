@@ -60,6 +60,24 @@ from <https://github.com/zyddnys/manga-image-translator/releases/>, put them in 
 [Optional if using Google translate]\
 Apply for Youdao or DeepL translate API, put your `APP_KEY` and `APP_SECRET` or `AUTH_KEY` in `translators/key.py` or export them as environment variables as detailed in the key.py file.
 
+### Translators Reference
+| Name | Requires API Key | Offline | Note |
+|--------|---|---|---|
+| google | No | No |   |
+| youdao | Yes | No |   |
+| baidu | Yes | No |   |
+| deepl | Yes | No |   |
+| papago | No | No |   |
+| offline | No | Yes |   |
+| offline_big | No | Yes |   |
+| nnlb | No | Yes |   |
+| nnlb_big | No | Yes |   |
+| sugoi | No | Yes |   |
+| sugoi_small | No | Yes |   |
+| sugoi_big | No | Yes |   |
+| none | No | Yes | Translate to empty texts |
+| null | No | Yes | Keep original texts |
+
 ### Language Code Reference
 
 Used by the `--target-lang` argument.

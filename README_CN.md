@@ -54,6 +54,24 @@ $ pip install -r requirements.txt
 [使用谷歌翻译时可选]\
 申请有道翻译或者 DeepL 的 API，把你的 `APP_KEY` 和 `APP_SECRET` 或 `AUTH_KEY` 写入 `translators/key.py` 中。
 
+### 翻译器列表
+| 名称 | 是否需要API Key | 是否离线可用 | 其他说明 |
+|--------|---|---|---|
+| google | 否 | 否 |   |
+| youdao | 是 | 否 |   |
+| baidu | 是 | 否 |   |
+| deepl | 是 | 否 |   |
+| papago | 否 | 否 |   |
+| offline | 否 | 是 |   |
+| offline_big | 否 | 是 |   |
+| nnlb | 否 | 是 |   |
+| nnlb_big | 否 | 是 |   |
+| sugoi | 否 | 是 |   |
+| sugoi_small | 否 | 是 |   |
+| sugoi_big | 否 | 是 |   |
+| none | 否 | 是 | 翻译成空白文本 |
+| null | 否 | 是 | 翻译成源文本 |
+
 ### 语言代码列表
 
 可以填入 `--target-lang` 参数
