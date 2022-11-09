@@ -70,10 +70,14 @@ async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer
 		print(f'text: {region.get_text()} \n trans: {trans_text}')
 		if not trans_text:
 			continue
-		if text_direction_overwrite and text_direction_overwrite in ['h', 'v']:
+
+		majority_dir = None
+		if text_direction_overwrite:
 			majority_dir = text_direction_overwrite
-		else:
-			majority_dir = 'v' if region.vertical else 'h'
+		elif 'ENG' in LANGAUGE_ORIENTATION_PRESETS:
+			majority_dir = LANGAUGE_ORIENTATION_PRESETS['ENG']
+		if majority_dir not in ['h', 'v']:
+			majority_dir = region.majority_dir
 
 		fg, bg = region.get_font_colors()
 		fg, bg = fg_bg_compare(fg, bg)
