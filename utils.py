@@ -214,26 +214,30 @@ class ModelWrapper(ABC):
 				os.makedirs(download_path, exist_ok=True)
 			if os.path.basename(download_path) in ('', '.'):
 				download_path = os.path.join(download_path, get_filename_from_url(map['url'], map_key))
+			if not is_archive:
+				download_path += '.part'
 
-			print()
-			print(f' -- Downloading: "{map["url"]}"')
+			print(f'\n -- Downloading: "{map["url"]}"')
 
-			temporary_download_path = download_path + '.part'
 			if 'hash' in map:
 				downloaded = False
-				if os.path.isfile(temporary_download_path):
+				if os.path.isfile(download_path):
 					try:
 						print(' -- Found existing file')
-						await self._verify_file(temporary_download_path, map['hash'])
+						await self._verify_file(download_path, map['hash'])
 						downloaded = True
 					except ModelVerificationException:
 						# print(' -- Resuming interrupted download')
 						print(' -- Hash mismatch. Restarting download!')
 				if not downloaded:
-					await self._download_and_verify_file(map['url'], temporary_download_path, map['hash'])
+					await self._download_and_verify_file(map['url'], download_path, map['hash'])
 			else:
-				await self._download_file(map['url'], temporary_download_path)
-			shutil.move(temporary_download_path, download_path)
+				await self._download_file(map['url'], download_path)
+
+			if download_path.endswith('.part'):
+				p = download_path[:len(download_path)-5]
+				shutil.move(download_path, p)
+				download_path = p
 
 			if is_archive:
 				extracted_path = os.path.join(os.path.dirname(download_path), 'extracted')
