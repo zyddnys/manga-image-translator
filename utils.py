@@ -48,9 +48,9 @@ def download_url_with_progressbar(url: str, path: str):
 		if not new_filename:
 			raise Exception('Could not determine filename')
 		path = os.path.join(path, new_filename)
+
 	headers = {}
 	downloaded_size = 0
-	# TODO: Implement partial downloads
 	if os.path.isfile(path):
 		downloaded_size = os.path.getsize(path)
 		headers['Range'] = 'bytes=%d-' % downloaded_size
@@ -141,15 +141,16 @@ class ModelWrapper(ABC):
 				raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. Properties file and archive-files are mutually exclusive.')
 
 	async def _download_file(self, url: str, path: str):
-		print(f' -- Downloading {url}:')
+		print(f' -- Downloading: "{url}"')
 		download_url_with_progressbar(url, path)
 
 	async def _verify_file(self, sha256_pre_calculated: str, path: str):
 		print(f' -- Verifying: "{path}"')
-		sha256_calculated = get_digest(path)
+		sha256_calculated = get_digest(path).lower()
+		sha256_pre_calculated = sha256_pre_calculated.lower()
 
-		if sha256_calculated.capitalize() != sha256_pre_calculated.capitalize():
-			self._on_verify_failure(sha256_calculated.upper(), sha256_pre_calculated.upper())
+		if sha256_calculated != sha256_pre_calculated:
+			self._on_verify_failure(sha256_calculated, sha256_pre_calculated)
 		else:
 			print(' -- Verifying: OK!')
 
@@ -183,7 +184,7 @@ class ModelWrapper(ABC):
 		Downloads models as defined in `_MODEL_MAPPING`. Can be overwritten (together
 		with `_check_downloaded`) to implement unconventional download logic.
 		'''
-		print('\nDownloading models')
+		print('\nDownloading models\n')
 		for map_key, map in self._MODEL_MAPPING.items():
 			if self._check_downloaded_map(map_key):
 				print(f' -- Skipping {map_key} as it\'s already downloaded')
@@ -200,8 +201,6 @@ class ModelWrapper(ABC):
 				download_path = os.path.join(download_path, get_filename_from_url(map['url'], map_key))
 			if not is_archive:
 				download_path += '.part'
-
-			print(f'\n -- Downloading: "{map["url"]}"')
 
 			if 'hash' in map:
 				downloaded = False
@@ -340,7 +339,7 @@ class AvgMeter():
 		else:
 			return 0
 
-def convert_img(img):
+def load_image(img: Image.Image):
 	if img.mode == 'RGBA':
 		# from https://stackoverflow.com/questions/9166400/convert-rgba-png-to-rgb-with-pil
 		img.load()  # needed for split()
@@ -357,6 +356,13 @@ def convert_img(img):
 		return background, alpha_ch
 	else:
 		return img.convert('RGB'), None
+
+def dump_image(img: np.ndarray, alpha_ch: Image.Image):
+	if alpha_ch is not None:
+		img = np.concatenate([img.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
+	else:
+		img = img.astype(np.uint8)
+	return Image.fromarray(img)
 
 def resize_keep_aspect(img, size):
 	ratio = (float(size)/max(img.shape[0], img.shape[1]))
