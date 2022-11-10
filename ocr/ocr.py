@@ -60,6 +60,7 @@ class Model32pxOCR(OfflineOCR):
     }
 
     def __init__(self):
+        os.makedirs(self._MODEL_DIR, exist_ok=True)
         if os.path.exists('ocr.ckpt'):
             shutil.move('ocr.ckpt', self._get_file_path('ocr.ckpt'))
         super().__init__()
@@ -166,6 +167,7 @@ class Model48pxCTCOCR(OfflineOCR):
     }
 
     def __init__(self):
+        os.makedirs(self._MODEL_DIR, exist_ok=True)
         if os.path.exists('ocr-ctc.ckpt'):
             shutil.move('ocr-ctc.ckpt', self._get_file_path('ocr-ctc.ckpt'))
         super().__init__()

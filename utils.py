@@ -42,7 +42,7 @@ def get_filename_from_url(url: str, default: str = '') -> str:
 		return m.group(1)
 	return default
 
-def download_url_with_progressbar(url: str, path: str, calc_sha256: bool = False):
+def download_url_with_progressbar(url: str, path: str):
 	if os.path.basename(path) in ('.', '') or os.path.isdir(path):
 		new_filename = get_filename_from_url(url)
 		if not new_filename:
@@ -51,16 +51,18 @@ def download_url_with_progressbar(url: str, path: str, calc_sha256: bool = False
 	headers = {}
 	downloaded_size = 0
 	# TODO: Implement partial downloads
-	# if os.path.isfile(path):
-	# 	downloaded_size = os.path.getsize(path)
-	# 	headers['Range'] = 'bytes=%d-' % downloaded_size
+	if os.path.isfile(path):
+		downloaded_size = os.path.getsize(path)
+		headers['Range'] = 'bytes=%d-' % downloaded_size
+
 	r = requests.get(url, stream=True, allow_redirects=True, headers=headers)
-	# if downloaded_size and r.headers.get('Accept-Ranges') != 'bytes':
-	# 	print('Error: Webserver does not support partial downloads. Restarting from the beginning!')
-	# 	r = requests.get(url, stream=True, allow_redirects=True)
-	# 	downloaded_size = 0
+	if downloaded_size and r.headers.get('Accept-Ranges') != 'bytes':
+		print('Error: Webserver does not support partial downloads. Restarting from the beginning!')
+		r = requests.get(url, stream=True, allow_redirects=True)
+		downloaded_size = 0
 	total = int(r.headers.get('content-length', 0))
 	chunk_size = 1024
+
 	if r.ok:
 		with tqdm.tqdm(
 			desc=os.path.basename(path),
@@ -70,28 +72,19 @@ def download_url_with_progressbar(url: str, path: str, calc_sha256: bool = False
 			unit_scale=True,
 			unit_divisor=chunk_size,
 		) as bar:
-			if calc_sha256:
-				h = hashlib.sha256()
-				# if downloaded_size:
-				# 	with open(path, 'rb') as f:
-				# 		h.update(f.read())
 			with open(path, 'ab' if downloaded_size else 'wb') as f:
 				is_tty = sys.stdout.isatty()
 				downloaded_chunks = 0
 				for data in r.iter_content(chunk_size=chunk_size):
 					size = f.write(data)
 					bar.update(size)
-					if calc_sha256:
-						h.update(data)
 
 					# Fallback for non TTYs so output still shown
 					downloaded_chunks += 1
 					if not is_tty and downloaded_chunks % 1000 == 0:
 						print(bar)
-		if calc_sha256:
-			return h.hexdigest()
 	else:
-		raise Exception(f'Couldn\'t resolve url: "{url}"')
+		raise Exception(f'Couldn\'t resolve url: "{url}" (Error: {r.status_code})')
 
 def prompt_yes_no(query: str, default: bool = None) -> bool:
 	s = '%s (%s/%s): ' % (query, 'Y' if default == True else 'y', 'N' if default == False else 'n')
@@ -116,8 +109,8 @@ class ModelWrapper(ABC):
 	_MODEL_MAPPING = {}
 
 	def __init__(self):
-		self._check_for_malformed_model_mapping()
 		os.makedirs(self._MODEL_DIR, exist_ok=True)
+		self._check_for_malformed_model_mapping()
 		self._downloaded = self._check_downloaded()
 		self._loaded = False
 
@@ -151,20 +144,11 @@ class ModelWrapper(ABC):
 		print(f' -- Downloading {url}:')
 		download_url_with_progressbar(url, path)
 
-	async def _verify_file(self, path: str, sha256_pre_calculated: str):
+	async def _verify_file(self, sha256_pre_calculated: str, path: str):
 		print(f' -- Verifying: "{path}"')
 		sha256_calculated = get_digest(path)
 
 		if sha256_calculated.capitalize() != sha256_pre_calculated.capitalize():
-			self._on_verify_failure(sha256_calculated, sha256_pre_calculated)
-		else:
-			print(' -- Verifying: OK!')
-
-	async def _download_and_verify_file(self, url: str, path: str, sha256_pre_calculated: str):
-		sha256_calculated = download_url_with_progressbar(url, path, True)
-
-		print(f' -- Verifying: "{path}"')
-		if sha256_calculated.upper() != sha256_pre_calculated.upper():
 			self._on_verify_failure(sha256_calculated.upper(), sha256_pre_calculated.upper())
 		else:
 			print(' -- Verifying: OK!')
@@ -224,13 +208,13 @@ class ModelWrapper(ABC):
 				if os.path.isfile(download_path):
 					try:
 						print(' -- Found existing file')
-						await self._verify_file(download_path, map['hash'])
+						await self._verify_file(map['hash'], download_path)
 						downloaded = True
 					except ModelVerificationException:
-						# print(' -- Resuming interrupted download')
-						print(' -- Hash mismatch. Restarting download!')
+						print(' -- Resuming interrupted download')
 				if not downloaded:
-					await self._download_and_verify_file(map['url'], download_path, map['hash'])
+					await self._download_file(map['url'], download_path)
+					await self._verify_file(map['hash'], download_path)
 			else:
 				await self._download_file(map['url'], download_path)
 
