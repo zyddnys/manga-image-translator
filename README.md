@@ -76,7 +76,7 @@ Apply for Youdao or DeepL translate API, put your `APP_KEY` and `APP_SECRET` or 
 | sugoi_small | No | Yes |   |
 | sugoi_big | No | Yes |   |
 | none | No | Yes | Translate to empty texts |
-| null | No | Yes | Keep original texts |
+| original | No | Yes | Keep original texts |
 
 ### Language Code Reference
 

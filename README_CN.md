@@ -70,7 +70,7 @@ $ pip install -r requirements.txt
 | sugoi_small | 否 | 是 |   |
 | sugoi_big | 否 | 是 |   |
 | none | 否 | 是 | 翻译成空白文本 |
-| null | 否 | 是 | 翻译成源文本 |
+| original | 否 | 是 | 翻译成源文本 |
 
 ### 语言代码列表
 
