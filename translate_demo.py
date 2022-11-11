@@ -135,13 +135,18 @@ async def infer(
 	print(' -- Preparing upscaling')
 	await prepare_upscaling('waifu2x', args.upscale_ratio)
 
-	if args.upscale_ratio:
-		img_upscaled_pil = (await dispatch_upscaling('waifu2x', [image], args.upscale_ratio, args.use_cuda))[0]
-		img, alpha_ch = load_image(img_upscaled_pil)
-	elif image.size[0] < 800 or image.size[1] < 800:
-		ratio = max(4, 800 / image.size[0], 800 / image.size[1])
-		img_upscaled_pil = (await dispatch_upscaling('waifu2x', [image], ratio, args.use_cuda))[0]
-		img, alpha_ch = load_image(img_upscaled_pil)
+	if args.upscale_ratio or image.size[0] < 800 or image.size[1] < 800:
+		print(' -- Running upscaling')
+		if mode == 'web' and task_id:
+			update_state(task_id, nonce, 'upscaling')
+
+		if args.upscale_ratio:
+			img_upscaled_pil = (await dispatch_upscaling('waifu2x', [image], args.upscale_ratio, args.use_cuda))[0]
+			img, alpha_ch = load_image(img_upscaled_pil)
+		elif image.size[0] < 800 or image.size[1] < 800:
+			ratio = max(4, 800 / image.size[0], 800 / image.size[1])
+			img_upscaled_pil = (await dispatch_upscaling('waifu2x', [image], ratio, args.use_cuda))[0]
+			img, alpha_ch = load_image(img_upscaled_pil)
 
 	print(' -- Running text detection')
 	if mode == 'web' and task_id:
