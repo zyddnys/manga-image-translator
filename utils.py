@@ -438,6 +438,7 @@ class Quadrilateral(object):
 		self.bg_g = bg_g
 		self.bg_b = bg_b
 		self.assigned_direction = None
+		self.textline_indices = []
 
 	@functools.cached_property
 	def structure(self) -> List[np.ndarray]:
@@ -457,6 +458,14 @@ class Quadrilateral(object):
 		dot_product = np.dot(unit_vector_1, unit_vector_2)
 		angle = np.arccos(dot_product) * 180 / np.pi
 		return abs(angle - 90) < 10
+
+	@functools.cached_property
+	def fg_colors(self) -> tuple[int, int, int]:
+		return self.fg_r, self.fg_g, self.fg_b
+
+	@functools.cached_property
+	def bg_colors(self) -> tuple[int, int, int]:
+		return self.bg_r, self.bg_g, self.bg_b
 
 	@functools.cached_property
 	def aspect_ratio(self) -> float:

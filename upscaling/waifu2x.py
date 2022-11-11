@@ -4,6 +4,7 @@ import tempfile
 from sys import platform
 from typing import List
 from PIL import Image
+import shutil
 
 from .common import OfflineUpscaler
 
@@ -68,6 +69,9 @@ class Waifu2xUpscaler(OfflineUpscaler): # ~2GB of vram
                 output_batch.append(Image.open(img_path))
             else:
                 output_batch.append(image)
+
+        shutil.rmtree(in_dir)
+        shutil.rmtree(out_dir)
         return output_batch
 
     def _run_waifu2x_executable(self, image_directory: str, output_directory: str, upscale_ratio: int, denoise_level: int):

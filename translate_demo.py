@@ -20,7 +20,7 @@ from upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscali
 from text_rendering import dispatch as dispatch_rendering, text_render
 from textblockdetector import dispatch as dispatch_ctd_detection, load_model as load_ctd_model
 from textblockdetector.textblock import visualize_textblocks
-from utils import load_image, dump_image
+from utils import Quadrilateral, load_image, dump_image
 
 parser = argparse.ArgumentParser(description='Seamlessly translate mangas into a chosen language')
 parser.add_argument('--mode', default='demo', type=str, help='Run demo in either single image demo mode (demo), web service mode (web) or batch translation mode (batch)')
@@ -196,9 +196,22 @@ async def infer(
 
 	print(' -- Running upscaling')
 	if args.upscale_ratio > 1:
-		img_upscaled_pil = (await dispatch_upscaling('waifu2x', [dump_image(img_inpainted, alpha_ch)], args.upscale_ratio, args.use_cuda))[0]
+		if mode == 'web' and task_id:
+			update_state(task_id, nonce, 'upscaling')
+		img_inpainted_pil = dump_image(img_inpainted, alpha_ch)
+		img_upscaled_pil = (await dispatch_upscaling('waifu2x', [img_inpainted_pil], args.upscale_ratio, args.use_cuda))[0]
 		img_upscaled, alpha_ch = load_image(img_upscaled_pil)
 		img_upscaled = np.array(img_upscaled)
+		if not args.use_ctd:
+			ratio = img_upscaled_pil.size[0] / img_inpainted_pil.size[0]
+			for i, line in enumerate(textlines):
+				textlines[i] = Quadrilateral(line.pts * ratio, line.text, line.prob, *line.fg_colors, *line.bg_colors)
+				textlines[i].textline_indices = line.textline_indices
+				textlines[i].assigned_direction = line.assigned_direction
+			for i, region in enumerate(text_regions):
+				text_regions[i] = Quadrilateral(region.pts * ratio, region.text, region.prob, *region.fg_colors, *region.bg_colors)
+				text_regions[i].textline_indices = region.textline_indices
+				text_regions[i].assigned_direction = region.assigned_direction
 	else:
 		img_upscaled = img_inpainted
 
@@ -206,7 +219,7 @@ async def infer(
 		cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
 		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
 		cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
-		cv2.imwrite(f'result/{task_id}/upscaled.png', cv2.cvtColor(img_upscaled, cv2.COLOR_RGB2BGR))
+		# cv2.imwrite(f'result/{task_id}/upscaled.png', cv2.cvtColor(img_upscaled, cv2.COLOR_RGB2BGR))
 
 	print(' -- Translating')
 	translated_sentences = None

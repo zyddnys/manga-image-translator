@@ -64,4 +64,3 @@ async def dispatch(img: np.ndarray, detect_size: int, cuda: bool, args: dict, mo
 		if DEFAULT_MODEL is None:
 			load_model(cuda, 'default')
 		return await run_default(img, detect_size, cuda, verbose, args)
-
