@@ -47,6 +47,7 @@ else:
 
 class Waifu2xUpscaler(OfflineUpscaler): # ~2GB of vram
     _MODEL_MAPPING = model_mapping
+    _VALID_UPSCALE_RATIOS = [1, 2, 4, 8, 16, 32]
 
     async def _load(self, device: str):
         pass
@@ -54,7 +55,7 @@ class Waifu2xUpscaler(OfflineUpscaler): # ~2GB of vram
     async def _unload(self):
         pass
 
-    async def _forward(self, image_batch: List[Image.Image], upscale_ratio: int) -> List[Image.Image]:
+    async def _forward(self, image_batch: List[Image.Image], upscale_ratio: float) -> List[Image.Image]:
         # Has to cache images because chosen upscaler doesn't support other methods
         in_dir = tempfile.mkdtemp()
         out_dir = tempfile.mkdtemp()
@@ -74,7 +75,7 @@ class Waifu2xUpscaler(OfflineUpscaler): # ~2GB of vram
         shutil.rmtree(out_dir)
         return output_batch
 
-    def _run_waifu2x_executable(self, image_directory: str, output_directory: str, upscale_ratio: int, denoise_level: int):
+    def _run_waifu2x_executable(self, image_directory: str, output_directory: str, upscale_ratio: float, denoise_level: int):
         cmds = []
         cmds.append(self._get_file_path(waifu2x_executable_path))
         cmds.append('-i')

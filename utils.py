@@ -346,16 +346,16 @@ def load_image(img: Image.Image):
 		background = Image.new('RGB', img.size, (255, 255, 255))
 		alpha_ch = img.split()[3]
 		background.paste(img, mask = alpha_ch)  # 3 is the alpha channel
-		return background, alpha_ch
+		return np.array(background), alpha_ch
 	elif img.mode == 'P':
 		img = img.convert('RGBA')
 		img.load()  # needed for split()
 		background = Image.new('RGB', img.size, (255, 255, 255))
 		alpha_ch = img.split()[3]
 		background.paste(img, mask = alpha_ch)  # 3 is the alpha channel
-		return background, alpha_ch
+		return np.array(background), alpha_ch
 	else:
-		return img.convert('RGB'), None
+		return np.array(img.convert('RGB')), None
 
 def dump_image(img: np.ndarray, alpha_ch: Image.Image):
 	if alpha_ch is not None:
