@@ -261,7 +261,7 @@ make run-web-server
 
 A list of what needs to be done next, you're welcome to contribute.
 
-1. Inpainting is based on [Aggregated Contextual Transformations for High-Resolution Image Inpainting](https://arxiv.org/abs/2104.01431)
+1. Use diffusion model based inpainting to achieve near perfect result, but this could be much slower.
 2. ~~**IMPORTANT!!!HELP NEEDED!!!** The current text rendering engine is barely usable, we need your help to improve text rendering!~~
 3. Text rendering area is determined by detected text lines, not speech bubbles.\
    This works for images without speech bubbles, but making it impossible to decide where to put translated English text. I have no idea how to solve this.
