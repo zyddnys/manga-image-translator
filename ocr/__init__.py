@@ -3,7 +3,8 @@ from typing import List
 
 from utils import Quadrilateral
 from .common import CommonOCR, OfflineOCR
-from .ocr import Model32pxOCR, Model48pxCTCOCR
+from .model_32px import Model32pxOCR
+from .model_48px_ctc import Model48pxCTCOCR
 
 OCRS = {
 	'32px': Model32pxOCR,

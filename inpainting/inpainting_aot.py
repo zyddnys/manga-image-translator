@@ -1,5 +1,7 @@
 from typing import List, Optional
 import numpy as np
+import os
+import shutil
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -14,6 +16,12 @@ class AotInpainter(LamaMPEInpainter):
             'file': '.',
         },
     }
+
+    def __init__(self, *args, **kwargs):
+        os.makedirs(self._MODEL_DIR, exist_ok=True)
+        if os.path.exists('inpainting.ckpt'):
+            shutil.move('inpainting.ckpt', self._get_file_path('inpainting.ckpt'))
+        super().__init__(*args, **kwargs)
 
     async def _load(self, device: str):
         self.model = AOTGenerator()

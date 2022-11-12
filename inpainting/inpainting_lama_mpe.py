@@ -7,6 +7,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import cv2
+import os
+import shutil
 from torch import Tensor
 
 from .common import OfflineInpainter
@@ -20,6 +22,12 @@ class LamaMPEInpainter(OfflineInpainter):
             'file': '.',
         },
     }
+
+    def __init__(self, *args, **kwargs):
+        os.makedirs(self._MODEL_DIR, exist_ok=True)
+        if os.path.exists('inpainting_lama_mpe.ckpt'):
+            shutil.move('inpainting_lama_mpe.ckpt', self._get_file_path('inpainting_lama_mpe.ckpt'))
+        super().__init__(*args, **kwargs)
 
     async def _load(self, device: str):
         self.model = load_lama_mpe(self._get_file_path('inpainting_lama_mpe.ckpt'), device='cpu')

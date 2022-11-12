@@ -23,6 +23,11 @@ except AttributeError: # Supports Python versions below 3.8
 	functools.cached_property = cached_property
 
 
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
 def get_digest(file_path: str) -> str:
 	h = hashlib.sha256()
 	BUF_SIZE = 65536 
