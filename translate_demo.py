@@ -26,28 +26,27 @@ parser = argparse.ArgumentParser(description='Seamlessly translate mangas into a
 parser.add_argument('-m', '--mode', default='demo', type=str, choices=['demo', 'batch', 'web', 'web2'], help='Run demo in either single image demo mode (demo), web service mode (web) or batch translation mode (batch)')
 parser.add_argument('-i', '--image', default='', type=str, help='Image file if using demo mode or Image folder name if using batch mode')
 parser.add_argument('-o', '--image-dst', default='', type=str, help='Destination folder for translated images in batch mode')
-parser.add_argument('--size', default=1536, type=int, help='image square size')
+parser.add_argument('-l', '--target-lang', default='CHS', type=str, choices=VALID_LANGUAGES, help='destination language')
 parser.add_argument('--host', default='127.0.0.1', type=str, help='Used by web module to decide which host to attach to')
 parser.add_argument('--port', default=5003, type=int, help='Used by web module to decide which port to attach to')
 parser.add_argument('--log-web', action='store_true', help='Used by web module to decide if web logs should be surfaced')
-parser.add_argument('--ocr-model', default='48px_ctc', type=str, choices=OCRS, help='OCR model to use')
-parser.add_argument('--inpainting-model', default='lama_mpe', type=str, choices=INPAINTERS, help='inpainting model to use')
+parser.add_argument('--ocr', default='48px_ctc', type=str, choices=OCRS, help='OCR model to use')
+parser.add_argument('--inpainter', default='lama_mpe', type=str, choices=INPAINTERS, help='inpainting model to use')
+parser.add_argument('--translator', default='google', type=str, choices=TRANSLATORS, help='language translator')
 parser.add_argument('--use-cuda', action='store_true', help='turn on/off cuda')
 parser.add_argument('--use-cuda-limited', action='store_true', help='turn on/off cuda (excluding offline translator)')
-parser.add_argument('--force-horizontal', action='store_true', help='force text to be rendered horizontally')
-parser.add_argument('--force-vertical', action='store_true', help='force text to be rendered vertically')
+parser.add_argument('--detection-size', default=1536, type=int, help='size of image used for detection')
 parser.add_argument('--inpainting-size', default=2048, type=int, help='size of image used for inpainting (too large will result in OOM)')
 parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to extend text skeleton to form bounding box')
 parser.add_argument('--box-threshold', default=0.7, type=float, help='threshold for bbox generation')
 parser.add_argument('--text-threshold', default=0.5, type=float, help='threshold for text detection')
 parser.add_argument('--text-mag-ratio', default=1, type=int, help='text rendering magnification ratio, larger means higher quality')
 parser.add_argument('--font-size-offset', default=0, type=int, help='offset font size by a given amount, positive number increase font size and vice versa')
-parser.add_argument('--translator', default='google', type=str, choices=TRANSLATORS, help='language translator')
-parser.add_argument('--target-lang', default='CHS', type=str, choices=VALID_LANGUAGES, help='destination language')
+parser.add_argument('--force-horizontal', action='store_true', help='force text to be rendered horizontally')
+parser.add_argument('--force-vertical', action='store_true', help='force text to be rendered vertically')
 parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 4, 8, 16, 32], help='waifu2x image upscale ratio')
-# parser.add_argument('--denoise-level', default=-1, type=int, choices=[-1, 0, 1, 2, 3], help='waifu2x image denoise level (-1 = no effect)')
-parser.add_argument('--use-ctd', action='store_true', help='use comic-text-detector for text detection')
 parser.add_argument('--verbose', action='store_true', help='print debug info and save intermediate images')
+parser.add_argument('--use-ctd', action='store_true', help='use comic-text-detector for text detection')
 parser.add_argument('--manga2eng', action='store_true', help='render english text translated from manga with some typesetting')
 parser.add_argument('--eng-font', default='fonts/comic shanns 2.ttf', type=str, help='font used by manga2eng mode')
 args = parser.parse_args()
@@ -85,7 +84,7 @@ async def infer(
 	img, alpha_ch = load_image(image)
 
 	options = options or {}
-	img_detect_size = args.size
+	img_detect_size = args.detection_size
 	if 'size' in options:
 		size_ind = options['size']
 		if size_ind == 'S':
@@ -171,7 +170,7 @@ async def infer(
 	print(' -- Running OCR')
 	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'ocr')
-	textlines = await dispatch_ocr(args.ocr_model, img, textlines, args.use_cuda, args.verbose)
+	textlines = await dispatch_ocr(args.ocr, img, textlines, args.use_cuda, args.verbose)
 
 	if detector == 'ctd':
 		text_regions = textlines
@@ -205,7 +204,7 @@ async def infer(
 		if mode == 'web' and task_id:
 			update_state(task_id, nonce, 'inpainting')
 
-		img_inpainted = await dispatch_inpainting(args.inpainting_model, img, final_mask, args.inpainting_size, args.verbose, args.use_cuda)
+		img_inpainted = await dispatch_inpainting(args.inpainter, img, final_mask, args.inpainting_size, args.verbose, args.use_cuda)
 	else:
 		img_inpainted = img
 
@@ -310,10 +309,10 @@ async def main(mode = 'demo'):
 	print(' -- Loading models')
 	os.makedirs('result', exist_ok=True)
 	text_render.prepare_renderer()
-	await prepare_ocr(args.ocr_model, args.use_cuda)
+	await prepare_ocr(args.ocr, args.use_cuda)
 	load_ctd_model(args.use_cuda)
 	load_detection_model(args.use_cuda)
-	await prepare_inpainting(args.inpainting_model, args.use_cuda)
+	await prepare_inpainting(args.inpainter, args.use_cuda)
 
 	if mode == 'demo':
 		print(' -- Running in single image demo mode')
