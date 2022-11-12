@@ -210,7 +210,8 @@ async def infer(
 
 	if args.verbose:
 		cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
-		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+		inpaint_input_img = await dispatch_inpainting('none', img, final_mask)
+		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
 		cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
 
 	print(' -- Translating')
