@@ -110,9 +110,9 @@ class ModelWrapper(ABC):
 
 	def __init__(self):
 		os.makedirs(self._MODEL_DIR, exist_ok=True)
+		self._loaded = False
 		self._check_for_malformed_model_mapping()
 		self._downloaded = self._check_downloaded()
-		self._loaded = False
 
 	def is_loaded(self) -> bool:
 		return self._loaded

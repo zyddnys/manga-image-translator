@@ -12,7 +12,7 @@ class CommonUpscaler(ABC):
             return image_batch
         if self._VALID_UPSCALE_RATIOS and upscale_ratio not in self._VALID_UPSCALE_RATIOS:
             new_upscale_ratio = min(self._VALID_UPSCALE_RATIOS, key = lambda x: abs(x - upscale_ratio))
-            print(f'Changed upscale ratio {upscale_ratio} to closest supported value: {new_upscale_ratio}')
+            print(f' -- Changed upscale ratio {upscale_ratio} to closest supported value: {new_upscale_ratio}')
             upscale_ratio = new_upscale_ratio
         return await self._upscale(image_batch, upscale_ratio)
 
