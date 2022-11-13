@@ -11,7 +11,7 @@ from .nnlb import NNLBTranslator, NNLBBigTranslator
 from .sugoi import SugoiTranslator, SugoiSmallTranslator, SugoiBigTranslator
 from .selective import SelectiveOfflineTranslator, SelectiveBigOfflineTranslator, prepare as prepare_selective_translator
 from .none import NoneTranslator
-from .null import NullTranslator
+from .original import OriginalTranslator
 
 VALID_LANGUAGES = {
 	'CHS': 'Chinese (Simplified)',
@@ -52,7 +52,7 @@ TRANSLATORS = {
 	'deepl': DeeplTranslator,
 	'papago': PapagoTranslator,
 	'none': NoneTranslator,
-	'null': NullTranslator,
+	'original': OriginalTranslator,
 	**OFFLINE_TRANSLATORS,
 }
 translator_cache = {}
