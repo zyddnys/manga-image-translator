@@ -54,12 +54,13 @@ class Model32pxOCR(OfflineOCR):
     _MODEL_MAPPING = {
         'model': {
             'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/ocr.ckpt',
-            'hash': 'D9F619A9DCCCE8CE88357D1B17D25F07806F225C033EA42C64E86C45446CFE71',
+            'hash': 'd9f619a9dccce8ce88357d1b17d25f07806f225c033ea42c64e86c45446cfe71',
             'file': '.',
         },
     }
 
     def __init__(self):
+        os.makedirs(self._MODEL_DIR, exist_ok=True)
         if os.path.exists('ocr.ckpt'):
             shutil.move('ocr.ckpt', self._get_file_path('ocr.ckpt'))
         super().__init__()
@@ -160,12 +161,13 @@ class Model48pxCTCOCR(OfflineOCR):
     _MODEL_MAPPING = {
         'model': {
             'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/ocr-ctc.ckpt',
-            'hash': '8B0837A24DA5FDE96C23CA47BB7ABD590CD5B185C307E348C6E0B7238178ED89',
+            'hash': '8b0837a24da5fde96c23ca47bb7abd590cd5b185c307e348c6e0b7238178ed89',
             'file': '.',
         },
     }
 
     def __init__(self):
+        os.makedirs(self._MODEL_DIR, exist_ok=True)
         if os.path.exists('ocr-ctc.ckpt'):
             shutil.move('ocr-ctc.ckpt', self._get_file_path('ocr-ctc.ckpt'))
         super().__init__()

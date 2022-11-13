@@ -17,7 +17,7 @@ class SugoiTranslator(OfflineTranslator):
     _MODEL_MAPPING = {
         'spm': {
             'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/spm_models/en-ja_spm.tar.gz',
-            'hash': '12EE719799022B9EF102CE828209E53876112B52B4363DC277CACA682B1B1D2E',
+            'hash': '12ee719799022b9ef102ce828209e53876112b52b4363dc277caca682b1b1d2e',
             'archive-files': {
                 'enja_spm_models/spm.ja.nopretok.model': 'jparacrawl/',
                 'enja_spm_models/spm.en.nopretok.model': 'jparacrawl/',
@@ -25,7 +25,7 @@ class SugoiTranslator(OfflineTranslator):
         },
         'model-ja-en': {
             'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/pretrained_models/ja-en/base.tar.gz',
-            'hash': '73E09A50D07E1F443135178B67D1CC9710753C169CAE44688E5E15A10950686A',
+            'hash': '73e09a50d07e1f443135178b67d1cc9710753c169cae44688e5e15a10950686a',
             'archive-files': {
                 'base/dict.en.txt': 'jparacrawl/',
                 'base/dict.ja.txt': 'jparacrawl/',
@@ -35,7 +35,7 @@ class SugoiTranslator(OfflineTranslator):
         },
         'model-en-ja': {
             'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/pretrained_models/en-ja/base.tar.gz',
-            'hash': '5C92D6D8776A7C6E5CA1162CFA1DD179C1EDB410CE49AA6E97B2BDDEEF60AB6E',
+            'hash': '5c92d6d8776a7c6e5ca1162cfa1dd179c1edb410ce49aa6e97b2bddeef60ab6e',
             'archive-files': {
                 'base/dict.en.txt': 'jparacrawl/',
                 'base/dict.ja.txt': 'jparacrawl/',
@@ -120,7 +120,7 @@ class SugoiSmallTranslator(SugoiTranslator):
         **SugoiTranslator._MODEL_MAPPING,
         'model-ja-en': {
             'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/pretrained_models/ja-en/small.tar.gz',
-            'hash': '7136FE12841C626B105A9E588F858A8E0B76E451B19839457D7473EC705D12B3',
+            'hash': '7136fe12841c626b105a9e588f858a8e0b76e451b19839457d7473ec705d12b3',
             'archive-files': {
                 'small/dict.en.txt': 'jparacrawl/',
                 'small/dict.ja.txt': 'jparacrawl/',
@@ -130,7 +130,7 @@ class SugoiSmallTranslator(SugoiTranslator):
         },
         'model-en-ja': {
             'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/pretrained_models/en-ja/small.tar.gz',
-            'hash': '3B5B60F2A57EE1FC698C004B53C9483E8458082262C526F02843158BE1271B4B',
+            'hash': '3b5b60f2a57ee1fc698c004b53c9483e8458082262c526f02843158be1271b4b',
             'archive-files': {
                 'small/dict.en.txt': 'jparacrawl/',
                 'small/dict.ja.txt': 'jparacrawl/',
@@ -149,7 +149,7 @@ class SugoiBigTranslator(SugoiTranslator):
         **SugoiTranslator._MODEL_MAPPING,
         'model-ja-en': {
             'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/pretrained_models/ja-en/big.tar.gz',
-            'hash': '7517753B6FEB8594D3C86AD7742DBC49203115ADD21E8A6C7542AA2AC0DF1C6A',
+            'hash': '7517753b6feb8594d3c86ad7742dbc49203115add21e8a6c7542aa2ac0df1c6a',
             'archive-files': {
                 'big/dict.en.txt': 'jparacrawl/',
                 'big/dict.ja.txt': 'jparacrawl/',
@@ -159,7 +159,7 @@ class SugoiBigTranslator(SugoiTranslator):
         },
         'model-en-ja': {
             'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/pretrained_models/en-ja/big.tar.gz',
-            'hash': '520CD7C2B4B84C3FBB5A7A948E5183B7BCA4DC551F91268F0E2DBEB98CB8B77D',
+            'hash': '520cd7c2b4b84c3fbb5a7a948e5183b7bca4dc551f91268f0e2dbeb98cb8b77d',
             'archive-files': {
                 'big/dict.en.txt': 'jparacrawl/',
                 'big/dict.ja.txt': 'jparacrawl/',

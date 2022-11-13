@@ -16,10 +16,11 @@ from inpainting import dispatch as dispatch_inpainting, load_model as load_inpai
 from translators import OFFLINE_TRANSLATORS, TRANSLATORS, VALID_LANGUAGES, dispatch as dispatch_translation, prepare as prepare_translation
 from text_mask import dispatch as dispatch_mask_refinement
 from textline_merge import dispatch as dispatch_textline_merge
+from upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
 from text_rendering import dispatch as dispatch_rendering, text_render
 from textblockdetector import dispatch as dispatch_ctd_detection, load_model as load_ctd_model
 from textblockdetector.textblock import visualize_textblocks
-from utils import convert_img
+from utils import Quadrilateral, load_image, dump_image
 
 parser = argparse.ArgumentParser(description='Seamlessly translate mangas into a chosen language')
 parser.add_argument('--mode', default='demo', type=str, help='Run demo in either single image demo mode (demo), web service mode (web) or batch translation mode (batch)')
@@ -44,6 +45,8 @@ parser.add_argument('--text-mag-ratio', default=1, type=int, help='text renderin
 parser.add_argument('--font-size-offset', default=0, type=int, help='offset font size by a given amount, positive number increase font size and vice versa')
 parser.add_argument('--translator', default='google', type=str, choices=TRANSLATORS, help='language translator')
 parser.add_argument('--target-lang', default='CHS', type=str, choices=VALID_LANGUAGES, help='destination language')
+parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 4, 8, 16, 32], help='waifu2x image upscale ratio')
+# parser.add_argument('--denoise-level', default=-1, type=int, choices=[-1, 0, 1, 2, 3], help='waifu2x image denoise level (-1 = no effect)')
 parser.add_argument('--use-ctd', action='store_true', help='use comic-text-detector for text detection')
 parser.add_argument('--verbose', action='store_true', help='print debug info and save intermediate images')
 parser.add_argument('--manga2eng', action='store_true', help='render english text translated from manga with some typesetting')
@@ -72,14 +75,16 @@ def get_task(nonce):
 		return None, None
 
 async def infer(
-	img,
+	image: Image.Image,
 	mode,
-	nonce,
+	nonce = '',
 	options = None,
 	task_id = '',
 	dst_image_name = '',
-	alpha_ch = None
 	):
+
+	img, alpha_ch = load_image(image)
+
 	options = options or {}
 	img_detect_size = args.size
 	if 'size' in options:
@@ -116,6 +121,9 @@ async def infer(
 		translator = options['translator']
 	else:
 		translator = args.translator
+	
+	if not dst_image_name:
+		dst_image_name = f'result/{task_id}/final.png'
 
 	print(f' -- Detection resolution {img_detect_size}')
 	print(f' -- Detector using {detector}')
@@ -123,6 +131,22 @@ async def infer(
 
 	print(' -- Preparing translator')
 	await prepare_translation(translator, src_lang, tgt_lang)
+
+	print(' -- Preparing upscaling')
+	await prepare_upscaling('waifu2x', args.upscale_ratio)
+
+	if args.upscale_ratio or image.size[0] < 800 or image.size[1] < 800:
+		print(' -- Running upscaling')
+		if mode == 'web' and task_id:
+			update_state(task_id, nonce, 'upscaling')
+
+		if args.upscale_ratio:
+			img_upscaled_pil = (await dispatch_upscaling('waifu2x', [image], args.upscale_ratio, args.use_cuda))[0]
+			img, alpha_ch = load_image(img_upscaled_pil)
+		elif image.size[0] < 800 or image.size[1] < 800:
+			ratio = max(4, 800 / image.size[0], 800 / image.size[1])
+			img_upscaled_pil = (await dispatch_upscaling('waifu2x', [image], ratio, args.use_cuda))[0]
+			img, alpha_ch = load_image(img_upscaled_pil)
 
 	print(' -- Running text detection')
 	if mode == 'web' and task_id:
@@ -180,15 +204,15 @@ async def infer(
 	print(' -- Running inpainting')
 	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'inpainting')
-
 	if text_regions:
 		img_inpainted = await dispatch_inpainting(args.use_inpainting, False, args.use_cuda, img, final_mask, args.inpainting_size, verbose = args.verbose)
 	else:
 		img_inpainted = img
+
 	if args.verbose:
+		cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
 		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
 		cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
-		cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
 
 	print(' -- Translating')
 	translated_sentences = None
@@ -239,22 +263,15 @@ async def infer(
 			output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite, args.target_lang, args.font_size_offset)
 
 	print(' -- Saving results')
-	if alpha_ch is not None:
-		output = np.concatenate([output.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
-	else:
-		output = output.astype(np.uint8)
-	img_pil = Image.fromarray(output)
-	if dst_image_name:
-		img_pil.save(dst_image_name)
-	else:
-		img_pil.save(f'result/{task_id}/final.png')
+	img_pil = dump_image(output, alpha_ch)
+	img_pil.save(dst_image_name)
 
 	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'finished')
 
 
 async def infer_safe(
-	img,
+	img: Image.Image,
 	mode,
 	nonce,
 	options = None,
@@ -284,7 +301,6 @@ def replace_prefix(s: str, old: str, new: str):
 
 async def main(mode = 'demo'):
 	print(' -- Preload Checks')
-	# Add failsafe if torch cannot find cuda support
 	if args.use_cuda_limited:
 		args.use_cuda = True
 	if not torch.cuda.is_available() and args.use_cuda:
@@ -305,9 +321,7 @@ async def main(mode = 'demo'):
 			print('please provide an image')
 			parser.print_usage()
 			return
-		img, alpha_ch = convert_img(Image.open(args.image))
-		img = np.array(img)
-		await infer(img, mode, '', alpha_ch = alpha_ch)
+		await infer(Image.open(args.image), mode)
 	elif mode == 'web' or mode == 'web2':
 		print(' -- Running in web service mode')
 		print(' -- Waiting for translation tasks')
@@ -328,9 +342,7 @@ async def main(mode = 'demo'):
 				if task_id:
 					try:
 						print(f' -- Processing task {task_id}')
-						img, alpha_ch = convert_img(Image.open(f'result/{task_id}/input.png'))
-						img = np.array(img)
-						infer_task = asyncio.create_task(infer_safe(img, mode, nonce, options, task_id, alpha_ch = alpha_ch))
+						infer_task = asyncio.create_task(infer_safe(Image.open(f'result/{task_id}/input.png'), mode, nonce, options, task_id))
 						asyncio.gather(infer_task)
 					except Exception:
 						import traceback
@@ -362,15 +374,12 @@ async def main(mode = 'demo'):
 				if os.path.exists(dst_filename):
 					continue
 				try:
-					img, alpha_ch = convert_img(Image.open(filename))
-					img = np.array(img)
-					if img is None:
-						continue
+					img = Image.open(filename)
 				except Exception:
 					pass
 				try:
 					print('Processing', filename, '->', dst_filename)
-					await infer(img, 'demo', '', dst_image_name = dst_filename, alpha_ch = alpha_ch)
+					await infer(img, 'demo', dst_image_name = dst_filename)
 				except Exception:
 					import traceback
 					traceback.print_exc()

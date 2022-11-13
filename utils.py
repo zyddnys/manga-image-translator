@@ -42,25 +42,27 @@ def get_filename_from_url(url: str, default: str = '') -> str:
 		return m.group(1)
 	return default
 
-def download_url_with_progressbar(url: str, path: str, calc_sha256: bool = False):
+def download_url_with_progressbar(url: str, path: str):
 	if os.path.basename(path) in ('.', '') or os.path.isdir(path):
 		new_filename = get_filename_from_url(url)
 		if not new_filename:
 			raise Exception('Could not determine filename')
 		path = os.path.join(path, new_filename)
+
 	headers = {}
 	downloaded_size = 0
-	# TODO: Implement partial downloads
-	# if os.path.isfile(path):
-	# 	downloaded_size = os.path.getsize(path)
-	# 	headers['Range'] = 'bytes=%d-' % downloaded_size
+	if os.path.isfile(path):
+		downloaded_size = os.path.getsize(path)
+		headers['Range'] = 'bytes=%d-' % downloaded_size
+
 	r = requests.get(url, stream=True, allow_redirects=True, headers=headers)
-	# if downloaded_size and r.headers.get('Accept-Ranges') != 'bytes':
-	# 	print('Error: Webserver does not support partial downloads. Restarting from the beginning!')
-	# 	r = requests.get(url, stream=True, allow_redirects=True)
-	# 	downloaded_size = 0
+	if downloaded_size and r.headers.get('Accept-Ranges') != 'bytes':
+		print('Error: Webserver does not support partial downloads. Restarting from the beginning!')
+		r = requests.get(url, stream=True, allow_redirects=True)
+		downloaded_size = 0
 	total = int(r.headers.get('content-length', 0))
 	chunk_size = 1024
+
 	if r.ok:
 		with tqdm.tqdm(
 			desc=os.path.basename(path),
@@ -70,28 +72,19 @@ def download_url_with_progressbar(url: str, path: str, calc_sha256: bool = False
 			unit_scale=True,
 			unit_divisor=chunk_size,
 		) as bar:
-			if calc_sha256:
-				h = hashlib.sha256()
-				# if downloaded_size:
-				# 	with open(path, 'rb') as f:
-				# 		h.update(f.read())
 			with open(path, 'ab' if downloaded_size else 'wb') as f:
 				is_tty = sys.stdout.isatty()
 				downloaded_chunks = 0
 				for data in r.iter_content(chunk_size=chunk_size):
 					size = f.write(data)
 					bar.update(size)
-					if calc_sha256:
-						h.update(data)
 
 					# Fallback for non TTYs so output still shown
 					downloaded_chunks += 1
 					if not is_tty and downloaded_chunks % 1000 == 0:
 						print(bar)
-		if calc_sha256:
-			return h.hexdigest()
 	else:
-		raise Exception(f'Couldn\'t resolve url: "{url}"')
+		raise Exception(f'Couldn\'t resolve url: "{url}" (Error: {r.status_code})')
 
 def prompt_yes_no(query: str, default: bool = None) -> bool:
 	s = '%s (%s/%s): ' % (query, 'Y' if default == True else 'y', 'N' if default == False else 'n')
@@ -116,8 +109,8 @@ class ModelWrapper(ABC):
 	_MODEL_MAPPING = {}
 
 	def __init__(self):
-		self._check_for_malformed_model_mapping()
 		os.makedirs(self._MODEL_DIR, exist_ok=True)
+		self._check_for_malformed_model_mapping()
 		self._downloaded = self._check_downloaded()
 		self._loaded = False
 
@@ -148,24 +141,16 @@ class ModelWrapper(ABC):
 				raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. Properties file and archive-files are mutually exclusive.')
 
 	async def _download_file(self, url: str, path: str):
-		print(f' -- Downloading {url}:')
+		print(f' -- Downloading: "{url}"')
 		download_url_with_progressbar(url, path)
 
-	async def _verify_file(self, path: str, sha256_pre_calculated: str):
+	async def _verify_file(self, sha256_pre_calculated: str, path: str):
 		print(f' -- Verifying: "{path}"')
-		sha256_calculated = get_digest(path)
+		sha256_calculated = get_digest(path).lower()
+		sha256_pre_calculated = sha256_pre_calculated.lower()
 
-		if sha256_calculated.capitalize() != sha256_pre_calculated.capitalize():
+		if sha256_calculated != sha256_pre_calculated:
 			self._on_verify_failure(sha256_calculated, sha256_pre_calculated)
-		else:
-			print(' -- Verifying: OK!')
-
-	async def _download_and_verify_file(self, url: str, path: str, sha256_pre_calculated: str):
-		sha256_calculated = download_url_with_progressbar(url, path, True)
-
-		print(f' -- Verifying: "{path}"')
-		if sha256_calculated.upper() != sha256_pre_calculated.upper():
-			self._on_verify_failure(sha256_calculated.upper(), sha256_pre_calculated.upper())
 		else:
 			print(' -- Verifying: OK!')
 
@@ -199,7 +184,7 @@ class ModelWrapper(ABC):
 		Downloads models as defined in `_MODEL_MAPPING`. Can be overwritten (together
 		with `_check_downloaded`) to implement unconventional download logic.
 		'''
-		print('\nDownloading models')
+		print('\nDownloading models\n')
 		for map_key, map in self._MODEL_MAPPING.items():
 			if self._check_downloaded_map(map_key):
 				print(f' -- Skipping {map_key} as it\'s already downloaded')
@@ -214,26 +199,28 @@ class ModelWrapper(ABC):
 				os.makedirs(download_path, exist_ok=True)
 			if os.path.basename(download_path) in ('', '.'):
 				download_path = os.path.join(download_path, get_filename_from_url(map['url'], map_key))
+			if not is_archive:
+				download_path += '.part'
 
-			print()
-			print(f' -- Downloading: "{map["url"]}"')
-
-			temporary_download_path = download_path + '.part'
 			if 'hash' in map:
 				downloaded = False
-				if os.path.isfile(temporary_download_path):
+				if os.path.isfile(download_path):
 					try:
 						print(' -- Found existing file')
-						await self._verify_file(temporary_download_path, map['hash'])
+						await self._verify_file(map['hash'], download_path)
 						downloaded = True
 					except ModelVerificationException:
-						# print(' -- Resuming interrupted download')
-						print(' -- Hash mismatch. Restarting download!')
+						print(' -- Resuming interrupted download')
 				if not downloaded:
-					await self._download_and_verify_file(map['url'], temporary_download_path, map['hash'])
+					await self._download_file(map['url'], download_path)
+					await self._verify_file(map['hash'], download_path)
 			else:
-				await self._download_file(map['url'], temporary_download_path)
-			shutil.move(temporary_download_path, download_path)
+				await self._download_file(map['url'], download_path)
+
+			if download_path.endswith('.part'):
+				p = download_path[:len(download_path)-5]
+				shutil.move(download_path, p)
+				download_path = p
 
 			if is_archive:
 				extracted_path = os.path.join(os.path.dirname(download_path), 'extracted')
@@ -352,23 +339,30 @@ class AvgMeter():
 		else:
 			return 0
 
-def convert_img(img):
+def load_image(img: Image.Image):
 	if img.mode == 'RGBA':
 		# from https://stackoverflow.com/questions/9166400/convert-rgba-png-to-rgb-with-pil
 		img.load()  # needed for split()
 		background = Image.new('RGB', img.size, (255, 255, 255))
 		alpha_ch = img.split()[3]
 		background.paste(img, mask = alpha_ch)  # 3 is the alpha channel
-		return background, alpha_ch
+		return np.array(background), alpha_ch
 	elif img.mode == 'P':
 		img = img.convert('RGBA')
 		img.load()  # needed for split()
 		background = Image.new('RGB', img.size, (255, 255, 255))
 		alpha_ch = img.split()[3]
 		background.paste(img, mask = alpha_ch)  # 3 is the alpha channel
-		return background, alpha_ch
+		return np.array(background), alpha_ch
 	else:
-		return img.convert('RGB'), None
+		return np.array(img.convert('RGB')), None
+
+def dump_image(img: np.ndarray, alpha_ch: Image.Image):
+	if alpha_ch is not None:
+		img = np.concatenate([img.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
+	else:
+		img = img.astype(np.uint8)
+	return Image.fromarray(img)
 
 def resize_keep_aspect(img, size):
 	ratio = (float(size)/max(img.shape[0], img.shape[1]))
@@ -444,6 +438,7 @@ class Quadrilateral(object):
 		self.bg_g = bg_g
 		self.bg_b = bg_b
 		self.assigned_direction = None
+		self.textline_indices = []
 
 	@functools.cached_property
 	def structure(self) -> List[np.ndarray]:
@@ -463,6 +458,14 @@ class Quadrilateral(object):
 		dot_product = np.dot(unit_vector_1, unit_vector_2)
 		angle = np.arccos(dot_product) * 180 / np.pi
 		return abs(angle - 90) < 10
+
+	@functools.cached_property
+	def fg_colors(self) -> tuple[int, int, int]:
+		return self.fg_r, self.fg_g, self.fg_b
+
+	@functools.cached_property
+	def bg_colors(self) -> tuple[int, int, int]:
+		return self.bg_r, self.bg_g, self.bg_b
 
 	@functools.cached_property
 	def aspect_ratio(self) -> float:
