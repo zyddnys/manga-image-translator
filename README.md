@@ -68,13 +68,9 @@ Apply for Youdao or DeepL translate API, put your `APP_KEY` and `APP_SECRET` or 
 | baidu | Yes | No |   |
 | deepl | Yes | No |   |
 | papago | No | No |   |
-| offline | No | Yes |   |
-| offline_big | No | Yes |   |
-| nnlb | No | Yes |   |
-| nnlb_big | No | Yes |   |
-| sugoi | No | Yes |   |
-| sugoi_small | No | Yes |   |
-| sugoi_big | No | Yes |   |
+| offline / offline_big | No | Yes | Chooses most suitable offline translator for language |
+| nnlb / nnlb_big | No | Yes |   |
+| sugoi / sugoi_small / sugoi_big | No | Yes |   |
 | none | No | Yes | Translate to empty texts |
 | original | No | Yes | Keep original texts |
 
@@ -109,12 +105,12 @@ VIN: Vietnames
 ```bash
 # `--use-cuda` is optional, if you have a compatible NVIDIA GPU, you can use it.
 # use `--use-cuda-limited` to defer vram expensive language translations to the cpu
-# use `--use-inpainting` to enable inpainting.
+# use `--inpainter=none` to disable inpainting.
 # use `--translator=<translator>` to specify a translator.
 # use `--translator=none` if you only want to use inpainting (blank bubbles)
 # use `--target-lang=<languge_code>` to specify a target language.
 # replace <path_to_image_file> with the path to the image file.
-$ python translate_demo.py --verbose --use-inpainting --use-cuda --translator=google --target-lang=ENG --image <path_to_image_file>
+$ python translate_demo.py --verbose --use-cuda --translator=google --target-lang=ENG --image <path_to_image_file>
 # result can be found in `result/`.
 ```
 
@@ -124,7 +120,7 @@ $ python translate_demo.py --verbose --use-inpainting --use-cuda --translator=go
 # same options as above.
 # use `--mode batch` to enable batch translation.
 # replace <path_to_image_folder> with the path to the image folder.
-$ python translate_demo.py --verbose --mode batch --use-inpainting --use-cuda --translator=google --target-lang=ENG --image <path_to_image_folder>
+$ python translate_demo.py --verbose --mode batch --use-cuda --translator=google --target-lang=ENG --image <path_to_image_folder>
 # results can be found in `<path_to_image_folder>-translated/`.
 ```
 
@@ -133,7 +129,7 @@ $ python translate_demo.py --verbose --mode batch --use-inpainting --use-cuda --
 ```bash
 # same options as above.
 # use `--mode web` to start a web server.
-$ python translate_demo.py --verbose --mode web --use-inpainting --use-cuda
+$ python translate_demo.py --verbose --mode web --use-cuda
 # the demo will be serving on http://127.0.0.1:5003>
 ```
 
@@ -209,7 +205,7 @@ This project has docker support under `zyddnys/manga-image-translator` image. Th
 
 The web server can be hosted using (For CPU)
 ```bash
-docker run -p 5003:5003 -v result:/app/result --ipc=host --rm zyddnys/manga-image-translator --target-lang=ENG --manga2eng --verbose --log-web --mode web --use-inpainting --host=0.0.0.0 --port=5003
+docker run -p 5003:5003 -v result:/app/result --ipc=host --rm zyddnys/manga-image-translator --target-lang=ENG --manga2eng --verbose --log-web --mode web --host=0.0.0.0 --port=5003
 ``` 
 or
 ```bash

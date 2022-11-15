@@ -23,6 +23,11 @@ except AttributeError: # Supports Python versions below 3.8
 	functools.cached_property = cached_property
 
 
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
 def get_digest(file_path: str) -> str:
 	h = hashlib.sha256()
 	BUF_SIZE = 65536 
@@ -110,9 +115,9 @@ class ModelWrapper(ABC):
 
 	def __init__(self):
 		os.makedirs(self._MODEL_DIR, exist_ok=True)
+		self._loaded = False
 		self._check_for_malformed_model_mapping()
 		self._downloaded = self._check_downloaded()
-		self._loaded = False
 
 	def is_loaded(self) -> bool:
 		return self._loaded
@@ -135,10 +140,10 @@ class ModelWrapper(ABC):
 		for map_key, map in self._MODEL_MAPPING.items():
 			if 'url' not in map and not re.search(r'^https?://', map['url']):
 				raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. Missing url property.')
-			if 'file' not in map and 'archive-files' not in map:
+			if 'file' not in map and 'archive-content' not in map:
 				map['file'] = '.'
-			elif 'file' in map and 'archive-files' in map:
-				raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. Properties file and archive-files are mutually exclusive.')
+			elif 'file' in map and 'archive-content' in map:
+				raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. Properties file and archive-content are mutually exclusive.')
 
 	async def _download_file(self, url: str, path: str):
 		print(f' -- Downloading: "{url}"')
@@ -190,7 +195,7 @@ class ModelWrapper(ABC):
 				print(f' -- Skipping {map_key} as it\'s already downloaded')
 				continue
 
-			is_archive = 'archive-files' in map
+			is_archive = 'archive-content' in map
 			if is_archive:
 				download_path = os.path.join(self._temp_working_directory, map_key, '')
 			else:
@@ -234,7 +239,7 @@ class ModelWrapper(ABC):
 							archive_files.append(file_path)
 					return archive_files
 
-				for orig, dest in map['archive-files'].items():
+				for orig, dest in map['archive-content'].items():
 					p1 = os.path.join(extracted_path, orig)
 					if os.path.exists(p1):
 						p2 = self._get_file_path(dest)
@@ -249,7 +254,7 @@ class ModelWrapper(ABC):
 					else:
 						raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. File "{orig}" does not exist within archive.' +
 										 '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
-				if len(map['archive-files']) == 0:
+				if len(map['archive-content']) == 0:
 					raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. No archive files specified.' +
 									 '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
 			print()
@@ -272,8 +277,8 @@ class ModelWrapper(ABC):
 				path = os.path.join(path, get_filename_from_url(map['url'], map_key))
 			if not os.path.exists(self._get_file_path(path)):
 				return False
-		elif 'archive-files' in map:
-			for original_path, moved_path in map['archive-files'].items():
+		elif 'archive-content' in map:
+			for original_path, moved_path in map['archive-content'].items():
 				if os.path.basename(moved_path) in ('.', ''):
 					moved_path = os.path.join(moved_path, os.path.basename(original_path))
 				if not os.path.exists(self._get_file_path(moved_path)):
