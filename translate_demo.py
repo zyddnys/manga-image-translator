@@ -24,9 +24,10 @@ from utils import load_image, dump_image
 
 parser = argparse.ArgumentParser(description='Seamlessly translate mangas into a chosen language')
 parser.add_argument('-m', '--mode', default='demo', type=str, choices=['demo', 'batch', 'web', 'web2'], help='Run demo in either single image demo mode (demo), web service mode (web) or batch translation mode (batch)')
-parser.add_argument('-i', '--image', default='', type=str, help='Image file if using demo mode or Image folder name if using batch mode')
+parser.add_argument('-i', '--image', type=str, required=True, help='Image file if using demo mode or Image folder name if using batch mode')
 parser.add_argument('-o', '--image-dst', default='', type=str, help='Destination folder for translated images in batch mode')
 parser.add_argument('-l', '--target-lang', default='CHS', type=str, choices=VALID_LANGUAGES, help='destination language')
+parser.add_argument('-v', '--verbose', action='store_true', help='print debug info and save intermediate images')
 parser.add_argument('--host', default='127.0.0.1', type=str, help='Used by web module to decide which host to attach to')
 parser.add_argument('--port', default=5003, type=int, help='Used by web module to decide which port to attach to')
 parser.add_argument('--log-web', action='store_true', help='Used by web module to decide if web logs should be surfaced')
@@ -45,7 +46,6 @@ parser.add_argument('--font-size-offset', default=0, type=int, help='offset font
 parser.add_argument('--force-horizontal', action='store_true', help='force text to be rendered horizontally')
 parser.add_argument('--force-vertical', action='store_true', help='force text to be rendered vertically')
 parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 4, 8, 16, 32], help='waifu2x image upscale ratio')
-parser.add_argument('--verbose', action='store_true', help='print debug info and save intermediate images')
 parser.add_argument('--use-ctd', action='store_true', help='use comic-text-detector for text detection')
 parser.add_argument('--manga2eng', action='store_true', help='render english text translated from manga with some typesetting')
 parser.add_argument('--eng-font', default='fonts/comic shanns 2.ttf', type=str, help='font used by manga2eng mode')
@@ -305,7 +305,7 @@ async def main(mode = 'demo'):
 		args.use_cuda = True
 	if not torch.cuda.is_available() and args.use_cuda:
 		raise Exception('CUDA compatible device could not be found while %s args was set...'
-						% '--use_cuda_limited' if args.use_cuda_limited else '--use_cuda')
+						% ('--use_cuda_limited' if args.use_cuda_limited else '--use_cuda'))
 
 	print(' -- Loading models')
 	os.makedirs('result', exist_ok=True)
