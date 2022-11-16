@@ -78,16 +78,12 @@ class Waifu2xUpscaler(OfflineUpscaler): # ~2GB of vram
         return output_batch
 
     def _run_waifu2x_executable(self, image_directory: str, output_directory: str, upscale_ratio: float, denoise_level: int):
-        cmds = []
-        cmds.append(self._get_file_path(waifu2x_executable_path))
-        cmds.append('-i')
-        cmds.append(image_directory)
-        cmds.append('-o')
-        cmds.append(output_directory)
-        cmds.append('-m')
-        cmds.append(os.path.join(self._get_file_path(waifu2x_base_folder), 'models-cunet'))
-        cmds.append('-n')
-        cmds.append(str(denoise_level))
-        cmds.append('-s')
-        cmds.append(str(upscale_ratio))
+        cmds = [
+            self._get_file_path(waifu2x_executable_path),
+            '-i', image_directory,
+            '-o', output_directory,
+            '-m', self._get_file_path(os.path.join(waifu2x_base_folder, 'models-cunet')),
+            '-s', str(upscale_ratio),
+            '-n', str(denoise_level),
+        ]
         subprocess.check_call(cmds)
