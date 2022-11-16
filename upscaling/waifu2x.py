@@ -67,7 +67,9 @@ class Waifu2xUpscaler(OfflineUpscaler): # ~2GB of vram
         for i, image in enumerate(image_batch):
             img_path = os.path.join(out_dir, f'{i}.png')
             if os.path.exists(img_path):
-                output_batch.append(Image.open(img_path))
+                img = Image.open(img_path)
+                img.load()
+                output_batch.append(img)
             else:
                 output_batch.append(image)
 
