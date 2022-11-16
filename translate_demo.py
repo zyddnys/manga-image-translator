@@ -277,7 +277,6 @@ async def infer_safe(
 	options = None,
 	task_id = '',
 	dst_image_name = '',
-	alpha_ch = None
 	):
 	try:
 		return await infer(
@@ -287,7 +286,6 @@ async def infer_safe(
 			options,
 			task_id,
 			dst_image_name,
-			alpha_ch
 		)
 	except Exception:
 		import traceback
