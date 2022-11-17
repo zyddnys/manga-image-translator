@@ -465,11 +465,11 @@ class Quadrilateral(object):
 		return abs(angle - 90) < 10
 
 	@functools.cached_property
-	def fg_colors(self) -> tuple[int, int, int]:
+	def fg_colors(self):
 		return self.fg_r, self.fg_g, self.fg_b
 
 	@functools.cached_property
-	def bg_colors(self) -> tuple[int, int, int]:
+	def bg_colors(self):
 		return self.bg_r, self.bg_g, self.bg_b
 
 	@functools.cached_property

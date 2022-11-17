@@ -13,7 +13,6 @@ freetype-py
 googletrans==4.0.0rc1
 aiohttp
 tqdm
-sklearn
 deepl
 ImageHash
 kornia

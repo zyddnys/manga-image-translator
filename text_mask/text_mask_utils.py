@@ -5,10 +5,10 @@ import cv2
 import math
 
 from tqdm import tqdm
-from sklearn.mixture import BayesianGaussianMixture
-from functools import reduce
-from collections import defaultdict
-from scipy.optimize import linear_sum_assignment
+# from sklearn.mixture import BayesianGaussianMixture
+# from functools import reduce
+# from collections import defaultdict
+# from scipy.optimize import linear_sum_assignment
 
 COLOR_RANGE_SIGMA = 1.5 # how many stddev away is considered the same color
 
