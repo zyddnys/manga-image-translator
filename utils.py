@@ -1,4 +1,5 @@
 import os
+import stat
 from typing import List
 import numpy as np
 import cv2
@@ -257,6 +258,9 @@ class ModelWrapper(ABC):
 				if len(map['archive-content']) == 0:
 					raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. No archive files specified.' +
 									 '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
+
+				self._grant_execute_permissions(map_key)
+
 			print()
 
 	def _check_downloaded(self) -> bool:
@@ -271,19 +275,38 @@ class ModelWrapper(ABC):
 
 	def _check_downloaded_map(self, map_key: str) -> str:
 		map = self._MODEL_MAPPING[map_key]
+
 		if 'file' in map:
 			path = map['file']
 			if os.path.basename(path) in ('.', ''):
 				path = os.path.join(path, get_filename_from_url(map['url'], map_key))
 			if not os.path.exists(self._get_file_path(path)):
 				return False
+		
 		elif 'archive-content' in map:
 			for original_path, moved_path in map['archive-content'].items():
 				if os.path.basename(moved_path) in ('.', ''):
 					moved_path = os.path.join(moved_path, os.path.basename(original_path))
 				if not os.path.exists(self._get_file_path(moved_path)):
 					return False
+
+		self._grant_execute_permissions(map_key)
+
 		return True
+
+	def _grant_execute_permissions(self, map_key: str):
+		map = self._MODEL_MAPPING[map_key]
+
+		if sys.platform == 'linux':
+			# Grant permission to executables
+			for file in map.get('executables', []):
+				p = self._get_file_path(file)
+				if os.path.basename(p) in ('', '.'):
+					p = os.path.join(p, file)
+				if not os.path.isfile(p):
+					raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. File "{file}" does not exist.')
+				if not os.access(p, os.X_OK):
+					os.chmod(p, os.stat(p).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 	async def reload(self, device: str, *args, **kwargs):
 		await self.unload()
