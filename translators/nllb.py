@@ -27,7 +27,7 @@ ISO_639_1_TO_FLORES_200 = {
 	'tr': 'tur_Latn',
 }
 
-class NNLBTranslator(OfflineTranslator):
+class NLLBTranslator(OfflineTranslator):
     _LANGUAGE_CODE_MAP = {
         'CHS': 'zho_Hans',
         'CHT': 'zho_Hant',
@@ -131,5 +131,5 @@ class NNLBTranslator(OfflineTranslator):
         print(f'Detected cached model for offline translation: {self._TRANSLATOR_MODEL}')
         return huggingface_hub.try_to_load_from_cache(self._TRANSLATOR_MODEL, 'pytorch_model.bin') is not None
 
-class NNLBBigTranslator(NNLBTranslator):
+class NLLBBigTranslator(NLLBTranslator):
     _TRANSLATOR_MODEL = 'facebook/nllb-200-distilled-1.3B'

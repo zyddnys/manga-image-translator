@@ -42,6 +42,9 @@ else:
             'archive-content': {
                 'waifu2x-ncnn-vulkan-20220728-ubuntu': waifu2x_base_folder,
             },
+            'executables': [
+                f'{waifu2x_base_folder}/waifu2x-ncnn-vulkan'
+            ],
         },
     }
 
