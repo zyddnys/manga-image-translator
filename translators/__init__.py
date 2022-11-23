@@ -7,7 +7,7 @@ from .google import GoogleTranslator
 from .youdao import YoudaoTranslator
 from .deepl import DeeplTranslator
 from .papago import PapagoTranslator
-from .nnlb import NNLBTranslator, NNLBBigTranslator
+from .nllb import NLLBTranslator, NLLBBigTranslator
 from .sugoi import SugoiTranslator, SugoiSmallTranslator, SugoiBigTranslator
 from .selective import SelectiveOfflineTranslator, SelectiveBigOfflineTranslator, prepare as prepare_selective_translator
 from .none import NoneTranslator
@@ -38,8 +38,8 @@ VALID_LANGUAGES = {
 OFFLINE_TRANSLATORS = {
 	'offline': SelectiveOfflineTranslator,
 	'offline_big': SelectiveBigOfflineTranslator,
-	'nnlb': NNLBTranslator,
-	'nnlb_big': NNLBBigTranslator,
+	'nllb': NLLBTranslator,
+	'nllb_big': NLLBBigTranslator,
 	'sugoi': SugoiTranslator,
 	'sugoi_small': SugoiSmallTranslator,
 	'sugoi_big': SugoiBigTranslator,

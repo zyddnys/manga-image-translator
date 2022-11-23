@@ -2,7 +2,7 @@ from typing import Callable, List
 from langdetect import detect
 
 from .common import OfflineTranslator
-from .nnlb import NNLBTranslator
+from .nllb import NLLBTranslator
 from .sugoi import SugoiTranslator
 
 ISO_639_1_TO_VALID_LANGUAGES = {
@@ -40,7 +40,7 @@ class SelectiveOfflineTranslator(OfflineTranslator):
     '''
 
     _LANGUAGE_CODE_MAP = {
-        **NNLBTranslator._LANGUAGE_CODE_MAP,
+        **NLLBTranslator._LANGUAGE_CODE_MAP,
         **SugoiTranslator._LANGUAGE_CODE_MAP,
     }
 
@@ -61,7 +61,7 @@ class SelectiveOfflineTranslator(OfflineTranslator):
             sugoi_translator = get_translator('sugoi')
             if sugoi_translator.supports_languages(from_lang, to_lang):
                 return sugoi_translator
-        return get_translator('nnlb')
+        return get_translator('nllb')
 
     async def translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         self._real_translator = self.select_translator(from_lang, to_lang, queries)
@@ -94,4 +94,4 @@ class SelectiveBigOfflineTranslator(SelectiveOfflineTranslator):
             sugoi_translator = get_translator('sugoi_big')
             if sugoi_translator.supports_languages(from_lang, to_lang):
                 return sugoi_translator
-        return get_translator('nnlb_big')
+        return get_translator('nllb_big')

@@ -2,7 +2,7 @@
 
 > 一键翻译各类图片内文字\
 > [English](README.md) | [更新日志](CHANGELOG_CN.md) \
-> 欢迎加入我们的Discord https://discord.gg/Ak8APNy4vb
+> 欢迎加入我们的 Discord <https://discord.gg/Ak8APNy4vb>
 
 针对群内、各个图站上大量不太可能会有人去翻译的图片设计，让我这种日语小白能够勉强看懂图片\
 主要支持日语，汉语、英文和韩语\
@@ -55,18 +55,19 @@ $ pip install -r requirements.txt
 申请有道翻译或者 DeepL 的 API，把你的 `APP_KEY` 和 `APP_SECRET` 或 `AUTH_KEY` 写入 `translators/key.py` 中。
 
 ### 翻译器列表
-| 名称 | 是否需要API Key | 是否离线可用 | 其他说明 |
-|--------|---|---|---|
-| google | 否 | 否 |   |
-| youdao | 是 | 否 |   |
-| baidu | 是 | 否 |   |
-| deepl | 是 | 否 |   |
-| papago | 否 | 否 |   |
-| offline / offline_big | 否 | 是 |   |
-| nnlb / nnlb_big | 否 | 是 |   |
-| sugoi / sugoi_small / sugoi_big | 否 | 是 |   |
-| none | 否 | 是 | 翻译成空白文本 |
-| original | 否 | 是 | 翻译成源文本 |
+
+| 名称                            | 是否需要 API Key | 是否离线可用 | 其他说明       |
+| ------------------------------- | ---------------- | ------------ | -------------- |
+| google                          |                  |              |                |
+| youdao                          | ✔️               |              |                |
+| baidu                           | ✔️               |              |                |
+| deepl                           | ✔️               |              |                |
+| papago                          |                  |              |                |
+| offline / offline_big           |                  | ✔️           |                |
+| nllb / nllb_big                 |                  | ✔️           |                |
+| sugoi / sugoi_small / sugoi_big |                  | ✔️           |                |
+| none                            |                  | ✔️           | 翻译成空白文本 |
+| original                        |                  | ✔️           | 翻译成源文本   |
 
 ### 语言代码列表
 
@@ -199,8 +200,8 @@ POST 提交一个带图片，名字是 file 的 form 到 <http://127.0.0.1:5003/
 
 以下图片为最初版效果，并不代表目前最新版本的效果。
 
-|                                          原始图片                                           |         翻译后图片          |
-| :-----------------------------------------------------------------------------------------: | :-------------------------: |
+|                                             原始图片                                              |            翻译后图片             |
+| :-----------------------------------------------------------------------------------------------: | :-------------------------------: |
 |        ![Original](demo/image/original1.jpg "https://www.pixiv.net/en/artworks/85200179")         | ![Output](demo/image/result1.png) |
 | ![Original](demo/image/original2.jpg "https://twitter.com/mmd_96yuki/status/1320122899005460481") | ![Output](demo/image/result2.png) |
 | ![Original](demo/image/original3.jpg "https://twitter.com/_taroshin_/status/1231099378779082754") | ![Output](demo/image/result3.png) |
