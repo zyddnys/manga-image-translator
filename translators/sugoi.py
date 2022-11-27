@@ -1,7 +1,6 @@
 from typing import List
 import unicodedata
 import sentencepiece as spm
-from fairseq.models.transformer import TransformerModel
 
 from .common import OfflineTranslator
 
@@ -46,6 +45,8 @@ class SugoiTranslator(OfflineTranslator):
     }
 
     async def _load(self, from_lang: str, to_lang: str, device: str):
+        from fairseq.models.transformer import TransformerModel
+
         if from_lang == 'auto':
             if to_lang == 'en':
                 from_lang = 'ja'

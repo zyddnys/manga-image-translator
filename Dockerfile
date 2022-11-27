@@ -19,15 +19,14 @@ RUN pip install -r /app/requirements.txt
 RUN apt-get remove -y g++
     
 # Copy remaing dependencies
-ADD ${ASSET_BASE_URL}/${RELEASE_VERSION}/ocr.ckpt \
-     ${ASSET_BASE_URL}/${RELEASE_VERSION}/ocr-ctc.ckpt \
-     ${ASSET_BASE_URL}/${RELEASE_VERSION}/detect.ckpt \
-     ${ASSET_BASE_URL}/${RELEASE_VERSION}/comictextdetector.pt \
-     ${ASSET_BASE_URL}/${RELEASE_VERSION}/comictextdetector.pt.onnx \
-     ${ASSET_BASE_URL}/${RELEASE_VERSION}/inpainting_lama_mpe.ckpt \
-     /app/
+ADD ${ASSET_BASE_URL}/${RELEASE_VERSION}/detect.ckpt /app/
+ADD ${ASSET_BASE_URL}/${RELEASE_VERSION}/comictextdetector.pt /app/
+ADD ${ASSET_BASE_URL}/${RELEASE_VERSION}/comictextdetector.pt.onnx /app/
 
 # Copy app
 COPY . /app
+
+# Prepare models
+RUN python -u docker_prepare.py
 
 ENTRYPOINT ["python", "-u", "/app/translate_demo.py"]

@@ -67,8 +67,9 @@ def get_task(nonce):
 		rjson = requests.get(f'http://{args.host}:{args.port}/task-internal?nonce={nonce}', timeout = 3600).json()
 		if 'task_id' in rjson and 'data' in rjson:
 			return rjson['task_id'], rjson['data']
-		else:
-			return None, None
+		elif 'data' in rjson:
+			return None, rjson['data']
+		return None, None
 	except Exception:
 		return None, None
 
@@ -337,6 +338,8 @@ async def main(mode = 'demo'):
 		while True:
 			try:
 				task_id, options = get_task(nonce)
+				if options and 'exit' in options:
+					break
 				if task_id:
 					try:
 						print(f' -- Processing task {task_id}')
