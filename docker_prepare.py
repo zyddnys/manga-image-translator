@@ -14,7 +14,10 @@ async def download(dict):
       await inst.download()
 
 async def main():
-  await download(TRANSLATORS)
+  await download({ 
+    k: v for k, v in TRANSLATORS.items() 
+      if k not in ['offline_big', 'nllb_big', 'sugoi_small', 'sugoi_big']
+  })
   await download(OCRS)
   await download(INPAINTERS)
   await download(UPSCALERS)

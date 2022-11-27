@@ -62,18 +62,26 @@ Apply for Youdao or DeepL translate API, put your `APP_KEY` and `APP_SECRET` or 
 
 ### Translators Reference
 
-| Name                            | Requires API Key | Offline | Note                                                  |
-| ------------------------------- | ---------------- | ------- | ----------------------------------------------------- |
-| google                          |                  |         |                                                       |
-| youdao                          | ✔️               |         |                                                       |
-| baidu                           | ✔️               |         |                                                       |
-| deepl                           | ✔️               |         |                                                       |
-| papago                          |                  |         |                                                       |
-| offline / offline_big           |                  | ✔️      | Chooses most suitable offline translator for language |
-| nllb / nllb_big                 |                  | ✔️      |                                                       |
-| sugoi / sugoi_small / sugoi_big |                  | ✔️      |                                                       |
-| none                            |                  | ✔️      | Translate to empty texts                              |
-| original                        |                  | ✔️      | Keep original texts                                   |
+| Name        | API Key | Offline | Docker | Note                                                  |
+| ----------- | ------- | ------- | ------ | ----------------------------------------------------- |
+| google      |         |         | ✔️     |                                                       |
+| youdao      | ✔️      |         | ✔️     |                                                       |
+| baidu       | ✔️      |         | ✔️     |                                                       |
+| deepl       | ✔️      |         | ✔️     |                                                       |
+| papago      |         |         | ✔️     |                                                       |
+| offline     |         | ✔️      | ✔️     | Chooses most suitable offline translator for language |
+| offline_big |         | ✔️      |        |                                                       |
+| nllb        |         | ✔️      | ✔️     |                                                       |
+| nllb_big    |         | ✔️      |        |                                                       |
+| sugoi       |         | ✔️      | ✔️     |                                                       |
+| sugoi_small |         | ✔️      |        |                                                       |
+| sugoi_big   |         | ✔️      |        |                                                       |
+| none        |         | ✔️      | ✔️     | Translate to empty texts                              |
+| original    |         | ✔️      | ✔️     | Keep original texts                                   |
+
+- API Key: Whether the translator requires an API key.
+- Offline: Whether the translator can be used offline.
+- Docker: Whether the translator is available in the docker image.
 
 ### Language Code Reference
 
