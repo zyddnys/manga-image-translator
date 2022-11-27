@@ -124,7 +124,7 @@ class NLLBTranslator(OfflineTranslator):
 
         return ISO_639_1_TO_FLORES_200[lang]
 
-    def _download(self):
+    async def _download(self):
         # Preload models into cache as part of startup
         print(f'Detected offline translation mode. Pre-loading offline translation model: {self._TRANSLATOR_MODEL} ' +
               f'(This can take a long time as multiple GB\'s worth of data can be downloaded during this step)')
