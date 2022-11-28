@@ -1,6 +1,5 @@
 import re
 from typing import List
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 from langdetect import detect
 import huggingface_hub 
 
@@ -51,6 +50,8 @@ class NLLBTranslator(OfflineTranslator):
     _TRANSLATOR_MODEL = 'facebook/nllb-200-distilled-600M'
 
     async def _load(self, from_lang: str, to_lang: str, device: str):
+        from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+
         self.device = device
         self.model = AutoModelForSeq2SeqLM.from_pretrained(self._TRANSLATOR_MODEL)
         self.tokenizer = AutoTokenizer.from_pretrained(self._TRANSLATOR_MODEL)
@@ -72,6 +73,8 @@ class NLLBTranslator(OfflineTranslator):
         return [self._translate_sentence(from_lang, to_lang, query) for query in queries]
 
     def _translate_sentence(self, from_lang: str, to_lang: str, query: str) -> str:
+        from transformers import pipeline
+
         if not self.is_loaded():
             return ''
 
@@ -121,7 +124,7 @@ class NLLBTranslator(OfflineTranslator):
 
         return ISO_639_1_TO_FLORES_200[lang]
 
-    def _download(self):
+    async def _download(self):
         # Preload models into cache as part of startup
         print(f'Detected offline translation mode. Pre-loading offline translation model: {self._TRANSLATOR_MODEL} ' +
               f'(This can take a long time as multiple GB\'s worth of data can be downloaded during this step)')
