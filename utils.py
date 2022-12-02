@@ -49,6 +49,7 @@ def get_filename_from_url(url: str, default: str = '') -> str:
 	return default
 
 def download_url_with_progressbar(url: str, path: str):
+	# TODO: Fix partial downloads
 	if os.path.basename(path) in ('.', '') or os.path.isdir(path):
 		new_filename = get_filename_from_url(url)
 		if not new_filename:
@@ -135,11 +136,11 @@ class ModelWrapper(ABC):
 		return os.path.join(self._MODEL_DIR, relative_path)
 
 	def _get_used_gpu_memory(self) -> bool:
-		"""
+		'''
 		Gets the total amount of GPU memory used by model (Can be used in the future
 		to determine whether a model should be loaded into vram or ram or automatically choose a model size).
 		TODO: Use together with `--use-cuda-limited` flag to enforce stricter memory checks
-		"""
+		'''
 		return torch.cuda.mem_get_info()
 
 	def _check_for_malformed_model_mapping(self):
@@ -256,14 +257,14 @@ class ModelWrapper(ABC):
 						if os.path.isfile(p2):
 							if filecmp.cmp(p1, p2):
 								continue
-							raise InvalidModelMappingException(self.__class__.__name__, map_key, 'File "{orig}" already exists at "{dest}".')
+							raise InvalidModelMappingException(self.__class__.__name__, map_key, 'File "{orig}" already exists at "{dest}"')
 						os.makedirs(os.path.dirname(p2), exist_ok=True)
 						shutil.move(p1, p2)
 					else:
-						raise InvalidModelMappingException(self.__class__.__name__, map_key, 'File "{orig}" does not exist within archive.' +
+						raise InvalidModelMappingException(self.__class__.__name__, map_key, 'File "{orig}" does not exist within archive' +
 								        '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
 				if len(map['archive-content']) == 0:
-					raise InvalidModelMappingException(self.__class__.__name__, map_key, 'No archive files specified.' +
+					raise InvalidModelMappingException(self.__class__.__name__, map_key, 'No archive files specified' +
 					                    '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
 
 				self._grant_execute_permissions(map_key)
@@ -311,7 +312,7 @@ class ModelWrapper(ABC):
 				if os.path.basename(p) in ('', '.'):
 					p = os.path.join(p, file)
 				if not os.path.isfile(p):
-					raise InvalidModelMappingException(self.__class__.__name__, map_key, f'File "{file}" does not exist.')
+					raise InvalidModelMappingException(self.__class__.__name__, map_key, f'File "{file}" does not exist')
 				if not os.access(p, os.X_OK):
 					os.chmod(p, os.stat(p).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
@@ -338,8 +339,6 @@ class ModelWrapper(ABC):
 		'''
 		Makes a forward pass through the network.
 		'''
-		if not self.is_downloaded():
-			await self.download()
 		if not self.is_loaded():
 			raise Exception(f'{self.__class__.__name__}: Tried to forward pass without having loaded the model.')
 		return await self._forward(*args, **kwargs)
