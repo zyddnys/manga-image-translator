@@ -149,10 +149,10 @@ class ModelWrapper(ABC):
 				raise InvalidModelMappingException(self.__class__.__name__, map_key, 'Missing url property')
 			elif not re.search(r'^https?://', map['url']):
 				raise InvalidModelMappingException(self.__class__.__name__, map_key, 'Malformed url property: "%s"' % map['url'])
-			if 'file' not in map and 'archive-content' not in map:
+			if 'file' not in map and 'archive' not in map:
 				map['file'] = '.'
-			elif 'file' in map and 'archive-content' in map:
-				raise InvalidModelMappingException(self.__class__.__name__, map_key, 'Properties file and archive-content are mutually exclusive')
+			elif 'file' in map and 'archive' in map:
+				raise InvalidModelMappingException(self.__class__.__name__, map_key, 'Properties file and archive are mutually exclusive')
 
 	async def _download_file(self, url: str, path: str):
 		print(f' -- Downloading: "{url}"')
@@ -204,7 +204,7 @@ class ModelWrapper(ABC):
 				print(f' -- Skipping {map_key} as it\'s already downloaded')
 				continue
 
-			is_archive = 'archive-content' in map
+			is_archive = 'archive' in map
 			if is_archive:
 				download_path = os.path.join(self._temp_working_directory, map_key, '')
 			else:
@@ -248,7 +248,7 @@ class ModelWrapper(ABC):
 							archive_files.append(file_path)
 					return archive_files
 
-				for orig, dest in map['archive-content'].items():
+				for orig, dest in map['archive'].items():
 					p1 = os.path.join(extracted_path, orig)
 					if os.path.exists(p1):
 						p2 = self._get_file_path(dest)
@@ -263,7 +263,7 @@ class ModelWrapper(ABC):
 					else:
 						raise InvalidModelMappingException(self.__class__.__name__, map_key, 'File "{orig}" does not exist within archive' +
 								        '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
-				if len(map['archive-content']) == 0:
+				if len(map['archive']) == 0:
 					raise InvalidModelMappingException(self.__class__.__name__, map_key, 'No archive files specified' +
 					                    '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
 
@@ -291,8 +291,8 @@ class ModelWrapper(ABC):
 			if not os.path.exists(self._get_file_path(path)):
 				return False
 		
-		elif 'archive-content' in map:
-			for original_path, moved_path in map['archive-content'].items():
+		elif 'archive' in map:
+			for original_path, moved_path in map['archive'].items():
 				if os.path.basename(moved_path) in ('.', ''):
 					moved_path = os.path.join(moved_path, os.path.basename(original_path))
 				if not os.path.exists(self._get_file_path(moved_path)):
