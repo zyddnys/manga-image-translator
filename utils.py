@@ -292,10 +292,10 @@ class ModelWrapper(ABC):
 				return False
 		
 		elif 'archive' in map:
-			for original_path, moved_path in map['archive'].items():
-				if os.path.basename(moved_path) in ('.', ''):
-					moved_path = os.path.join(moved_path, os.path.basename(original_path))
-				if not os.path.exists(self._get_file_path(moved_path)):
+			for from_path, to_path in map['archive'].items():
+				if os.path.basename(to_path) in ('.', ''):
+					to_path = os.path.join(to_path, os.path.basename(from_path))
+				if not os.path.exists(self._get_file_path(to_path)):
 					return False
 
 		self._grant_execute_permissions(map_key)
