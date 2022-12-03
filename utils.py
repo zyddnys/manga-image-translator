@@ -49,6 +49,7 @@ def get_filename_from_url(url: str, default: str = '') -> str:
 	return default
 
 def download_url_with_progressbar(url: str, path: str):
+	# TODO: Fix partial downloads
 	if os.path.basename(path) in ('.', '') or os.path.isdir(path):
 		new_filename = get_filename_from_url(url)
 		if not new_filename:
@@ -110,6 +111,11 @@ MODULE_PATH = os.path.dirname(os.path.realpath(__file__))
 class ModelVerificationException(Exception):
 	pass
 
+class InvalidModelMappingException(ValueError):
+	def __init__(self, cls: str, map_key: str, error_msg: str):
+		error = f'[{cls}->{map_key}] Invalid _MODEL_MAPPING - {error_msg}'
+		super().__init__(error)
+
 class ModelWrapper(ABC):
 	_MODEL_DIR = os.path.join(MODULE_PATH, 'models')
 	_MODEL_MAPPING = {}
@@ -130,21 +136,23 @@ class ModelWrapper(ABC):
 		return os.path.join(self._MODEL_DIR, relative_path)
 
 	def _get_used_gpu_memory(self) -> bool:
-		"""
+		'''
 		Gets the total amount of GPU memory used by model (Can be used in the future
 		to determine whether a model should be loaded into vram or ram or automatically choose a model size).
 		TODO: Use together with `--use-cuda-limited` flag to enforce stricter memory checks
-		"""
+		'''
 		return torch.cuda.mem_get_info()
 
 	def _check_for_malformed_model_mapping(self):
 		for map_key, map in self._MODEL_MAPPING.items():
-			if 'url' not in map and not re.search(r'^https?://', map['url']):
-				raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. Missing url property.')
-			if 'file' not in map and 'archive-content' not in map:
+			if 'url' not in map:
+				raise InvalidModelMappingException(self.__class__.__name__, map_key, 'Missing url property')
+			elif not re.search(r'^https?://', map['url']):
+				raise InvalidModelMappingException(self.__class__.__name__, map_key, 'Malformed url property: "%s"' % map['url'])
+			if 'file' not in map and 'archive' not in map:
 				map['file'] = '.'
-			elif 'file' in map and 'archive-content' in map:
-				raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. Properties file and archive-content are mutually exclusive.')
+			elif 'file' in map and 'archive' in map:
+				raise InvalidModelMappingException(self.__class__.__name__, map_key, 'Properties file and archive are mutually exclusive')
 
 	async def _download_file(self, url: str, path: str):
 		print(f' -- Downloading: "{url}"')
@@ -183,7 +191,7 @@ class ModelWrapper(ABC):
 				except ModelVerificationException:
 					if not prompt_yes_no('Failed to verify signature. Do you want to restart the download?', default=True):
 						print('Aborting.')
-						raise KeyboardInterrupt
+						raise KeyboardInterrupt()
 
 	async def _download(self):
 		'''
@@ -196,7 +204,7 @@ class ModelWrapper(ABC):
 				print(f' -- Skipping {map_key} as it\'s already downloaded')
 				continue
 
-			is_archive = 'archive-content' in map
+			is_archive = 'archive' in map
 			if is_archive:
 				download_path = os.path.join(self._temp_working_directory, map_key, '')
 			else:
@@ -240,7 +248,7 @@ class ModelWrapper(ABC):
 							archive_files.append(file_path)
 					return archive_files
 
-				for orig, dest in map['archive-content'].items():
+				for orig, dest in map['archive'].items():
 					p1 = os.path.join(extracted_path, orig)
 					if os.path.exists(p1):
 						p2 = self._get_file_path(dest)
@@ -249,15 +257,15 @@ class ModelWrapper(ABC):
 						if os.path.isfile(p2):
 							if filecmp.cmp(p1, p2):
 								continue
-							raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. File "{orig}" already exists at "{dest}".')
+							raise InvalidModelMappingException(self.__class__.__name__, map_key, 'File "{orig}" already exists at "{dest}"')
 						os.makedirs(os.path.dirname(p2), exist_ok=True)
 						shutil.move(p1, p2)
 					else:
-						raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. File "{orig}" does not exist within archive.' +
-										 '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
-				if len(map['archive-content']) == 0:
-					raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. No archive files specified.' +
-									 '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
+						raise InvalidModelMappingException(self.__class__.__name__, map_key, 'File "{orig}" does not exist within archive' +
+								        '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
+				if len(map['archive']) == 0:
+					raise InvalidModelMappingException(self.__class__.__name__, map_key, 'No archive files specified' +
+					                    '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
 
 				self._grant_execute_permissions(map_key)
 
@@ -283,11 +291,11 @@ class ModelWrapper(ABC):
 			if not os.path.exists(self._get_file_path(path)):
 				return False
 		
-		elif 'archive-content' in map:
-			for original_path, moved_path in map['archive-content'].items():
-				if os.path.basename(moved_path) in ('.', ''):
-					moved_path = os.path.join(moved_path, os.path.basename(original_path))
-				if not os.path.exists(self._get_file_path(moved_path)):
+		elif 'archive' in map:
+			for from_path, to_path in map['archive'].items():
+				if os.path.basename(to_path) in ('.', ''):
+					to_path = os.path.join(to_path, os.path.basename(from_path))
+				if not os.path.exists(self._get_file_path(to_path)):
 					return False
 
 		self._grant_execute_permissions(map_key)
@@ -304,7 +312,7 @@ class ModelWrapper(ABC):
 				if os.path.basename(p) in ('', '.'):
 					p = os.path.join(p, file)
 				if not os.path.isfile(p):
-					raise Exception(f'{self.__class__.__name__} ({map_key}): Invalid _MODEL_MAPPING. File "{file}" does not exist.')
+					raise InvalidModelMappingException(self.__class__.__name__, map_key, f'File "{file}" does not exist')
 				if not os.access(p, os.X_OK):
 					os.chmod(p, os.stat(p).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
@@ -331,8 +339,6 @@ class ModelWrapper(ABC):
 		'''
 		Makes a forward pass through the network.
 		'''
-		if not self.is_downloaded():
-			await self.download()
 		if not self.is_loaded():
 			raise Exception(f'{self.__class__.__name__}: Tried to forward pass without having loaded the model.')
 		return await self._forward(*args, **kwargs)
@@ -465,8 +471,8 @@ class Quadrilateral(object):
 		self.bg_r = bg_r
 		self.bg_g = bg_g
 		self.bg_b = bg_b
-		self.assigned_direction = None
-		self.textline_indices = []
+		self.assigned_direction: str = None
+		self.textlines: list[Quadrilateral] = []
 
 	@functools.cached_property
 	def structure(self) -> List[np.ndarray]:

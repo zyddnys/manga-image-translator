@@ -42,7 +42,7 @@ async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translate
 			continue
 
 		majority_dir = None
-		if text_direction_overwrite:
+		if text_direction_overwrite in ['h', 'v']:
 			majority_dir = text_direction_overwrite
 		elif target_language in LANGAUGE_ORIENTATION_PRESETS:
 			majority_dir = LANGAUGE_ORIENTATION_PRESETS[target_language]
@@ -72,7 +72,7 @@ async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer
 			continue
 
 		majority_dir = None
-		if text_direction_overwrite:
+		if text_direction_overwrite in ['h', 'v']:
 			majority_dir = text_direction_overwrite
 		elif 'ENG' in LANGAUGE_ORIENTATION_PRESETS:
 			majority_dir = LANGAUGE_ORIENTATION_PRESETS['ENG']

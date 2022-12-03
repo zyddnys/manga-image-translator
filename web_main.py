@@ -13,7 +13,7 @@ from collections import deque
 from translators import VALID_LANGUAGES, dispatch as dispatch_translation
 
 VALID_DETECTORS = set(['default', 'ctd'])
-VALID_DIRECTIONS = set(['auto', 'horizontal'])
+VALID_DIRECTIONS = set(['auto', 'h', 'v'])
 
 MAX_NUM_TASKS = 1
 NUM_ONGOING_TASKS = 0
@@ -53,10 +53,10 @@ async def index_async(request):
 
 @routes.get("/result/{taskid}")
 async def result_async(request):
-        im = Image.open("result/" + request.match_info.get('taskid') + "/final.png")
-        stream = BytesIO()
-        im.save(stream, "PNG")
-        return web.Response(body=stream.getvalue(), content_type='image/png')
+	im = Image.open("result/" + request.match_info.get('taskid') + "/final.png")
+	stream = BytesIO()
+	im.save(stream, "PNG")
+	return web.Response(body=stream.getvalue(), content_type='image/png')
 
 @routes.get("/queue-size")
 async def queue_size_async(request):

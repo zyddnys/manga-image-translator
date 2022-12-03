@@ -102,14 +102,14 @@ async def infer(
 	else:
 		detector = 'ctd' if args.use_ctd else 'default'
 
-	render_text_direction_overwrite = ''
-	if options.get('direction') == 'horizontal':
-		render_text_direction_overwrite = 'h'
-	else:
+	render_text_direction_overwrite = options.get('direction')
+	if not render_text_direction_overwrite:
 		if args.force_horizontal:
 			render_text_direction_overwrite = 'h'
 		elif args.force_vertical:
 			render_text_direction_overwrite = 'v'
+		else:
+			render_text_direction_overwrite = 'auto'
 
 	src_lang = 'auto'
 	if 'tgt' in options:
@@ -126,7 +126,7 @@ async def infer(
 
 	print(f' -- Detection resolution {img_detect_size}')
 	print(f' -- Detector using {detector}')
-	print(f' -- Render text direction is {render_text_direction_overwrite or "auto"}')
+	print(f' -- Render text direction is {render_text_direction_overwrite}')
 
 	print(' -- Preparing translator')
 	await prepare_translation(translator, src_lang, tgt_lang)

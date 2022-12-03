@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Assume root to install required dependencies
 RUN apt-get update && \
-    apt-get install -y git g++ ffmpeg libsm6 libxext6 && \
+    apt-get install -y git g++ ffmpeg libsm6 libxext6 libgl1-mesa-glx && \
     pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 
 # Install pip dependencies
