@@ -64,7 +64,12 @@ class Waifu2xUpscaler(OfflineUpscaler): # ~2GB of vram
         out_dir = tempfile.mkdtemp()
         for i, image in enumerate(image_batch):
             image.save(os.path.join(in_dir, f'{i}.png'))
-        self._run_waifu2x_executable(in_dir, out_dir, upscale_ratio, 0)
+
+        try:
+            self._run_waifu2x_executable(in_dir, out_dir, upscale_ratio, 0)
+        except Exception:
+            print(f'Warning: waifu2x returned non-zero exit status. Skipping upscaling.')
+            return image_batch
 
         output_batch = []
         for i, image in enumerate(image_batch):
