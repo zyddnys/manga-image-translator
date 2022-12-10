@@ -384,8 +384,9 @@ async def main(mode = 'demo'):
 					if msg.WhichOneof('message') == 'new_task':
 						task = msg.new_task
 
-						shutil.rmtree(f'result/{task.id}', ignore_errors=True)
-						os.makedirs(f'result/{task.id}', exist_ok=True)
+						if args.verbose:
+							shutil.rmtree(f'result/{task.id}', ignore_errors=True)
+							os.makedirs(f'result/{task.id}', exist_ok=True)
 
 						options = {
 	            'target_language': task.target_language,
@@ -402,8 +403,6 @@ async def main(mode = 'demo'):
 							asyncio.create_task(websocket.send(msg.SerializeToString()))
 
 						print(f' -- Processing task {task.id}')
-						with open(f'result/{task.id}/input.png', 'wb') as f:
-							f.write(task.source_image)
 						img_pil = await infer_safe(Image.open(io.BytesIO(task.source_image)), mode, None, options, task.id, None, update_state)
 						img = io.BytesIO()
 						img_pil.save(img, format='PNG')
