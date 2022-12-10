@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package ws;
+
+message NewTask {
+  string id = 1;
+  bytes source_image = 2;
+
+  string target_language = 3;
+  string detector = 4;
+  string direction = 5;
+  string translator = 6;
+  string size = 7;
+}
+
+message Status {
+  string id = 1;
+  string status = 2;
+}
+
+message FinishTask {
+  string id = 1;
+  bytes translation_mask = 2;
+}
+
+message WebSocketMessage {
+  oneof message {
+    NewTask new_task = 1;
+    Status status = 2;
+    FinishTask finish_task = 3;
+  }
+}

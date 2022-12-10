@@ -25,3 +25,5 @@ editdistance
 fairseq
 numpy
 tensorboardX
+websockets
+protobuf

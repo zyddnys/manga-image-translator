@@ -23,7 +23,7 @@ from textblockdetector.textblock import visualize_textblocks
 from utils import load_image, dump_image
 
 parser = argparse.ArgumentParser(description='Seamlessly translate mangas into a chosen language')
-parser.add_argument('-m', '--mode', default='demo', type=str, choices=['demo', 'batch', 'web', 'web2'], help='Run demo in either single image demo mode (demo), web service mode (web) or batch translation mode (batch)')
+parser.add_argument('-m', '--mode', default='demo', type=str, choices=['demo', 'batch', 'web', 'web2', 'ws'], help='Run demo in either single image demo mode (demo), web service mode (web) or batch translation mode (batch)')
 parser.add_argument('-i', '--image', default='', type=str, help='Path to an image file if using demo mode, or path to an image folder if using batch mode')
 parser.add_argument('-o', '--image-dst', default='', type=str, help='Path to the destination folder for translated images in batch mode')
 parser.add_argument('-l', '--target-lang', default='CHS', type=str, choices=VALID_LANGUAGES, help='Destination language')
@@ -49,18 +49,12 @@ parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 4,
 parser.add_argument('--use-ctd', action='store_true', help='Use comic-text-detector for text detection')
 parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some typesetting')
 parser.add_argument('--eng-font', default='fonts/comic shanns 2.ttf', type=str, help='Path to font used by manga2eng mode')
+parser.add_argument('--ws-url', default='ws://localhost:5000', type=str, help='Server URL for WebSocket mode')
+parser.add_argument('--ws-secret', default='', type=str, help='Secret for WebSocket mode')
 args = parser.parse_args()
 
-def update_state(task_id, nonce, state):
-	while True:
-		try:
-			requests.post(f'http://{args.host}:{args.port}/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 20)
-			return
-		except Exception:
-			if 'error' in state or 'finished' in state:
-				continue
-			else:
-				break
+def noop(*args, **kwargs):
+	pass
 
 def get_task(nonce):
 	try:
@@ -80,7 +74,8 @@ async def infer(
 	options = None,
 	task_id = '',
 	dst_image_name = '',
-	):
+	update_state = noop,
+):
 
 	img, alpha_ch = load_image(image)
 
@@ -136,8 +131,7 @@ async def infer(
 
 	if args.upscale_ratio or image.size[0] < 800 or image.size[1] < 800:
 		print(' -- Running upscaling')
-		if mode == 'web' and task_id:
-			update_state(task_id, nonce, 'upscaling')
+		update_state('upscaling')
 
 		if args.upscale_ratio:
 			img_upscaled_pil = (await dispatch_upscaling('waifu2x', [image], args.upscale_ratio, args.use_cuda))[0]
@@ -148,8 +142,7 @@ async def infer(
 			img, alpha_ch = load_image(img_upscaled_pil)
 
 	print(' -- Running text detection')
-	if mode == 'web' and task_id:
-		update_state(task_id, nonce, 'detection')
+	update_state('detection')
 
 	if detector == 'ctd':
 		mask, final_mask, textlines = await dispatch_ctd_detection(img, args.use_cuda)
@@ -169,8 +162,7 @@ async def infer(
 			cv2.imwrite(f'result/{task_id}/mask_raw.png', mask)
 
 	print(' -- Running OCR')
-	if mode == 'web' and task_id:
-		update_state(task_id, nonce, 'ocr')
+	update_state('ocr')
 	textlines = await dispatch_ocr(args.ocr, img, textlines, args.use_cuda, args.verbose)
 
 	if detector == 'ctd':
@@ -187,13 +179,12 @@ async def infer(
 			cv2.imwrite(f'result/{task_id}/bboxes.png', cv2.cvtColor(img_bbox, cv2.COLOR_RGB2BGR))
 
 		print(' -- Generating text mask')
-		if mode == 'web' and task_id:
-			update_state(task_id, nonce, 'mask_generation')
+		update_state('mask_generation')
 		# create mask
 		final_mask = await dispatch_mask_refinement(img, mask, textlines)
 
 	if mode == 'web' and task_id and options.get('translator') not in OFFLINE_TRANSLATORS:
-		update_state(task_id, nonce, 'translating')
+		update_state('translating')
 		# in web mode, we can start non offline translation tasks async
 		if detector == 'ctd':
 			requests.post(f'http://{args.host}:{args.port}/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 20)
@@ -202,8 +193,7 @@ async def infer(
 
 	if text_regions:
 		print(' -- Running inpainting')
-		if mode == 'web' and task_id:
-			update_state(task_id, nonce, 'inpainting')
+		update_state('inpainting')
 
 		img_inpainted = await dispatch_inpainting(args.inpainter, img, final_mask, args.inpainting_size, args.verbose, args.use_cuda)
 	else:
@@ -218,8 +208,7 @@ async def infer(
 	print(' -- Translating')
 	translated_sentences = None
 	if mode != 'web' or translator in OFFLINE_TRANSLATORS:
-		if mode == 'web' and task_id:
-			update_state(task_id, nonce, 'translating')
+		update_state('translating')
 		if detector == 'ctd':
 			queries = [r.get_text() for r in text_regions]
 		else:
@@ -238,7 +227,7 @@ async def infer(
 				translated_sentences = ret['result']
 				if isinstance(translated_sentences, str):
 					if translated_sentences == 'error':
-						update_state(task_id, nonce, 'error-lang')
+						update_state('error-lang')
 						return
 				break
 			await asyncio.sleep(0.01)
@@ -246,12 +235,15 @@ async def infer(
 	print(' -- Rendering translated text')
 	if translated_sentences == None:
 		print("No text found!")
-		if mode == 'web' and task_id:
-			update_state(task_id, nonce, 'error-no-txt')
+		update_state('error-no-txt')
 		return
+	update_state('render')
 
-	if mode == 'web' and task_id:
-		update_state(task_id, nonce, 'render')
+	render_mask = np.copy(final_mask)
+	render_mask[render_mask < 127] = 0
+	render_mask[render_mask >= 127] = 1
+	render_mask = render_mask[:, :, None]
+
 	# render translated texts
 	if args.target_lang == 'ENG' and args.manga2eng:
 		from text_rendering import dispatch_eng_render
@@ -259,16 +251,21 @@ async def infer(
 	else:
 		if detector == 'ctd':
 			from text_rendering import dispatch_ctd_render
-			output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, args.font_size_offset)
+			output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, args.font_size_offset, render_mask)
 		else:
-			output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite, args.target_lang, args.font_size_offset)
+			output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite, args.target_lang, args.font_size_offset, render_mask)
+			
+	if mode == 'ws':
+    # if verbose:
+    #   # only keep sections in mask
+    #   cv2.imwrite(f'result/inmask.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGRA) * mask_original)
+		return dump_image(cv2.cvtColor(output, cv2.COLOR_RGB2RGBA) * render_mask)
 
 	print(' -- Saving results')
 	img_pil = dump_image(output, alpha_ch)
 	img_pil.save(dst_image_name)
 
-	if mode == 'web' and task_id:
-		update_state(task_id, nonce, 'finished')
+	update_state('finished')
 
 
 async def infer_safe(
@@ -278,6 +275,7 @@ async def infer_safe(
 	options = None,
 	task_id = '',
 	dst_image_name = '',
+	update_state = noop,
 	):
 	try:
 		return await infer(
@@ -287,11 +285,12 @@ async def infer_safe(
 			options,
 			task_id,
 			dst_image_name,
+			update_state,
 		)
 	except Exception:
 		import traceback
 		traceback.print_exc()
-		update_state(task_id, nonce, 'error')
+		update_state('error')
 
 def replace_prefix(s: str, old: str, new: str):
 	if s.startswith(old):
@@ -338,22 +337,88 @@ async def main(mode = 'demo'):
 		while True:
 			try:
 				task_id, options = get_task(nonce)
+
+				def update_state(state):
+					while True:
+						try:
+							requests.post(f'http://{args.host}:{args.port}/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 20)
+							return
+						except Exception:
+							if 'error' in state or 'finished' in state:
+								continue
+							else:
+								break
+
 				if options and 'exit' in options:
 					break
 				if task_id:
 					try:
 						print(f' -- Processing task {task_id}')
-						infer_task = asyncio.create_task(infer_safe(Image.open(f'result/{task_id}/input.png'), mode, nonce, options, task_id))
+						infer_task = asyncio.create_task(infer_safe(Image.open(f'result/{task_id}/input.png'), mode, nonce, options, task_id, None, update_state))
 						asyncio.gather(infer_task)
 					except Exception:
 						import traceback
 						traceback.print_exc()
-						update_state(task_id, nonce, 'error')
+						update_state('error')
 				else:
 					await asyncio.sleep(0.1)
 			except Exception:
 				import traceback
 				traceback.print_exc()
+
+	elif mode == 'ws':
+		print(' -- Running in websocket service mode')
+		print(' -- Waiting for translation tasks')
+
+		import io
+		import shutil
+		import websockets
+		import ws_pb2
+
+		async for websocket in websockets.connect(args.ws_url, extra_headers = { "x-secret": args.ws_secret }, max_size=100_000_000):
+			try:
+				print(' -- Connected to websocket server')
+				async for raw in websocket:
+					msg = ws_pb2.WebSocketMessage()
+					msg.ParseFromString(raw)
+					if msg.WhichOneof('message') == 'new_task':
+						task = msg.new_task
+
+						shutil.rmtree(f'result/{task.id}', ignore_errors=True)
+						os.makedirs(f'result/{task.id}', exist_ok=True)
+
+						options = {
+	            'target_language': task.target_language,
+							'detector': task.detector,
+							'direction': task.direction,
+							'translator': task.translator,
+							'size': task.size,
+						}
+						
+						def update_state(state):
+							msg = ws_pb2.WebSocketMessage()
+							msg.status.id = task.id
+							msg.status.status = state
+							asyncio.create_task(websocket.send(msg.SerializeToString()))
+
+						print(f' -- Processing task {task.id}')
+						with open(f'result/{task.id}/input.png', 'wb') as f:
+							f.write(task.source_image)
+						img_pil = await infer_safe(Image.open(io.BytesIO(task.source_image)), mode, None, options, task.id, None, update_state)
+						img = io.BytesIO()
+						img_pil.save(img, format='PNG')
+						img_bytes = img.getvalue()
+						
+						result = ws_pb2.WebSocketMessage()
+						result.finish_task.id = task.id
+						result.finish_task.translation_mask = img_bytes
+						await websocket.send(result.SerializeToString())
+
+				print(f' -- Processing task {task_id}')
+			except Exception:
+				import traceback
+				traceback.print_exc()
+
 	elif mode == 'batch':
 		src = os.path.abspath(args.image)
 		if src[-1] == '\\' or src[-1] == '/':

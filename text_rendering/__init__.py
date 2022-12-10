@@ -36,7 +36,17 @@ def fg_bg_compare(fg, bg):
 		bg = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
 	return fg, bg
 
-async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], textlines: List[Quadrilateral], text_regions: List[Quadrilateral], text_direction_overwrite: str, target_language: str, font_size_offset: int = 0) -> np.ndarray:
+async def dispatch(
+	img_canvas: np.ndarray, 
+	text_mag_ratio: np.integer,
+	translated_sentences: List[str],
+	textlines: List[Quadrilateral], 
+	text_regions: List[Quadrilateral], 
+	text_direction_overwrite: str, 
+	target_language: str, 
+	font_size_offset: int = 0, 
+	render_mask: np.ndarray = None
+) -> np.ndarray:
 	for trans_text, region in zip(translated_sentences, text_regions):
 		if not trans_text:
 			continue
@@ -62,10 +72,19 @@ async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translate
 
 		region_aabb = region.aabb
 		print(region_aabb.x, region_aabb.y, region_aabb.w, region_aabb.h)
-		img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, False, font_size_offset)
+
+		img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, False, font_size_offset, render_mask)
 	return img_canvas
 
-async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], text_regions: List[TextBlock], text_direction_overwrite: str, font_size_offset: int = 0) -> np.ndarray:
+async def dispatch_ctd_render(
+	img_canvas: np.ndarray, 
+	text_mag_ratio: np.integer, 
+	translated_sentences: List[str], 
+	text_regions: List[TextBlock], 
+	text_direction_overwrite: str, 
+	font_size_offset: int = 0,
+	render_mask: np.ndarray = None
+) -> np.ndarray:
 	for ridx, (trans_text, region) in enumerate(zip(translated_sentences, text_regions)):
 		print(f'text: {region.get_text()} \n trans: {trans_text}')
 		if not trans_text:
@@ -89,12 +108,23 @@ async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer
 		textlines = []
 		for ii, text in enumerate(region.text):
 			textlines.append(Quadrilateral(np.array(region.lines[ii]), text, 1, region.fg_r, region.fg_g, region.fg_b, region.bg_r, region.bg_g, region.bg_b))
-		# region_aabb = region.aabb
-		# print(region_aabb.x, region_aabb.y, region_aabb.w, region_aabb.h)
-		img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, True, font_size_offset)
+
+		img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, True, font_size_offset, render_mask)
 	return img_canvas
 
-def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, is_ctd, font_size_offset: int = 0):
+def render(
+	img_canvas, 
+	font_size, 
+	text_mag_ratio, 
+	trans_text, 
+	region, 
+	majority_dir, 
+	fg, 
+	bg, 
+	is_ctd, 
+	font_size_offset: int = 0,
+	render_mask: np.ndarray = None
+):
 	# round font_size to fixed powers of 2, so later LRU cache can work
 	font_size_enlarged = findNextPowerOf2(font_size) * text_mag_ratio
 	enlarge_ratio = font_size_enlarged / font_size
@@ -166,6 +196,10 @@ def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_d
 			dst_points = dst_points[:, [3, 0, 1, 2]]
 	else:
 		dst_points = region.pts
+
+	if render_mask is not None:
+		# set render_mask to 1 for the region that is inside dst_points
+		cv2.fillConvexPoly(render_mask, dst_points.astype(np.int32), 1)
 
 	M, _ = cv2.findHomography(src_points, dst_points, cv2.RANSAC, 5.0)
 	rgba_region = np.clip(cv2.warpPerspective(box, M, (img_canvas.shape[1], img_canvas.shape[0]), flags = cv2.INTER_LINEAR, borderMode = cv2.BORDER_CONSTANT, borderValue = 0), 0, 255)
