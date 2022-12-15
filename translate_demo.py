@@ -253,7 +253,7 @@ async def infer(
 	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'render')
 	# render translated texts
-	if args.target_lang == 'ENG' and args.manga2eng:
+	if tgt_lang == 'ENG' and args.manga2eng:
 		from text_rendering import dispatch_eng_render
 		output = await dispatch_eng_render(np.copy(img_inpainted), img, text_regions, translated_sentences, args.eng_font)
 	else:
@@ -261,7 +261,7 @@ async def infer(
 			from text_rendering import dispatch_ctd_render
 			output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, args.font_size_offset)
 		else:
-			output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite, args.target_lang, args.font_size_offset)
+			output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite, tgt_lang, args.font_size_offset)
 
 	print(' -- Saving results')
 	img_pil = dump_image(output, alpha_ch)
