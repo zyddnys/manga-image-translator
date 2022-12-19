@@ -1,4 +1,4 @@
-name: Publish Relsease docker image
+name: Publish Release docker image
 
 on:
   workflow_dispatch:
