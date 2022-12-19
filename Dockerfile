@@ -15,8 +15,9 @@ RUN apt-get update && \
 COPY requirements.txt /app/requirements.txt
 
 RUN pip install -r /app/requirements.txt
+RUN pip install torchvision --force-reinstall
 
-RUN apt-get remove -y g++
+RUN apt-get remove -y g++ && apt-get autoremove -y
 
 # Copy app
 COPY . /app

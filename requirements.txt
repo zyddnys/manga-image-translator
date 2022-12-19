@@ -1,4 +1,7 @@
 networkx
+torch
+torchvision
+torch-summary
 einops
 scikit-image
 opencv-python
@@ -22,6 +25,3 @@ editdistance
 fairseq
 numpy
 tensorboardX
-torch
-torchvision
-torch-summary
