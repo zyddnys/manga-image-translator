@@ -1,11 +1,5 @@
 import asyncio
 
-print('Modified')
-
-import torch
-
-print('available', torch.cuda.is_available())
-
 from utils import ModelWrapper
 from translators import TRANSLATORS
 from ocr import OCRS
