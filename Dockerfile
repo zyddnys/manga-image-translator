@@ -31,6 +31,6 @@ ADD ${ASSET_BASE_URL}/${RELEASE_VERSION}/comictextdetector.pt /app/
 ADD ${ASSET_BASE_URL}/${RELEASE_VERSION}/comictextdetector.pt.onnx /app/
 
 # Remove cache
-RUN rm -rf tmp/*
+RUN rm -rf /tmp/*
 
 ENTRYPOINT ["python", "-u", "/app/translate_demo.py"]
