@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Assume root to install required dependencies
 RUN apt-get update && \
-    apt-get install -y git g++ ffmpeg libsm6 libxext6 && \
+    apt-get install -y git g++ ffmpeg libsm6 libxext6 libvulkan-dev && \
     pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 
 # Install pip dependencies
@@ -29,5 +29,8 @@ RUN python -u docker_prepare.py
 ADD ${ASSET_BASE_URL}/${RELEASE_VERSION}/detect.ckpt /app/
 ADD ${ASSET_BASE_URL}/${RELEASE_VERSION}/comictextdetector.pt /app/
 ADD ${ASSET_BASE_URL}/${RELEASE_VERSION}/comictextdetector.pt.onnx /app/
+
+# Remove cache
+RUN rm -rf tmp/*
 
 ENTRYPOINT ["python", "-u", "/app/translate_demo.py"]
