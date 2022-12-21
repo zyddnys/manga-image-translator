@@ -325,7 +325,7 @@ class ModelWrapper(ABC):
 		Loads models into memory. Has to be called before `forward`.
 		'''
 		if not self.is_downloaded():
-			self.download()
+			await self.download()
 		if not self.is_loaded():
 			await self._load(*args, **kwargs, device=device)
 			self._loaded = True
