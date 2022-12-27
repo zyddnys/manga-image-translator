@@ -17,7 +17,8 @@ COPY requirements.txt /app/requirements.txt
 RUN pip install -r /app/requirements.txt
 RUN pip install torchvision --force-reinstall
 
-RUN apt-get remove -y g++ && apt-get autoremove -y
+RUN apt-get remove -y g++ && \
+    apt-get autoremove -y
 
 # Copy app
 COPY . /app
@@ -29,8 +30,5 @@ RUN python -u docker_prepare.py
 ADD ${ASSET_BASE_URL}/${RELEASE_VERSION}/detect.ckpt /app/
 ADD ${ASSET_BASE_URL}/${RELEASE_VERSION}/comictextdetector.pt /app/
 ADD ${ASSET_BASE_URL}/${RELEASE_VERSION}/comictextdetector.pt.onnx /app/
-
-# Remove cache
-RUN rm -rf /tmp/*
 
 ENTRYPOINT ["python", "-u", "/app/translate_demo.py"]
