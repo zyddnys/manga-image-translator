@@ -64,20 +64,20 @@ Apply for Youdao or DeepL translate API, put your `APP_KEY` and `APP_SECRET` or 
 
 | Name        | API Key | Offline | Docker | Note                                                  |
 | ----------- | ------- | ------- | ------ | ----------------------------------------------------- |
-| google      |         |         | ✔️     |                                                       |
-| youdao      | ✔️      |         | ✔️     |                                                       |
-| baidu       | ✔️      |         | ✔️     |                                                       |
-| deepl       | ✔️      |         | ✔️     |                                                       |
-| papago      |         |         | ✔️     |                                                       |
-| offline     |         | ✔️      | ✔️     | Chooses most suitable offline translator for language |
-| offline_big |         | ✔️      |        |                                                       |
-| nllb        |         | ✔️      | ✔️     |                                                       |
-| nllb_big    |         | ✔️      |        |                                                       |
-| sugoi       |         | ✔️      | ✔️     |                                                       |
-| sugoi_small |         | ✔️      |        |                                                       |
-| sugoi_big   |         | ✔️      |        |                                                       |
-| none        |         | ✔️      | ✔️     | Translate to empty texts                              |
-| original    |         | ✔️      | ✔️     | Keep original texts                                   |
+| google      |         |         | ✔️      |                                                       |
+| youdao      | ✔️       |         | ✔️      |                                                       |
+| baidu       | ✔️       |         | ✔️      |                                                       |
+| deepl       | ✔️       |         | ✔️      |                                                       |
+| papago      |         |         | ✔️      |                                                       |
+| offline     |         | ✔️       | ✔️      | Chooses most suitable offline translator for language |
+| offline_big |         | ✔️       |        |                                                       |
+| nllb        |         | ✔️       | ✔️      |                                                       |
+| nllb_big    |         | ✔️       |        |                                                       |
+| sugoi       |         | ✔️       | ✔️      |                                                       |
+| sugoi_small |         | ✔️       |        |                                                       |
+| sugoi_big   |         | ✔️       |        |                                                       |
+| none        |         | ✔️       | ✔️      | Translate to empty texts                              |
+| original    |         | ✔️       | ✔️      | Keep original texts                                   |
 
 - API Key: Whether the translator requires an API key.
 - Offline: Whether the translator can be used offline.
@@ -209,7 +209,7 @@ Requirements:
 - Docker Compose (Optional if you want to use files in the `demo/doc` folder)
 - Nvidia Container Runtime (Optional if you want to use CUDA)
 
-This project has docker support under `zyddnys/manga-image-translator` image.
+This project has docker support under `zyddnys/manga-image-translator:main` image.
 This docker image contains all required dependencies / models for the project.
 It should be noted that this image is fairly large (~ 5GB).
 
@@ -218,7 +218,7 @@ It should be noted that this image is fairly large (~ 5GB).
 The web server can be hosted using (For CPU)
 
 ```bash
-docker run -p 5003:5003 -v result:/app/result --ipc=host --rm zyddnys/manga-image-translator --target-lang=ENG --manga2eng --verbose --log-web --mode web --host=0.0.0.0 --port=5003
+docker run -p 5003:5003 -v result:/app/result --ipc=host --rm zyddnys/manga-image-translator:main --target-lang=ENG --manga2eng --verbose --log-web --mode web --host=0.0.0.0 --port=5003
 ```
 
 or
@@ -234,7 +234,7 @@ depending on which you prefer. The web server should start on port [5003](http:/
 To use docker with the CLI (I.e in batch mode)
 
 ```bash
-docker run -v <targetFolder>:/app/<targetFolder> -v <targetFolder>-translated:/app/<targetFolder>-translated  --ipc=host --rm zyddnys/manga-image-translator --mode=batch --image=/app/<targetFolder> <cli flags>
+docker run -v <targetFolder>:/app/<targetFolder> -v <targetFolder>-translated:/app/<targetFolder>-translated  --ipc=host --rm zyddnys/manga-image-translator:main --mode=batch --image=/app/<targetFolder> <cli flags>
 ```
 
 **Note:** In the event you need to reference files on your host machine
@@ -246,7 +246,7 @@ Paths for the CLI will need to be the internal docker path `/app/...` instead of
 Some translation services require API keys to function to set these pass them as env vars into the docker container. For example:
 
 ```bash
-docker run --env="DEEPL_AUTH_KEY=xxx" --ipc=host --rm zyddnys/manga-image-translator <cli flags>
+docker run --env="DEEPL_AUTH_KEY=xxx" --ipc=host --rm zyddnys/manga-image-translator:main <cli flags>
 ```
 
 ### Using with Nvida GPU
