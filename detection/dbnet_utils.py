@@ -3,6 +3,7 @@ import pyclipper
 import cv2
 import numpy as np
 from shapely.geometry import Polygon
+import torch
 
 class SegDetectorRepresenter():
 	def __init__(self, thresh=0.6, box_thresh=0.8, max_candidates=1000, unclip_ratio=2.2):
@@ -30,7 +31,8 @@ class SegDetectorRepresenter():
 		segmentation = self.binarize(pred)
 		boxes_batch = []
 		scores_batch = []
-		for batch_index in range(pred.size(0)):
+		batch_size = pred.size(0) if isinstance(pred, torch.Tensor) else pred.shape[0]
+		for batch_index in range(batch_size):
 			height, width = batch['shape'][batch_index]
 			if is_output_polygon:
 				boxes, scores = self.polygons_from_bitmap(pred[batch_index], segmentation[batch_index], width, height)
@@ -99,8 +101,11 @@ class SegDetectorRepresenter():
 		'''
 
 		assert len(_bitmap.shape) == 2
-		bitmap = _bitmap.cpu().numpy()  # The first channel
-		pred = pred.cpu().detach().numpy()
+		if isinstance(pred, torch.Tensor):
+			bitmap = _bitmap.cpu().numpy()  # The first channel
+			pred = pred.cpu().detach().numpy()
+		else:
+			bitmap = _bitmap
 		height, width = bitmap.shape
 		try:
 			contours, _ = cv2.findContours((bitmap * 255).astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)

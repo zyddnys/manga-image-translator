@@ -152,7 +152,7 @@ async def infer(
 		update_state(task_id, nonce, 'detection')
 
 	if detector == 'ctd':
-		mask, final_mask, textlines = await dispatch_ctd_detection(img, args.use_cuda)
+		mask, final_mask, textlines = await dispatch_ctd_detection(img, args.use_cuda, args.verbose)
 	else:
 		textlines, mask = await dispatch_detection(img, img_detect_size, args.use_cuda, args, verbose = args.verbose)
 

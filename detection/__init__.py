@@ -1,9 +1,9 @@
 
 import torch
 import cv2
-from typing import List
+from typing import List, Tuple
 import numpy as np
-from utils import Quadrilateral
+from utils import Quadrilateral, det_rearrange_forward
 from .DBNet_resnet34 import TextDetection as TextDetectionDefault
 from . import imgproc, dbnet_utils, craft_utils
 import einops
@@ -23,23 +23,40 @@ def load_model(cuda: bool, model_name: str = 'default'):
 			model = model.cuda()
 		DEFAULT_MODEL = model
 
+def det_batch_forward_default(batch: np.ndarray, device: str) -> Tuple[np.ndarray, np.ndarray]:
+	if isinstance(batch, list):
+		batch = np.array(batch)
+	batch = einops.rearrange(batch.astype(np.float32) / 127.5 - 1.0, 'n h w c -> n c h w')
+	batch = torch.from_numpy(batch).to(device)
+	with torch.no_grad():
+		db, mask = DEFAULT_MODEL(batch)
+		db = db.sigmoid().cpu().numpy()
+		mask = mask.cpu().numpy()
+	return db, mask
+
 async def run_default(img: np.ndarray, detect_size: int, cuda: bool, verbose: bool, args: dict):
 	global DEFAULT_MODEL
-	img_resized, target_ratio, _, pad_w, pad_h = imgproc.resize_aspect_ratio(cv2.bilateralFilter(img, 17, 80, 80), detect_size, cv2.INTER_LINEAR, mag_ratio = 1)
-	ratio_h = ratio_w = 1 / target_ratio
-	if verbose:
-		print(f'Detection resolution: {img_resized.shape[1]}x{img_resized.shape[0]}')
-	img_resized = img_resized.astype(np.float32) / 127.5 - 1.0
-	img = torch.from_numpy(img_resized)
-	if cuda:
-		img = img.cuda()
-	img = einops.rearrange(img, 'h w c -> 1 c h w')
-	with torch.no_grad():
-		db, mask = DEFAULT_MODEL(img)
-		db = db.sigmoid().cpu()
-		mask = mask[0, 0, :, :].cpu().numpy()
+	device = 'cuda' if cuda else 'cpu'
+
+	db, mask = det_rearrange_forward(img, det_batch_forward_default, detect_size, device=device, verbose=verbose)
+	
+	if db is None:
+		img_resized, target_ratio, _, pad_w, pad_h = imgproc.resize_aspect_ratio(cv2.bilateralFilter(img, 17, 80, 80), detect_size, cv2.INTER_LINEAR, mag_ratio = 1)
+		img_resized_h, img_resized_w = img_resized.shape[:2]
+		ratio_h = ratio_w = 1 / target_ratio
+		if verbose:
+			print(f'Detection resolution: {img_resized_w}x{img_resized_h}')
+		db, mask = det_batch_forward_default([img_resized], device)
+	else:
+		if verbose:
+			print(f'Patchify image before performimg detection')
+		img_resized_h, img_resized_w = img.shape[:2]
+		ratio_w = ratio_h = 1
+		pad_h = pad_w = 0
+
+	mask = mask[0, 0, :, :]
 	det = dbnet_utils.SegDetectorRepresenter(args.text_threshold, args.box_threshold, unclip_ratio = args.unclip_ratio)
-	boxes, scores = det({'shape':[(img_resized.shape[0], img_resized.shape[1])]}, db)
+	boxes, scores = det({'shape':[(img_resized_h, img_resized_w)]}, db)
 	boxes, scores = boxes[0], scores[0]
 	if boxes.size == 0:
 		polys = []
