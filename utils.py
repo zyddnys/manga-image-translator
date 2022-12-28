@@ -962,12 +962,12 @@ def square_pad_resize(img: np.ndarray, tgt_size: int):
 
 def det_rearrange_forward(img: np.ndarray, dbnet_batch_forward, tgt_size: int = 1280, max_batch_size=4, device='cuda', verbose=False):
 	'''
-	Rearrange image to square batches before feeding into network if it satisfies following conditions: \n
+	Rearrange image to square batches before feeding into network if following conditions are satisfied: \n
 	1. Extreme aspect ratio
 	2. Is too tall or wide for detect size (tgt_size)
 	'''
 
-	def _unpatchify(patch_lst: List[np.ndarray], transpose: bool, channel=1, pad_num=0):
+	def _unrearrange(patch_lst: List[np.ndarray], transpose: bool, channel=1, pad_num=0):
 		_psize = _h = patch_lst[0].shape[-1]
 		_step = int(ph_step * _psize / patch_size)
 		_pw = int(_psize / pw_num)
@@ -1068,8 +1068,8 @@ def det_rearrange_forward(img: np.ndarray, dbnet_batch_forward, tgt_size: int = 
 				db_lst.append(d)
 				mask_lst.append(m)
 
-		db = _unpatchify(db_lst, transpose, channel=2, pad_num=pad_num)
-		mask = _unpatchify(mask, transpose, channel=1, pad_num=pad_num)
+		db = _unrearrange(db_lst, transpose, channel=2, pad_num=pad_num)
+		mask = _unrearrange(mask_lst, transpose, channel=1, pad_num=pad_num)
 		return db, mask
 
 
