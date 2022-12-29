@@ -1,6 +1,6 @@
 import os
 import stat
-from typing import List
+from typing import List, Callable, Tuple
 import numpy as np
 import cv2
 import functools
@@ -960,11 +960,17 @@ def square_pad_resize(img: np.ndarray, tgt_size: int):
 
 	return img, down_scale_ratio, pad_h, pad_w
 
-def det_rearrange_forward(img: np.ndarray, dbnet_batch_forward, tgt_size: int = 1280, max_batch_size=4, device='cuda', verbose=False):
+def det_rearrange_forward(
+	img: np.ndarray, 
+	dbnet_batch_forward: Callable[[np.ndarray, str], Tuple[np.ndarray, np.ndarray]], 
+	tgt_size: int = 1280, 
+	max_batch_size: int = 4, 
+	device='cuda', verbose=False):
 	'''
 	Rearrange image to square batches before feeding into network if following conditions are satisfied: \n
 	1. Extreme aspect ratio
 	2. Is too tall or wide for detect size (tgt_size)
+
 	Returns:
         DBNet output, mask or None, None if rearrangement is not required
 	'''

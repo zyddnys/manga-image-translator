@@ -112,9 +112,9 @@ class TextDetector:
         return lines, mask
 
     @torch.no_grad()
-    def __call__(self, img, refine_mode=REFINEMASK_INPAINT, keep_undetected_mask=False, bgr2rgb=True, verbose=False):
+    def __call__(self, img, refine_mode=REFINEMASK_INPAINT, keep_undetected_mask=False, bgr2rgb=True, verbose=False, det_rearrange_max_batches=4):
         im_h, im_w = img.shape[:2]
-        lines_map, mask = det_rearrange_forward(img, self.det_batch_forward_ctd, self.input_size[0], device=self.device, verbose=verbose)
+        lines_map, mask = det_rearrange_forward(img, self.det_batch_forward_ctd, self.input_size[0], det_rearrange_max_batches, self.device, verbose)
         blks = []
         resize_ratio = [1, 1]
         if lines_map is None:
@@ -162,8 +162,8 @@ def load_model(cuda: bool):
         model = TextDetector(model_path='comictextdetector.pt.onnx', device=device, act='leaky', input_size=1024)
     DEFAULT_MODEL = model
 
-async def dispatch(img: np.ndarray, cuda: bool, verbose: bool = False):
+async def dispatch(img: np.ndarray, cuda: bool, verbose: bool = False, det_rearrange_max_batches: int = 4):
     global DEFAULT_MODEL
     if DEFAULT_MODEL is None:
         load_model(cuda)
-    return DEFAULT_MODEL(img, refine_mode=REFINEMASK_INPAINT, keep_undetected_mask=False, bgr2rgb=False, verbose=verbose)
+    return DEFAULT_MODEL(img, refine_mode=REFINEMASK_INPAINT, keep_undetected_mask=False, bgr2rgb=False, verbose=verbose, det_rearrange_max_batches=det_rearrange_max_batches)

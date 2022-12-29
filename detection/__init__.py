@@ -38,7 +38,7 @@ async def run_default(img: np.ndarray, detect_size: int, cuda: bool, verbose: bo
 	global DEFAULT_MODEL
 	device = 'cuda' if cuda else 'cpu'
 
-	db, mask = det_rearrange_forward(img, det_batch_forward_default, detect_size, device=device, verbose=verbose)
+	db, mask = det_rearrange_forward(img, det_batch_forward_default, detect_size, args.det_rearrange_max_batches, device=device, verbose=verbose)
 	
 	if db is None:
 		# rearrangement is not required, fallback to default forward
