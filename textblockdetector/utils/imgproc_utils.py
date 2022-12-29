@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import random
+from typing import List
 
 def hex2bgr(hex):
     gmask = 254 << 8
@@ -148,17 +149,23 @@ def resize_keepasp(im, new_shape=640, scaleup=True, interpolation=cv2.INTER_LINE
         im = cv2.resize(im, new_unpad, interpolation=interpolation)
     return im
 
-def expand_textwindow(img_size, xyxy, expand_r=8, shrink=False):
-    im_h, im_w = img_size[:2]
-    x1, y1 , x2, y2 = xyxy
+def enlarge_window(rect, im_w, im_h, ratio=2.5, aspect_ratio=1.0) -> List:
+    assert ratio > 1.0
+    
+    x1, y1, x2, y2 = rect
     w = x2 - x1
     h = y2 - y1
-    paddings = int(round((max(h, w) * 0.25 + min(h, w) * 0.75) / expand_r))
-    if shrink:
-        paddings *= -1
-    x1, y1 = max(0, x1 - paddings), max(0, y1 - paddings)
-    x2, y2 = min(im_w-1, x2+paddings), min(im_h-1, y2+paddings)
-    return [x1, y1, x2, y2]
+
+    # https://numpy.org/doc/stable/reference/generated/numpy.roots.html
+    coeff = [aspect_ratio, w+h*aspect_ratio, (1-ratio)*w*h]
+    roots = np.roots(coeff)
+    roots.sort()
+    delta = int(round(roots[-1] / 2 ))
+    delta_w = int(delta * aspect_ratio)
+    delta_w = min(x1, im_w - x2, delta_w)
+    delta = min(y1, im_h - y2, delta)
+    rect = np.array([x1-delta_w, y1-delta, x2+delta_w, y2+delta], dtype=np.int64)
+    return rect.tolist()
 
 def draw_connected_labels(num_labels, labels, stats, centroids, names="draw_connected_labels", skip_background=True):
     labdraw = np.zeros((labels.shape[0], labels.shape[1], 3), dtype=np.uint8)
