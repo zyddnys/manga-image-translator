@@ -965,6 +965,8 @@ def det_rearrange_forward(img: np.ndarray, dbnet_batch_forward, tgt_size: int = 
 	Rearrange image to square batches before feeding into network if following conditions are satisfied: \n
 	1. Extreme aspect ratio
 	2. Is too tall or wide for detect size (tgt_size)
+	Returns:
+        DBNet output, mask or None, None if rearrangement is not required
 	'''
 
 	def _unrearrange(patch_lst: List[np.ndarray], transpose: bool, channel=1, pad_num=0):
@@ -992,6 +994,7 @@ def det_rearrange_forward(img: np.ndarray, dbnet_batch_forward, tgt_size: int = 
 
 				if pidx >= num_patches - 1:
 					break
+
 		if transpose:
 			tgtmap = einops.rearrange(tgtmap, 'c h w -> c w h')
 		return tgtmap[None, ...]
