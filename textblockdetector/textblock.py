@@ -515,12 +515,12 @@ def group_output(blks, lines, im_w, im_h, mask=None, sort_blklist=True) -> List[
 		final_blk_list = sort_textblk_list(final_blk_list, im_w, im_h)
 
 	for blk in final_blk_list:
-		if blk.language == 'eng' and not blk.vertical:
+		if blk.language != 'ja' and not blk.vertical:
 			num_lines = len(blk.lines)
 			if num_lines == 0:
 				continue
 			# blk.line_spacing = blk.bounding_rect()[3] / num_lines / blk.font_size
-			expand_size = max(int(blk.font_size * 0.1), 2)
+			expand_size = max(int(blk.font_size * 0.1), 3)
 			rad = np.deg2rad(blk.angle)
 			shifted_vec = np.array([[[-1, -1],[1, -1],[1, 1],[-1, 1]]])
 			shifted_vec = shifted_vec * np.array([[[np.sin(rad), np.cos(rad)]]]) * expand_size
