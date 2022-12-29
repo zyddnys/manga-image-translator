@@ -363,7 +363,7 @@ def examine_textblk(blk: TextBlock, im_w: int, im_h: int, sort: bool = False) ->
 	if sort:
 		blk.sort_lines()
 
-def try_merge_textline(blk: TextBlock, blk2: TextBlock, fntsize_tol=1.3, distance_tol=2) -> bool:
+def try_merge_textline(blk: TextBlock, blk2: TextBlock, fntsize_tol=1.4, distance_tol=2) -> bool:
 	if blk2.merged:
 		return False
 	fntsize_div = blk.font_size / blk2.font_size
@@ -380,7 +380,10 @@ def try_merge_textline(blk: TextBlock, blk2: TextBlock, fntsize_tol=1.3, distanc
 			return False
 		if abs(cos_vec) < 0.866:   # cos30
 			return False
-		if distance > distance_tol * fntsz_avg or distance_p1 > fntsz_avg * 2.5:
+		# if distance > distance_tol * fntsz_avg or distance_p1 > fntsz_avg * 2.5:
+		if distance > distance_tol * fntsz_avg:
+			return False
+		if blk.vertical and blk2.vertical and distance_p1 > fntsz_avg * 2.5:
 			return False
 	# merge
 	blk.lines.append(blk2.lines[0])
