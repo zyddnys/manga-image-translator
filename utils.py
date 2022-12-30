@@ -546,15 +546,15 @@ class Quadrilateral(object):
 		src_pts = self.pts.astype(np.float32)
 		self.assigned_direction = direction
 		if direction == 'h':
-			h = int(textheight)
-			w = int(round(textheight / ratio))
+			h = max(int(textheight), 2)
+			w = max(int(round(textheight / ratio)), 2)
 			dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
 			M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 			region = cv2.warpPerspective(img, M, (w, h))
 			return region
 		elif direction == 'v':
-			w = int(textheight)
-			h = int(round(textheight * ratio))
+			w = max(int(textheight), 2)
+			h = max(int(round(textheight * ratio)), 2)
 			dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
 			M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 			region = cv2.warpPerspective(img, M, (w, h))
