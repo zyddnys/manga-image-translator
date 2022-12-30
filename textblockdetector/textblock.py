@@ -363,7 +363,7 @@ def examine_textblk(blk: TextBlock, im_w: int, im_h: int, sort: bool = False) ->
 	if sort:
 		blk.sort_lines()
 
-def try_merge_textline(blk: TextBlock, blk2: TextBlock, fntsize_tol=1.3, distance_tol=2) -> bool:
+def try_merge_textline(blk: TextBlock, blk2: TextBlock, fntsize_tol=1.4, distance_tol=2) -> bool:
 	if blk2.merged:
 		return False
 	fntsize_div = blk.font_size / blk2.font_size
@@ -380,7 +380,10 @@ def try_merge_textline(blk: TextBlock, blk2: TextBlock, fntsize_tol=1.3, distanc
 			return False
 		if abs(cos_vec) < 0.866:   # cos30
 			return False
-		if distance > distance_tol * fntsz_avg or distance_p1 > fntsz_avg * 2.5:
+		# if distance > distance_tol * fntsz_avg or distance_p1 > fntsz_avg * 2.5:
+		if distance > distance_tol * fntsz_avg:
+			return False
+		if blk.vertical and blk2.vertical and distance_p1 > fntsz_avg * 2.5:
 			return False
 	# merge
 	blk.lines.append(blk2.lines[0])
@@ -512,12 +515,12 @@ def group_output(blks, lines, im_w, im_h, mask=None, sort_blklist=True) -> List[
 		final_blk_list = sort_textblk_list(final_blk_list, im_w, im_h)
 
 	for blk in final_blk_list:
-		if blk.language == 'eng' and not blk.vertical:
+		if blk.language != 'ja' and not blk.vertical:
 			num_lines = len(blk.lines)
 			if num_lines == 0:
 				continue
 			# blk.line_spacing = blk.bounding_rect()[3] / num_lines / blk.font_size
-			expand_size = max(int(blk.font_size * 0.1), 2)
+			expand_size = max(int(blk.font_size * 0.1), 3)
 			rad = np.deg2rad(blk.angle)
 			shifted_vec = np.array([[[-1, -1],[1, -1],[1, 1],[-1, 1]]])
 			shifted_vec = shifted_vec * np.array([[[np.sin(rad), np.cos(rad)]]]) * expand_size

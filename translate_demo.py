@@ -37,6 +37,7 @@ parser.add_argument('--translator', default='google', type=str, choices=TRANSLAT
 parser.add_argument('--use-cuda', action='store_true', help='Turn on/off cuda')
 parser.add_argument('--use-cuda-limited', action='store_true', help='Turn on/off cuda (excluding offline translator)')
 parser.add_argument('--detection-size', default=1536, type=int, help='Size of image used for detection')
+parser.add_argument('--det-rearrange-max-batches', default=4, type=int, help='Max batch size produced by the rearrangement of image with extreme aspectio, reduce it if cuda OOM')
 parser.add_argument('--inpainting-size', default=2048, type=int, help='Size of image used for inpainting (too large will result in OOM)')
 parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to extend text skeleton to form bounding box')
 parser.add_argument('--box-threshold', default=0.7, type=float, help='Threshold for bbox generation')
@@ -152,7 +153,7 @@ async def infer(
 		update_state(task_id, nonce, 'detection')
 
 	if detector == 'ctd':
-		mask, final_mask, textlines = await dispatch_ctd_detection(img, args.use_cuda)
+		mask, final_mask, textlines = await dispatch_ctd_detection(img, args.use_cuda, args.verbose, args.det_rearrange_max_batches)
 	else:
 		textlines, mask = await dispatch_detection(img, img_detect_size, args.use_cuda, args, verbose = args.verbose)
 

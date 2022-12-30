@@ -72,12 +72,16 @@ async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer
 			continue
 
 		majority_dir = None
+		angle_changed = False
 		if text_direction_overwrite in ['h', 'v']:
 			majority_dir = text_direction_overwrite
-		elif 'ENG' in LANGAUGE_ORIENTATION_PRESETS:
-			majority_dir = LANGAUGE_ORIENTATION_PRESETS['ENG']
-		if majority_dir not in ['h', 'v']:
-			majority_dir = region.majority_dir
+		else:
+			if region.vertical:
+				majority_dir = 'v'
+				region.angle += 90
+				angle_changed = True
+			else:
+				majority_dir = 'h'
 
 		fg, bg = region.get_font_colors()
 		fg, bg = fg_bg_compare(fg, bg)
@@ -89,9 +93,10 @@ async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer
 		textlines = []
 		for ii, text in enumerate(region.text):
 			textlines.append(Quadrilateral(np.array(region.lines[ii]), text, 1, region.fg_r, region.fg_g, region.fg_b, region.bg_r, region.bg_g, region.bg_b))
-		# region_aabb = region.aabb
-		# print(region_aabb.x, region_aabb.y, region_aabb.w, region_aabb.h)
+		
 		img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, True, font_size_offset)
+		if angle_changed:
+			region.angle -= 90
 	return img_canvas
 
 def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, is_ctd, font_size_offset: int = 0):
@@ -153,7 +158,6 @@ def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_d
 		w_ext = int((h * r - w) / 2)
 		box = np.zeros((h, w + w_ext * 2, 4), dtype=np.uint8)
 		box[0:h, w_ext:w_ext+w] = temp_box
-	#region_ext = round(min(w, h) * 0.05)
 	#h_ext += region_ext
 	#w_ext += region_ext
 

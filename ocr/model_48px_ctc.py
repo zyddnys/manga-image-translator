@@ -90,8 +90,10 @@ class Model48pxCTCOCR(OfflineOCR):
         out_regions = []
 
         perm = range(len(regions))
+        is_quadrilaterals = False
         if len(quadrilaterals) > 0:
             if isinstance(quadrilaterals[0][0], Quadrilateral):
+                is_quadrilaterals = True
                 perm = sorted(range(len(regions)), key = lambda x: regions[x].shape[1])
 
         ix = 0
@@ -169,8 +171,12 @@ class Model48pxCTCOCR(OfflineOCR):
                     cur_region.bg_r += br
                     cur_region.bg_g += bg
                     cur_region.bg_b += bb
+					
                 out_regions.append(cur_region)
-        return out_regions
+
+        if is_quadrilaterals:
+            return out_regions
+        return textlines
 
 
 class PositionalEncoding(nn.Module):

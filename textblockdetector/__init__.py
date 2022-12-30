@@ -2,18 +2,21 @@ import json
 from .basemodel import TextDetBase, TextDetBaseDNN
 import os.path as osp
 from tqdm import tqdm
+import einops
 import numpy as np
 import cv2
 import torch
 from pathlib import Path
 import torch
-from typing import Union
+from typing import Union, Tuple
 from .utils.yolov5_utils import non_max_suppression
 from .utils.db_utils import SegDetectorRepresenter
 from .utils.io_utils import imread, imwrite, find_all_imgs, NumpyEncoder
 from .utils.imgproc_utils import letterbox, xyxy2yolo, get_yololabel_strings
 from .textblock import TextBlock, group_output
 from .textmask import refine_mask, refine_undetected_mask, REFINEMASK_INPAINT, REFINEMASK_ANNOTATION
+
+from utils import det_rearrange_forward
 
 def preprocess_img(img, input_size=(1024, 1024), device='cpu', bgr2rgb=True, half=False, to_tensor=True):
     if bgr2rgb:
@@ -33,7 +36,7 @@ def postprocess_mask(img: Union[torch.Tensor, np.ndarray], thresh=None):
     if isinstance(img, torch.Tensor):
         img = img.squeeze_()
         if img.device != 'cpu':
-            img = img.detach_().cpu()
+            img = img.detach().cpu()
         img = img.numpy()
     else:
         img = img.squeeze()
@@ -58,6 +61,7 @@ def postprocess_yolo(det, conf_thresh, nms_thresh, resize_ratio, sort_func=None)
     confs = np.round(det[..., 4], 3)
     cls = det[..., 5].astype(np.int32)
     return blines, cls, confs
+
 
 class TextDetector:
     lang_list = ['eng', 'ja', 'unknown']
@@ -84,38 +88,61 @@ class TextDetector:
         self.nms_thresh = nms_thresh
         self.seg_rep = SegDetectorRepresenter(thresh=0.3)
 
+    def det_batch_forward_ctd(self, batch: np.ndarray, device: str) -> Tuple[np.ndarray, np.ndarray]:
+        
+        if isinstance(self.net, TextDetBase):
+            batch = einops.rearrange(batch.astype(np.float32) / 255., 'n h w c -> n c h w')
+            batch = torch.from_numpy(batch).to(device)
+            _, mask, lines = self.net(batch)
+            mask = mask.cpu().numpy()
+            lines = lines.cpu().numpy()
+        elif isinstance(self.net, TextDetBaseDNN):
+            mask_lst, line_lst = [], []
+            for b in batch:
+                _, mask, lines = self.net(b)
+                if mask.shape[1] == 2:     # some version of opencv spit out reversed result
+                    tmp = mask
+                    mask = lines
+                    lines = tmp
+                mask_lst.append(mask)
+                line_lst.append(lines)
+            lines, mask = np.concatenate(line_lst, 0), np.concatenate(mask_lst, 0)
+        else:
+            raise NotImplementedError
+        return lines, mask
+
     @torch.no_grad()
-    def __call__(self, img, refine_mode=REFINEMASK_INPAINT, keep_undetected_mask=False, bgr2rgb=True):
-        img_in, ratio, dw, dh = preprocess_img(img, input_size=self.input_size, device=self.device, half=self.half, to_tensor=self.backend=='torch')
-
+    def __call__(self, img, refine_mode=REFINEMASK_INPAINT, keep_undetected_mask=False, bgr2rgb=True, verbose=False, det_rearrange_max_batches=4):
         im_h, im_w = img.shape[:2]
+        lines_map, mask = det_rearrange_forward(img, self.det_batch_forward_ctd, self.input_size[0], det_rearrange_max_batches, self.device, verbose)
+        blks = []
+        resize_ratio = [1, 1]
+        if lines_map is None:
+            img_in, ratio, dw, dh = preprocess_img(img, input_size=self.input_size, device=self.device, half=self.half, to_tensor=self.backend=='torch')
+            blks, mask, lines_map = self.net(img_in)
 
-        blks, mask, lines_map = self.net(img_in)
+            if self.backend == 'opencv':
+                if mask.shape[1] == 2:     # some version of opencv spit out reversed result
+                    tmp = mask
+                    mask = lines_map
+                    lines_map = tmp
+            mask = mask.squeeze()
+            resize_ratio = (im_w / (self.input_size[0] - dw), im_h / (self.input_size[1] - dh))
+            blks = postprocess_yolo(blks, self.conf_thresh, self.nms_thresh, resize_ratio)
+            mask = mask[..., :mask.shape[0]-dh, :mask.shape[1]-dw]
+            lines_map = lines_map[..., :lines_map.shape[2]-dh, :lines_map.shape[3]-dw]
 
-        resize_ratio = (im_w / (self.input_size[0] - dw), im_h / (self.input_size[1] - dh))
-        blks = postprocess_yolo(blks, self.conf_thresh, self.nms_thresh, resize_ratio)
-
-        if self.backend == 'opencv':
-            if mask.shape[1] == 2:     # some version of opencv spit out reversed result
-                tmp = mask
-                mask = lines_map
-                lines_map = tmp
         mask = postprocess_mask(mask)
-
-        lines, scores = self.seg_rep(self.input_size, lines_map)
+        lines, scores = self.seg_rep(None, lines_map, height=im_h, width=im_w)
         box_thresh = 0.6
         idx = np.where(scores[0] > box_thresh)
         lines, scores = lines[0][idx], scores[0][idx]
 
         # map output to input img
-        mask = mask[: mask.shape[0]-dh, : mask.shape[1]-dw]
         mask = cv2.resize(mask, (im_w, im_h), interpolation=cv2.INTER_LINEAR)
         if lines.size == 0:
             lines = []
         else:
-            lines = lines.astype(np.float64)
-            lines[..., 0] *= resize_ratio[0]
-            lines[..., 1] *= resize_ratio[1]
             lines = lines.astype(np.int32)
         blk_list = group_output(blks, lines, im_w, im_h, mask)
         mask_refined = refine_mask(img, mask, blk_list, refine_mode=refine_mode)
@@ -135,8 +162,8 @@ def load_model(cuda: bool):
         model = TextDetector(model_path='comictextdetector.pt.onnx', device=device, act='leaky', input_size=1024)
     DEFAULT_MODEL = model
 
-async def dispatch(img: np.ndarray, cuda: bool):
+async def dispatch(img: np.ndarray, cuda: bool, verbose: bool = False, det_rearrange_max_batches: int = 4):
     global DEFAULT_MODEL
     if DEFAULT_MODEL is None:
         load_model(cuda)
-    return DEFAULT_MODEL(img, refine_mode=REFINEMASK_INPAINT, keep_undetected_mask=False, bgr2rgb=False)
+    return DEFAULT_MODEL(img, refine_mode=REFINEMASK_INPAINT, keep_undetected_mask=False, bgr2rgb=False, verbose=verbose, det_rearrange_max_batches=det_rearrange_max_batches)

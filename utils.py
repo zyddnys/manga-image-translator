@@ -1,6 +1,6 @@
 import os
 import stat
-from typing import List
+from typing import List, Callable, Tuple
 import numpy as np
 import cv2
 import functools
@@ -16,6 +16,7 @@ import re
 import torch
 import shutil
 import filecmp
+import einops
 
 try:
   	functools.cached_property
@@ -25,9 +26,9 @@ except AttributeError: # Supports Python versions below 3.8
 
 
 def chunks(lst, n):
-    """Yield successive n-sized chunks from lst."""
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
+	"""Yield successive n-sized chunks from lst."""
+	for i in range(0, len(lst), n):
+		yield lst[i:i + n]
 
 def get_digest(file_path: str) -> str:
 	h = hashlib.sha256()
@@ -262,10 +263,10 @@ class ModelWrapper(ABC):
 						shutil.move(p1, p2)
 					else:
 						raise InvalidModelMappingException(self.__class__.__name__, map_key, 'File "{orig}" does not exist within archive' +
-								        '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
+										'\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
 				if len(map['archive']) == 0:
 					raise InvalidModelMappingException(self.__class__.__name__, map_key, 'No archive files specified' +
-					                    '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
+										'\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
 
 				self._grant_execute_permissions(map_key)
 
@@ -931,6 +932,159 @@ def color_difference(rgb1: List, rgb2: List) -> float:
 	diff[..., 0] *= 0.392
 	diff = np.linalg.norm(diff, axis=2) 
 	return diff.item()
+
+def square_pad_resize(img: np.ndarray, tgt_size: int):
+	h, w = img.shape[:2]
+	pad_h, pad_w = 0, 0
+	
+	# make square image
+	if w < h:
+		pad_w = h - w
+		w += pad_w
+	elif h < w:
+		pad_h = w - h
+		h += pad_h
+
+	pad_size = tgt_size - h
+	if pad_size > 0:
+		pad_h += pad_size
+		pad_w += pad_size
+
+	if pad_h > 0 or pad_w > 0:	
+		img = cv2.copyMakeBorder(img, 0, pad_h, 0, pad_w, cv2.BORDER_CONSTANT)
+
+	down_scale_ratio = tgt_size / img.shape[0]
+	assert down_scale_ratio <= 1
+	if down_scale_ratio < 1:
+		img = cv2.resize(img, (tgt_size, tgt_size), interpolation=cv2.INTER_LINEAR)
+
+	return img, down_scale_ratio, pad_h, pad_w
+
+def det_rearrange_forward(
+	img: np.ndarray, 
+	dbnet_batch_forward: Callable[[np.ndarray, str], Tuple[np.ndarray, np.ndarray]], 
+	tgt_size: int = 1280, 
+	max_batch_size: int = 4, 
+	device='cuda', verbose=False):
+	'''
+	Rearrange image to square batches before feeding into network if following conditions are satisfied: \n
+	1. Extreme aspect ratio
+	2. Is too tall or wide for detect size (tgt_size)
+
+	Returns:
+        DBNet output, mask or None, None if rearrangement is not required
+	'''
+
+	def _unrearrange(patch_lst: List[np.ndarray], transpose: bool, channel=1, pad_num=0):
+		_psize = _h = patch_lst[0].shape[-1]
+		_step = int(ph_step * _psize / patch_size)
+		_pw = int(_psize / pw_num)
+		_h = int(_pw / w * h)
+		tgtmap = np.zeros((channel, _h, _pw), dtype=np.float32)
+		num_patches = len(patch_lst) * pw_num - pad_num
+		for ii, p in enumerate(patch_lst):
+			if transpose:
+				p = einops.rearrange(p, 'c h w -> c w h')
+			for jj in range(pw_num):
+				pidx = ii * pw_num + jj
+				rel_t = rel_step_list[pidx]
+				t = int(round(rel_t * _h))
+				b = t + _psize
+				l = jj * _pw
+				r = l + _pw
+
+				tgtmap[..., t: b, :] += p[..., l: r]
+				if pidx > 0:
+					interleave = _psize - _step
+					tgtmap[..., t: t+interleave, :] /= 2.
+
+				if pidx >= num_patches - 1:
+					break
+
+		if transpose:
+			tgtmap = einops.rearrange(tgtmap, 'c h w -> c w h')
+		return tgtmap[None, ...]
+
+	def _patch2batches(patch_lst: List[np.ndarray], p_num: int, transpose: bool):
+		if transpose:
+			patch_lst = einops.rearrange(patch_lst, '(p_num pw_num) ph pw c -> p_num (pw_num pw) ph c', p_num=p_num)
+		else:
+			patch_lst = einops.rearrange(patch_lst, '(p_num pw_num) ph pw c -> p_num ph (pw_num pw) c', p_num=p_num)
+		
+		batches = [[]]
+		for ii, patch in enumerate(patch_lst):
+
+			if len(batches[-1]) >= max_batch_size:
+				batches.append([])
+			p, down_scale_ratio, pad_h, pad_w = square_pad_resize(patch, tgt_size=tgt_size)
+
+			assert pad_h == pad_w
+			pad_size = pad_h
+			batches[-1].append(p)
+			if verbose:
+				cv2.imwrite(f'result/rearrange_{ii}.png', p[..., ::-1])
+		return batches, down_scale_ratio, pad_size
+
+	h, w = img.shape[:2]
+	transpose = False
+	if h < w:
+		transpose = True
+		h, w = img.shape[1], img.shape[0]
+
+	asp_ratio = h / w
+	down_scale_ratio = h / tgt_size
+
+	# rearrange condition
+	require_rearrange = down_scale_ratio > 2.5 and asp_ratio > 3
+	if not require_rearrange:
+		return None, None
+	else:
+
+		if verbose:
+			print(f'Input image will be rearranged to square batches before fed into network.\
+				\n Rearranged batches will be saved to result/rearrange_%d.png')
+
+		if transpose:
+			img = einops.rearrange(img, 'h w c -> w h c')
+		
+		pw_num = max(int(np.floor(2 * tgt_size / w)), 2)
+		patch_size = ph = pw_num * w
+
+		ph_num = int(np.ceil(h / ph))
+		ph_step = int((h - ph) / (ph_num - 1)) if ph_num > 1 else 0
+		rel_step_list = []
+		patch_list = []
+		for ii in range(ph_num):
+			t = ii * ph_step
+			b = t + ph
+			rel_step_list.append(t / h)
+			patch_list.append(img[t: b])
+
+		p_num = int(np.ceil(ph_num / pw_num))
+		pad_num = p_num * pw_num - ph_num
+		for ii in range(pad_num):
+			patch_list.append(np.zeros_like(patch_list[0]))
+
+		batches, down_scale_ratio, pad_size = _patch2batches(patch_list, p_num, transpose)
+
+		db_lst, mask_lst = [], []
+		for batch in batches:
+			batch = np.array(batch)
+			db, mask = dbnet_batch_forward(batch, device=device)
+
+			for d, m in zip(db, mask):
+				if pad_size > 0:
+					paddb = int(db.shape[-1] / tgt_size * pad_size)
+					padmsk = int(mask.shape[-1] / tgt_size * pad_size)
+					d = d[..., :-paddb, :-paddb]
+					m = m[..., :-padmsk, :-padmsk]
+				db_lst.append(d)
+				mask_lst.append(m)
+
+		db = _unrearrange(db_lst, transpose, channel=2, pad_num=pad_num)
+		mask = _unrearrange(mask_lst, transpose, channel=1, pad_num=pad_num)
+		return db, mask
+
 
 def main():
 	s1 = [Point(0, 0), Point(0, 2), Point(2, 2), Point(2, 0)]

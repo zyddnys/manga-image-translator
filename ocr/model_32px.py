@@ -54,8 +54,10 @@ class Model32pxOCR(OfflineOCR):
         out_regions = []
 
         perm = range(len(regions))
+        is_quadrilaterals = False
         if len(quadrilaterals) > 0 and isinstance(quadrilaterals[0][0], Quadrilateral):
             perm = sorted(range(len(regions)), key = lambda x: regions[x].shape[1])
+            is_quadrilaterals = True
 
         ix = 0
         for indices in chunks(perm, max_chunk_size):
@@ -120,7 +122,10 @@ class Model32pxOCR(OfflineOCR):
                     cur_region.bg_b += bb
 
                 out_regions.append(cur_region)
-        return out_regions
+
+        if is_quadrilaterals:
+            return out_regions
+        return textlines
 
 
 class ResNet(nn.Module):
