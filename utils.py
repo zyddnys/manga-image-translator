@@ -1042,7 +1042,7 @@ def det_rearrange_forward(
 
 		if verbose:
 			print(f'Input image will be rearranged to square batches before fed into network.\
-				\n Rearranged batches will be saved to result/rearrange_%d.jpg')
+				\n Rearranged batches will be saved to result/rearrange_%d.png')
 
 		if transpose:
 			img = einops.rearrange(img, 'h w c -> w h c')
@@ -1052,7 +1052,6 @@ def det_rearrange_forward(
 
 		ph_num = int(np.ceil(h / ph))
 		ph_step = int((h - ph) / (ph_num - 1)) if ph_num > 1 else 0
-		rel_ph_step = ph_step / h
 		rel_step_list = []
 		patch_list = []
 		for ii in range(ph_num):
