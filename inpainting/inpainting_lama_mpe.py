@@ -715,34 +715,37 @@ class LamaFourier:
         pos = np.zeros((h, w), dtype=np.int32)
         direct = np.zeros((h, w, 4), dtype=np.int32)
         i = 0
-        while np.sum(1 - mask3) > 0:
-            i += 1
-            mask3_ = cv2.filter2D(mask3, -1, ones_filter)
-            mask3_[mask3_ > 0] = 1
-            sub_mask = mask3_ - mask3
-            pos[sub_mask == 1] = i
 
-            m = cv2.filter2D(mask3, -1, d_filter1)
-            m[m > 0] = 1
-            m = m - mask3
-            direct[m == 1, 0] = 1
+        if mask3.max() > 0:
+            # otherwise it will cause infinity loop
+            while np.sum(1 - mask3) > 0:
+                i += 1
+                mask3_ = cv2.filter2D(mask3, -1, ones_filter)
+                mask3_[mask3_ > 0] = 1
+                sub_mask = mask3_ - mask3
+                pos[sub_mask == 1] = i
 
-            m = cv2.filter2D(mask3, -1, d_filter2)
-            m[m > 0] = 1
-            m = m - mask3
-            direct[m == 1, 1] = 1
+                m = cv2.filter2D(mask3, -1, d_filter1)
+                m[m > 0] = 1
+                m = m - mask3
+                direct[m == 1, 0] = 1
 
-            m = cv2.filter2D(mask3, -1, d_filter3)
-            m[m > 0] = 1
-            m = m - mask3
-            direct[m == 1, 2] = 1
+                m = cv2.filter2D(mask3, -1, d_filter2)
+                m[m > 0] = 1
+                m = m - mask3
+                direct[m == 1, 1] = 1
 
-            m = cv2.filter2D(mask3, -1, d_filter4)
-            m[m > 0] = 1
-            m = m - mask3
-            direct[m == 1, 3] = 1
+                m = cv2.filter2D(mask3, -1, d_filter3)
+                m[m > 0] = 1
+                m = m - mask3
+                direct[m == 1, 2] = 1
 
-            mask3 = mask3_
+                m = cv2.filter2D(mask3, -1, d_filter4)
+                m[m > 0] = 1
+                m = m - mask3
+                direct[m == 1, 3] = 1
+
+                mask3 = mask3_
 
         abs_pos = pos.copy()
         rel_pos = pos / (str_size / 2)  # to 0~1 maybe larger than 1
