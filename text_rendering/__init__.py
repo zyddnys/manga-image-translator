@@ -65,23 +65,19 @@ async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translate
 		img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, False, font_size_offset)
 	return img_canvas
 
-async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], text_regions: List[TextBlock], text_direction_overwrite: str, font_size_offset: int = 0) -> np.ndarray:
+async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], text_regions: List[TextBlock], text_direction_overwrite: str, target_language: str, font_size_offset: int = 0) -> np.ndarray:
 	for ridx, (trans_text, region) in enumerate(zip(translated_sentences, text_regions)):
 		print(f'text: {region.get_text()} \n trans: {trans_text}')
 		if not trans_text:
 			continue
 
 		majority_dir = None
-		angle_changed = False
 		if text_direction_overwrite in ['h', 'v']:
 			majority_dir = text_direction_overwrite
-		else:
-			if region.vertical:
-				majority_dir = 'v'
-				region.angle += 90
-				angle_changed = True
-			else:
-				majority_dir = 'h'
+		elif target_language in LANGAUGE_ORIENTATION_PRESETS:
+			majority_dir = LANGAUGE_ORIENTATION_PRESETS[target_language]
+		if majority_dir not in ['h', 'v']:
+			majority_dir = region.majority_dir
 
 		fg, bg = region.get_font_colors()
 		fg, bg = fg_bg_compare(fg, bg)
@@ -95,8 +91,6 @@ async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer
 			textlines.append(Quadrilateral(np.array(region.lines[ii]), text, 1, region.fg_r, region.fg_g, region.fg_b, region.bg_r, region.bg_g, region.bg_b))
 		
 		img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, True, font_size_offset)
-		if angle_changed:
-			region.angle -= 90
 	return img_canvas
 
 def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, is_ctd, font_size_offset: int = 0):
