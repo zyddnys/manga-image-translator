@@ -5,7 +5,7 @@ import os
 from utils import ModelWrapper
 
 class LanguageUnsupportedException(Exception):
-    def __init__(self, language_code: str, translator: str = None, supported_languages: List[str] = None) -> None:
+    def __init__(self, language_code: str, translator: str = None, supported_languages: List[str] = None):
         error = 'Language not supported for %s: "%s"' % (translator if translator else 'chosen translator', language_code)
         if supported_languages:
             error += '. Supported languages: "%s"' % ','.join(supported_languages)
