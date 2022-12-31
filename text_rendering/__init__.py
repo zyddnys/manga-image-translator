@@ -3,10 +3,10 @@ from utils import Quadrilateral
 import numpy as np
 import cv2
 
+from utils import findNextPowerOf2, color_difference
+from detection.ctd_utils import TextBlock
 from . import text_render
 from .text_render_eng import render_textblock_list_eng
-from utils import findNextPowerOf2, color_difference
-from textblockdetector.textblock import TextBlock
 
 
 LANGAUGE_ORIENTATION_PRESETS = {

@@ -1,9 +1,9 @@
 import cv2
 import numpy as np
 from PIL import ImageFont, ImageDraw, Image
-from typing import List, Union, Tuple
+from typing import List, Tuple
 
-from textblockdetector import TextBlock
+from detection.ctd_utils import TextBlock
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)

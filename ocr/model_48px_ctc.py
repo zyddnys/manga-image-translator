@@ -14,7 +14,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from utils import Quadrilateral, AvgMeter, chunks
-from textblockdetector.textblock import TextBlock
+from detection.ctd_utils import TextBlock
 from .common import OfflineOCR
 
 def generate_text_direction(bboxes: List[Quadrilateral]):

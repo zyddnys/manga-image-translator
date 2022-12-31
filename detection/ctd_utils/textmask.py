@@ -1,9 +1,9 @@
-from os import stat
 from typing import List
 import cv2
 import numpy as np
+
 from .textblock import TextBlock
-from .utils.imgproc_utils import draw_connected_labels, union_area, enlarge_window
+from .utils.imgproc_utils import union_area, enlarge_window
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
