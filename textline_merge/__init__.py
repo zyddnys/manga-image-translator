@@ -131,14 +131,15 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose
 	for i, box in enumerate(bboxes):
 		G.add_node(i, box = box)
 		bboxes[i].assigned_index = i
+
 	# step 1: roughly divide into multiple text region candidates
 	for ((u, ubox), (v, vbox)) in itertools.combinations(enumerate(bboxes), 2):
 		if quadrilateral_can_merge_region_coarse(ubox, vbox):
 			G.add_edge(u, v)
 
+	# step 2: split each region
 	region_indices: List[Set[int]] = []
 	for node_set in nx.algorithms.components.connected_components(G):
-		# step 2: split each region
 		if verbose:
 			print(' -- spliting', node_set)
 		region_indices.extend(split_text_region(bboxes, node_set, verbose = verbose))
@@ -147,8 +148,8 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose
 
 	for node_set in region_indices:
 		nodes = list(node_set)
-		# get overall bbox
 		txtlns = np.array(bboxes)[nodes]
+		# get overall bbox
 		kq = np.concatenate([x.pts for x in txtlns], axis = 0)
 		if sum([int(a.is_approximate_axis_aligned) for a in txtlns]) > len(txtlns) // 2:
 			max_coord = np.max(kq, axis = 0)
@@ -164,43 +165,45 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose
 			# TODO: use better method
 			bbox = np.concatenate([a[None, :] for a in get_mini_boxes(kq)], axis = 0).astype(int)
 		# calculate average fg and bg color
-		fg_r = round(np.mean([box.fg_r for box in [bboxes[i] for i in nodes]]))
-		fg_g = round(np.mean([box.fg_g for box in [bboxes[i] for i in nodes]]))
-		fg_b = round(np.mean([box.fg_b for box in [bboxes[i] for i in nodes]]))
-		bg_r = round(np.mean([box.bg_r for box in [bboxes[i] for i in nodes]]))
-		bg_g = round(np.mean([box.bg_g for box in [bboxes[i] for i in nodes]]))
-		bg_b = round(np.mean([box.bg_b for box in [bboxes[i] for i in nodes]]))
+		fg_r = round(np.mean([box.fg_r for box in txtlns]))
+		fg_g = round(np.mean([box.fg_g for box in txtlns]))
+		fg_b = round(np.mean([box.fg_b for box in txtlns]))
+		bg_r = round(np.mean([box.bg_r for box in txtlns]))
+		bg_g = round(np.mean([box.bg_g for box in txtlns]))
+		bg_b = round(np.mean([box.bg_b for box in txtlns]))
 		# majority vote for direction
-		dirs = [box.direction for box in [bboxes[i] for i in nodes]]
+		dirs = [box.direction for box in txtlns]
 		majority_dir = Counter(dirs).most_common(1)[0][0]
+
 		# sort
 		if majority_dir == 'h':
 			nodes = sorted(nodes, key = lambda x: bboxes[x].aabb.y + bboxes[x].aabb.h // 2)
 		elif majority_dir == 'v':
 			nodes = sorted(nodes, key = lambda x: -(bboxes[x].aabb.x + bboxes[x].aabb.w))
+
 		# yield overall bbox and sorted indices
-		yield bbox, nodes, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
+		yield bbox, txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
 
 async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verbose: bool = False) -> Tuple[List[Quadrilateral], List[Quadrilateral]]:
 	text_regions: List[Quadrilateral] = []
 	new_textlines = []
-	for (poly_regions, textline_indices, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines, width, height, verbose):
+	for (poly_regions, txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines, width, height, verbose):
 		text = ''
 		logprob_lengths = []
-		for textline_idx in textline_indices:
+		for txtln in txtlns:
 			if not text:
-				text = textlines[textline_idx].text
+				text = txtln.text
 			else:
 				last_ch = text[-1]
-				cur_ch = textlines[textline_idx].text[0]
+				cur_ch = txtln.text[0]
 				if ord(last_ch) > 255 and ord(cur_ch) > 255:
-					text += textlines[textline_idx].text
+					text += txtln.text
 				else:
 					if last_ch == '-' and ord(cur_ch) < 255:
-						text = text[:-1] + textlines[textline_idx].text
+						text = text[:-1] + txtln.text
 					else:
-						text += ' ' + textlines[textline_idx].text
-			logprob_lengths.append((np.log(textlines[textline_idx].prob), len(textlines[textline_idx].text)))
+						text += ' ' + txtln.text
+			logprob_lengths.append((np.log(txtln.prob), len(txtln.text)))
 		vc = count_valuable_text(text)
 		total_logprobs = 0.0
 		for (logprob, length) in logprob_lengths:
@@ -213,7 +216,7 @@ async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verb
 			region.textline_indices = []
 			region.majority_dir = majority_dir
 			text_regions.append(region)
-			for textline_idx in textline_indices:
+			for txtln in txtlns:
 				region.textline_indices.append(len(new_textlines))
-				new_textlines.append(textlines[textline_idx])
+				new_textlines.append(txtln)
 	return text_regions, new_textlines
