@@ -14,7 +14,6 @@ from detection import DETECTORS, dispatch as dispatch_detection, prepare as prep
 from ocr import OCRS, dispatch as dispatch_ocr, prepare as prepare_ocr
 from inpainting import INPAINTERS, dispatch as dispatch_inpainting, prepare as prepare_inpainting
 from translators import OFFLINE_TRANSLATORS, TRANSLATORS, VALID_LANGUAGES, dispatch as dispatch_translation, prepare as prepare_translation
-from text_mask import dispatch as dispatch_mask_refinement
 from textline_merge import dispatch as dispatch_textline_merge
 from upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
 from text_rendering import dispatch as dispatch_rendering, text_render
@@ -156,7 +155,7 @@ async def infer(
 	if detector == 'ctd':
 		mask, final_mask, textlines = await dispatch_ctd_detection(img_rgb, args.use_cuda, args.verbose, args.det_rearrange_max_batches)
 	else:
-		textlines, mask = await dispatch_detection(args.detector, img_rgb, img_detect_size, args.text_threshold, args.box_threshold, args.unclip_ratio, args.det_rearrange_max_batches, args.verbose, args.use_cuda)
+		textlines, mask, final_mask = await dispatch_detection(args.detector, img_rgb, img_detect_size, args.text_threshold, args.box_threshold, args.unclip_ratio, args.det_rearrange_max_batches, args.verbose, args.use_cuda)
 
 	if args.verbose:
 		if detector == 'ctd':
@@ -191,8 +190,6 @@ async def infer(
 		print(' -- Generating text mask')
 		if mode == 'web' and task_id:
 			update_state(task_id, nonce, 'mask_generation')
-		# create mask
-		final_mask = await dispatch_mask_refinement(img_rgb, mask, textlines)
 
 	if mode == 'web' and task_id and options.get('translator') not in OFFLINE_TRANSLATORS:
 		update_state(task_id, nonce, 'translating')

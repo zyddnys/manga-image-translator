@@ -104,9 +104,9 @@ class DefaultDetector(OfflineDetector):
 
 
         # text_regions = await self._merge_textlines(textlines, image.shape[1], image.shape[0])
-        # final_mask = await self._refine_textmask(textlines, image, raw_mask)
+        final_mask = await self._refine_textmask(textlines, image, raw_mask)
 
-        return textlines, raw_mask
+        return textlines, raw_mask, final_mask
 
         # if verbose:
         #     img_bbox = np.copy(image)
