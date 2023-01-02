@@ -14,7 +14,6 @@ class CommonOCR(ABC):
         if len(bboxes) > 0:
             if isinstance(bboxes[0], TextBlock):
                 for blk in bboxes:
-                    majority_dir = 'v' if blk.vertical else 'h'
                     for line_idx in range(len(blk.lines)):
                         yield blk, line_idx
             else:
@@ -40,15 +39,15 @@ class CommonOCR(ABC):
                     for node in nodes:
                         yield bboxes[node], majority_dir
 
-    async def recognize(self, image: np.ndarray, textlines: List[Quadrilateral], verbose: bool = False) -> List[Quadrilateral]:
+    async def recognize(self, image: np.ndarray, textlines: List[TextBlock], verbose: bool = False) -> List[TextBlock]:
         '''
         Performs the optical character recognition, using the `textlines` as areas of interests.
-        Returns quadrilaterals defined by the `textlines` which contain the recognized text.
+        Returns TextBlocks defined by the `textlines` which contain the recognized text.
         '''
         return await self._recognize(image, textlines, verbose)
 
     @abstractmethod
-    async def _recognize(self, image: np.ndarray, textlines: List[Quadrilateral], verbose: bool = False) -> List[Quadrilateral]:
+    async def _recognize(self, image: np.ndarray, textlines: List[TextBlock], verbose: bool = False) -> List[TextBlock]:
         pass
 
 class OfflineOCR(CommonOCR, ModelWrapper):
@@ -58,5 +57,5 @@ class OfflineOCR(CommonOCR, ModelWrapper):
         return await self.forward(*args, **kwargs)
 
     @abstractmethod
-    async def _forward(self, image: np.ndarray, textlines: List[Quadrilateral], verbose: bool = False) -> List[Quadrilateral]:
+    async def _forward(self, image: np.ndarray, textlines: List[TextBlock], verbose: bool = False) -> List[TextBlock]:
         pass

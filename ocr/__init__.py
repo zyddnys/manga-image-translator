@@ -1,7 +1,7 @@
 import numpy as np
 from typing import List
 
-from utils import Quadrilateral
+from detection.ctd_utils.textblock import TextBlock
 from .common import CommonOCR, OfflineOCR
 from .model_32px import Model32pxOCR
 from .model_48px_ctc import Model48pxCTCOCR
@@ -26,7 +26,7 @@ async def prepare(ocr_key: str, use_cuda: bool):
 		await ocr.download()
 		await ocr.load('cuda' if use_cuda else 'cpu')
 
-async def dispatch(ocr_key: str, image: np.ndarray, textlines: List[Quadrilateral], use_cuda: bool = False, verbose: bool = False) -> List[Quadrilateral]:
+async def dispatch(ocr_key: str, image: np.ndarray, textlines: List[TextBlock], use_cuda: bool = False, verbose: bool = False) -> List[TextBlock]:
 	ocr = get_ocr(ocr_key)
 	if isinstance(ocr, OfflineOCR):
 		await ocr.load('cuda' if use_cuda else 'cpu')

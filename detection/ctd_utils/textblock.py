@@ -323,6 +323,7 @@ def sort_textblk_list(blk_list: List[TextBlock], im_w: int, im_h: int) -> List[T
 	blk_list.sort(key=lambda blk: blk.sort_weight)
 	return blk_list
 
+# TODO: Make these cached_properties
 def examine_textblk(blk: TextBlock, im_w: int, im_h: int, sort: bool = False) -> None:
 	lines = blk.lines_array()
 	middle_pnts = (lines[:, [1, 2, 3, 0]] + lines) / 2

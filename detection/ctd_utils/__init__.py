@@ -136,6 +136,9 @@ class TextDetector:
 
         # map output to input img
         mask = cv2.resize(mask, (im_w, im_h), interpolation=cv2.INTER_LINEAR)
+        if verbose:
+            cv2.imwrite(f'result/mask_raw.png', mask)
+
         if lines.size == 0:
             lines = []
         else:
@@ -145,7 +148,7 @@ class TextDetector:
         if keep_undetected_mask:
             mask_refined = refine_undetected_mask(img, mask, mask_refined, blk_list, refine_mode=refine_mode)
 
-        return mask, mask_refined, blk_list
+        return blk_list, mask_refined
 
 DEFAULT_MODEL = None
 def load_model(cuda: bool):

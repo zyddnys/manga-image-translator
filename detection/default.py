@@ -86,7 +86,8 @@ class DefaultDetector(OfflineDetector):
             polys = polys.astype(np.float64)
             polys = craft_utils.adjustResultCoordinates(polys, ratio_w, ratio_h, ratio_net=1)
             polys = polys.astype(np.int16)
-        textlines = [Quadrilateral(pts.astype(int), '', 0) for pts in polys]
+
+        textlines = [Quadrilateral(pts.astype(int), '', score) for pts, score in zip(polys, scores)]
         textlines = list(filter(lambda q: q.area > 16, textlines))
         mask_resized = cv2.resize(mask, (mask.shape[1] * 2, mask.shape[0] * 2), interpolation=cv2.INTER_LINEAR)
         if pad_h > 0:
@@ -102,21 +103,7 @@ class DefaultDetector(OfflineDetector):
             cv2.imwrite(f'result/bboxes_unfiltered.png', cv2.cvtColor(img_bbox_raw, cv2.COLOR_RGB2BGR))
             cv2.imwrite(f'result/mask_raw.png', raw_mask)
 
-
-        # text_regions = await self._merge_textlines(textlines, image.shape[1], image.shape[0])
+        text_regions = await self._merge_textlines(textlines, image.shape[1], image.shape[0])
         final_mask = await self._refine_textmask(textlines, image, raw_mask)
 
-        return textlines, raw_mask, final_mask
-
-        # if verbose:
-        #     img_bbox = np.copy(image)
-        #     print('VERBOSE', text_regions)
-        #     for region in text_regions:
-        #         print('REGION', region.pts)
-        #         for txtln in region.textlines:
-        #             print('TXTLN', txtln.pts)
-        #             cv2.polylines(img_bbox, [txtln.pts], True, color=(255, 0, 0), thickness=2)
-        #         img_bbox = cv2.polylines(img_bbox, [region.pts], True, color=(0, 0, 255), thickness=2)
-        #     cv2.imwrite(f'result/bboxes.png', cv2.cvtColor(img_bbox, cv2.COLOR_RGB2BGR))
-
-        # return text_regions, final_mask
+        return text_regions, final_mask

@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from detection.ctd_utils.textblock import TextBlock
 from utils import Quadrilateral, AvgMeter, chunks
 from .common import OfflineOCR
 
@@ -47,7 +48,7 @@ class Model48pxCTCOCR(OfflineOCR):
     async def _unload(self):
         del self.model
 
-    async def _forward(self, image: np.ndarray, textlines: List[Quadrilateral], verbose: bool = False) -> List[Quadrilateral]:
+    async def _forward(self, image: np.ndarray, textlines: List[TextBlock], verbose: bool = False) -> List[TextBlock]:
         text_height = 48
         max_chunk_size = 16
 
