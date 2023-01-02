@@ -2,10 +2,12 @@ import numpy as np
 
 from .ctd_utils import TextBlock
 from .default import DefaultDetector
+from .ctd import ComicTextDetector
 from .common import CommonDetector, OfflineDetector
 
 DETECTORS = {
 	'default': DefaultDetector,
+	'ctd': ComicTextDetector,
 }
 detector_cache = {}
 

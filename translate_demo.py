@@ -16,7 +16,6 @@ from inpainting import INPAINTERS, dispatch as dispatch_inpainting, prepare as p
 from translators import OFFLINE_TRANSLATORS, TRANSLATORS, VALID_LANGUAGES, dispatch as dispatch_translation, prepare as prepare_translation
 from upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
 from text_rendering import text_render, dispatch_ctd_render
-from detection.ctd_utils import dispatch as dispatch_ctd_detection, load_model as load_ctd_model
 from detection.ctd_utils.textblock import visualize_textblocks
 from utils import load_image, dump_image
 
@@ -46,7 +45,6 @@ parser.add_argument('--font-size-offset', default=0, type=int, help='Offset font
 parser.add_argument('--force-horizontal', action='store_true', help='Force text to be rendered horizontally')
 parser.add_argument('--force-vertical', action='store_true', help='Force text to be rendered vertically')
 parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 4, 8, 16, 32], help='waifu2x image upscale ratio')
-parser.add_argument('--use-ctd', action='store_true', help='Use comic-text-detector for text detection')
 parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some typesetting')
 parser.add_argument('--eng-font', default='fonts/comic shanns 2.ttf', type=str, help='Path to font used by manga2eng mode')
 args = parser.parse_args()
@@ -100,7 +98,7 @@ async def infer(
 	if 'detector' in options:
 		detector = options['detector']
 	else:
-		detector = 'ctd' if args.use_ctd else 'default'
+		detector = args.detector
 
 	render_text_direction_overwrite = options.get('direction')
 	if not render_text_direction_overwrite:
@@ -152,10 +150,7 @@ async def infer(
 	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'detection')
 
-	if detector == 'ctd':
-		textlines, final_mask = await dispatch_ctd_detection(img_rgb, args.use_cuda, args.verbose, args.det_rearrange_max_batches)
-	else:
-		textlines, final_mask = await dispatch_detection(args.detector, img_rgb, img_detect_size, args.text_threshold, args.box_threshold, args.unclip_ratio, args.det_rearrange_max_batches, args.verbose, args.use_cuda)
+	textlines, final_mask = await dispatch_detection(args.detector, img_rgb, img_detect_size, args.text_threshold, args.box_threshold, args.unclip_ratio, args.det_rearrange_max_batches, args.verbose, args.use_cuda)
 	text_regions = textlines
 
 	if args.verbose:
@@ -274,7 +269,6 @@ async def main(mode = 'demo'):
 	print(' -- Loading models')
 	os.makedirs('result', exist_ok=True)
 	text_render.prepare_renderer()
-	load_ctd_model(args.use_cuda)
 	await prepare_detection(args.detector)
 	await prepare_ocr(args.ocr, args.use_cuda)
 	await prepare_inpainting(args.inpainter, args.use_cuda)

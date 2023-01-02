@@ -122,6 +122,7 @@ class TextBlock(object):
 	def lines_array(self, dtype=np.float64):
 		return np.array(self.lines, dtype=dtype)
 
+	@property
 	def aspect_ratio(self) -> float:
 		min_rect = self.min_rect()
 		middle_pnts = (min_rect[:, [1, 2, 3, 0]] + min_rect) / 2

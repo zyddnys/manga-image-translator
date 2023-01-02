@@ -36,6 +36,7 @@ def fg_bg_compare(fg, bg):
 		bg = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
 	return fg, bg
 
+# Can be removed in the future in favor of dispatch_ctd_render
 async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], textlines: List[Quadrilateral], text_regions: List[Quadrilateral], text_direction_overwrite: str, target_language: str, font_size_offset: int = 0) -> np.ndarray:
 	for trans_text, region in zip(translated_sentences, text_regions):
 		if not trans_text:
@@ -92,10 +93,10 @@ async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer
 		if not isinstance(font_size, int):
 			font_size = int(font_size)
 
-		textlines = []
-		for ii, text in enumerate(region.text):
-			textlines.append(Quadrilateral(np.array(region.lines[ii]), text, 1, region.fg_r, region.fg_g, region.fg_b, region.bg_r, region.bg_g, region.bg_b))
-		
+		# for i, text in enumerate(region.text):
+		# 	textline = Quadrilateral(np.array(region.lines[i]), text, 1, region.fg_r, region.fg_g, region.fg_b, region.bg_r, region.bg_g, region.bg_b)
+		# 	img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, textline, majority_dir, fg, bg, False, font_size_offset)
+
 		img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, True, font_size_offset)
 		if angle_changed:
 			region.angle -= 90
@@ -143,12 +144,9 @@ def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_d
 	h, w, _ = temp_box.shape
 	r_prime = w / h
 
-	if is_ctd:
-		r = region.aspect_ratio()
-		if majority_dir != 'v':
-			r = 1 / r
-	else:
-		r = region.aspect_ratio
+	r = region.aspect_ratio
+	if is_ctd and majority_dir != 'v':
+		r = 1 / r
 
 	w_ext = 0
 	h_ext = 0
