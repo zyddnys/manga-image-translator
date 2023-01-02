@@ -48,12 +48,15 @@ class Line:
 
 def enlarge_window(rect, im_w, im_h, ratio=2.5, aspect_ratio=1.0) -> List:
 	assert ratio > 1.0
-
+	
 	x1, y1, x2, y2 = rect
 	w = x2 - x1
 	h = y2 - y1
 
-	# https://numpy.org/doc/stable/reference/generated/numpy.roots.html
+	if w <= 0 or h <= 0:
+		return [0, 0, 0, 0]
+
+    # https://numpy.org/doc/stable/reference/generated/numpy.roots.html
 	coeff = [aspect_ratio, w+h*aspect_ratio, (1-ratio)*w*h]
 	roots = np.roots(coeff)
 	roots.sort()
@@ -62,6 +65,8 @@ def enlarge_window(rect, im_w, im_h, ratio=2.5, aspect_ratio=1.0) -> List:
 	delta_w = min(x1, im_w - x2, delta_w)
 	delta = min(y1, im_h - y2, delta)
 	rect = np.array([x1-delta_w, y1-delta, x2+delta_w, y2+delta], dtype=np.int64)
+	rect[::2] = np.clip(rect[::2], 0, im_w - 1)
+	rect[1::2] = np.clip(rect[1::2], 0, im_h - 1)
 	return rect.tolist()
 
 def extract_ballon_region(img: np.ndarray, ballon_rect: List, show_process=False, enlarge_ratio=2.0, cal_region_rect=False) -> Tuple[np.ndarray, int, List]:
