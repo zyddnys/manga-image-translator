@@ -5,47 +5,13 @@ import cv2
 from typing import List, Tuple, Optional
 import numpy as np
 import einops
-from collections import Counter
-import networkx as nx
-import itertools
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from utils import Quadrilateral, AvgMeter, chunks
-from textblockdetector.textblock import TextBlock
 from .common import OfflineOCR
-
-def generate_text_direction(bboxes: List[Quadrilateral]):
-    if len(bboxes) > 0:
-        if isinstance(bboxes[0], TextBlock):
-            for blk in bboxes:
-                majority_dir = 'v' if blk.vertical else 'h'
-                for line_idx in range(len(blk.lines)):
-                    yield blk, line_idx
-        else:
-            from utils import quadrilateral_can_merge_region
-
-            G = nx.Graph()
-            for i, box in enumerate(bboxes):
-                G.add_node(i, box = box)
-            for ((u, ubox), (v, vbox)) in itertools.combinations(enumerate(bboxes), 2):
-                if quadrilateral_can_merge_region(ubox, vbox, aspect_ratio_tol=1):
-                    G.add_edge(u, v)
-            for node_set in nx.algorithms.components.connected_components(G):
-                nodes = list(node_set)
-                # majority vote for direction
-                dirs = [box.direction for box in [bboxes[i] for i in nodes]]
-                majority_dir = Counter(dirs).most_common(1)[0][0]
-                # sort
-                if majority_dir == 'h':
-                    nodes = sorted(nodes, key = lambda x: bboxes[x].aabb.y + bboxes[x].aabb.h // 2)
-                elif majority_dir == 'v':
-                    nodes = sorted(nodes, key = lambda x: -(bboxes[x].aabb.x + bboxes[x].aabb.w))
-                # yield overall bbox and sorted indices
-                for node in nodes:
-                    yield bboxes[node], majority_dir
 
 class Model48pxCTCOCR(OfflineOCR):
     _MODEL_MAPPING = {
@@ -85,7 +51,7 @@ class Model48pxCTCOCR(OfflineOCR):
         text_height = 48
         max_chunk_size = 16
 
-        quadrilaterals = list(generate_text_direction(textlines))
+        quadrilaterals = list(self.generate_text_direction(textlines))
         regions = [q.get_transformed_region(image, d, text_height) for q, d in quadrilaterals]
         out_regions = []
 

@@ -1,11 +1,13 @@
-from typing import List, Tuple
+import cv2
 import numpy as np
+from typing import List, Tuple
+from functools import cached_property
 from shapely.geometry import Polygon
 import math
 import copy
-from .utils.imgproc_utils import union_area, xywh2xyxypoly, rotate_polygons
+
 from utils import color_difference
-import cv2
+from .utils.imgproc_utils import union_area, xywh2xyxypoly, rotate_polygons
 
 LANG_LIST = ['eng', 'ja', 'unknown']
 LANGCLS2IDX = {'eng': 0, 'ja': 1, 'unknown': 2}

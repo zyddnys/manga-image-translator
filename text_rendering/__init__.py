@@ -3,10 +3,10 @@ from utils import Quadrilateral
 import numpy as np
 import cv2
 
+from utils import findNextPowerOf2, color_difference
+from detection.ctd_utils import TextBlock
 from . import text_render
 from .text_render_eng import render_textblock_list_eng
-from utils import findNextPowerOf2, color_difference
-from textblockdetector.textblock import TextBlock
 
 
 LANGAUGE_ORIENTATION_PRESETS = {
@@ -72,12 +72,18 @@ async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer
 			continue
 
 		majority_dir = None
+		angle_changed = False
 		if text_direction_overwrite in ['h', 'v']:
 			majority_dir = text_direction_overwrite
 		elif target_language in LANGAUGE_ORIENTATION_PRESETS:
 			majority_dir = LANGAUGE_ORIENTATION_PRESETS[target_language]
 		if majority_dir not in ['h', 'v']:
-			majority_dir = region.majority_dir
+			if region.vertical:
+				majority_dir = 'v'
+				region.angle += 90
+				angle_changed = True
+			else:
+				majority_dir = 'h'
 
 		fg, bg = region.get_font_colors()
 		fg, bg = fg_bg_compare(fg, bg)
@@ -91,6 +97,8 @@ async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer
 			textlines.append(Quadrilateral(np.array(region.lines[ii]), text, 1, region.fg_r, region.fg_g, region.fg_b, region.bg_r, region.bg_g, region.bg_b))
 		
 		img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, True, font_size_offset)
+		if angle_changed:
+			region.angle -= 90
 	return img_canvas
 
 def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, is_ctd, font_size_offset: int = 0):

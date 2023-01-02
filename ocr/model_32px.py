@@ -13,7 +13,6 @@ import torch.nn.functional as F
 
 from utils import Quadrilateral, chunks
 from .common import OfflineOCR
-from .model_48px_ctc import generate_text_direction
 
 class Model32pxOCR(OfflineOCR):
     _MODEL_MAPPING = {
@@ -49,7 +48,7 @@ class Model32pxOCR(OfflineOCR):
         text_height = 32
         max_chunk_size = 16
 
-        quadrilaterals = list(generate_text_direction(textlines))
+        quadrilaterals = list(self.generate_text_direction(textlines))
         regions = [q.get_transformed_region(image, d, text_height) for q, d in quadrilaterals]
         out_regions = []
 

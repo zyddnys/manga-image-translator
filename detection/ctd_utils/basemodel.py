@@ -1,15 +1,12 @@
-from .yolov5.yolo import Model
-import torch
 import cv2
-import numpy as np
-from .yolov5.yolo import load_yolov5_ckpt
-from .utils.yolov5_utils import fuse_conv_and_bn
-import glob
-import torch.nn as nn
-from .utils.weight_init import init_weights
-from .yolov5.common import C3, Conv
-# from torchsummary import summary
 import copy
+import torch
+import torch.nn as nn
+
+from .utils.yolov5_utils import fuse_conv_and_bn
+from .utils.weight_init import init_weights
+from .yolov5.yolo import load_yolov5_ckpt
+from .yolov5.common import C3, Conv
 
 TEXTDET_MASK = 0
 TEXTDET_DET = 1

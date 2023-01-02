@@ -18,8 +18,8 @@ from text_mask import dispatch as dispatch_mask_refinement
 from textline_merge import dispatch as dispatch_textline_merge
 from upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
 from text_rendering import dispatch as dispatch_rendering, text_render
-from textblockdetector import dispatch as dispatch_ctd_detection, load_model as load_ctd_model
-from textblockdetector.textblock import visualize_textblocks
+from detection.ctd_utils import dispatch as dispatch_ctd_detection, load_model as load_ctd_model
+from detection.ctd_utils.textblock import visualize_textblocks
 from utils import load_image, dump_image
 
 parser = argparse.ArgumentParser(description='Seamlessly translate mangas into a chosen language')
