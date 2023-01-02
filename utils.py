@@ -989,9 +989,9 @@ def det_rearrange_forward(
 				pidx = ii * pw_num + jj
 				rel_t = rel_step_list[pidx]
 				t = int(round(rel_t * _h))
-				b = t + _psize
+				b = min(t + _psize, _h)
 				l = jj * _pw
-				r = l + _pw
+				r = l + min(_pw, b - t)
 
 				tgtmap[..., t: b, :] += p[..., l: r]
 				if pidx > 0:
@@ -1038,52 +1038,51 @@ def det_rearrange_forward(
 	require_rearrange = down_scale_ratio > 2.5 and asp_ratio > 3
 	if not require_rearrange:
 		return None, None
-	else:
 
-		if verbose:
-			print(f'Input image will be rearranged to square batches before fed into network.\
-				\n Rearranged batches will be saved to result/rearrange_%d.png')
+	if verbose:
+		print(f'Input image will be rearranged to square batches before fed into network.\
+			\n Rearranged batches will be saved to result/rearrange_%d.png')
 
-		if transpose:
-			img = einops.rearrange(img, 'h w c -> w h c')
-		
-		pw_num = max(int(np.floor(2 * tgt_size / w)), 2)
-		patch_size = ph = pw_num * w
+	if transpose:
+		img = einops.rearrange(img, 'h w c -> w h c')
+	
+	pw_num = max(int(np.floor(2 * tgt_size / w)), 2)
+	patch_size = ph = pw_num * w
 
-		ph_num = int(np.ceil(h / ph))
-		ph_step = int((h - ph) / (ph_num - 1)) if ph_num > 1 else 0
-		rel_step_list = []
-		patch_list = []
-		for ii in range(ph_num):
-			t = ii * ph_step
-			b = t + ph
-			rel_step_list.append(t / h)
-			patch_list.append(img[t: b])
+	ph_num = int(np.ceil(h / ph))
+	ph_step = int((h - ph) / (ph_num - 1)) if ph_num > 1 else 0
+	rel_step_list = []
+	patch_list = []
+	for ii in range(ph_num):
+		t = ii * ph_step
+		b = t + ph
+		rel_step_list.append(t / h)
+		patch_list.append(img[t: b])
 
-		p_num = int(np.ceil(ph_num / pw_num))
-		pad_num = p_num * pw_num - ph_num
-		for ii in range(pad_num):
-			patch_list.append(np.zeros_like(patch_list[0]))
+	p_num = int(np.ceil(ph_num / pw_num))
+	pad_num = p_num * pw_num - ph_num
+	for ii in range(pad_num):
+		patch_list.append(np.zeros_like(patch_list[0]))
 
-		batches, down_scale_ratio, pad_size = _patch2batches(patch_list, p_num, transpose)
+	batches, down_scale_ratio, pad_size = _patch2batches(patch_list, p_num, transpose)
 
-		db_lst, mask_lst = [], []
-		for batch in batches:
-			batch = np.array(batch)
-			db, mask = dbnet_batch_forward(batch, device=device)
+	db_lst, mask_lst = [], []
+	for batch in batches:
+		batch = np.array(batch)
+		db, mask = dbnet_batch_forward(batch, device=device)
 
-			for d, m in zip(db, mask):
-				if pad_size > 0:
-					paddb = int(db.shape[-1] / tgt_size * pad_size)
-					padmsk = int(mask.shape[-1] / tgt_size * pad_size)
-					d = d[..., :-paddb, :-paddb]
-					m = m[..., :-padmsk, :-padmsk]
-				db_lst.append(d)
-				mask_lst.append(m)
+		for d, m in zip(db, mask):
+			if pad_size > 0:
+				paddb = int(db.shape[-1] / tgt_size * pad_size)
+				padmsk = int(mask.shape[-1] / tgt_size * pad_size)
+				d = d[..., :-paddb, :-paddb]
+				m = m[..., :-padmsk, :-padmsk]
+			db_lst.append(d)
+			mask_lst.append(m)
 
-		db = _unrearrange(db_lst, transpose, channel=2, pad_num=pad_num)
-		mask = _unrearrange(mask_lst, transpose, channel=1, pad_num=pad_num)
-		return db, mask
+	db = _unrearrange(db_lst, transpose, channel=2, pad_num=pad_num)
+	mask = _unrearrange(mask_lst, transpose, channel=1, pad_num=pad_num)
+	return db, mask
 
 
 def main():
