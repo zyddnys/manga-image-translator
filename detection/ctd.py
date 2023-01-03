@@ -164,34 +164,3 @@ class ComicTextDetector(OfflineDetector):
             mask_refined = refine_undetected_mask(image, mask, mask_refined, blk_list, refine_mode=refine_mode)
 
         return blk_list, mask_refined
-
-        # img_in, ratio, dw, dh = preprocess_img(image, input_size=self.input_size, device=self.device, half=self.half, to_tensor=self.backend=='torch')
-
-        # im_h, im_w = image.shape[:2]
-
-        # blks, mask_raw, lines_map = self.model(img_in)
-
-        # resize_ratio = (im_w / (self.input_size[0] - dw), im_h / (self.input_size[1] - dh))
-        # blks = postprocess_yolo(blks, self.conf_thresh, self.nms_thresh, resize_ratio)
-        # mask_raw = postprocess_mask(mask_raw)
-        # lines, scores = self.seg_rep(self.input_size, lines_map)
-        # box_thresh = 0.6
-        # idx = np.where(scores[0] > box_thresh)
-        # lines, scores = lines[0][idx], scores[0][idx]
-
-        # # map output to input img
-        # mask_raw = mask_raw[: mask_raw.shape[0]-dh, : mask_raw.shape[1]-dw]
-        # mask_raw = cv2.resize(mask_raw, (im_w, im_h), interpolation=cv2.INTER_LINEAR)
-        # if lines.size == 0:
-        #     lines = []
-        # else:
-        #     lines = lines.astype(np.float64)
-        #     lines[..., 0] *= resize_ratio[0]
-        #     lines[..., 1] *= resize_ratio[1]
-        #     lines = lines.astype(np.int32)
-
-        # blk_list = group_output(blks, lines, im_w, im_h, mask_raw)
-        # mask_refined = refine_mask(image, mask_raw, blk_list, refine_mode=REFINEMASK_INPAINT)
-        # mask_refined = refine_undetected_mask(image, mask_raw, mask_refined, blk_list, refine_mode=REFINEMASK_INPAINT)
-
-        # return mask_raw, mask_refined, blk_list

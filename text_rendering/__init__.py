@@ -166,8 +166,11 @@ def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_d
 	#src_pts[:, 1] = np.clip(np.round(src_pts[:, 1]), 0, enlarged_h * 2)
 	if is_ctd:
 		dst_points = region.min_rect()
+		print('DST_PTS', dst_points)
 		if majority_dir == 'v':
 			dst_points = dst_points[:, [3, 0, 1, 2]]
+			print(dst_points)
+		
 	else:
 		dst_points = region.pts
 

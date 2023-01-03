@@ -225,7 +225,7 @@ async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verb
             angle = 0
         lines = [txtln.pts for txtln in txtlns]
 
-        region = TextBlock([x1, y1, x2, y2], lines, font_size=font_size, vertical=(majority_dir == 'v'),
+        region = TextBlock([x1, y1, x2, y2], lines, font_size=font_size, vertical=(majority_dir == 'v'), angle=angle,
                            fg_r=fg_r, fg_g=fg_g, fg_b=fg_b, bg_r=bg_r, bg_g=bg_g, bg_b=bg_b)
         region.prob = np.exp(total_logprobs)
         text_regions.append(region)

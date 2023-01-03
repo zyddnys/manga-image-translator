@@ -11,12 +11,12 @@ import asyncio
 import torch
 
 from detection import DETECTORS, dispatch as dispatch_detection, prepare as prepare_detection
+from detection.ctd_utils.textblock import visualize_textblocks
 from ocr import OCRS, dispatch as dispatch_ocr, prepare as prepare_ocr
 from inpainting import INPAINTERS, dispatch as dispatch_inpainting, prepare as prepare_inpainting
 from translators import OFFLINE_TRANSLATORS, TRANSLATORS, VALID_LANGUAGES, dispatch as dispatch_translation, prepare as prepare_translation
 from upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
 from text_rendering import text_render, dispatch_ctd_render
-from detection.ctd_utils.textblock import visualize_textblocks
 from utils import load_image, dump_image
 
 parser = argparse.ArgumentParser(description='Seamlessly translate mangas into a chosen language')

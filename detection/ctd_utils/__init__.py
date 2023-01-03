@@ -1,4 +1,3 @@
-from utils import det_rearrange_forward
 from .basemodel import TextDetBase, TextDetBaseDNN
 from .utils.yolov5_utils import non_max_suppression
 from .utils.db_utils import SegDetectorRepresenter
