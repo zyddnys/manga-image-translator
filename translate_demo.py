@@ -154,6 +154,7 @@ async def infer(
 	text_regions = textlines
 
 	if args.verbose:
+		cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
 		bboxes = visualize_textblocks(cv2.cvtColor(img_rgb,cv2.COLOR_BGR2RGB), textlines)
 		cv2.imwrite(f'result/{task_id}/bboxes.png', bboxes)
 
@@ -177,7 +178,6 @@ async def infer(
 		img_inpainted = img_rgb
 
 	if args.verbose:
-		cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
 		inpaint_input_img = await dispatch_inpainting('none', img_rgb, final_mask)
 		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
 		cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))

@@ -103,7 +103,7 @@ class DefaultDetector(OfflineDetector):
             cv2.imwrite(f'result/bboxes_unfiltered.png', cv2.cvtColor(img_bbox_raw, cv2.COLOR_RGB2BGR))
             cv2.imwrite(f'result/mask_raw.png', raw_mask)
 
-        text_regions = await self._merge_textlines(textlines, image.shape[1], image.shape[0])
-        final_mask = await self._refine_textmask(textlines, image, raw_mask)
+        text_regions = await self._merge_textlines(textlines, image.shape[1], image.shape[0], verbose=verbose)
+        final_mask = await self._refine_textmask(textlines, image, raw_mask, verbose=verbose)
 
         return text_regions, final_mask

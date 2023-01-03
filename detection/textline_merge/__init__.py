@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 import networkx as nx
 
-from utils import Quadrilateral, quadrilateral_can_merge_region_coarse
+from utils import Quadrilateral, quadrilateral_can_merge_region
 from ..ctd_utils import TextBlock
 
 def _is_whitespace(ch):
@@ -132,21 +132,20 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose
         G.add_node(i, box = box)
         bboxes[i].assigned_index = i
 
-    # step 1: roughly divide into multiple text region candidates
+    # step 1: divide into multiple text region candidates
     for ((u, ubox), (v, vbox)) in itertools.combinations(enumerate(bboxes), 2):
-        if quadrilateral_can_merge_region_coarse(ubox, vbox):
+        if quadrilateral_can_merge_region(ubox, vbox, aspect_ratio_tol=1.3, font_size_ratio_tol=1.7,
+                                          char_gap_tolerance=1, char_gap_tolerance2=3):
             G.add_edge(u, v)
 
     # step 2: split each region
-    region_indices: List[Set[int]] = []
-    for node_set in nx.algorithms.components.connected_components(G):
-        if verbose:
-            print(' -- spliting', node_set)
-        region_indices.extend(split_text_region(bboxes, node_set, verbose = verbose))
-    if verbose:
-        print('region_indices', region_indices)
+    # region_indices: List[Set[int]] = []
+    # for node_set in nx.algorithms.components.connected_components(G):
+    #     region_indices.extend(split_text_region(bboxes, node_set, verbose = verbose))
+    # if verbose:
+    #     print('region_indices', region_indices)
 
-    for node_set in region_indices:
+    for node_set in nx.algorithms.components.connected_components(G):
         nodes = list(node_set)
         txtlns = np.array(bboxes)[nodes]
         # get overall bbox
@@ -187,32 +186,16 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose
 async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verbose: bool = False) -> List[TextBlock]:
     text_regions: List[Quadrilateral] = []
     for (poly_regions, txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines, width, height, verbose):
-        # text = ''
-        # for txtln in txtlns:
-        # 	if not text:
-        # 		text = txtln.text
-        # 	else:
-        # 		last_ch = text[-1]
-        # 		cur_ch = txtln.text[0]
-        # 		if ord(last_ch) > 255 and ord(cur_ch) > 255:
-        # 			text += txtln.text
-        # 		else:
-        # 			if last_ch == '-' and ord(cur_ch) < 255:
-        # 				text = text[:-1] + txtln.text
-        # 			else:
-        # 				text += ' ' + txtln.text
-        # vc = count_valuable_text(text)
 
         total_logprobs = 0
         for txtln in txtlns:
             total_logprobs += np.log(txtln.prob) * txtln.area
         total_logprobs /= sum([txtln.area for txtln in textlines])
 
-        txtln_pts = np.concatenate([txtln.pts for txtln in txtlns], axis=1)
-        x1 = np.min(txtln_pts[:, 0])
-        x2 = np.max(txtln_pts[:, 0])
-        y1 = np.min(txtln_pts[:, 1])
-        y2 = np.max(txtln_pts[:, 1])
+        x1 = min([txtln.aabb.x for txtln in txtlns])
+        x2 = max([txtln.aabb.x + txtln.aabb.w for txtln in txtlns])
+        y1 = min([txtln.aabb.y for txtln in txtlns])
+        y2 = max([txtln.aabb.y + txtln.aabb.h for txtln in txtlns])
         font_size = min([txtln.font_size for txtln in txtlns])
         angle = np.rad2deg(np.mean([txtln.angle for txtln in txtlns])) - 90
         if abs(angle) < 3:
@@ -223,15 +206,4 @@ async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verb
                            fg_r=fg_r, fg_g=fg_g, fg_b=fg_b, bg_r=bg_r, bg_g=bg_g, bg_b=bg_b)
         region.prob = np.exp(total_logprobs)
         text_regions.append(region)
-
-    # 	# filter text region without characters
-    # 	if vc > 1:
-    # 		region = Quadrilateral(poly_regions, text, np.exp(total_logprobs), fg_r, fg_g, fg_b, bg_r, bg_g, bg_b)
-    # 		region.clip(width, height)
-    # 		region.textline_indices = []
-    # 		region.majority_dir = majority_dir
-    # 		text_regions.append(region)
-    # 		for txtln in txtlns:
-    # 			region.textline_indices.append(len(new_textlines))
-    # 			new_textlines.append(txtln)
     return text_regions
