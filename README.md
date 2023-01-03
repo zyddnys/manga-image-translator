@@ -35,7 +35,7 @@ Browser Userscript (by QiroNT): <https://greasyfork.org/scripts/437569>
   In that case you can wait for me to restart the service, which may take up to 24 hrs.
 - Note this online demo is using the current main branch version.
 
-Samples can be found [here](README.md#samples)
+Samples can be found [here](#samples)
 
 ## Install
 
