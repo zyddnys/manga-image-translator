@@ -122,6 +122,7 @@ class TextBlock(object):
 	def lines_array(self, dtype=np.float64):
 		return np.array(self.lines, dtype=dtype)
 
+	@property
 	def aspect_ratio(self) -> float:
 		min_rect = self.min_rect()
 		middle_pnts = (min_rect[:, [1, 2, 3, 0]] + min_rect) / 2
@@ -188,7 +189,6 @@ class TextBlock(object):
 		return blk_dict
 
 	def get_transformed_region(self, img: np.ndarray, idx: int, textheight: int, maxwidth: int = None) -> np.ndarray:
-		direction = 'v' if self.vertical else 'h'
 		src_pts = np.array(self.lines[idx], dtype=np.float64)
 
 		middle_pnt = (src_pts[[1, 2, 3, 0]] + src_pts) / 2
@@ -196,13 +196,13 @@ class TextBlock(object):
 		vec_h = middle_pnt[1] - middle_pnt[3]   # horizontal vectors of textlines
 		ratio = np.linalg.norm(vec_v) / np.linalg.norm(vec_h)
 
-		if direction == 'h':
+		if ratio < 1:
 			h = int(textheight)
 			w = int(round(textheight / ratio))
 			dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
 			M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 			region = cv2.warpPerspective(img, M, (w, h))
-		elif direction == 'v':
+		else:
 			w = int(textheight)
 			h = int(round(textheight * ratio))
 			dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
@@ -323,6 +323,7 @@ def sort_textblk_list(blk_list: List[TextBlock], im_w: int, im_h: int) -> List[T
 	blk_list.sort(key=lambda blk: blk.sort_weight)
 	return blk_list
 
+# TODO: Make these cached_properties
 def examine_textblk(blk: TextBlock, im_w: int, im_h: int, sort: bool = False) -> None:
 	lines = blk.lines_array()
 	middle_pnts = (lines[:, [1, 2, 3, 0]] + lines) / 2
@@ -534,7 +535,7 @@ def group_output(blks, lines, im_w, im_h, mask=None, sort_blklist=True) -> List[
 
 	return final_blk_list
 
-def visualize_textblocks(canvas, blk_list:  List[TextBlock]):
+def visualize_textblocks(canvas, blk_list: List[TextBlock]):
 	lw = max(round(sum(canvas.shape) / 2 * 0.003), 2)  # line width
 	for ii, blk in enumerate(blk_list):
 		bx1, by1, bx2, by2 = blk.xyxy
@@ -544,7 +545,9 @@ def visualize_textblocks(canvas, blk_list:  List[TextBlock]):
 			cv2.putText(canvas, str(jj), line[0], cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,127,0), 1)
 			cv2.polylines(canvas, [line], True, (0,127,255), 2)
 		cv2.polylines(canvas, [blk.min_rect()], True, (127,127,0), 2)
-		center = [int((bx1 + bx2)/2), int((by1 + by2)/2)]
-		cv2.putText(canvas, str(blk.angle), center, cv2.FONT_HERSHEY_SIMPLEX, 1, (127,127,255), 2)
 		cv2.putText(canvas, str(ii), (bx1, by1 + lw + 2), 0, lw / 3, (255,127,127), max(lw-1, 1), cv2.LINE_AA)
+		center = [int((bx1 + bx2)/2), int((by1 + by2)/2)]
+		cv2.putText(canvas, 'a: %.2f' % blk.angle, [bx1, center[1]], cv2.FONT_HERSHEY_SIMPLEX, 1, (127,127,255), 2)
+		cv2.putText(canvas, 'x: %s' % bx1, [bx1, center[1] + 30], cv2.FONT_HERSHEY_SIMPLEX, 1, (127,127,255), 2)
+		cv2.putText(canvas, 'y: %s' % by1, [bx1, center[1] + 60], cv2.FONT_HERSHEY_SIMPLEX, 1, (127,127,255), 2)
 	return canvas

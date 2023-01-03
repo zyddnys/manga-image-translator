@@ -10,7 +10,7 @@ from .common import OfflineUpscaler
 
 if platform == 'win32':
     waifu2x_base_folder = 'waifu2x-win'
-    waifu2x_executable_path = f'{waifu2x_base_folder}/waifu2x-ncnn-vulkan.exe'
+    waifu2x_executable_path = os.path.join(waifu2x_base_folder, 'waifu2x-ncnn-vulkan.exe')
     model_mapping = {
         'waifu2x-win': {
             'url': 'https://github.com/nihui/waifu2x-ncnn-vulkan/releases/download/20220728/waifu2x-ncnn-vulkan-20220728-windows.zip',
@@ -22,7 +22,7 @@ if platform == 'win32':
     }
 elif platform == 'darwin':
     waifu2x_base_folder = 'waifu2x-macos'
-    waifu2x_executable_path = f'{waifu2x_base_folder}/waifu2x-ncnn-vulkan'
+    waifu2x_executable_path = os.path.join(waifu2x_base_folder, 'waifu2x-ncnn-vulkan')
     model_mapping = {
         'waifu2x-macos': {
             'url': 'https://github.com/nihui/waifu2x-ncnn-vulkan/releases/download/20220728/waifu2x-ncnn-vulkan-20220728-macos.zip',
@@ -34,7 +34,7 @@ elif platform == 'darwin':
     }
 else:
     waifu2x_base_folder = 'waifu2x-linux'
-    waifu2x_executable_path = f'{waifu2x_base_folder}/waifu2x-ncnn-vulkan'
+    waifu2x_executable_path = os.path.join(waifu2x_base_folder, 'waifu2x-ncnn-vulkan')
     model_mapping = {
         'waifu2x-linux': {
             'url': 'https://github.com/nihui/waifu2x-ncnn-vulkan/releases/download/20220728/waifu2x-ncnn-vulkan-20220728-ubuntu.zip',
@@ -43,7 +43,7 @@ else:
                 'waifu2x-ncnn-vulkan-20220728-ubuntu': waifu2x_base_folder,
             },
             'executables': [
-                f'{waifu2x_base_folder}/waifu2x-ncnn-vulkan'
+                waifu2x_executable_path
             ],
         },
     }

@@ -1,5 +1,3 @@
-
-from functools import reduce
 from typing import List
 from utils import Quadrilateral
 import cv2
@@ -7,7 +5,7 @@ import numpy as np
 
 from .text_mask_utils import complete_mask_fill, filter_masks, complete_mask
 
-async def dispatch(raw_image: np.ndarray, raw_mask: np.ndarray, textlines: List[Quadrilateral], method: str = 'fit_text', verbose: bool = False) -> np.ndarray:
+async def dispatch(textlines: List[Quadrilateral], raw_image: np.ndarray, raw_mask: np.ndarray, method: str = 'fit_text', verbose: bool = False) -> np.ndarray:
 	mask_resized = cv2.resize(raw_mask, (raw_image.shape[1] // 2, raw_image.shape[0] // 2), interpolation = cv2.INTER_LINEAR)
 	img_resized_2 = cv2.resize(raw_image, (raw_image.shape[1] // 2, raw_image.shape[0] // 2), interpolation = cv2.INTER_LINEAR)
 	mask_resized[mask_resized > 0] = 255

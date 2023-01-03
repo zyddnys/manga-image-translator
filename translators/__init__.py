@@ -103,7 +103,8 @@ async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: L
 	return translated_sentences
 
 async def test():
-	src = ['僕はアイネと共に一度、宿の方に戻った', '改めて直面するのは部屋の問題――部屋のベッドが一つでは、さすがに狭すぎるだろう。']
-	translator = 'sugoi_small'
+	# src = ['僕はアイネと共に一度、宿の方に戻った', '改めて直面するのは部屋の問題――部屋のベッドが一つでは、さすがに狭すぎるだろう。']
+	src = ['咲夜ッ‼', '違うから‼ マジでコレ', '普通のお肉だから‼あの娘の悪い冗談っ‼そうでしょ？ 咲夜⁉', '朝は４本足 昼は２本足 夜は３本足で歩むモノ なーんだ♡', 'ヒントを…では私から', '何の肉かしら…ウママッ‼', 'ウマっ‼すご…これ', '紅魔のディナーへようこそ 今夜とびっきりの メニューが…', '当ててごらんなさい ククク…何かしらねぇ', 'ユーモアを添えて', 'ぎるるる互', '…すぐに用意なさい 咲夜']
+	translator = 'google'
 	await prepare(translator, 'auto', 'ENG')
 	print(await dispatch(translator, 'auto', 'ENG', src))

@@ -10,16 +10,13 @@ from oscrypto import util as crypto_utils
 import asyncio
 import torch
 
-from detection import dispatch as dispatch_detection, load_model as load_detection_model
+from detection import DETECTORS, dispatch as dispatch_detection, prepare as prepare_detection
+from detection.ctd_utils.textblock import visualize_textblocks
 from ocr import OCRS, dispatch as dispatch_ocr, prepare as prepare_ocr
 from inpainting import INPAINTERS, dispatch as dispatch_inpainting, prepare as prepare_inpainting
 from translators import OFFLINE_TRANSLATORS, TRANSLATORS, VALID_LANGUAGES, dispatch as dispatch_translation, prepare as prepare_translation
-from text_mask import dispatch as dispatch_mask_refinement
-from textline_merge import dispatch as dispatch_textline_merge
 from upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
-from text_rendering import dispatch as dispatch_rendering, text_render
-from detection.ctd_utils import dispatch as dispatch_ctd_detection, load_model as load_ctd_model
-from detection.ctd_utils.textblock import visualize_textblocks
+from text_rendering import text_render, dispatch_ctd_render
 from utils import load_image, dump_image
 
 parser = argparse.ArgumentParser(description='Seamlessly translate mangas into a chosen language')
@@ -31,6 +28,7 @@ parser.add_argument('-v', '--verbose', action='store_true', help='Print debug in
 parser.add_argument('--host', default='127.0.0.1', type=str, help='Used by web module to decide which host to attach to')
 parser.add_argument('--port', default=5003, type=int, help='Used by web module to decide which port to attach to')
 parser.add_argument('--log-web', action='store_true', help='Used by web module to decide if web logs should be surfaced')
+parser.add_argument('--detector', default='default', type=str, choices=DETECTORS, help='Text detector used for creating a text mask from an image')
 parser.add_argument('--ocr', default='48px_ctc', type=str, choices=OCRS, help='Optical character recognition (OCR) model to use')
 parser.add_argument('--inpainter', default='lama_mpe', type=str, choices=INPAINTERS, help='Inpainting model to use')
 parser.add_argument('--translator', default='google', type=str, choices=TRANSLATORS, help='Language translator to use')
@@ -47,7 +45,6 @@ parser.add_argument('--font-size-offset', default=0, type=int, help='Offset font
 parser.add_argument('--force-horizontal', action='store_true', help='Force text to be rendered horizontally')
 parser.add_argument('--force-vertical', action='store_true', help='Force text to be rendered vertically')
 parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 4, 8, 16, 32], help='waifu2x image upscale ratio')
-parser.add_argument('--use-ctd', action='store_true', help='Use comic-text-detector for text detection')
 parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some typesetting')
 parser.add_argument('--eng-font', default='fonts/comic shanns 2.ttf', type=str, help='Path to font used by manga2eng mode')
 args = parser.parse_args()
@@ -83,7 +80,7 @@ async def infer(
 	dst_image_name = '',
 	):
 
-	img, alpha_ch = load_image(image)
+	img_rgb, img_alpha = load_image(image)
 
 	options = options or {}
 	img_detect_size = args.detection_size
@@ -101,7 +98,7 @@ async def infer(
 	if 'detector' in options:
 		detector = options['detector']
 	else:
-		detector = 'ctd' if args.use_ctd else 'default'
+		detector = args.detector
 
 	render_text_direction_overwrite = options.get('direction')
 	if not render_text_direction_overwrite:
@@ -135,84 +132,53 @@ async def infer(
 	print(' -- Preparing upscaling')
 	await prepare_upscaling('waifu2x', args.upscale_ratio)
 
+	# The default text detector doesn't work very well on smaller images, so small images
+	# will get upscaled automatically unless --upscale-ratio=1 was set
 	if args.upscale_ratio or image.size[0] < 800 or image.size[1] < 800:
 		print(' -- Running upscaling')
 		if mode == 'web' and task_id:
 			update_state(task_id, nonce, 'upscaling')
 
 		if args.upscale_ratio:
-			img_upscaled_pil = (await dispatch_upscaling('waifu2x', [image], args.upscale_ratio, args.use_cuda))[0]
-			img, alpha_ch = load_image(img_upscaled_pil)
-		elif image.size[0] < 800 or image.size[1] < 800:
+			ratio = args.upscale_ratio
+		else:
 			ratio = max(4, 800 / image.size[0], 800 / image.size[1])
-			img_upscaled_pil = (await dispatch_upscaling('waifu2x', [image], ratio, args.use_cuda))[0]
-			img, alpha_ch = load_image(img_upscaled_pil)
+		img_upscaled_pil = (await dispatch_upscaling('waifu2x', [image], ratio, args.use_cuda))[0]
+		img_rgb, img_alpha = load_image(img_upscaled_pil)
 
 	print(' -- Running text detection')
 	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'detection')
 
-	if detector == 'ctd':
-		mask, final_mask, textlines = await dispatch_ctd_detection(img, args.use_cuda, args.verbose, args.det_rearrange_max_batches)
-	else:
-		textlines, mask = await dispatch_detection(img, img_detect_size, args.use_cuda, args, verbose = args.verbose)
+	textlines, final_mask = await dispatch_detection(args.detector, img_rgb, img_detect_size, args.text_threshold, args.box_threshold, args.unclip_ratio, args.det_rearrange_max_batches, args.verbose, args.use_cuda)
+	text_regions = textlines
 
 	if args.verbose:
-		if detector == 'ctd':
-			bboxes = visualize_textblocks(cv2.cvtColor(img,cv2.COLOR_BGR2RGB), textlines)
-			cv2.imwrite(f'result/{task_id}/bboxes.png', bboxes)
-			cv2.imwrite(f'result/{task_id}/mask_raw.png', mask)
-		else:
-			img_bbox_raw = np.copy(img)
-			for txtln in textlines:
-				cv2.polylines(img_bbox_raw, [txtln.pts], True, color = (255, 0, 0), thickness = 2)
-			cv2.imwrite(f'result/{task_id}/bboxes_unfiltered.png', cv2.cvtColor(img_bbox_raw, cv2.COLOR_RGB2BGR))
-			cv2.imwrite(f'result/{task_id}/mask_raw.png', mask)
+		cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
+		bboxes = visualize_textblocks(cv2.cvtColor(img_rgb,cv2.COLOR_BGR2RGB), textlines)
+		cv2.imwrite(f'result/{task_id}/bboxes.png', bboxes)
 
 	print(' -- Running OCR')
 	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'ocr')
-	textlines = await dispatch_ocr(args.ocr, img, textlines, args.use_cuda, args.verbose)
-
-	if detector == 'ctd':
-		text_regions = textlines
-	else:
-		text_regions, textlines = await dispatch_textline_merge(textlines, img.shape[1], img.shape[0], verbose = args.verbose)
-		if args.verbose:
-			img_bbox = np.copy(img)
-			for region in text_regions:
-				for idx in region.textline_indices:
-					txtln = textlines[idx]
-					cv2.polylines(img_bbox, [txtln.pts], True, color = (255, 0, 0), thickness = 2)
-				img_bbox = cv2.polylines(img_bbox, [region.pts], True, color = (0, 0, 255), thickness = 2)
-			cv2.imwrite(f'result/{task_id}/bboxes.png', cv2.cvtColor(img_bbox, cv2.COLOR_RGB2BGR))
-
-		print(' -- Generating text mask')
-		if mode == 'web' and task_id:
-			update_state(task_id, nonce, 'mask_generation')
-		# create mask
-		final_mask = await dispatch_mask_refinement(img, mask, textlines)
+	textlines = await dispatch_ocr(args.ocr, img_rgb, textlines, args.use_cuda, args.verbose)
 
 	if mode == 'web' and task_id and options.get('translator') not in OFFLINE_TRANSLATORS:
 		update_state(task_id, nonce, 'translating')
 		# in web mode, we can start non offline translation tasks async
-		if detector == 'ctd':
-			requests.post(f'http://{args.host}:{args.port}/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 20)
-		else:
-			requests.post(f'http://{args.host}:{args.port}/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.text for r in text_regions]}, timeout = 20)
+		requests.post(f'http://{args.host}:{args.port}/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 20)
 
 	if text_regions:
 		print(' -- Running inpainting')
 		if mode == 'web' and task_id:
 			update_state(task_id, nonce, 'inpainting')
 
-		img_inpainted = await dispatch_inpainting(args.inpainter, img, final_mask, args.inpainting_size, args.verbose, args.use_cuda)
+		img_inpainted = await dispatch_inpainting(args.inpainter, img_rgb, final_mask, args.inpainting_size, args.verbose, args.use_cuda)
 	else:
-		img_inpainted = img
+		img_inpainted = img_rgb
 
 	if args.verbose:
-		cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
-		inpaint_input_img = await dispatch_inpainting('none', img, final_mask)
+		inpaint_input_img = await dispatch_inpainting('none', img_rgb, final_mask)
 		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
 		cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
 
@@ -221,11 +187,8 @@ async def infer(
 	if mode != 'web' or translator in OFFLINE_TRANSLATORS:
 		if mode == 'web' and task_id:
 			update_state(task_id, nonce, 'translating')
-		if detector == 'ctd':
-			queries = [r.get_text() for r in text_regions]
-		else:
-			queries = [r.text for r in text_regions]
-		translated_sentences = await dispatch_translation(translator, src_lang, tgt_lang, queries, use_cuda = args.use_cuda and not args.use_cuda_limited)
+		queries = [r.get_text() for r in text_regions]
+		translated_sentences = await dispatch_translation(translator, src_lang, tgt_lang, queries, use_cuda=args.use_cuda and not args.use_cuda_limited)
 	else:
 		# wait for at most 1 hour for manual translation
 		if options.get('manual', False):
@@ -256,16 +219,12 @@ async def infer(
 	# render translated texts
 	if tgt_lang == 'ENG' and args.manga2eng:
 		from text_rendering import dispatch_eng_render
-		output = await dispatch_eng_render(np.copy(img_inpainted), img, text_regions, translated_sentences, args.eng_font)
+		output = await dispatch_eng_render(np.copy(img_inpainted), img_rgb, text_regions, translated_sentences, args.eng_font)
 	else:
-		if detector == 'ctd':
-			from text_rendering import dispatch_ctd_render
-			output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, tgt_lang, args.font_size_offset)
-		else:
-			output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, textlines, text_regions, render_text_direction_overwrite, tgt_lang, args.font_size_offset)
+		output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, tgt_lang, args.font_size_offset)
 
 	print(' -- Saving results')
-	img_pil = dump_image(output, alpha_ch)
+	img_pil = dump_image(output, img_alpha)
 	img_pil.save(dst_image_name)
 
 	if mode == 'web' and task_id:
@@ -310,9 +269,8 @@ async def main(mode = 'demo'):
 	print(' -- Loading models')
 	os.makedirs('result', exist_ok=True)
 	text_render.prepare_renderer()
+	await prepare_detection(args.detector)
 	await prepare_ocr(args.ocr, args.use_cuda)
-	load_ctd_model(args.use_cuda)
-	load_detection_model(args.use_cuda)
 	await prepare_inpainting(args.inpainter, args.use_cuda)
 
 	if mode == 'demo':
