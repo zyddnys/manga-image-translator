@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import cv2
 import einops
-from typing import Tuple
+from typing import List, Tuple
 
 from utils import Quadrilateral, det_rearrange_forward
 from .ctd_utils import TextBlock
@@ -55,7 +55,7 @@ class DefaultDetector(OfflineDetector):
         del self.model
 
     async def _forward(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
-                       unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> tuple[list[TextBlock], np.ndarray]:
+                       unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
 
         # TODO: Move det_rearrange_forward to common.py and try to refactor
         db, mask = det_rearrange_forward(image, det_batch_forward_default, detect_size, det_rearrange_max_batches, device=self.device, verbose=verbose)

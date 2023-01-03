@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Tuple
 import numpy as np
 import os
 
@@ -17,7 +17,7 @@ class CommonDetector(ABC):
         return await dispatch_mask_refinement(textlines, raw_image, raw_mask, method, verbose)
 
     async def detect(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
-                     unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> tuple[list[TextBlock], np.ndarray]:
+                     unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
         '''
         Returns textblock list and text mask.
         '''
@@ -25,7 +25,7 @@ class CommonDetector(ABC):
 
     @abstractmethod
     async def _detect(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
-                      unclip_ratio: float, det_rearrange_max_batches:int, verbose: bool = False) -> tuple[list[TextBlock], np.ndarray]:
+                      unclip_ratio: float, det_rearrange_max_batches:int, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
         pass
 
 class OfflineDetector(CommonDetector, ModelWrapper):
@@ -36,5 +36,5 @@ class OfflineDetector(CommonDetector, ModelWrapper):
 
     @abstractmethod
     async def _forward(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
-                       unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> tuple[list[TextBlock], np.ndarray]:
+                       unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
         pass

@@ -2,7 +2,7 @@ import os
 import shutil
 import numpy as np
 import einops
-from typing import Union, Tuple
+from typing import List, Union, Tuple
 import cv2
 import torch
 
@@ -129,7 +129,7 @@ class ComicTextDetector(OfflineDetector):
 
     @torch.no_grad()
     async def _forward(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
-                       unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> tuple[list[TextBlock], np.ndarray]:
+                       unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
 
         keep_undetected_mask = False
         refine_mode = REFINEMASK_INPAINT
