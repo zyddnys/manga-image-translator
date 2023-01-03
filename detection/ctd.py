@@ -1,3 +1,5 @@
+import os
+import shutil
 import numpy as np
 import einops
 from typing import Union, Tuple
@@ -71,6 +73,14 @@ class ComicTextDetector(OfflineDetector):
             'file': '.',
         },
     }
+
+    def __init__(self, *args, **kwargs):
+        os.makedirs(self._MODEL_DIR, exist_ok=True)
+        if os.path.exists('comictextdetector.pt'):
+            shutil.move('comictextdetector.pt', self._get_file_path('comictextdetector.pt'))
+        if os.path.exists('comictextdetector.pt.onnx'):
+            shutil.move('comictextdetector.pt.onnx', self._get_file_path('comictextdetector.pt.onnx'))
+        super().__init__(*args, **kwargs)
 
     async def _load(self, device: str, input_size=1024, half=False, nms_thresh=0.35, conf_thresh=0.4):
         self.device = device
