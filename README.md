@@ -35,9 +35,9 @@ Browser Userscript (by QiroNT): <https://greasyfork.org/scripts/437569>
   In that case you can wait for me to restart the service, which may take up to 24 hrs.
 - Note this online demo is using the current main branch version.
 
-Samples: <https://github.com/zyddnys/manga-image-translator/edit/main/README.md#samples>
+Samples can be found [here](README.md#samples)
 
-## Usage
+## Install
 
 ```bash
 # First, you need to have Python(>=3.8) installed on your system.
@@ -51,12 +51,16 @@ $ git clone https://github.com/zyddnys/manga-image-translator.git
 $ pip install -r requirements.txt
 ```
 
-However, `pydensecrf` isn't listed as a dependency, so you need to install it manually.\
+On windows some pip dependencies will not compile without _Microsoft C++ Build Tools_ (See ![#114](https://github.com/zyddnys/manga-image-translator/issues/114)).
+
+Furthermore, `pydensecrf` isn't listed as a dependency, so you need to install it manually.\
 On Windows you can download the pre-compiled wheels from <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf>
 according to your python version and install it with pip.\
 On other platforms, you should be able to install it via `pip install git+https://github.com/lucasb-eyer/pydensecrf.git`.
 
-### Using CLI
+## Usage
+
+#### Demo mode (singular image)
 
 ```bash
 # `--use-cuda` is optional, if you have a compatible NVIDIA GPU, you can use it.
@@ -70,7 +74,7 @@ $ python translate_demo.py --verbose --use-cuda --translator=google -l ENG -i <p
 # result can be found in `result/`.
 ```
 
-#### CLI Batch Translation
+#### Batch mode
 
 ```bash
 # same options as above.
@@ -80,7 +84,7 @@ $ python translate_demo.py --verbose --mode batch --use-cuda --translator=google
 # results can be found in `<path_to_image_folder>-translated/`.
 ```
 
-### Using Browser (Web Server Mode)
+#### Web Mode
 
 ```bash
 # same options as above.
@@ -92,10 +96,10 @@ $ python translate_demo.py --verbose --mode web --use-cuda
 #### Manual translation
 
 Manual translation replaces machine translation with human translators.
-Basic manual translation demo can be found at <http://127.0.0.1:5003/manual>
+Basic manual translation demo can be found at <http://127.0.0.1:5003/manual> when using web mode.
 
 <details closed>
-<summary>Translation API</summary>
+<summary>API</summary>
 <br>
 
 Two modes of translation service are provided by the demo: synchronous mode and asynchronous mode.\
