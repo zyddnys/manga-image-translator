@@ -188,7 +188,6 @@ async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verb
     text_regions: List[Quadrilateral] = []
     for (poly_regions, txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines, width, height, verbose):
         # text = ''
-        # logprob_lengths = []
         # for txtln in txtlns:
         # 	if not text:
         # 		text = txtln.text
@@ -202,12 +201,7 @@ async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verb
         # 				text = text[:-1] + txtln.text
         # 			else:
         # 				text += ' ' + txtln.text
-        # 	logprob_lengths.append((np.log(txtln.prob), len(txtln.text)))
         # vc = count_valuable_text(text)
-        # total_logprobs = 0.0
-        # for (logprob, length) in logprob_lengths:
-        # 	total_logprobs += logprob * length
-        # total_logprobs /= sum([x[1] for x in logprob_lengths])
 
         total_logprobs = 0
         for txtln in txtlns:

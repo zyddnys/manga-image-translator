@@ -212,7 +212,7 @@ class GoogleTranslator(CommonTranslator):
             else:
                 break
         query_text = '\n'.join(queries)
-        result = await self.__translate(from_lang, to_lang, query_text)
+        result = await self._translate_query(from_lang, to_lang, query_text)
         if not isinstance(result, list):
             result = empty_l * [''] + result.text.split('\n')
             empty_r = len(query_text) - len(result)
@@ -220,7 +220,7 @@ class GoogleTranslator(CommonTranslator):
                 result = result + empty_r * ['']
         return [text.strip() for text in result]
 
-    async def __translate(self, from_lang: str, to_lang: str, query: str) -> List[str]:
+    async def _translate_query(self, from_lang: str, to_lang: str, query: str) -> List[str]:
         to_lang = to_lang.lower().split('_', 1)[0]
         from_lang = from_lang.lower().split('_', 1)[0]
 
@@ -268,9 +268,15 @@ class GoogleTranslator(CommonTranslator):
         data = json.loads(resp)
         parsed = json.loads(data[0][2])
         # not sure
-        should_spacing = parsed[1][0][0][3]
-        translated_parts = list(map(lambda part: TranslatedPart(part[0], part[1] if len(part) >= 2 else []), parsed[1][0][0][5]))
-        translated = (' ' if should_spacing else '').join(map(lambda part: part.text, translated_parts))
+        # should_spacing = parsed[1][0][0][3]
+        should_spacing = True
+        translated_parts = []
+        for part in parsed[1][0][0][5]:
+            try:
+                translated_parts.append(part[4][1][0])
+            except IndexError:
+                translated_parts.append(part[0])
+        translated = (' ' if should_spacing else '').join(translated_parts)
 
         if from_lang == 'auto':
             try:
@@ -416,7 +422,7 @@ class GoogleTranslator(CommonTranslator):
         return result
 
     async def detect(self, text: str):
-        translated = await self.__translate('auto', 'en', text)
+        translated = await self._translate_query('auto', 'en', text)
         result = Detected(lang=translated.src, confidence=translated.extra_data.get('confidence', None), response=translated._response)
         return result
 
