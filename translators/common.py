@@ -1,6 +1,7 @@
+import os
+import readline
 from typing import List, Tuple
 from abc import ABC, abstractmethod
-import os
 
 from utils import ModelWrapper
 
@@ -36,13 +37,40 @@ class CommonTranslator(ABC):
         _to_lang = self._LANGUAGE_CODE_MAP.get(to_lang)
         return _from_lang, _to_lang
 
-    async def translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+    def dispatch_mtpe(self, queries: List[str], translations: List[str]) -> List[str]:
+        new_translations = []
+        print(' -- Running Machine Translation Post Editing (MTPE)')
+        for i, (query, translation) in enumerate(zip(queries, translations)):
+            print(f'[{i + 1}/{len(queries)}] {query}:')
+            readline.set_startup_hook(lambda: readline.insert_text(translation))
+            new_translation = ''
+            try:
+                new_translation = input(' -> ')
+            finally:
+                readline.set_startup_hook()
+            new_translations.append(new_translation)
+        return new_translations
+
+    async def translate(self, from_lang: str, to_lang: str, queries: List[str], mtpe: bool = False) -> List[str]:
         '''
         Translates list of queries of one language into another.
         '''
         if from_lang == to_lang:
-            return []
-        return await self._translate(*self.parse_language_codes(from_lang, to_lang, fatal=True), queries)
+            result = []
+        else:
+            result = await self._translate(*self.parse_language_codes(from_lang, to_lang, fatal=True), queries)
+
+        translated_sentences = []
+        if len(result) < len(queries):
+            translated_sentences.extend(result)
+            translated_sentences.extend([''] * (len(queries) - len(result)))
+        elif len(result) > len(queries):
+            translated_sentences.extend(result[:len(queries)])
+        else:
+            translated_sentences.extend(result)
+        if mtpe:
+            translated_sentences = self.dispatch_mtpe(queries, translated_sentences)
+        return translated_sentences
 
     @abstractmethod
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:

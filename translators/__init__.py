@@ -1,4 +1,3 @@
-import asyncio
 from typing import List
 
 from .common import CommonTranslator, OfflineTranslator
@@ -73,7 +72,7 @@ async def prepare(translator_key: str, src_lang: str, tgt_lang: str):
 	if isinstance(translator, OfflineTranslator):
 		await translator.download()
 
-async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: List[str], use_cuda: bool = False) -> List[str]:
+async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: List[str], mtpe: bool = False, use_cuda: bool = False) -> List[str]:
 	if not queries:
 		return queries
 
@@ -83,24 +82,9 @@ async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: L
 		raise ValueError('Invalid language code: "%s". Choose from the following: auto, %s' % (src_lang, ', '.join(VALID_LANGUAGES)))
 
 	translator = get_translator(translator_key)
-
 	if isinstance(translator, OfflineTranslator):
-		if not translator.is_loaded():
-			device = 'cuda' if use_cuda else 'cpu'
-			await translator.load(src_lang, tgt_lang, device)
-		result = await asyncio.create_task(translator.translate(src_lang, tgt_lang, queries))
-	else:
-		result = await translator.translate(src_lang, tgt_lang, queries)
-
-	translated_sentences = []
-	if len(result) < len(queries):
-		translated_sentences.extend(result)
-		translated_sentences.extend([''] * (len(queries) - len(result)))
-	elif len(result) > len(queries):
-		translated_sentences.extend(result[:len(queries)])
-	else:
-		translated_sentences.extend(result)
-	return translated_sentences
+		await translator.load(src_lang, tgt_lang, 'cuda' if use_cuda else 'cpu')
+	return await translator.translate(src_lang, tgt_lang, queries, mtpe)
 
 async def test():
 	# src = ['僕はアイネと共に一度、宿の方に戻った', '改めて直面するのは部屋の問題――部屋のベッドが一つでは、さすがに狭すぎるだろう。']
