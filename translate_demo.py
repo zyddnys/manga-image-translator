@@ -32,6 +32,7 @@ parser.add_argument('--detector', default='default', type=str, choices=DETECTORS
 parser.add_argument('--ocr', default='48px_ctc', type=str, choices=OCRS, help='Optical character recognition (OCR) model to use')
 parser.add_argument('--inpainter', default='lama_mpe', type=str, choices=INPAINTERS, help='Inpainting model to use')
 parser.add_argument('--translator', default='google', type=str, choices=TRANSLATORS, help='Language translator to use')
+parser.add_argument('--mtpe', action='store_true', help='Turn on/off machine translation post editing (MTPE) on the command line')
 parser.add_argument('--use-cuda', action='store_true', help='Turn on/off cuda')
 parser.add_argument('--use-cuda-limited', action='store_true', help='Turn on/off cuda (excluding offline translator)')
 parser.add_argument('--detection-size', default=1536, type=int, help='Size of image used for detection')
@@ -118,7 +119,7 @@ async def infer(
 		translator = options['translator']
 	else:
 		translator = args.translator
-	
+
 	if not dst_image_name:
 		dst_image_name = f'result/{task_id}/final.png'
 
@@ -128,9 +129,6 @@ async def infer(
 
 	print(' -- Preparing translator')
 	await prepare_translation(translator, src_lang, tgt_lang)
-
-	print(' -- Preparing upscaling')
-	await prepare_upscaling('waifu2x', args.upscale_ratio)
 
 	# The default text detector doesn't work very well on smaller images, so small images
 	# will get upscaled automatically unless --upscale-ratio=1 was set
@@ -163,10 +161,14 @@ async def infer(
 		update_state(task_id, nonce, 'ocr')
 	textlines = await dispatch_ocr(args.ocr, img_rgb, textlines, args.use_cuda, args.verbose)
 
+	# in web mode, we can start online translation tasks async
 	if mode == 'web' and task_id and options.get('translator') not in OFFLINE_TRANSLATORS:
 		update_state(task_id, nonce, 'translating')
-		# in web mode, we can start non offline translation tasks async
 		requests.post(f'http://{args.host}:{args.port}/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 20)
+
+	if args.verbose:
+		inpaint_input_img = await dispatch_inpainting('none', img_rgb, final_mask)
+		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
 
 	if text_regions:
 		print(' -- Running inpainting')
@@ -178,8 +180,6 @@ async def infer(
 		img_inpainted = img_rgb
 
 	if args.verbose:
-		inpaint_input_img = await dispatch_inpainting('none', img_rgb, final_mask)
-		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
 		cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
 
 	print(' -- Translating')
@@ -188,7 +188,7 @@ async def infer(
 		if mode == 'web' and task_id:
 			update_state(task_id, nonce, 'translating')
 		queries = [r.get_text() for r in text_regions]
-		translated_sentences = await dispatch_translation(translator, src_lang, tgt_lang, queries, use_cuda=args.use_cuda and not args.use_cuda_limited)
+		translated_sentences = await dispatch_translation(translator, src_lang, tgt_lang, queries, args.mtpe, use_cuda=args.use_cuda and not args.use_cuda_limited)
 	else:
 		# wait for at most 1 hour for manual translation
 		if options.get('manual', False):
@@ -269,6 +269,7 @@ async def main(mode = 'demo'):
 	print(' -- Loading models')
 	os.makedirs('result', exist_ok=True)
 	text_render.prepare_renderer()
+	await prepare_upscaling('waifu2x')
 	await prepare_detection(args.detector)
 	await prepare_ocr(args.ocr, args.use_cuda)
 	await prepare_inpainting(args.inpainter, args.use_cuda)
