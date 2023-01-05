@@ -1,9 +1,13 @@
 import os
-import readline
 from typing import List, Tuple
 from abc import ABC, abstractmethod
 
 from utils import ModelWrapper
+
+try:
+    import readline
+except:
+    readline = None
 
 class LanguageUnsupportedException(Exception):
     def __init__(self, language_code: str, translator: str = None, supported_languages: List[str] = None):
@@ -14,6 +18,9 @@ class LanguageUnsupportedException(Exception):
 
 class MTPEAdapter():
     async def dispatch(self, queries: List[str], translations: List[str]) -> List[str]:
+        if not readline:
+            print('MTPE is only supported on linux sowwy owo')
+            return translations
         new_translations = []
         print('\n -- Running Machine Translation Post Editing (MTPE)')
         for i, (query, translation) in enumerate(zip(queries, translations)):
