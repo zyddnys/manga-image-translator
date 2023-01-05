@@ -260,7 +260,7 @@ def replace_prefix(s: str, old: str, new: str):
 async def main(mode = 'demo'):
 	print(' -- Preload Checks')
 	args.image = os.path.expanduser(args.image)
-	if not os.path.exists(args.image):
+	if not os.path.exists(args.image) and not args.mode.startswith('web'):
 		raise FileNotFoundError(args.image)
 
 	if args.use_cuda_limited:
