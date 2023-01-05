@@ -34,7 +34,7 @@ parser.add_argument('--detector', default='default', type=str, choices=DETECTORS
 parser.add_argument('--ocr', default='48px_ctc', type=str, choices=OCRS, help='Optical character recognition (OCR) model to use')
 parser.add_argument('--inpainter', default='lama_mpe', type=str, choices=INPAINTERS, help='Inpainting model to use')
 parser.add_argument('--translator', default='google', type=str, choices=TRANSLATORS, help='Language translator to use')
-parser.add_argument('--mtpe', action='store_true', help='Turn on/off machine translation post editing (MTPE) on the command line')
+parser.add_argument('--mtpe', action='store_true', help='Turn on/off machine translation post editing (MTPE) on the command line (works only on linux right now)')
 parser.add_argument('--use-cuda', action='store_true', help='Turn on/off cuda')
 parser.add_argument('--use-cuda-limited', action='store_true', help='Turn on/off cuda (excluding offline translator)')
 parser.add_argument('--detection-size', default=1536, type=int, help='Size of image used for detection')

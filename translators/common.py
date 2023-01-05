@@ -18,6 +18,7 @@ class LanguageUnsupportedException(Exception):
 
 class MTPEAdapter():
     async def dispatch(self, queries: List[str], translations: List[str]) -> List[str]:
+        # TODO: Make it work in windows (e.g. through os.startfile)
         if not readline:
             print('MTPE is only supported on linux sowwy owo')
             return translations
