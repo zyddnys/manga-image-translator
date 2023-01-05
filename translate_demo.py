@@ -174,7 +174,6 @@ async def infer(
 		print(' -- Running inpainting')
 		if mode == 'web' and task_id:
 			update_state(task_id, nonce, 'inpainting')
-
 		img_inpainted = await dispatch_inpainting(args.inpainter, img_rgb, final_mask, args.inpainting_size, args.verbose, args.use_cuda)
 	else:
 		img_inpainted = img_rgb
@@ -260,6 +259,10 @@ def replace_prefix(s: str, old: str, new: str):
 
 async def main(mode = 'demo'):
 	print(' -- Preload Checks')
+	args.image = os.path.expanduser(args.image)
+	if not os.path.exists(args.image):
+		raise FileNotFoundError(args.image)
+
 	if args.use_cuda_limited:
 		args.use_cuda = True
 	if not torch.cuda.is_available() and args.use_cuda:
