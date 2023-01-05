@@ -24,7 +24,7 @@ class MTPEAdapter():
         new_translations = []
         print('\n -- Running Machine Translation Post Editing (MTPE)')
         for i, (query, translation) in enumerate(zip(queries, translations)):
-            print(f'[{i + 1}/{len(queries)}] {query}:')
+            print(f'\n[{i + 1}/{len(queries)}] {query}:')
             readline.set_startup_hook(lambda: readline.insert_text(translation.replace('\n', '\\n')))
             new_translation = ''
             try:
@@ -81,7 +81,7 @@ class CommonTranslator(ABC):
         else:
             translated_sentences.extend(result)
         if use_mtpe:
-            translated_sentences = self.mtpe_adapter.dispatch(queries, translated_sentences)
+            translated_sentences = await self.mtpe_adapter.dispatch(queries, translated_sentences)
         return translated_sentences
 
     @abstractmethod
