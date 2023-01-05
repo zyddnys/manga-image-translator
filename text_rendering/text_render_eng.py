@@ -165,7 +165,7 @@ def seg_eng(text: str) -> List[str]:
 	text = text.upper().replace('  ', ' ').replace(' .', '.').replace('\n', ' ')
 	processed_text = ''
 
-	# dumb way to insure spaces between words
+	# dumb way to ensure spaces between words
 	text_len = len(text)
 	for ii, c in enumerate(text):
 		if c in PUNSET_RIGHT_ENG and ii < text_len - 1:

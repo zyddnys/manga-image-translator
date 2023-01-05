@@ -25,7 +25,8 @@ async def prepare(detector_key: str):
 	if isinstance(detector, OfflineDetector):
 		await detector.download()
 
-async def dispatch(detector_key: str, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float, unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False, use_cuda: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
+async def dispatch(detector_key: str, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float, unclip_ratio: float,
+				   det_rearrange_max_batches: int, use_cuda: bool = False, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
 	detector = get_detector(detector_key)
 	if isinstance(detector, OfflineDetector):
 		await detector.load('cuda' if use_cuda else 'cpu')

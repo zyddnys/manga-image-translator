@@ -26,7 +26,7 @@ async def prepare(inpainter_key: str, use_cuda: bool):
 		await inpainter.download()
 		await inpainter.load('cuda' if use_cuda else 'cpu')
 
-async def dispatch(inpainter_key: str, image: np.ndarray, mask: np.ndarray, inpainting_size: int = 1024, verbose: bool = False, use_cuda: bool = False) -> np.ndarray:
+async def dispatch(inpainter_key: str, image: np.ndarray, mask: np.ndarray, inpainting_size: int = 1024, use_cuda: bool = False, verbose: bool = False) -> np.ndarray:
 	inpainter = get_inpainter(inpainter_key)
 	if isinstance(inpainter, OfflineInpainter):
 		await inpainter.load('cuda' if use_cuda else 'cpu')

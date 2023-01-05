@@ -5,16 +5,12 @@ import os
 
 from utils import ModelWrapper, Quadrilateral
 from .textline_merge import dispatch as dispatch_textline_merge
-from .textmask_refinement import dispatch as dispatch_mask_refinement
 from .ctd_utils import TextBlock
 
 class CommonDetector(ABC):
 
     async def _merge_textlines(self, textlines: List[Quadrilateral], img_width: int, img_height: int, verbose: bool = False) -> List[TextBlock]:
         return await dispatch_textline_merge(textlines, img_width, img_height, verbose)
-
-    async def _refine_textmask(self, textlines: List[TextBlock], raw_image: np.ndarray, raw_mask: np.ndarray, method: str = 'fit_text', verbose: bool = False) -> np.ndarray:
-        return await dispatch_mask_refinement(textlines, raw_image, raw_mask, method, verbose)
 
     async def detect(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
                      unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:

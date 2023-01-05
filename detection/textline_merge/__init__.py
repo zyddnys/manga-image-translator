@@ -1,55 +1,12 @@
 import itertools
 from collections import Counter
 from typing import List, Set
-import unicodedata
 import cv2
 import numpy as np
 import networkx as nx
 
 from utils import Quadrilateral, quadrilateral_can_merge_region
-from ..ctd_utils import TextBlock
-
-def _is_whitespace(ch):
-    """Checks whether `chars` is a whitespace character."""
-    # \t, \n, and \r are technically contorl characters but we treat them
-    # as whitespace since they are generally considered as such.
-    if ch == " " or ch == "\t" or ch == "\n" or ch == "\r" or ord(ch) == 0:
-        return True
-    cat = unicodedata.category(ch)
-    if cat == "Zs":
-        return True
-    return False
-
-
-def _is_control(ch):
-    """Checks whether `chars` is a control character."""
-    # These are technically control characters but we count them as whitespace
-    # characters.
-    if ch == "\t" or ch == "\n" or ch == "\r":
-        return False
-    cat = unicodedata.category(ch)
-    if cat in ("Cc", "Cf"):
-        return True
-    return False
-
-
-def _is_punctuation(ch):
-    """Checks whether `chars` is a punctuation character."""
-    cp = ord(ch)
-    # We treat all non-letter/number ASCII as punctuation.
-    # Characters such as "^", "$", and "`" are not in the Unicode
-    # Punctuation class but we treat them as punctuation anyways, for
-    # consistency.
-    if ((cp >= 33 and cp <= 47) or (cp >= 58 and cp <= 64) or
-        (cp >= 91 and cp <= 96) or (cp >= 123 and cp <= 126)):
-        return True
-    cat = unicodedata.category(ch)
-    if cat.startswith("P"):
-        return True
-    return False
-
-def count_valuable_text(text):
-    return sum([1 for ch in text if not _is_punctuation(ch) and not _is_control(ch) and not _is_whitespace(ch)])
+from detection.ctd_utils import TextBlock
 
 def split_text_region(bboxes: List[Quadrilateral], region_indices: Set[int], gamma = 0.5, sigma = 2, std_threshold = 6.0, verbose: bool = False) -> List[Set[int]]:
     region_indices = list(region_indices)
@@ -139,9 +96,9 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose
             G.add_edge(u, v)
 
     # step 2: split each region
-    # region_indices: List[Set[int]] = []
+    #- region_indices: List[Set[int]] = []
     # for node_set in nx.algorithms.components.connected_components(G):
-    #     region_indices.extend(split_text_region(bboxes, node_set, verbose = verbose))
+    #-     region_indices.extend(split_text_region(bboxes, node_set, verbose = verbose))
     # if verbose:
     #     print('region_indices', region_indices)
 
@@ -149,20 +106,20 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose
         nodes = list(node_set)
         txtlns = np.array(bboxes)[nodes]
         # get overall bbox
-        kq = np.concatenate([x.pts for x in txtlns], axis = 0)
-        if sum([int(a.is_approximate_axis_aligned) for a in txtlns]) > len(txtlns) // 2:
-            max_coord = np.max(kq, axis = 0)
-            min_coord = np.min(kq, axis = 0)
-            merged_box = np.maximum(np.array([
-                np.array([min_coord[0], min_coord[1]]),
-                np.array([max_coord[0], min_coord[1]]),
-                np.array([max_coord[0], max_coord[1]]),
-                np.array([min_coord[0], max_coord[1]])
-                ]), 0)
-            bbox = np.concatenate([a[None, :] for a in merged_box], axis = 0).astype(int)
-        else:
-            # TODO: use better method
-            bbox = np.concatenate([a[None, :] for a in get_mini_boxes(kq)], axis = 0).astype(int)
+        # kq = np.concatenate([x.pts for x in txtlns], axis = 0)
+        # if sum([int(a.is_approximate_axis_aligned) for a in txtlns]) > len(txtlns) // 2:
+        #     max_coord = np.max(kq, axis = 0)
+        #     min_coord = np.min(kq, axis = 0)
+        #     merged_box = np.maximum(np.array([
+        #         np.array([min_coord[0], min_coord[1]]),
+        #         np.array([max_coord[0], min_coord[1]]),
+        #         np.array([max_coord[0], max_coord[1]]),
+        #         np.array([min_coord[0], max_coord[1]])
+        #         ]), 0)
+        #     bbox = np.concatenate([a[None, :] for a in merged_box], axis = 0).astype(int)
+        # else:
+        #     # TODO: use better method
+        #     bbox = np.concatenate([a[None, :] for a in get_mini_boxes(kq)], axis = 0).astype(int)
         # calculate average fg and bg color
         fg_r = round(np.mean([box.fg_r for box in txtlns]))
         fg_g = round(np.mean([box.fg_g for box in txtlns]))
@@ -181,12 +138,11 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose
             nodes = sorted(nodes, key = lambda x: -(bboxes[x].aabb.x + bboxes[x].aabb.w))
 
         # yield overall bbox and sorted indices
-        yield bbox, txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
+        yield txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
 
 async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verbose: bool = False) -> List[TextBlock]:
-    text_regions: List[Quadrilateral] = []
-    for (poly_regions, txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines, width, height, verbose):
-
+    text_regions: List[TextBlock] = []
+    for (txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines, width, height, verbose):
         total_logprobs = 0
         for txtln in txtlns:
             total_logprobs += np.log(txtln.prob) * txtln.area

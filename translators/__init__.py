@@ -72,7 +72,7 @@ async def prepare(translator_key: str, src_lang: str, tgt_lang: str):
 	if isinstance(translator, OfflineTranslator):
 		await translator.download()
 
-async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: List[str], mtpe: bool = False, use_cuda: bool = False) -> List[str]:
+async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: List[str], use_mtpe: bool = False, use_cuda: bool = False) -> List[str]:
 	if not queries:
 		return queries
 
@@ -84,7 +84,7 @@ async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: L
 	translator = get_translator(translator_key)
 	if isinstance(translator, OfflineTranslator):
 		await translator.load(src_lang, tgt_lang, 'cuda' if use_cuda else 'cpu')
-	return await translator.translate(src_lang, tgt_lang, queries, mtpe)
+	return await translator.translate(src_lang, tgt_lang, queries, use_mtpe)
 
 async def test():
 	# src = ['僕はアイネと共に一度、宿の方に戻った', '改めて直面するのは部屋の問題――部屋のベッドが一つでは、さすがに狭すぎるだろう。']

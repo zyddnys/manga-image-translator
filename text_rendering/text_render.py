@@ -20,10 +20,8 @@ def _is_whitespace(ch):
 		return True
 	return False
 
-
 def _is_control(ch):
 	"""Checks whether `chars` is a control character."""
-	"""Checks whether `chars` is a whitespace character."""
 	# These are technically control characters but we count them as whitespace
 	# characters.
 	if ch == "\t" or ch == "\n" or ch == "\r":
@@ -33,10 +31,8 @@ def _is_control(ch):
 		return True
 	return False
 
-
 def _is_punctuation(ch):
 	"""Checks whether `chars` is a punctuation character."""
-	"""Checks whether `chars` is a whitespace character."""
 	cp = ord(ch)
 	# We treat all non-letter/number ASCII as punctuation.
 	# Characters such as "^", "$", and "`" are not in the Unicode
@@ -49,6 +45,9 @@ def _is_punctuation(ch):
 	if cat.startswith("P"):
 		return True
 	return False
+
+def count_valuable_text(text) -> int:
+    return sum([1 for ch in text if not _is_punctuation(ch) and not _is_control(ch) and not _is_whitespace(ch)])
 
 AVAILABLE_FONTS =[]
 FONT_FACE_MAP = {}

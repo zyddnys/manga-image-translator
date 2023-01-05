@@ -57,7 +57,7 @@ class DefaultDetector(OfflineDetector):
     async def _forward(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
                        unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
 
-        # TODO: Move det_rearrange_forward to common.py and try to refactor
+        # TODO: Move det_rearrange_forward calls to common.py
         db, mask = det_rearrange_forward(image, det_batch_forward_default, detect_size, det_rearrange_max_batches, device=self.device, verbose=verbose)
 
         if db is None:
@@ -104,6 +104,5 @@ class DefaultDetector(OfflineDetector):
             cv2.imwrite(f'result/mask_raw.png', raw_mask)
 
         text_regions = await self._merge_textlines(textlines, image.shape[1], image.shape[0], verbose=verbose)
-        final_mask = await self._refine_textmask(textlines, image, raw_mask, verbose=verbose)
 
-        return text_regions, final_mask
+        return text_regions, raw_mask

@@ -16,7 +16,9 @@ from ocr import OCRS, dispatch as dispatch_ocr, prepare as prepare_ocr
 from inpainting import INPAINTERS, dispatch as dispatch_inpainting, prepare as prepare_inpainting
 from translators import OFFLINE_TRANSLATORS, TRANSLATORS, VALID_LANGUAGES, dispatch as dispatch_translation, prepare as prepare_translation
 from upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
+from textmask_refinement import dispatch as dispatch_mask_refinement
 from text_rendering import text_render, dispatch_ctd_render
+from text_rendering.text_render import count_valuable_text
 from utils import load_image, dump_image
 
 parser = argparse.ArgumentParser(description='Seamlessly translate mangas into a chosen language')
@@ -148,18 +150,26 @@ async def infer(
 	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'detection')
 
-	textlines, final_mask = await dispatch_detection(args.detector, img_rgb, img_detect_size, args.text_threshold, args.box_threshold, args.unclip_ratio, args.det_rearrange_max_batches, args.verbose, args.use_cuda)
-	text_regions = textlines
-
+	text_regions, mask = await dispatch_detection(args.detector, img_rgb, img_detect_size, args.text_threshold, args.box_threshold,
+												  args.unclip_ratio, args.det_rearrange_max_batches, args.use_cuda, args.verbose)
+	if not text_regions:
+		image.save(dst_image_name)
+		return
 	if args.verbose:
-		cv2.imwrite(f'result/{task_id}/mask_final.png', final_mask)
-		bboxes = visualize_textblocks(cv2.cvtColor(img_rgb,cv2.COLOR_BGR2RGB), textlines)
+		bboxes = visualize_textblocks(cv2.cvtColor(img_rgb,cv2.COLOR_BGR2RGB), text_regions)
 		cv2.imwrite(f'result/{task_id}/bboxes.png', bboxes)
 
 	print(' -- Running OCR')
 	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'ocr')
-	textlines = await dispatch_ocr(args.ocr, img_rgb, textlines, args.use_cuda, args.verbose)
+	text_regions = await dispatch_ocr(args.ocr, img_rgb, text_regions, args.use_cuda, args.verbose)
+
+	# filter regions by their text
+	text_regions = list(filter(lambda r: count_valuable_text(r.get_text()) > 1 and not r.get_text().isnumeric(), text_regions))
+	if detector == 'default':
+		if mode == 'web' and task_id:
+			update_state(task_id, nonce, 'mask_generation')
+		mask = await dispatch_mask_refinement(text_regions, img_rgb, mask)
 
 	# in web mode, we can start online translation tasks async
 	if mode == 'web' and task_id and options.get('translator') not in OFFLINE_TRANSLATORS:
@@ -167,14 +177,15 @@ async def infer(
 		requests.post(f'http://{args.host}:{args.port}/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 20)
 
 	if args.verbose:
-		inpaint_input_img = await dispatch_inpainting('none', img_rgb, final_mask)
+		cv2.imwrite(f'result/{task_id}/mask_final.png', mask)
+		inpaint_input_img = await dispatch_inpainting('none', img_rgb, mask)
 		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
 
 	if text_regions:
 		print(' -- Running inpainting')
 		if mode == 'web' and task_id:
 			update_state(task_id, nonce, 'inpainting')
-		img_inpainted = await dispatch_inpainting(args.inpainter, img_rgb, final_mask, args.inpainting_size, args.verbose, args.use_cuda)
+		img_inpainted = await dispatch_inpainting(args.inpainter, img_rgb, mask, args.inpainting_size, args.use_cuda, args.verbose)
 	else:
 		img_inpainted = img_rgb
 

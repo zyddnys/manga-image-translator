@@ -56,7 +56,7 @@ class CommonTranslator(ABC):
         _to_lang = self._LANGUAGE_CODE_MAP.get(to_lang)
         return _from_lang, _to_lang
 
-    async def translate(self, from_lang: str, to_lang: str, queries: List[str], mtpe: bool = False) -> List[str]:
+    async def translate(self, from_lang: str, to_lang: str, queries: List[str], use_mtpe: bool = False) -> List[str]:
         '''
         Translates list of queries of one language into another.
         '''
@@ -73,7 +73,7 @@ class CommonTranslator(ABC):
             translated_sentences.extend(result[:len(queries)])
         else:
             translated_sentences.extend(result)
-        if mtpe:
+        if use_mtpe:
             translated_sentences = self.mtpe_adapter.dispatch(queries, translated_sentences)
         return translated_sentences
 
