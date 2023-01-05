@@ -12,8 +12,27 @@ class LanguageUnsupportedException(Exception):
             error += '. Supported languages: "%s"' % ','.join(supported_languages)
         super().__init__(error)
 
+class MTPEAdapter():
+    async def dispatch(self, queries: List[str], translations: List[str]) -> List[str]:
+        new_translations = []
+        print('\n -- Running Machine Translation Post Editing (MTPE)')
+        for i, (query, translation) in enumerate(zip(queries, translations)):
+            print(f'[{i + 1}/{len(queries)}] {query}:')
+            readline.set_startup_hook(lambda: readline.insert_text(translation.replace('\n', '\\n')))
+            new_translation = ''
+            try:
+                new_translation = input(' -> ').replace('\\n', '\n')
+            finally:
+                readline.set_startup_hook()
+            new_translations.append(new_translation)
+        return new_translations
+
 class CommonTranslator(ABC):
     _LANGUAGE_CODE_MAP = {}
+
+    def __init__(self):
+        super().__init__()
+        self.mtpe_adapter = MTPEAdapter()
 
     def supports_languages(self, from_lang: str, to_lang: str, fatal: bool = False) -> bool:
         supported_src_languages = ['auto'] + list(self._LANGUAGE_CODE_MAP)
@@ -37,20 +56,6 @@ class CommonTranslator(ABC):
         _to_lang = self._LANGUAGE_CODE_MAP.get(to_lang)
         return _from_lang, _to_lang
 
-    def dispatch_mtpe(self, queries: List[str], translations: List[str]) -> List[str]:
-        new_translations = []
-        print(' -- Running Machine Translation Post Editing (MTPE)')
-        for i, (query, translation) in enumerate(zip(queries, translations)):
-            print(f'[{i + 1}/{len(queries)}] {query}:')
-            readline.set_startup_hook(lambda: readline.insert_text(translation))
-            new_translation = ''
-            try:
-                new_translation = input(' -> ')
-            finally:
-                readline.set_startup_hook()
-            new_translations.append(new_translation)
-        return new_translations
-
     async def translate(self, from_lang: str, to_lang: str, queries: List[str], mtpe: bool = False) -> List[str]:
         '''
         Translates list of queries of one language into another.
@@ -69,7 +74,7 @@ class CommonTranslator(ABC):
         else:
             translated_sentences.extend(result)
         if mtpe:
-            translated_sentences = self.dispatch_mtpe(queries, translated_sentences)
+            translated_sentences = self.mtpe_adapter.dispatch(queries, translated_sentences)
         return translated_sentences
 
     @abstractmethod
