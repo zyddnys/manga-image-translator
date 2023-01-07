@@ -178,7 +178,6 @@ Then you can find the translation result in `result/` directory, e.g. using Ngin
 | nllb        |         | ✔️       | ✔️      |                                                       |
 | nllb_big    |         | ✔️       |        |                                                       |
 | sugoi       |         | ✔️       | ✔️      |                                                       |
-| sugoi_small |         | ✔️       |        |                                                       |
 | sugoi_big   |         | ✔️       |        |                                                       |
 | none        |         | ✔️       | ✔️      | Translate to empty texts                              |
 | original    |         | ✔️       | ✔️      | Keep original texts                                   |
