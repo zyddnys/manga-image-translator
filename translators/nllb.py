@@ -1,4 +1,3 @@
-import re
 from typing import List
 from langdetect import detect
 import huggingface_hub 
@@ -100,23 +99,6 @@ class NLLBTranslator(OfflineTranslator):
 
         print(f'Offline Translation[{from_lang} -> {to_lang}] "{query}" -> "{translated_text}"')
         return translated_text
-
-    def _clean_translation_output(self, text: str) -> str:
-        '''
-        Tries to spot and skim down invalid translations.
-        '''
-        words = text.split()
-        elements = list(set(words))
-        if len(elements) / len(words) < 0.1:
-            words = words[:int(len(words) / 1.75)]
-            text = ' '.join(words)
-
-            # For words that appear more then four times consecutively, remove the excess
-            for el in elements:
-                el = re.escape(el)
-                text = re.sub(r'(?: ' + el + r'){4} (' + el + r' )+', ' ', text)
-
-        return text
 
     def _map_detected_lang_to_translator(self, lang):
         if not lang in ISO_639_1_TO_FLORES_200.keys():

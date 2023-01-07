@@ -22,6 +22,6 @@ transformers
 langdetect
 sentencepiece
 editdistance
-fairseq
 numpy
 tensorboardX
+ctranslate2

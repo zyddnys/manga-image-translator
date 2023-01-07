@@ -1,6 +1,6 @@
-from typing import List
-import unicodedata
+import ctranslate2
 import sentencepiece as spm
+from typing import List
 
 from .common import OfflineTranslator
 
@@ -9,44 +9,52 @@ class SugoiTranslator(OfflineTranslator):
         'JPN': 'ja',
         'ENG': 'en',
     }
-    _MODEL_FILES = {
-        'ja-en': 'base.pretrain.ja-en.pt',
-        'en-ja': 'base.pretrain.en-ja.pt',
+    _CT2_MODEL_FOLDERS = {
+        'ja-en': 'jparacrawl/base-ja-en',
+        'en-ja': 'jparacrawl/base-en-ja',
     }
     _MODEL_MAPPING = {
-        'spm': {
-            'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/spm_models/en-ja_spm.tar.gz',
-            'hash': '12ee719799022b9ef102ce828209e53876112b52b4363dc277caca682b1b1d2e',
+        'models': {
+            'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/jparacrawl-base-models.zip',
+            'hash': 'e98e0fa35a80d2bc48c16673914639db66da1013ec66cc7b79119cdd3b542ebb',
             'archive': {
-                'enja_spm_models/spm.ja.nopretok.model': 'jparacrawl/',
-                'enja_spm_models/spm.en.nopretok.model': 'jparacrawl/',
-            },
-        },
-        'model-ja-en': {
-            'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/pretrained_models/ja-en/base.tar.gz',
-            'hash': '73e09a50d07e1f443135178b67d1cc9710753c169cae44688e5e15a10950686a',
-            'archive': {
-                'base/dict.en.txt': 'jparacrawl/',
-                'base/dict.ja.txt': 'jparacrawl/',
-                'base/LICENSE': 'jparacrawl/',
-                'base/base.pretrain.pt': f'jparacrawl/{_MODEL_FILES["ja-en"]}',
-            },
-        },
-        'model-en-ja': {
-            'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/pretrained_models/en-ja/base.tar.gz',
-            'hash': '5c92d6d8776a7c6e5ca1162cfa1dd179c1edb410ce49aa6e97b2bddeef60ab6e',
-            'archive': {
-                'base/dict.en.txt': 'jparacrawl/',
-                'base/dict.ja.txt': 'jparacrawl/',
-                'base/LICENSE': 'jparacrawl/',
-                'base/base.pretrain.pt': f'jparacrawl/{_MODEL_FILES["en-ja"]}',
+                'spm.ja.nopretok.model': 'jparacrawl/',
+                'spm.en.nopretok.model': 'jparacrawl/',
+                'base-ja-en': f'{_CT2_MODEL_FOLDERS["ja-en"]}',
+                'base-en-ja': f'{_CT2_MODEL_FOLDERS["en-ja"]}',
             },
         },
     }
 
-    async def _load(self, from_lang: str, to_lang: str, device: str):
-        from fairseq.models.transformer import TransformerModel
+    # def _on_download_finished(self, map_key):
+    #     print(' -- Converting downloaded models to ct2 format')
+    #     self._convert_fairseq_models_to_ct2(
+    #         self._get_file_path(self._FAIRSEQ_MODEL_FILES['ja-en']),
+    #         self._get_file_path('jparacrawl'),
+    #         self._get_file_path(self._CT2_MODEL_FOLDERS['ja-en']),
+    #         'ja', 'en',
+    #     )
+    #     self._convert_fairseq_models_to_ct2(
+    #         self._get_file_path(self._FAIRSEQ_MODEL_FILES['en-ja']),
+    #         self._get_file_path('jparacrawl'),
+    #         self._get_file_path(self._CT2_MODEL_FOLDERS['en-ja']),
+    #         'en', 'ja',
+    #     )
+    #     # os.remove(self._get_file_path(self._MODEL_FILES['en-ja']))
+    #     # os.remove(self._get_file_path(self._MODEL_FILES['ja-en']))
 
+    # def _convert_fairseq_models_to_ct2(self, model_path: str, data_dir: str, output_dir: str, from_lang: str, to_lang: str):
+    #     cmds = [
+    #         'ct2-fairseq-converter',
+    #         '--model_path', model_path,
+    #         '--data_dir', data_dir,
+    #         '--output_dir', output_dir,
+    #         '--source_lang', from_lang,
+    #         '--target_lang', to_lang,
+    #     ]
+    #     subprocess.check_call(cmds)
+
+    async def _load(self, from_lang: str, to_lang: str, device: str):
         if from_lang == 'auto':
             if to_lang == 'en':
                 from_lang = 'ja'
@@ -58,20 +66,19 @@ class SugoiTranslator(OfflineTranslator):
             'to_lang': to_lang,
             'device': device,
         }
-        self.model = TransformerModel.from_pretrained(
-            self._get_file_path('jparacrawl/'),
-            checkpoint_file=self._MODEL_FILES[f'{from_lang}-{to_lang}'],
-            data_name_or_path=self._get_file_path('jparacrawl/'),
-            source_lang=from_lang,
-            target_lang=to_lang,
+        self.model = ctranslate2.Translator(
+            model_path=self._get_file_path(self._CT2_MODEL_FOLDERS[f'{from_lang}-{to_lang}']),
+            device=device,
+            device_index=0,
         )
-        self.model.to(device)
+        self.model.load_model()
         self.sentence_piece_processors = {
             'en': spm.SentencePieceProcessor(model_file=self._get_file_path('jparacrawl/spm.en.nopretok.model')),
             'ja': spm.SentencePieceProcessor(model_file=self._get_file_path('jparacrawl/spm.ja.nopretok.model')),
         }
 
     async def _unload(self):
+        self.model.unload_model()
         del self.model
         del self.sentence_piece_processors
 
@@ -87,85 +94,44 @@ class SugoiTranslator(OfflineTranslator):
         return await super().forward(from_lang, to_lang, queries)
 
     async def _forward(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
-        # return self._translate_sentence(from_lang, to_lang, ' # '.join(queries)).split(' # ')
-        return [self._translate_sentence(from_lang, to_lang, query) for query in queries]
+        translated = self.model.translate_batch(
+            source=self.tokenize(queries, from_lang),
+            beam_size=5,
+            num_hypotheses=1,
+            return_alternatives=False,
+            disable_unk=False,
+            replace_unknowns=False,
+            repetition_penalty=3,
+        )
+        finalResult = self.detokenize(list(map(lambda t: t[0]["tokens"], translated)), to_lang)
+        return finalResult
 
-    def _translate_sentence(self, from_lang: str, to_lang: str, query: str) -> str:
-        query = self._preprocess(from_lang, query)
-        translated = self.model.translate(query)
-        translated = self._postprocess(to_lang, translated)
-        print(f'Sugoi Translation[{from_lang} -> {to_lang}] "{query}" -> "{translated}"')
-        return translated
+    def tokenize(self, queries, lang):
+        sp = self.sentence_piece_processors[lang]
+        if isinstance(queries, list):
+            return sp.encode(queries, out_type=str)
+        else:
+            return [sp.encode(queries, out_type=str)]
 
-    def _preprocess(self, lang: str, text: str) -> str:
-        text = unicodedata.normalize('NFKC', text)
-        text = text.strip()
-        text = ' '.join(text.split())
-        spp = self.sentence_piece_processors[lang]
-        text = spp.encode(text, out_type = int)
-        text = ' '.join([spp.IdToPiece(i) for i in text])
-        return text
-
-    def _postprocess(self, lang: str, text: str) -> str:
-        spp = self.sentence_piece_processors[lang]
-        text = spp.decode(text.split(' '))
-        #text = ' '.join(text.split()).replace('▁', '').strip()
-        return text
-
-class SugoiSmallTranslator(SugoiTranslator):
-    _MODEL_FILES = {
-        'ja-en': 'small.pretrain.ja-en.pt',
-        'en-ja': 'small.pretrain.en-ja.pt',
-    }
-    _MODEL_MAPPING = {
-        **SugoiTranslator._MODEL_MAPPING,
-        'model-ja-en': {
-            'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/pretrained_models/ja-en/small.tar.gz',
-            'hash': '7136fe12841c626b105a9e588f858a8e0b76e451b19839457d7473ec705d12b3',
-            'archive': {
-                'small/dict.en.txt': 'jparacrawl/',
-                'small/dict.ja.txt': 'jparacrawl/',
-                'small/LICENSE': 'jparacrawl/',
-                'small/small.pretrain.pt': f'jparacrawl/{_MODEL_FILES["ja-en"]}',
-            },
-        },
-        'model-en-ja': {
-            'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/pretrained_models/en-ja/small.tar.gz',
-            'hash': '3b5b60f2a57ee1fc698c004b53c9483e8458082262c526f02843158be1271b4b',
-            'archive': {
-                'small/dict.en.txt': 'jparacrawl/',
-                'small/dict.ja.txt': 'jparacrawl/',
-                'small/LICENSE': 'jparacrawl/',
-                'small/small.pretrain.pt': f'jparacrawl/{_MODEL_FILES["en-ja"]}',
-            },
-        },
-    }
+    def detokenize(self, queries, lang):
+        sp = self.sentence_piece_processors[lang]
+        translation = sp.decode(queries)
+        return translation
 
 class SugoiBigTranslator(SugoiTranslator):
-    _MODEL_FILES = {
-        'ja-en': 'big.pretrain.ja-en.pt',
-        'en-ja': 'big.pretrain.en-ja.pt',
+    _CT2_MODEL_FOLDERS = {
+        'ja-en': 'jparacrawl/big-ja-en',
+        'en-ja': 'jparacrawl/big-en-ja',
     }
     _MODEL_MAPPING = {
-        **SugoiTranslator._MODEL_MAPPING,
-        'model-ja-en': {
-            'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/pretrained_models/ja-en/big.tar.gz',
-            'hash': '7517753b6feb8594d3c86ad7742dbc49203115add21e8a6c7542aa2ac0df1c6a',
+        'models': {
+            'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/jparacrawl-big-models.zip',
+            'hash': '5e0c4cea5a5098152f566de3694602ed3db52927d3df22d2a7bfb8dba2bebe33',
             'archive': {
-                'big/dict.en.txt': 'jparacrawl/',
-                'big/dict.ja.txt': 'jparacrawl/',
-                'big/LICENSE': 'jparacrawl/',
-                'big/big.pretrain.pt': f'jparacrawl/{_MODEL_FILES["ja-en"]}',
-            },
-        },
-        'model-en-ja': {
-            'url': 'http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/release/3.0/pretrained_models/en-ja/big.tar.gz',
-            'hash': '520cd7c2b4b84c3fbb5a7a948e5183b7bca4dc551f91268f0e2dbeb98cb8b77d',
-            'archive': {
-                'big/dict.en.txt': 'jparacrawl/',
-                'big/dict.ja.txt': 'jparacrawl/',
-                'big/LICENSE': 'jparacrawl/',
-                'big/big.pretrain.pt': f'jparacrawl/{_MODEL_FILES["en-ja"]}',
+                'spm.ja.nopretok.model': 'jparacrawl/',
+                'spm.en.nopretok.model': 'jparacrawl/',
+                'big-ja-en': f'{_CT2_MODEL_FOLDERS["ja-en"]}',
+                'big-en-ja': f'{_CT2_MODEL_FOLDERS["en-ja"]}',
             },
         },
     }

@@ -1,6 +1,7 @@
 import os
 from typing import List, Tuple
 from abc import ABC, abstractmethod
+import re
 
 from utils import ModelWrapper
 
@@ -89,6 +90,23 @@ class CommonTranslator(ABC):
     @abstractmethod
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         pass
+
+    def _clean_translation_output(self, text: str) -> str:
+        '''
+        Tries to spot and skim down invalid translations.
+        '''
+        words = text.split()
+        elements = list(set(words))
+        if len(elements) / len(words) < 0.1:
+            words = words[:int(len(words) / 1.75)]
+            text = ' '.join(words)
+
+            # For words that appear more then four times consecutively, remove the excess
+            for el in elements:
+                el = re.escape(el)
+                text = re.sub(r'(?: ' + el + r'){4} (' + el + r' )+', ' ', text)
+
+        return text
 
 class OfflineTranslator(CommonTranslator, ModelWrapper):
     _MODEL_DIR = os.path.join(ModelWrapper._MODEL_DIR, 'translators')

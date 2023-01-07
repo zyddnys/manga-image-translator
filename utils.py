@@ -142,10 +142,10 @@ class ModelWrapper(ABC):
 		hash			-	Hash of downloaded file, Can be obtained upon ModelVerificationException
 
 		file			-	File download destination, If set to '.' the filename will be infered
-						from the url (fallback is `model_id` value)
+							from the url (fallback is `model_id` value)
 
 		archive			-	List that contains all files/folders that are to be extracted from
-						the downloaded archive, Mutually exclusive with `file`
+							the downloaded archive, Mutually exclusive with `file`
 
 		executables		-	List of files that need to have the executable flag set
 	"""
@@ -176,14 +176,14 @@ class ModelWrapper(ABC):
 		return torch.cuda.mem_get_info()
 
 	def _check_for_malformed_model_mapping(self):
-		for map_key, map in self._MODEL_MAPPING.items():
-			if 'url' not in map:
+		for map_key, mapping in self._MODEL_MAPPING.items():
+			if 'url' not in mapping:
 				raise InvalidModelMappingException(self.__class__.__name__, map_key, 'Missing url property')
-			elif not re.search(r'^https?://', map['url']):
-				raise InvalidModelMappingException(self.__class__.__name__, map_key, 'Malformed url property: "%s"' % map['url'])
-			if 'file' not in map and 'archive' not in map:
-				map['file'] = '.'
-			elif 'file' in map and 'archive' in map:
+			elif not re.search(r'^https?://', mapping['url']):
+				raise InvalidModelMappingException(self.__class__.__name__, map_key, 'Malformed url property: "%s"' % mapping['url'])
+			if 'file' not in mapping and 'archive' not in mapping:
+				mapping['file'] = '.'
+			elif 'file' in mapping and 'archive' in mapping:
 				raise InvalidModelMappingException(self.__class__.__name__, map_key, 'Properties file and archive are mutually exclusive')
 
 	async def _download_file(self, url: str, path: str):
@@ -231,37 +231,37 @@ class ModelWrapper(ABC):
 		with `_check_downloaded`) to implement unconventional download logic.
 		'''
 		print('\nDownloading models\n')
-		for map_key, map in self._MODEL_MAPPING.items():
+		for map_key, mapping in self._MODEL_MAPPING.items():
 			if self._check_downloaded_map(map_key):
 				print(f' -- Skipping {map_key} as it\'s already downloaded')
 				continue
 
-			is_archive = 'archive' in map
+			is_archive = 'archive' in mapping
 			if is_archive:
 				download_path = os.path.join(self._temp_working_directory, map_key, '')
 			else:
-				download_path = self._get_file_path(map['file'])
+				download_path = self._get_file_path(mapping['file'])
 			if not os.path.basename(download_path):
 				os.makedirs(download_path, exist_ok=True)
 			if os.path.basename(download_path) in ('', '.'):
-				download_path = os.path.join(download_path, get_filename_from_url(map['url'], map_key))
+				download_path = os.path.join(download_path, get_filename_from_url(mapping['url'], map_key))
 			if not is_archive:
 				download_path += '.part'
 
-			if 'hash' in map:
+			if 'hash' in mapping:
 				downloaded = False
 				if os.path.isfile(download_path):
 					try:
 						print(' -- Found existing file')
-						await self._verify_file(map['hash'], download_path)
+						await self._verify_file(mapping['hash'], download_path)
 						downloaded = True
 					except ModelVerificationException:
 						print(' -- Resuming interrupted download')
 				if not downloaded:
-					await self._download_file(map['url'], download_path)
-					await self._verify_file(map['hash'], download_path)
+					await self._download_file(mapping['url'], download_path)
+					await self._verify_file(mapping['hash'], download_path)
 			else:
-				await self._download_file(map['url'], download_path)
+				await self._download_file(mapping['url'], download_path)
 
 			if download_path.endswith('.part'):
 				p = download_path[:len(download_path)-5]
@@ -270,6 +270,7 @@ class ModelWrapper(ABC):
 
 			if is_archive:
 				extracted_path = os.path.join(os.path.dirname(download_path), 'extracted')
+				print(f' -- Extracting files')
 				shutil.unpack_archive(download_path, extracted_path)
 
 				def get_real_archive_files():
@@ -280,7 +281,7 @@ class ModelWrapper(ABC):
 							archive_files.append(file_path)
 					return archive_files
 
-				for orig, dest in map['archive'].items():
+				for orig, dest in mapping['archive'].items():
 					p1 = os.path.join(extracted_path, orig)
 					if os.path.exists(p1):
 						p2 = self._get_file_path(dest)
@@ -295,13 +296,20 @@ class ModelWrapper(ABC):
 					else:
 						raise InvalidModelMappingException(self.__class__.__name__, map_key, 'File "{orig}" does not exist within archive' +
 										'\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
-				if len(map['archive']) == 0:
+				if len(mapping['archive']) == 0:
 					raise InvalidModelMappingException(self.__class__.__name__, map_key, 'No archive files specified' +
 										'\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
 
 				self._grant_execute_permissions(map_key)
 
 			print()
+			self._on_download_finished(map_key)
+
+	def _on_download_finished(self, map_key):
+		'''
+		Can be overwritten to further process the downloaded files
+		'''
+		pass
 
 	def _check_downloaded(self) -> bool:
 		'''
@@ -314,17 +322,17 @@ class ModelWrapper(ABC):
 		return True
 
 	def _check_downloaded_map(self, map_key: str) -> str:
-		map = self._MODEL_MAPPING[map_key]
+		mapping = self._MODEL_MAPPING[map_key]
 
-		if 'file' in map:
-			path = map['file']
+		if 'file' in mapping:
+			path = mapping['file']
 			if os.path.basename(path) in ('.', ''):
-				path = os.path.join(path, get_filename_from_url(map['url'], map_key))
+				path = os.path.join(path, get_filename_from_url(mapping['url'], map_key))
 			if not os.path.exists(self._get_file_path(path)):
 				return False
 		
-		elif 'archive' in map:
-			for from_path, to_path in map['archive'].items():
+		elif 'archive' in mapping:
+			for from_path, to_path in mapping['archive'].items():
 				if os.path.basename(to_path) in ('.', ''):
 					to_path = os.path.join(to_path, os.path.basename(from_path))
 				if not os.path.exists(self._get_file_path(to_path)):
@@ -335,11 +343,11 @@ class ModelWrapper(ABC):
 		return True
 
 	def _grant_execute_permissions(self, map_key: str):
-		map = self._MODEL_MAPPING[map_key]
+		mapping = self._MODEL_MAPPING[map_key]
 
 		if sys.platform == 'linux':
 			# Grant permission to executables
-			for file in map.get('executables', []):
+			for file in mapping.get('executables', []):
 				p = self._get_file_path(file)
 				if os.path.basename(p) in ('', '.'):
 					p = os.path.join(p, file)
