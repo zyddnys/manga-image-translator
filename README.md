@@ -53,6 +53,8 @@ $ pip install -r requirements.txt
 $ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 ```
 
+The models will be downloaded on runtime.
+
 #### If you are on windows:
 Some pip dependencies will not compile without _Microsoft C++ Build Tools_
 (See ![#114](https://github.com/zyddnys/manga-image-translator/issues/114)).
