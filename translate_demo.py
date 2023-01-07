@@ -50,7 +50,7 @@ parser.add_argument('--force-vertical', action='store_true', help='Force text to
 parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 4, 8, 16, 32], help='waifu2x image upscale ratio')
 parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some typesetting')
 parser.add_argument('--eng-font', default='fonts/comic shanns 2.ttf', type=str, help='Path to font used by manga2eng mode')
-parser.add_argument('--font-filename', default='', type=str, help='Path to font used by text_render.prepare_renderer')
+parser.add_argument('--font-filenames', default='', type=str, help='Path to fonts used by text_render.prepare_renderer, comma-separated')
 args = parser.parse_args()
 
 def update_state(task_id, nonce, state):
@@ -283,10 +283,11 @@ async def main(mode = 'demo'):
 
 	print(' -- Loading models')
 	os.makedirs('result', exist_ok=True)
-    if args.font_filename:
-        text_render.prepare_renderer([args.font_filename])
-    else:
-        text_render.prepare_renderer()
+	if args.font_filenames:
+		font_filenames = [x.strip() for x in args.font_filenames.split(',') if x.strip()]
+		text_render.prepare_renderer(font_filenames)
+	else:
+		text_render.prepare_renderer()
 	await prepare_upscaling('waifu2x')
 	await prepare_detection(args.detector)
 	await prepare_ocr(args.ocr, args.use_cuda)
