@@ -19,7 +19,7 @@ import filecmp
 import einops
 
 try:
-  	functools.cached_property
+	  functools.cached_property
 except AttributeError: # Supports Python versions below 3.8
 	from backports.cached_property import cached_property
 	functools.cached_property = cached_property
@@ -105,7 +105,7 @@ def prompt_yes_no(query: str, default: bool = None) -> bool:
 		elif default != None:
 			return default
 		if inp:
-			print('Error: Could not parse input')
+			print('Error: Please answer with "y" or "n"')
 
 MODULE_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -118,6 +118,37 @@ class InvalidModelMappingException(ValueError):
 		super().__init__(error)
 
 class ModelWrapper(ABC):
+	r"""
+	A class that provides a unified interface for downloading models and making forward passes.
+	All model inferer classes should extend it.
+
+	Download specifications can be made through overwriting the `_MODEL_MAPPING` property.
+
+	```python
+	_MODEL_MAPPTING = {
+		'model_id': {
+			**PARAMETERS
+		},
+		...
+	}
+	```
+
+	Parameters:
+	
+	model_id		-	Used for temporary caches and debug messages
+
+		url				-	A direct download url
+
+		hash			-	Hash of downloaded file, Can be obtained upon ModelVerificationException
+
+		file			-	File download destination, If set to '.' the filename will be infered
+						from the url (fallback is `model_id` value)
+
+		archive			-	List that contains all files/folders that are to be extracted from
+						the downloaded archive, Mutually exclusive with `file`
+
+		executables		-	List of files that need to have the executable flag set
+	"""
 	_MODEL_DIR = os.path.join(MODULE_PATH, 'models')
 	_MODEL_MAPPING = {}
 
@@ -972,7 +1003,7 @@ def det_rearrange_forward(
 	2. Is too tall or wide for detect size (tgt_size)
 
 	Returns:
-        DBNet output, mask or None, None if rearrangement is not required
+		DBNet output, mask or None, None if rearrangement is not required
 	'''
 
 	def _unrearrange(patch_lst: List[np.ndarray], transpose: bool, channel=1, pad_num=0):
