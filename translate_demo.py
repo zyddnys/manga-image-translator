@@ -49,7 +49,7 @@ parser.add_argument('--force-horizontal', action='store_true', help='Force text 
 parser.add_argument('--force-vertical', action='store_true', help='Force text to be rendered vertically')
 parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 4, 8, 16, 32], help='waifu2x image upscale ratio')
 parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some typesetting')
-parser.add_argument('--font-path', default='', type=str, help='Path to fonts used by text_render.prepare_renderer and manga2eng mode (first font only), comma-separated')
+parser.add_argument('--font-path', default='', type=str, help='Path to font file, subsequent fonts (seperated by commas) will be used as backup')
 args = parser.parse_args()
 
 def update_state(task_id, nonce, state):
