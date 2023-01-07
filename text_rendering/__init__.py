@@ -178,7 +178,7 @@ def render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_d
 	img_canvas = np.clip((img_canvas.astype(np.float32) * (1 - mask_region) + canvas_region.astype(np.float32) * mask_region), 0, 255).astype(np.uint8)
 	return img_canvas
 
-async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, text_regions: Union[List[TextBlock], List[Quadrilateral]], translated_sentences: List[str], font_path: str) -> np.ndarray:
+async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, text_regions: Union[List[TextBlock], List[Quadrilateral]], translated_sentences: List[str], font_path: str = 'fonts/comic shanns 2.ttf') -> np.ndarray:
 	if len(text_regions) == 0:
 		return img_canvas
 
