@@ -151,9 +151,10 @@ async def infer(
 	if mode == 'web' and task_id:
 		update_state(task_id, nonce, 'detection')
 
-	text_regions, mask = await dispatch_detection(args.detector, img_rgb, img_detect_size, args.text_threshold, args.box_threshold,
+	text_regions, mask = await dispatch_detection(detector, img_rgb, img_detect_size, args.text_threshold, args.box_threshold,
 												  args.unclip_ratio, args.det_rearrange_max_batches, args.use_cuda, args.verbose)
 	if not text_regions:
+		print('No text regions were detected - Skipping')
 		image.save(dst_image_name)
 		return
 	if args.verbose:
@@ -182,13 +183,10 @@ async def infer(
 		inpaint_input_img = await dispatch_inpainting('none', img_rgb, mask)
 		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
 
-	if text_regions:
-		print(' -- Running inpainting')
-		if mode == 'web' and task_id:
-			update_state(task_id, nonce, 'inpainting')
-		img_inpainted = await dispatch_inpainting(args.inpainter, img_rgb, mask, args.inpainting_size, args.use_cuda, args.verbose)
-	else:
-		img_inpainted = img_rgb
+	print(' -- Running inpainting')
+	if mode == 'web' and task_id:
+		update_state(task_id, nonce, 'inpainting')
+	img_inpainted = await dispatch_inpainting(args.inpainter, img_rgb, mask, args.inpainting_size, args.use_cuda, args.verbose)
 
 	if args.verbose:
 		cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))

@@ -23,7 +23,7 @@ class MTPEAdapter():
             print('MTPE is only supported on linux sowwy owo')
             return translations
         new_translations = []
-        print('\n -- Running Machine Translation Post Editing (MTPE)')
+        print(' -- Running Machine Translation Post Editing (MTPE)')
         for i, (query, translation) in enumerate(zip(queries, translations)):
             print(f'\n[{i + 1}/{len(queries)}] {query}:')
             readline.set_startup_hook(lambda: readline.insert_text(translation.replace('\n', '\\n')))
@@ -33,6 +33,7 @@ class MTPEAdapter():
             finally:
                 readline.set_startup_hook()
             new_translations.append(new_translation)
+        print()
         return new_translations
 
 class CommonTranslator(ABC):
