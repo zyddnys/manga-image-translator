@@ -7,7 +7,7 @@ from .youdao import YoudaoTranslator
 from .deepl import DeeplTranslator
 from .papago import PapagoTranslator
 from .nllb import NLLBTranslator, NLLBBigTranslator
-from .sugoi import SugoiTranslator, SugoiSmallTranslator, SugoiBigTranslator
+from .sugoi import SugoiTranslator, SugoiBigTranslator
 from .selective import SelectiveOfflineTranslator, SelectiveBigOfflineTranslator, prepare as prepare_selective_translator
 from .none import NoneTranslator
 from .original import OriginalTranslator
