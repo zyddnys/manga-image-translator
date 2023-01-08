@@ -63,7 +63,7 @@ class SelectiveOfflineTranslator(OfflineTranslator):
                 return sugoi_translator
         return get_translator('nllb')
 
-    async def translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         self._real_translator = self.select_translator(from_lang, to_lang, queries)
         print(f' -- Selected translator: {self._real_translator.__class__.__name__}')
 
