@@ -5,8 +5,7 @@ import langid
 from translators.common import OfflineTranslator
 
 ISO_639_1_TO_FLORES_200 = {
-    'zh-cn': 'zho_Hans',
-	'zh-tw': 'zho_Hant',
+    'zh': 'zho_Hans',
 	'ja': 'jpn_Jpan',
 	'en': 'eng_Latn',
 	'kn': 'kor_Hang',
@@ -22,6 +21,7 @@ ISO_639_1_TO_FLORES_200 = {
 	'ro': 'ron_Latn',
 	'ru': 'rus_Cyrl',
 	'es': 'spa_Latn',
+    'uk': 'ukr_Cyrl',
 	'tr': 'tur_Latn',
 }
 
@@ -101,7 +101,7 @@ class NLLBTranslator(OfflineTranslator):
         return translated_text
 
     def _map_detected_lang_to_translator(self, lang):
-        if not lang in ISO_639_1_TO_FLORES_200.keys():
+        if not lang in ISO_639_1_TO_FLORES_200:
             return None
 
         return ISO_639_1_TO_FLORES_200[lang]

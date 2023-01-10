@@ -6,24 +6,24 @@ from .nllb import NLLBTranslator
 from .sugoi import SugoiTranslator
 
 ISO_639_1_TO_VALID_LANGUAGES = {
-    'zh-cn': 'CHS',
-	'zh-tw': 'CHT',
-	'ja': 'JPN',
-	'en': 'ENG',
-	'kn': 'KOR',
-	'vi': 'VIN',
+    'zh': 'CHS',
 	'cs': 'CSY',
 	'nl': 'NLD',
+	'en': 'ENG',
 	'fr': 'FRA',
 	'de': 'DEU',
 	'hu': 'HUN',
 	'it': 'ITA',
+	'ja': 'JPN',
+	'kn': 'KOR',
 	'pl': 'PLK',
 	'pt': 'PTB',
 	'ro': 'ROM',
 	'ru': 'RUS',
 	'es': 'ESP',
 	'tr': 'TRK',
+    'uk': 'UKR',
+	'vi': 'VIN',
 }
 
 get_translator: Callable[[str], OfflineTranslator] = None
