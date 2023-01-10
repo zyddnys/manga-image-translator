@@ -1,6 +1,6 @@
 from typing import List
-from langdetect import detect
-import huggingface_hub 
+import huggingface_hub
+import langid
 
 from translators.common import OfflineTranslator
 
@@ -61,7 +61,7 @@ class NLLBTranslator(OfflineTranslator):
 
     async def _forward(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         if from_lang == 'auto':
-            detected_lang = detect('\n'.join(queries))
+            detected_lang = langid.classify('\n'.join(queries))[0]
             target_lang = self._map_detected_lang_to_translator(detected_lang)
 
             if target_lang == None:
@@ -78,7 +78,7 @@ class NLLBTranslator(OfflineTranslator):
             return ''
 
         if from_lang == 'auto':
-            detected_lang = detect(query)
+            detected_lang = langid.classify(query)[0]
             from_lang = self._map_detected_lang_to_translator(detected_lang)
 
         if from_lang == None:

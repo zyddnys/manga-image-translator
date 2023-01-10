@@ -1,5 +1,5 @@
 from typing import Callable, List
-from langdetect import detect
+import langid
 
 from .common import OfflineTranslator
 from .nllb import NLLBTranslator
@@ -51,7 +51,7 @@ class SelectiveOfflineTranslator(OfflineTranslator):
 
     def select_translator(self, from_lang: str, to_lang: str, queries: List[str]) -> OfflineTranslator:
         if from_lang == 'auto':
-            detected_lang = detect(' '.join(queries))
+            detected_lang = langid.classify(' '.join(queries))[0]
             if detected_lang in ISO_639_1_TO_VALID_LANGUAGES:
                 from_lang = ISO_639_1_TO_VALID_LANGUAGES[detected_lang]
         return self._select_translator(from_lang, to_lang)

@@ -19,7 +19,7 @@ kornia
 backports.cached-property
 huggingface_hub
 transformers
-langdetect
+langid
 sentencepiece
 editdistance
 numpy
