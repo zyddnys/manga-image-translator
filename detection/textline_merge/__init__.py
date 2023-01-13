@@ -136,7 +136,12 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose
             nodes = sorted(nodes, key=lambda x: bboxes[x].aabb.y + bboxes[x].aabb.h // 2)
         elif majority_dir == 'v':
             nodes = sorted(nodes, key=lambda x: -(bboxes[x].aabb.x + bboxes[x].aabb.w))
-        txtlns = [txtlns[i] for i in np.array(nodes) - min(nodes)]
+        nodes = np.array(nodes) - min(nodes)
+        for missing_value in reversed(list(set([item for item in range(0, len(txtlns))]).difference(set(nodes)))):
+            for i, node in enumerate(nodes):
+                if node > missing_value:
+                    nodes[i] = node - 1
+        txtlns = [txtlns[i] for i in nodes]
         # yield overall bbox and sorted indices
         yield txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
 
