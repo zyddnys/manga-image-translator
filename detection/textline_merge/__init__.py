@@ -30,9 +30,9 @@ def split_text_region(bboxes: List[Quadrilateral], region_indices: Set[int], gam
     for idx in region_indices:
         G.add_node(idx)
     for (u, v) in itertools.combinations(region_indices, 2):
-        G.add_edge(u, v, weight = bboxes[u].distance(bboxes[v]))
-    edges = nx.algorithms.tree.minimum_spanning_edges(G, algorithm = "kruskal", data = True)
-    edges = sorted(edges, key = lambda a: a[2]['weight'], reverse = True)
+        G.add_edge(u, v, weight=bboxes[u].distance(bboxes[v]))
+    edges = nx.algorithms.tree.minimum_spanning_edges(G, algorithm="kruskal", data=True)
+    edges = sorted(edges, key=lambda a: a[2]['weight'], reverse=True)
     edge_weights = [a[2]['weight'] for a in edges]
     fontsize = np.mean([bboxes[idx].font_size for idx in region_indices])
     std = np.std(edge_weights)
@@ -55,7 +55,7 @@ def split_text_region(bboxes: List[Quadrilateral], region_indices: Set[int], gam
             G.add_edge(edge[0], edge[1])
         ans = []
         for node_set in nx.algorithms.components.connected_components(G):
-            ans.extend(split_text_region(bboxes, node_set, verbose = verbose))
+            ans.extend(split_text_region(bboxes, node_set, verbose=verbose))
         return ans
 
 def get_mini_boxes(contour):
@@ -79,7 +79,7 @@ def get_mini_boxes(contour):
     box = [points[index_1], points[index_2], points[index_3], points[index_4]]
     box = np.array(box)
     startidx = box.sum(axis=1).argmin()
-    box = np.roll(box, 4-startidx, 0)
+    box = np.roll(box, 4 - startidx, 0)
     box = np.array(box)
     return box
 
@@ -133,10 +133,10 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose
 
         # sort
         if majority_dir == 'h':
-            nodes = sorted(nodes, key = lambda x: bboxes[x].aabb.y + bboxes[x].aabb.h // 2)
+            nodes = sorted(nodes, key=lambda x: bboxes[x].aabb.y + bboxes[x].aabb.h // 2)
         elif majority_dir == 'v':
-            nodes = sorted(nodes, key = lambda x: -(bboxes[x].aabb.x + bboxes[x].aabb.w))
-
+            nodes = sorted(nodes, key=lambda x: -(bboxes[x].aabb.x + bboxes[x].aabb.w))
+        txtlns = [txtlns[i] for i in nodes]
         # yield overall bbox and sorted indices
         yield txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
 
