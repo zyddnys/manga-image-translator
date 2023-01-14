@@ -35,7 +35,7 @@ Browser Userscript (by QiroNT): <https://greasyfork.org/scripts/437569>
   In that case you can wait for me to restart the service, which may take up to 24 hrs.
 - Note this online demo is using the current main branch version.
 
-Samples can be found [here](#samples)
+Sample images can be found [here](#samples)
 
 ## Installation
 
@@ -53,7 +53,7 @@ $ pip install -r requirements.txt
 $ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 ```
 
-The models will be downloaded into __./models__ on runtime.
+The models will be downloaded into _./models_ at runtime.
 
 #### If you are on windows:
 Some pip dependencies will not compile without _Microsoft C++ Build Tools_
@@ -94,7 +94,7 @@ $ python translate_demo.py --verbose --mode batch --use-cuda --translator=google
 # same options as above.
 # use `--mode web` to start a web server.
 $ python translate_demo.py --verbose --mode web --use-cuda
-# the demo will be serving on http://127.0.0.1:5003>
+# the demo will be serving on http://127.0.0.1:5003
 ```
 
 #### Manual translation
