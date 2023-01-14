@@ -11,8 +11,8 @@
 > Join us on discord <https://discord.gg/Ak8APNy4vb>
 
 Some manga/images will never be translated, therefore this project is born.\
-Primarily designed for translating Japanese text, but also support Chinese, English and Korean.\
-Support inpainting and text rendering.\
+Primarily designed for translating Japanese text, but also supports Chinese, English and Korean.\
+Supports inpainting and text rendering.\
 Successor to <https://github.com/PatchyVideo/MMDOCR-HighPerformance>
 
 **This is a hobby project, you are welcome to contribute!**\
