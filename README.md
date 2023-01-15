@@ -276,12 +276,6 @@ Or  (For the web server + GPU)
 docker-compose -f demo/doc/docker-compose-web-with-gpu.yml up
 ```
 
-### Offline translation
-
-When using offline translation the model is downloaded at runtime into a cache within the container.
-This cache can be cleared when re-creating the container.
-In order to avoid this you can create a docker volume and mount it under `/root/.cache/huggingface/`.
-
 ### Building locally
 
 To build the docker image locally you can run (You will require make on your machine)
