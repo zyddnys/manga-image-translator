@@ -33,7 +33,7 @@ class Model48pxCTCOCR(OfflineOCR):
         with open('alphabet-all-v5.txt', 'r', encoding = 'utf-8') as fp:
             dictionary = [s[:-1] for s in fp.readlines()]
 
-        self.model = OCR(dictionary, 768)
+        self.model: OCR = OCR(dictionary, 768)
         sd = torch.load(self._get_file_path('ocr-ctc.ckpt'), map_location = 'cpu')
         sd = sd['model'] if 'model' in sd else sd
         del sd['encoders.layers.0.pe.pe']
@@ -416,7 +416,7 @@ class OCR(nn.Module):
         self.dictionary = dictionary
         self.dict_size = len(dictionary)
         self.backbone = ResNet_FeatureExtractor(3, 320)
-        enc = CustomTransformerEncoderLayer(320, 8, 320 * 4, dropout=0.05,batch_first=True,norm_first=True)
+        enc = CustomTransformerEncoderLayer(320, 8, 320 * 4, dropout=0.05, batch_first=True, norm_first=True)
         self.encoders = nn.TransformerEncoder(enc, 3)
         self.char_pred_norm = nn.Sequential(nn.LayerNorm(320), nn.Dropout(0.1), nn.GELU())
         self.char_pred = nn.Linear(320, self.dict_size)

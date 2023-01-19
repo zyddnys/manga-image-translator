@@ -17,7 +17,7 @@ from inpainting import INPAINTERS, dispatch as dispatch_inpainting, prepare as p
 from translators import OFFLINE_TRANSLATORS, TRANSLATORS, VALID_LANGUAGES, dispatch as dispatch_translation, prepare as prepare_translation
 from upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
 from textmask_refinement import dispatch as dispatch_mask_refinement
-from text_rendering import text_render, dispatch_ctd_render
+from text_rendering import text_render, dispatch as dispatch_rendering
 from text_rendering.text_render import count_valuable_text
 from utils import load_image, dump_image
 
@@ -234,7 +234,7 @@ async def infer(
 				dispatch_eng_render_options.append(font_path[0])
 		output = await dispatch_eng_render(*dispatch_eng_render_options)
 	else:
-		output = await dispatch_ctd_render(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, tgt_lang, args.font_size_offset)
+		output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, tgt_lang, args.font_size_offset)
 
 	print(' -- Saving results')
 	img_pil = dump_image(output, img_alpha)

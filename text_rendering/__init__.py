@@ -36,37 +36,7 @@ def fg_bg_compare(fg, bg):
 		bg = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
 	return fg, bg
 
-# Can be removed in the future in favor of dispatch_ctd_render
-async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], textlines: List[Quadrilateral], text_regions: List[Quadrilateral], text_direction_overwrite: str, target_language: str, font_size_offset: int = 0) -> np.ndarray:
-	for trans_text, region in zip(translated_sentences, text_regions):
-		if not trans_text:
-			continue
-
-		majority_dir = None
-		if text_direction_overwrite in ['h', 'v']:
-			majority_dir = text_direction_overwrite
-		elif target_language in LANGAUGE_ORIENTATION_PRESETS:
-			majority_dir = LANGAUGE_ORIENTATION_PRESETS[target_language]
-		if majority_dir not in ['h', 'v']:
-			majority_dir = region.majority_dir
-
-		print(region.text)
-		print(trans_text)
-		fg = (region.fg_r, region.fg_g, region.fg_b)
-		bg = (region.bg_r, region.bg_g, region.bg_b)
-		fg, bg = fg_bg_compare(fg, bg)
-		font_size = 0
-		for idx in region.textline_indices:
-			txtln = textlines[idx]
-			font_size = max(font_size, txtln.font_size)
-		font_size = round(font_size)
-
-		region_aabb = region.aabb
-		print(region_aabb.x, region_aabb.y, region_aabb.w, region_aabb.h)
-		img_canvas = render(img_canvas, font_size, text_mag_ratio, trans_text, region, majority_dir, fg, bg, False, font_size_offset)
-	return img_canvas
-
-async def dispatch_ctd_render(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], text_regions: List[TextBlock], text_direction_overwrite: str, target_language: str, font_size_offset: int = 0) -> np.ndarray:
+async def dispatch(img_canvas: np.ndarray, text_mag_ratio: np.integer, translated_sentences: List[str], text_regions: List[TextBlock], text_direction_overwrite: str, target_language: str, font_size_offset: int = 0) -> np.ndarray:
 	for ridx, (trans_text, region) in enumerate(zip(translated_sentences, text_regions)):
 		print(f'text: {region.get_text()} \n trans: {trans_text}')
 		if not trans_text:
