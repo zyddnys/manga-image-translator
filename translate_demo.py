@@ -53,325 +53,325 @@ parser.add_argument('--font-path', default='', type=str, help='Path to font file
 args = parser.parse_args()
 
 def update_state(task_id, nonce, state):
-	while True:
-		try:
-			requests.post(f'http://{args.host}:{args.port}/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 20)
-			return
-		except Exception:
-			if 'error' in state or 'finished' in state:
-				continue
-			else:
-				break
+    while True:
+        try:
+            requests.post(f'http://{args.host}:{args.port}/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 20)
+            return
+        except Exception:
+            if 'error' in state or 'finished' in state:
+                continue
+            else:
+                break
 
 def get_task(nonce):
-	try:
-		rjson = requests.get(f'http://{args.host}:{args.port}/task-internal?nonce={nonce}', timeout = 3600).json()
-		if 'task_id' in rjson and 'data' in rjson:
-			return rjson['task_id'], rjson['data']
-		elif 'data' in rjson:
-			return None, rjson['data']
-		return None, None
-	except Exception:
-		return None, None
+    try:
+        rjson = requests.get(f'http://{args.host}:{args.port}/task-internal?nonce={nonce}', timeout = 3600).json()
+        if 'task_id' in rjson and 'data' in rjson:
+            return rjson['task_id'], rjson['data']
+        elif 'data' in rjson:
+            return None, rjson['data']
+        return None, None
+    except Exception:
+        return None, None
 
 async def infer(
-	image: Image.Image,
-	mode,
-	nonce = '',
-	options = None,
-	task_id = '',
-	dst_image_name = '',
-	):
+    image: Image.Image,
+    mode,
+    nonce = '',
+    options = None,
+    task_id = '',
+    dst_image_name = '',
+    ):
 
-	img_rgb, img_alpha = load_image(image)
+    img_rgb, img_alpha = load_image(image)
 
-	options = options or {}
-	img_detect_size = args.detection_size
-	if 'size' in options:
-		size_ind = options['size']
-		if size_ind == 'S':
-			img_detect_size = 1024
-		elif size_ind == 'M':
-			img_detect_size = 1536
-		elif size_ind == 'L':
-			img_detect_size = 2048
-		elif size_ind == 'X':
-			img_detect_size = 2560
+    options = options or {}
+    img_detect_size = args.detection_size
+    if 'size' in options:
+        size_ind = options['size']
+        if size_ind == 'S':
+            img_detect_size = 1024
+        elif size_ind == 'M':
+            img_detect_size = 1536
+        elif size_ind == 'L':
+            img_detect_size = 2048
+        elif size_ind == 'X':
+            img_detect_size = 2560
 
-	if 'detector' in options:
-		detector = options['detector']
-	else:
-		detector = args.detector
+    if 'detector' in options:
+        detector = options['detector']
+    else:
+        detector = args.detector
 
-	render_text_direction_overwrite = options.get('direction')
-	if not render_text_direction_overwrite:
-		if args.force_horizontal:
-			render_text_direction_overwrite = 'h'
-		elif args.force_vertical:
-			render_text_direction_overwrite = 'v'
-		else:
-			render_text_direction_overwrite = 'auto'
+    render_text_direction_overwrite = options.get('direction')
+    if not render_text_direction_overwrite:
+        if args.force_horizontal:
+            render_text_direction_overwrite = 'h'
+        elif args.force_vertical:
+            render_text_direction_overwrite = 'v'
+        else:
+            render_text_direction_overwrite = 'auto'
 
-	src_lang = 'auto'
-	if 'tgt' in options:
-		tgt_lang = options['tgt']
-	else:
-		tgt_lang = args.target_lang
-	if 'translator' in options:
-		translator = options['translator']
-	else:
-		translator = args.translator
+    src_lang = 'auto'
+    if 'tgt' in options:
+        tgt_lang = options['tgt']
+    else:
+        tgt_lang = args.target_lang
+    if 'translator' in options:
+        translator = options['translator']
+    else:
+        translator = args.translator
 
-	if not dst_image_name:
-		dst_image_name = f'result/{task_id}/final.png'
+    if not dst_image_name:
+        dst_image_name = f'result/{task_id}/final.png'
 
-	print(f' -- Detection resolution {img_detect_size}')
-	print(f' -- Detector using {detector}')
-	print(f' -- Render text direction is {render_text_direction_overwrite}')
+    print(f' -- Detection resolution {img_detect_size}')
+    print(f' -- Detector using {detector}')
+    print(f' -- Render text direction is {render_text_direction_overwrite}')
 
-	print(' -- Preparing translator')
-	await prepare_translation(translator, src_lang, tgt_lang)
+    print(' -- Preparing translator')
+    await prepare_translation(translator, src_lang, tgt_lang)
 
-	# The default text detector doesn't work very well on smaller images, so small images
-	# will get upscaled automatically unless --upscale-ratio=1 was set
-	if args.upscale_ratio or image.size[0] < 800 or image.size[1] < 800:
-		print(' -- Running upscaling')
-		if mode == 'web' and task_id:
-			update_state(task_id, nonce, 'upscaling')
+    # The default text detector doesn't work very well on smaller images, so small images
+    # will get upscaled automatically unless --upscale-ratio=1 was set
+    if args.upscale_ratio or image.size[0] < 800 or image.size[1] < 800:
+        print(' -- Running upscaling')
+        if mode == 'web' and task_id:
+            update_state(task_id, nonce, 'upscaling')
 
-		if args.upscale_ratio:
-			ratio = args.upscale_ratio
-		else:
-			ratio = max(4, 800 / image.size[0], 800 / image.size[1])
-		img_upscaled_pil = (await dispatch_upscaling('waifu2x', [image], ratio, args.use_cuda))[0]
-		img_rgb, img_alpha = load_image(img_upscaled_pil)
+        if args.upscale_ratio:
+            ratio = args.upscale_ratio
+        else:
+            ratio = max(4, 800 / image.size[0], 800 / image.size[1])
+        img_upscaled_pil = (await dispatch_upscaling('waifu2x', [image], ratio, args.use_cuda))[0]
+        img_rgb, img_alpha = load_image(img_upscaled_pil)
 
-	print(' -- Running text detection')
-	if mode == 'web' and task_id:
-		update_state(task_id, nonce, 'detection')
+    print(' -- Running text detection')
+    if mode == 'web' and task_id:
+        update_state(task_id, nonce, 'detection')
 
-	text_regions, mask = await dispatch_detection(detector, img_rgb, img_detect_size, args.text_threshold, args.box_threshold,
-												  args.unclip_ratio, args.det_rearrange_max_batches, args.use_cuda, args.verbose)
-	if not text_regions:
-		print('No text regions were detected - Skipping')
-		image.save(dst_image_name)
-		return
-	if args.verbose:
-		bboxes = visualize_textblocks(cv2.cvtColor(img_rgb,cv2.COLOR_BGR2RGB), text_regions)
-		cv2.imwrite(f'result/{task_id}/bboxes.png', bboxes)
+    text_regions, mask = await dispatch_detection(detector, img_rgb, img_detect_size, args.text_threshold, args.box_threshold,
+                                                  args.unclip_ratio, args.det_rearrange_max_batches, args.use_cuda, args.verbose)
+    if not text_regions:
+        print('No text regions were detected - Skipping')
+        image.save(dst_image_name)
+        return
+    if args.verbose:
+        bboxes = visualize_textblocks(cv2.cvtColor(img_rgb,cv2.COLOR_BGR2RGB), text_regions)
+        cv2.imwrite(f'result/{task_id}/bboxes.png', bboxes)
 
-	print(' -- Running OCR')
-	if mode == 'web' and task_id:
-		update_state(task_id, nonce, 'ocr')
-	text_regions = await dispatch_ocr(args.ocr, img_rgb, text_regions, args.use_cuda, args.verbose)
+    print(' -- Running OCR')
+    if mode == 'web' and task_id:
+        update_state(task_id, nonce, 'ocr')
+    text_regions = await dispatch_ocr(args.ocr, img_rgb, text_regions, args.use_cuda, args.verbose)
 
-	# filter regions by their text
-	text_regions = list(filter(lambda r: count_valuable_text(r.get_text()) > 1 and not r.get_text().isnumeric(), text_regions))
-	if detector == 'default':
-		if mode == 'web' and task_id:
-			update_state(task_id, nonce, 'mask_generation')
-		mask = await dispatch_mask_refinement(text_regions, img_rgb, mask)
+    # filter regions by their text
+    text_regions = list(filter(lambda r: count_valuable_text(r.get_text()) > 1 and not r.get_text().isnumeric(), text_regions))
+    if detector == 'default':
+        if mode == 'web' and task_id:
+            update_state(task_id, nonce, 'mask_generation')
+        mask = await dispatch_mask_refinement(text_regions, img_rgb, mask)
 
-	# in web mode, we can start online translation tasks async
-	if mode == 'web' and task_id and options.get('translator') not in OFFLINE_TRANSLATORS:
-		update_state(task_id, nonce, 'translating')
-		requests.post(f'http://{args.host}:{args.port}/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 20)
+    # in web mode, we can start online translation tasks async
+    if mode == 'web' and task_id and options.get('translator') not in OFFLINE_TRANSLATORS:
+        update_state(task_id, nonce, 'translating')
+        requests.post(f'http://{args.host}:{args.port}/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 20)
 
-	if args.verbose:
-		cv2.imwrite(f'result/{task_id}/mask_final.png', mask)
-		inpaint_input_img = await dispatch_inpainting('none', img_rgb, mask)
-		cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
+    if args.verbose:
+        cv2.imwrite(f'result/{task_id}/mask_final.png', mask)
+        inpaint_input_img = await dispatch_inpainting('none', img_rgb, mask)
+        cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
 
-	print(' -- Running inpainting')
-	if mode == 'web' and task_id:
-		update_state(task_id, nonce, 'inpainting')
-	img_inpainted = await dispatch_inpainting(args.inpainter, img_rgb, mask, args.inpainting_size, args.use_cuda, args.verbose)
+    print(' -- Running inpainting')
+    if mode == 'web' and task_id:
+        update_state(task_id, nonce, 'inpainting')
+    img_inpainted = await dispatch_inpainting(args.inpainter, img_rgb, mask, args.inpainting_size, args.use_cuda, args.verbose)
 
-	if args.verbose:
-		cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
+    if args.verbose:
+        cv2.imwrite(f'result/{task_id}/inpainted.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
 
-	print(' -- Translating')
-	translated_sentences = None
-	if mode != 'web' or translator in OFFLINE_TRANSLATORS:
-		if mode == 'web' and task_id:
-			update_state(task_id, nonce, 'translating')
-		queries = [r.get_text() for r in text_regions]
-		translated_sentences = await dispatch_translation(translator, src_lang, tgt_lang, queries, args.mtpe, use_cuda=args.use_cuda and not args.use_cuda_limited)
-	else:
-		# wait for at most 1 hour for manual translation
-		if options.get('manual', False):
-			wait_for = 3600
-		else:
-			wait_for = 30 # 30 seconds for machine translation
-		wait_until = time.time() + wait_for
-		while time.time() < wait_until:
-			ret = requests.post(f'http://{args.host}:{args.port}/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}, timeout = 20).json()
-			if 'result' in ret:
-				translated_sentences = ret['result']
-				if isinstance(translated_sentences, str):
-					if translated_sentences == 'error':
-						update_state(task_id, nonce, 'error-lang')
-						return
-				break
-			await asyncio.sleep(0.01)
+    print(' -- Translating')
+    translated_sentences = None
+    if mode != 'web' or translator in OFFLINE_TRANSLATORS:
+        if mode == 'web' and task_id:
+            update_state(task_id, nonce, 'translating')
+        queries = [r.get_text() for r in text_regions]
+        translated_sentences = await dispatch_translation(translator, src_lang, tgt_lang, queries, args.mtpe, use_cuda=args.use_cuda and not args.use_cuda_limited)
+    else:
+        # wait for at most 1 hour for manual translation
+        if options.get('manual', False):
+            wait_for = 3600
+        else:
+            wait_for = 30 # 30 seconds for machine translation
+        wait_until = time.time() + wait_for
+        while time.time() < wait_until:
+            ret = requests.post(f'http://{args.host}:{args.port}/get-translation-result-internal', json = {'task_id': task_id, 'nonce': nonce}, timeout = 20).json()
+            if 'result' in ret:
+                translated_sentences = ret['result']
+                if isinstance(translated_sentences, str):
+                    if translated_sentences == 'error':
+                        update_state(task_id, nonce, 'error-lang')
+                        return
+                break
+            await asyncio.sleep(0.01)
 
-	print(' -- Rendering translated text')
-	if translated_sentences == None:
-		print("No text found!")
-		if mode == 'web' and task_id:
-			update_state(task_id, nonce, 'error-no-txt')
-		return
+    print(' -- Rendering translated text')
+    if translated_sentences == None:
+        print("No text found!")
+        if mode == 'web' and task_id:
+            update_state(task_id, nonce, 'error-no-txt')
+        return
 
-	if mode == 'web' and task_id:
-		update_state(task_id, nonce, 'render')
-	# render translated texts
-	if tgt_lang == 'ENG' and args.manga2eng:
-		from text_rendering import dispatch_eng_render
-		dispatch_eng_render_options = [np.copy(img_inpainted), img_rgb, text_regions, translated_sentences]
-		if args.font_path:
-			font_path = args.font_path.split(',')
-			if font_path and font_path[0]:
-				dispatch_eng_render_options.append(font_path[0])
-		output = await dispatch_eng_render(*dispatch_eng_render_options)
-	else:
-		output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, tgt_lang, args.font_size_offset)
+    if mode == 'web' and task_id:
+        update_state(task_id, nonce, 'render')
+    # render translated texts
+    if tgt_lang == 'ENG' and args.manga2eng:
+        from text_rendering import dispatch_eng_render
+        dispatch_eng_render_options = [np.copy(img_inpainted), img_rgb, text_regions, translated_sentences]
+        if args.font_path:
+            font_path = args.font_path.split(',')
+            if font_path and font_path[0]:
+                dispatch_eng_render_options.append(font_path[0])
+        output = await dispatch_eng_render(*dispatch_eng_render_options)
+    else:
+        output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, tgt_lang, args.font_size_offset)
 
-	print(' -- Saving results')
-	img_pil = dump_image(output, img_alpha)
-	img_pil.save(dst_image_name)
+    print(' -- Saving results')
+    img_pil = dump_image(output, img_alpha)
+    img_pil.save(dst_image_name)
 
-	if mode == 'web' and task_id:
-		update_state(task_id, nonce, 'finished')
+    if mode == 'web' and task_id:
+        update_state(task_id, nonce, 'finished')
 
 
 async def infer_safe(
-	img: Image.Image,
-	mode,
-	nonce,
-	options = None,
-	task_id = '',
-	dst_image_name = '',
-	):
-	try:
-		return await infer(
-			img,
-			mode,
-			nonce,
-			options,
-			task_id,
-			dst_image_name,
-		)
-	except Exception:
-		import traceback
-		traceback.print_exc()
-		update_state(task_id, nonce, 'error')
+    img: Image.Image,
+    mode,
+    nonce,
+    options = None,
+    task_id = '',
+    dst_image_name = '',
+    ):
+    try:
+        return await infer(
+            img,
+            mode,
+            nonce,
+            options,
+            task_id,
+            dst_image_name,
+        )
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        update_state(task_id, nonce, 'error')
 
 def replace_prefix(s: str, old: str, new: str):
-	if s.startswith(old):
-		s = new + s[len(old):]
-	return s
+    if s.startswith(old):
+        s = new + s[len(old):]
+    return s
 
 async def main(mode = 'demo'):
-	print(' -- Preload Checks')
-	args.image = os.path.expanduser(args.image)
-	if not os.path.exists(args.image) and not args.mode.startswith('web'):
-		raise FileNotFoundError(args.image)
+    print(' -- Preload Checks')
+    args.image = os.path.expanduser(args.image)
+    if not os.path.exists(args.image) and not args.mode.startswith('web'):
+        raise FileNotFoundError(args.image)
 
-	if args.use_cuda_limited:
-		args.use_cuda = True
-	if not torch.cuda.is_available() and args.use_cuda:
-		raise Exception('CUDA compatible device could not be found while %s args was set...'
-						% ('--use_cuda_limited' if args.use_cuda_limited else '--use_cuda'))
+    if args.use_cuda_limited:
+        args.use_cuda = True
+    if not torch.cuda.is_available() and args.use_cuda:
+        raise Exception('CUDA compatible device could not be found while %s args was set...'
+                        % ('--use_cuda_limited' if args.use_cuda_limited else '--use_cuda'))
 
-	print(' -- Loading models')
-	os.makedirs('result', exist_ok=True)
-	if args.font_path:
-		font_path = args.font_path.split(',')
-		text_render.prepare_renderer(font_path)
-	else:
-		text_render.prepare_renderer()
-	await prepare_upscaling('waifu2x')
-	await prepare_detection(args.detector)
-	await prepare_ocr(args.ocr, args.use_cuda)
-	await prepare_inpainting(args.inpainter, args.use_cuda)
+    print(' -- Loading models')
+    os.makedirs('result', exist_ok=True)
+    if args.font_path:
+        font_path = args.font_path.split(',')
+        text_render.prepare_renderer(font_path)
+    else:
+        text_render.prepare_renderer()
+    await prepare_upscaling('waifu2x')
+    await prepare_detection(args.detector)
+    await prepare_ocr(args.ocr, args.use_cuda)
+    await prepare_inpainting(args.inpainter, args.use_cuda)
 
-	if mode == 'demo':
-		print(' -- Running in single image demo mode')
-		if not args.image:
-			print('please provide an image')
-			parser.print_usage()
-			return
-		await infer(Image.open(args.image), mode)
-	elif mode == 'web' or mode == 'web2':
-		print(' -- Running in web service mode')
-		print(' -- Waiting for translation tasks')
+    if mode == 'demo':
+        print(' -- Running in single image demo mode')
+        if not args.image:
+            print('please provide an image')
+            parser.print_usage()
+            return
+        await infer(Image.open(args.image), mode)
+    elif mode == 'web' or mode == 'web2':
+        print(' -- Running in web service mode')
+        print(' -- Waiting for translation tasks')
 
-		if mode == 'web':
-			import subprocess
-			import sys
-			nonce = crypto_utils.rand_bytes(16).hex()
+        if mode == 'web':
+            import subprocess
+            import sys
+            nonce = crypto_utils.rand_bytes(16).hex()
 
-			extra_web_args = {'stdout':sys.stdout, 'stderr':sys.stderr} if args.log_web else {}
-			web_executable = [sys.executable, '-u'] if args.log_web else [sys.executable]
-			web_process_args = ['web_main.py', nonce, str(args.host), str(args.port)]
-			subprocess.Popen([*web_executable, *web_process_args], **extra_web_args)
+            extra_web_args = {'stdout':sys.stdout, 'stderr':sys.stderr} if args.log_web else {}
+            web_executable = [sys.executable, '-u'] if args.log_web else [sys.executable]
+            web_process_args = ['web_main.py', nonce, str(args.host), str(args.port)]
+            subprocess.Popen([*web_executable, *web_process_args], **extra_web_args)
 
-		while True:
-			try:
-				task_id, options = get_task(nonce)
-				if options and 'exit' in options:
-					break
-				if task_id:
-					try:
-						print(f' -- Processing task {task_id}')
-						infer_task = asyncio.create_task(infer_safe(Image.open(f'result/{task_id}/input.png'), mode, nonce, options, task_id))
-						asyncio.gather(infer_task)
-					except Exception:
-						import traceback
-						traceback.print_exc()
-						update_state(task_id, nonce, 'error')
-				else:
-					await asyncio.sleep(0.1)
-			except Exception:
-				import traceback
-				traceback.print_exc()
-	elif mode == 'batch':
-		src = os.path.abspath(args.image)
-		if src[-1] == '\\' or src[-1] == '/':
-			src = src[:-1]
-		dst = args.image_dst or src + '-translated'
-		if os.path.exists(dst) and not os.path.isdir(dst):
-			print(f'Destination `{dst}` already exists and is not a directory! Please specify another directory.')
-			return
-		print('Processing image in source directory')
-		files = []
-		for root, subdirs, files in os.walk(src):
-			dst_root = replace_prefix(root, src, dst)
-			os.makedirs(dst_root, exist_ok = True)
-			for f in files:
-				if f.lower() == '.thumb':
-					continue
-				filename = os.path.join(root, f)
-				dst_filename = replace_prefix(filename, src, dst)
-				if os.path.exists(dst_filename):
-					continue
-				try:
-					img = Image.open(filename)
-				except Exception:
-					pass
-				try:
-					print('Processing', filename, '->', dst_filename)
-					await infer(img, 'demo', dst_image_name = dst_filename)
-				except Exception:
-					import traceback
-					traceback.print_exc()
-					pass
+        while True:
+            try:
+                task_id, options = get_task(nonce)
+                if options and 'exit' in options:
+                    break
+                if task_id:
+                    try:
+                        print(f' -- Processing task {task_id}')
+                        infer_task = asyncio.create_task(infer_safe(Image.open(f'result/{task_id}/input.png'), mode, nonce, options, task_id))
+                        asyncio.gather(infer_task)
+                    except Exception:
+                        import traceback
+                        traceback.print_exc()
+                        update_state(task_id, nonce, 'error')
+                else:
+                    await asyncio.sleep(0.1)
+            except Exception:
+                import traceback
+                traceback.print_exc()
+    elif mode == 'batch':
+        src = os.path.abspath(args.image)
+        if src[-1] == '\\' or src[-1] == '/':
+            src = src[:-1]
+        dst = args.image_dst or src + '-translated'
+        if os.path.exists(dst) and not os.path.isdir(dst):
+            print(f'Destination `{dst}` already exists and is not a directory! Please specify another directory.')
+            return
+        print('Processing image in source directory')
+        files = []
+        for root, subdirs, files in os.walk(src):
+            dst_root = replace_prefix(root, src, dst)
+            os.makedirs(dst_root, exist_ok = True)
+            for f in files:
+                if f.lower() == '.thumb':
+                    continue
+                filename = os.path.join(root, f)
+                dst_filename = replace_prefix(filename, src, dst)
+                if os.path.exists(dst_filename):
+                    continue
+                try:
+                    img = Image.open(filename)
+                except Exception:
+                    pass
+                try:
+                    print('Processing', filename, '->', dst_filename)
+                    await infer(img, 'demo', dst_image_name = dst_filename)
+                except Exception:
+                    import traceback
+                    traceback.print_exc()
+                    pass
 
 if __name__ == '__main__':
-	try:
-		print(args)
-		loop = asyncio.new_event_loop()
-		asyncio.set_event_loop(loop)
-		loop.run_until_complete(main(args.mode))
-	except KeyboardInterrupt:
-		print()
+    try:
+        print(args)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(main(args.mode))
+    except KeyboardInterrupt:
+        print()
