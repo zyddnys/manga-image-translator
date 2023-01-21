@@ -134,22 +134,16 @@ async def infer(
 
     # The default text detector doesn't work very well on smaller images, so small images
     # will get upscaled automatically unless --upscale-ratio=1 was set
-    if args.upscale_ratio or image.size[0] < 800 or image.size[1] < 800:
+    if args.upscale_ratio:
         print(' -- Running upscaling')
         if mode == 'web' and task_id:
             update_state(task_id, nonce, 'upscaling')
-
-        if args.upscale_ratio:
-            ratio = args.upscale_ratio
-        else:
-            ratio = max(4, 800 / image.size[0], 800 / image.size[1])
-        img_upscaled_pil = (await dispatch_upscaling('waifu2x', [image], ratio, args.use_cuda))[0]
+        img_upscaled_pil = (await dispatch_upscaling('waifu2x', [image], args.upscale_ratio, args.use_cuda))[0]
         img_rgb, img_alpha = load_image(img_upscaled_pil)
 
     print(' -- Running text detection')
     if mode == 'web' and task_id:
         update_state(task_id, nonce, 'detection')
-
     text_regions, mask = await dispatch_detection(detector, img_rgb, img_detect_size, args.text_threshold, args.box_threshold,
                                                   args.unclip_ratio, args.det_rearrange_max_batches, args.use_cuda, args.verbose)
     if not text_regions:
@@ -170,6 +164,7 @@ async def infer(
     if detector == 'default':
         if mode == 'web' and task_id:
             update_state(task_id, nonce, 'mask_generation')
+        cv2.imwrite(f'result/{task_id}/mask_raw.png', mask)
         mask = await dispatch_mask_refinement(text_regions, img_rgb, mask)
 
     # in web mode, we can start online translation tasks async
