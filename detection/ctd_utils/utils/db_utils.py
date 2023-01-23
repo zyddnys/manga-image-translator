@@ -37,7 +37,7 @@ class SegDetectorRepresenter():
         self.max_candidates = max_candidates
         self.unclip_ratio = unclip_ratio
 
-    def __call__(self, batch, pred, is_output_polygon=False):
+    def __call__(self, batch, pred, is_output_polygon=False, height=None, width=None):
         '''
         batch: (image, polygons, ignore_tags
         batch: a dict produced by dataloaders.
@@ -57,9 +57,13 @@ class SegDetectorRepresenter():
         scores_batch = []
         # print(pred.size())
         batch_size = pred.size(0) if isinstance(pred, torch.Tensor) else pred.shape[0]
+
+        if height is None:
+            height = pred.shape[1]
+        if width is None: 
+            width = pred.shape[2]
+
         for batch_index in range(batch_size):
-            # height, width = batch['shape'][batch_index]
-            height, width = pred.shape[1], pred.shape[2]
             if is_output_polygon:
                 boxes, scores = self.polygons_from_bitmap(pred[batch_index], segmentation[batch_index], width, height)
             else:
@@ -197,10 +201,10 @@ class SegDetectorRepresenter():
     def box_score_fast(self, bitmap, _box):
         h, w = bitmap.shape[:2]
         box = _box.copy()
-        xmin = np.clip(np.floor(box[:, 0].min()).astype(np.int), 0, w - 1)
-        xmax = np.clip(np.ceil(box[:, 0].max()).astype(np.int), 0, w - 1)
-        ymin = np.clip(np.floor(box[:, 1].min()).astype(np.int), 0, h - 1)
-        ymax = np.clip(np.ceil(box[:, 1].max()).astype(np.int), 0, h - 1)
+        xmin = np.clip(np.floor(box[:, 0].min()).astype(np.int32), 0, w - 1)
+        xmax = np.clip(np.ceil(box[:, 0].max()).astype(np.int32), 0, w - 1)
+        ymin = np.clip(np.floor(box[:, 1].min()).astype(np.int32), 0, h - 1)
+        ymax = np.clip(np.ceil(box[:, 1].max()).astype(np.int32), 0, h - 1)
 
         mask = np.zeros((ymax - ymin + 1, xmax - xmin + 1), dtype=np.uint8)
         box[:, 0] = box[:, 0] - xmin
@@ -465,7 +469,7 @@ class QuadMetric():
                 for i in range(pred_polygons.shape[0]):
                     if pred_scores[i] >= box_thresh:
                         # print(pred_polygons[i,:,:].tolist())
-                        pred.append(dict(points=pred_polygons[i, :, :].astype(np.int)))
+                        pred.append(dict(points=pred_polygons[i, :, :].astype(np.int32)))
                 # pred = [dict(points=pred_polygons[i,:,:].tolist()) if pred_scores[i] >= box_thresh for i in range(pred_polygons.shape[0])]
             results.append(self.evaluator.evaluate_image(gt, pred))
         return results

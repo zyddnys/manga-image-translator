@@ -1,29 +1,28 @@
-import re
 from typing import List
-from langdetect import detect
-import huggingface_hub 
+import huggingface_hub
+import langid
 
 from translators.common import OfflineTranslator
 
 ISO_639_1_TO_FLORES_200 = {
-    'zh-cn': 'zho_Hans',
-	'zh-tw': 'zho_Hant',
-	'ja': 'jpn_Jpan',
-	'en': 'eng_Latn',
-	'kn': 'kor_Hang',
-	'vi': 'vie_Latn',
-	'cs': 'ces_Latn',
-	'nl': 'nld_Latn',
-	'fr': 'fra_Latn',
-	'de': 'deu_Latn',
-	'hu': 'hun_Latn',
-	'it': 'ita_Latn',
-	'pl': 'pol_Latn',
-	'pt': 'por_Latn',
-	'ro': 'ron_Latn',
-	'ru': 'rus_Cyrl',
-	'es': 'spa_Latn',
-	'tr': 'tur_Latn',
+    'zh': 'zho_Hans',
+    'ja': 'jpn_Jpan',
+    'en': 'eng_Latn',
+    'kn': 'kor_Hang',
+    'vi': 'vie_Latn',
+    'cs': 'ces_Latn',
+    'nl': 'nld_Latn',
+    'fr': 'fra_Latn',
+    'de': 'deu_Latn',
+    'hu': 'hun_Latn',
+    'it': 'ita_Latn',
+    'pl': 'pol_Latn',
+    'pt': 'por_Latn',
+    'ro': 'ron_Latn',
+    'ru': 'rus_Cyrl',
+    'es': 'spa_Latn',
+    'uk': 'ukr_Cyrl',
+    'tr': 'tur_Latn',
 }
 
 class NLLBTranslator(OfflineTranslator):
@@ -62,7 +61,7 @@ class NLLBTranslator(OfflineTranslator):
 
     async def _forward(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         if from_lang == 'auto':
-            detected_lang = detect('\n'.join(queries))
+            detected_lang = langid.classify('\n'.join(queries))[0]
             target_lang = self._map_detected_lang_to_translator(detected_lang)
 
             if target_lang == None:
@@ -79,11 +78,11 @@ class NLLBTranslator(OfflineTranslator):
             return ''
 
         if from_lang == 'auto':
-            detected_lang = detect(query)
+            detected_lang = langid.classify(query)[0]
             from_lang = self._map_detected_lang_to_translator(detected_lang)
 
         if from_lang == None:
-            print(f'Warning: Offline Translation Failed. Could not detect language (Or language not supported for text: {query})')
+            print(f'Warning: NLLB Translation Failed. Could not detect language (Or language not supported for text: {query})')
             return ''
 
         translator = pipeline('translation', 
@@ -98,28 +97,10 @@ class NLLBTranslator(OfflineTranslator):
         result = translator(query)
         translated_text = self._clean_translation_output(result[0]['translation_text'])
 
-        print(f'Offline Translation[{from_lang} -> {to_lang}] "{query}" -> "{translated_text}"')
         return translated_text
 
-    def _clean_translation_output(self, text: str) -> str:
-        '''
-        Tries to spot and skim down invalid translations.
-        '''
-        words = text.split()
-        elements = list(set(words))
-        if len(elements) / len(words) < 0.1:
-            words = words[:int(len(words) / 1.75)]
-            text = ' '.join(words)
-
-            # For words that appear more then four times consecutively, remove the excess
-            for el in elements:
-                el = re.escape(el)
-                text = re.sub(r'(?: ' + el + r'){4} (' + el + r' )+', ' ', text)
-
-        return text
-
     def _map_detected_lang_to_translator(self, lang):
-        if not lang in ISO_639_1_TO_FLORES_200.keys():
+        if not lang in ISO_639_1_TO_FLORES_200:
             return None
 
         return ISO_639_1_TO_FLORES_200[lang]

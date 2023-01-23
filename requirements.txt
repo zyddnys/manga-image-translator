@@ -19,11 +19,11 @@ kornia
 backports.cached-property
 huggingface_hub
 transformers
-langdetect
+langid
 sentencepiece
 editdistance
-fairseq
 numpy
 tensorboardX
 websockets
 protobuf
+ctranslate2

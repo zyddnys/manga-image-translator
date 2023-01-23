@@ -11,8 +11,8 @@
 > Join us on discord <https://discord.gg/Ak8APNy4vb>
 
 Some manga/images will never be translated, therefore this project is born.\
-Primarily designed for translating Japanese text, but also support Chinese, English and Korean.\
-Support inpainting and text rendering.\
+Primarily designed for translating Japanese text, but also supports Chinese, English and Korean.\
+Supports inpainting and text rendering.\
 Successor to <https://github.com/PatchyVideo/MMDOCR-HighPerformance>
 
 **This is a hobby project, you are welcome to contribute!**\
@@ -35,81 +35,36 @@ Browser Userscript (by QiroNT): <https://greasyfork.org/scripts/437569>
   In that case you can wait for me to restart the service, which may take up to 24 hrs.
 - Note this online demo is using the current main branch version.
 
-## Usage
+Sample images can be found [here](#samples)
+
+## Installation
 
 ```bash
 # First, you need to have Python(>=3.8) installed on your system.
 $ python --version
-Python 3.8.13
+Python 3.10.6
 
 # Clone this repo
 $ git clone https://github.com/zyddnys/manga-image-translator.git
 
 # Install the dependencies
 $ pip install -r requirements.txt
+
+$ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 ```
 
-However, `pydensecrf` isn't listed as a dependency, so you need to install it manually.\
-On Windows you can download the pre-compiled wheels from <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf>
-according to your python version and install it with pip.\
-On other platforms, you should be able to install it via `pip install git+https://github.com/lucasb-eyer/pydensecrf.git`.
+The models will be downloaded into _./models_ at runtime.
 
-Then, download `ocr.ckpt`, `ocr-ctc.ckpt`, `detect.ckpt`, `comictextdetector.pt`, `comictextdetector.pt.onnx` and `inpainting_lama_mpe.ckpt`
-from <https://github.com/zyddnys/manga-image-translator/releases/>, put them in the root directory of this repo.
+#### If you are on windows:
+Some pip dependencies will not compile without _Microsoft C++ Build Tools_
+(See ![#114](https://github.com/zyddnys/manga-image-translator/issues/114)).
 
-[Optional if using Google translate]\
-Apply for Youdao or DeepL translate API, put your `APP_KEY` and `APP_SECRET` or `AUTH_KEY` in `translators/key.py` or export them as environment variables as detailed in the key.py file.
+If you have trouble installing pydensecrf with the command above you can download the pre-compiled wheels
+from <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf> according to your python version and install it with pip.
 
-### Translators Reference
+## Usage
 
-| Name        | API Key | Offline | Docker | Note                                                  |
-| ----------- | ------- | ------- | ------ | ----------------------------------------------------- |
-| google      |         |         | ✔️     |                                                       |
-| youdao      | ✔️      |         | ✔️     |                                                       |
-| baidu       | ✔️      |         | ✔️     |                                                       |
-| deepl       | ✔️      |         | ✔️     |                                                       |
-| papago      |         |         | ✔️     |                                                       |
-| offline     |         | ✔️      | ✔️     | Chooses most suitable offline translator for language |
-| offline_big |         | ✔️      |        |                                                       |
-| nllb        |         | ✔️      | ✔️     |                                                       |
-| nllb_big    |         | ✔️      |        |                                                       |
-| sugoi       |         | ✔️      | ✔️     |                                                       |
-| sugoi_small |         | ✔️      |        |                                                       |
-| sugoi_big   |         | ✔️      |        |                                                       |
-| none        |         | ✔️      | ✔️     | Translate to empty texts                              |
-| original    |         | ✔️      | ✔️     | Keep original texts                                   |
-
-- API Key: Whether the translator requires an API key.
-- Offline: Whether the translator can be used offline.
-- Docker: Whether the translator is available in the docker image.
-
-### Language Code Reference
-
-Used by the `--target-lang` argument.
-
-```yaml
-CHS: Chinese (Simplified)
-CHT: Chinese (Traditional)
-CSY: Czech
-NLD: Dutch
-ENG: English
-FRA: French
-DEU: German
-HUN: Hungarian
-ITA: Italian
-JPN: Japanese
-KOR: Korean
-PLK: Polish
-PTB: Portuguese (Brazil)
-ROM: Romanian
-RUS: Russian
-ESP: Spanish
-TRK: Turkish
-UKR: Ukrainian
-VIN: Vietnames
-```
-
-### Using CLI
+#### Demo mode (singular image)
 
 ```bash
 # `--use-cuda` is optional, if you have a compatible NVIDIA GPU, you can use it.
@@ -117,30 +72,39 @@ VIN: Vietnames
 # use `--inpainter=none` to disable inpainting.
 # use `--translator=<translator>` to specify a translator.
 # use `--translator=none` if you only want to use inpainting (blank bubbles)
-# use `--target-lang=<languge_code>` to specify a target language.
+# use `--target-lang <language_code>` to specify a target language.
 # replace <path_to_image_file> with the path to the image file.
-$ python translate_demo.py --verbose --use-cuda --translator=google --target-lang=ENG --image <path_to_image_file>
+$ python translate_demo.py --verbose --use-cuda --translator=google -l ENG -i <path_to_image_file>
 # result can be found in `result/`.
 ```
 
-#### CLI Batch Translation
+#### Batch mode
 
 ```bash
 # same options as above.
 # use `--mode batch` to enable batch translation.
 # replace <path_to_image_folder> with the path to the image folder.
-$ python translate_demo.py --verbose --mode batch --use-cuda --translator=google --target-lang=ENG --image <path_to_image_folder>
+$ python translate_demo.py --verbose --mode batch --use-cuda --translator=google -l ENG -i <path_to_image_folder>
 # results can be found in `<path_to_image_folder>-translated/`.
 ```
 
-### Using Browser (Web Server Mode)
+#### Web Mode
 
 ```bash
 # same options as above.
 # use `--mode web` to start a web server.
 $ python translate_demo.py --verbose --mode web --use-cuda
-# the demo will be serving on http://127.0.0.1:5003>
+# the demo will be serving on http://127.0.0.1:5003
 ```
+
+#### Manual translation
+
+Manual translation replaces machine translation with human translators.
+Basic manual translation demo can be found at <http://127.0.0.1:5003/manual> when using web mode.
+
+<details closed>
+<summary>API</summary>
+<br>
 
 Two modes of translation service are provided by the demo: synchronous mode and asynchronous mode.\
 In synchronous mode your HTTP POST request will finish once the translation task is finished.\
@@ -161,9 +125,6 @@ In asynchronous mode your HTTP POST request will respond with a `task_id` immedi
 5. Find translation result in `result/` directory, e.g. using Nginx to expose `result/`
 
 #### Manual translation
-
-Manual translation replace machine translation with human translators.
-Basic manual translation demo can be found at <http://127.0.0.1:5003/manual>
 
 POST a form request with form data `file:<content-of-image>` to <http://127.0.0.1:5003/manual-translate>
 and wait for response.
@@ -201,6 +162,56 @@ Fill in translated texts:
 Post translated JSON to <http://127.0.0.1:5003/post-translation-result> and wait for response.\
 Then you can find the translation result in `result/` directory, e.g. using Nginx to expose `result/`.
 
+</details>
+
+### Translators Reference
+
+| Name        | API Key | Offline | Docker | Note                                                  |
+| ----------- | ------- | ------- | ------ | ----------------------------------------------------- |
+| google      |         |         | ✔️      |                                                       |
+| youdao      | ✔️       |         | ✔️      | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`     |
+| baidu       | ✔️       |         | ✔️      | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`        |
+| deepl       | ✔️       |         | ✔️      | Requires `DEEPL_AUTH_KEY`                             |
+| papago      |         |         | ✔️      |                                                       |
+| offline     |         | ✔️       | ✔️      | Chooses most suitable offline translator for language |
+| offline_big |         | ✔️       |        |                                                       |
+| nllb        |         | ✔️       | ✔️      |                                                       |
+| nllb_big    |         | ✔️       |        |                                                       |
+| sugoi       |         | ✔️       | ✔️      |                                                       |
+| sugoi_big   |         | ✔️       |        |                                                       |
+| none        |         | ✔️       | ✔️      | Translate to empty texts                              |
+| original    |         | ✔️       | ✔️      | Keep original texts                                   |
+
+- API Key: Whether the translator requires an API key to be set as environment variable.
+- Offline: Whether the translator can be used offline.
+- Docker: Whether the translator is available in the docker image.
+
+### Language Code Reference
+
+Used by the `--target-lang` argument.
+
+```yaml
+CHS: Chinese (Simplified)
+CHT: Chinese (Traditional)
+CSY: Czech
+NLD: Dutch
+ENG: English
+FRA: French
+DEU: German
+HUN: Hungarian
+ITA: Italian
+JPN: Japanese
+KOR: Korean
+PLK: Polish
+PTB: Portuguese (Brazil)
+ROM: Romanian
+RUS: Russian
+ESP: Spanish
+TRK: Turkish
+UKR: Ukrainian
+VIN: Vietnames
+```
+
 ## Docker
 
 Requirements:
@@ -209,16 +220,16 @@ Requirements:
 - Docker Compose (Optional if you want to use files in the `demo/doc` folder)
 - Nvidia Container Runtime (Optional if you want to use CUDA)
 
-This project has docker support under `zyddnys/manga-image-translator` image.
+This project has docker support under `zyddnys/manga-image-translator:main` image.
 This docker image contains all required dependencies / models for the project.
-It should be noted that this image is fairly large (~ 5GB).
+It should be noted that this image is fairly large (~ 15GB).
 
 ### Hosting the web server
 
 The web server can be hosted using (For CPU)
 
 ```bash
-docker run -p 5003:5003 -v result:/app/result --ipc=host --rm zyddnys/manga-image-translator --target-lang=ENG --manga2eng --verbose --log-web --mode web --host=0.0.0.0 --port=5003
+docker run -p 5003:5003 -v result:/app/result --ipc=host --rm zyddnys/manga-image-translator:main -l ENG --manga2eng --verbose --log-web --mode web --host=0.0.0.0 --port=5003
 ```
 
 or
@@ -234,7 +245,7 @@ depending on which you prefer. The web server should start on port [5003](http:/
 To use docker with the CLI (I.e in batch mode)
 
 ```bash
-docker run -v <targetFolder>:/app/<targetFolder> -v <targetFolder>-translated:/app/<targetFolder>-translated  --ipc=host --rm zyddnys/manga-image-translator --mode=batch --image=/app/<targetFolder> <cli flags>
+docker run -v <targetFolder>:/app/<targetFolder> -v <targetFolder>-translated:/app/<targetFolder>-translated  --ipc=host --rm zyddnys/manga-image-translator:main --mode=batch -i=/app/<targetFolder> <cli flags>
 ```
 
 **Note:** In the event you need to reference files on your host machine
@@ -246,7 +257,7 @@ Paths for the CLI will need to be the internal docker path `/app/...` instead of
 Some translation services require API keys to function to set these pass them as env vars into the docker container. For example:
 
 ```bash
-docker run --env="DEEPL_AUTH_KEY=xxx" --ipc=host --rm zyddnys/manga-image-translator <cli flags>
+docker run --env="DEEPL_AUTH_KEY=xxx" --ipc=host --rm zyddnys/manga-image-translator:main <cli flags>
 ```
 
 ### Using with Nvida GPU
@@ -256,7 +267,7 @@ docker run --env="DEEPL_AUTH_KEY=xxx" --ipc=host --rm zyddnys/manga-image-transl
 To run the container with the following flags set:
 
 ```bash
-docker run ... --gpus=all ... zyddnys/manga-image-translator ... --use-cuda
+docker run ... --gpus=all ... zyddnys/manga-image-translator:main ... --use-cuda
 ```
 
 Or  (For the web server + GPU)
@@ -264,12 +275,6 @@ Or  (For the web server + GPU)
 ```bash
 docker-compose -f demo/doc/docker-compose-web-with-gpu.yml up
 ```
-
-### Offline translation
-
-When using offline translation the model is downloaded at runtime into a cache within the container.
-This cache can be cleared when re-creating the container.
-In order to avoid this you can create a docker volume and mount it under `/root/.cache/huggingface/`.
 
 ### Building locally
 

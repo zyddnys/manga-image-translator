@@ -152,9 +152,9 @@ class FourierUnit(nn.Module):
         # squeeze and excitation block
         self.use_se = use_se
         # if use_se:
-        #	 if se_kwargs is None:
-        #		 se_kwargs = {}
-        #	 self.se = SELayer(self.conv_layer.in_channels, **se_kwargs)
+        #     if se_kwargs is None:
+        #         se_kwargs = {}
+        #     self.se = SELayer(self.conv_layer.in_channels, **se_kwargs)
 
         self.spatial_scale_factor = spatial_scale_factor
         self.spatial_scale_mode = spatial_scale_mode
@@ -367,8 +367,8 @@ class FFCResnetBlock(nn.Module):
                                 padding_type=padding_type,
                                 **conv_kwargs)
         # if spatial_transform_kwargs is not None:
-        #	 self.conv1 = LearnableSpatialTransformWrapper(self.conv1, **spatial_transform_kwargs)
-        #	 self.conv2 = LearnableSpatialTransformWrapper(self.conv2, **spatial_transform_kwargs)
+        #     self.conv1 = LearnableSpatialTransformWrapper(self.conv1, **spatial_transform_kwargs)
+        #     self.conv2 = LearnableSpatialTransformWrapper(self.conv2, **spatial_transform_kwargs)
         self.inline = inline
 
     def forward(self, x):
@@ -715,34 +715,37 @@ class LamaFourier:
         pos = np.zeros((h, w), dtype=np.int32)
         direct = np.zeros((h, w, 4), dtype=np.int32)
         i = 0
-        while np.sum(1 - mask3) > 0:
-            i += 1
-            mask3_ = cv2.filter2D(mask3, -1, ones_filter)
-            mask3_[mask3_ > 0] = 1
-            sub_mask = mask3_ - mask3
-            pos[sub_mask == 1] = i
 
-            m = cv2.filter2D(mask3, -1, d_filter1)
-            m[m > 0] = 1
-            m = m - mask3
-            direct[m == 1, 0] = 1
+        if mask3.max() > 0:
+            # otherwise it will cause infinity loop
+            while np.sum(1 - mask3) > 0:
+                i += 1
+                mask3_ = cv2.filter2D(mask3, -1, ones_filter)
+                mask3_[mask3_ > 0] = 1
+                sub_mask = mask3_ - mask3
+                pos[sub_mask == 1] = i
 
-            m = cv2.filter2D(mask3, -1, d_filter2)
-            m[m > 0] = 1
-            m = m - mask3
-            direct[m == 1, 1] = 1
+                m = cv2.filter2D(mask3, -1, d_filter1)
+                m[m > 0] = 1
+                m = m - mask3
+                direct[m == 1, 0] = 1
 
-            m = cv2.filter2D(mask3, -1, d_filter3)
-            m[m > 0] = 1
-            m = m - mask3
-            direct[m == 1, 2] = 1
+                m = cv2.filter2D(mask3, -1, d_filter2)
+                m[m > 0] = 1
+                m = m - mask3
+                direct[m == 1, 1] = 1
 
-            m = cv2.filter2D(mask3, -1, d_filter4)
-            m[m > 0] = 1
-            m = m - mask3
-            direct[m == 1, 3] = 1
+                m = cv2.filter2D(mask3, -1, d_filter3)
+                m[m > 0] = 1
+                m = m - mask3
+                direct[m == 1, 2] = 1
 
-            mask3 = mask3_
+                m = cv2.filter2D(mask3, -1, d_filter4)
+                m[m > 0] = 1
+                m = m - mask3
+                direct[m == 1, 3] = 1
+
+                mask3 = mask3_
 
         abs_pos = pos.copy()
         rel_pos = pos / (str_size / 2)  # to 0~1 maybe larger than 1
