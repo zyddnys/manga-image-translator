@@ -221,7 +221,7 @@ async def infer(
                 dispatch_eng_render_options.append(font_path[0])
         output = await dispatch_eng_render(*dispatch_eng_render_options)
     else:
-        output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, tgt_lang, args.font_size_offset)
+        output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, tgt_lang, args.font_size_offset, render_mask)
 
     print(' -- Saving results')
     if mode == 'ws':
