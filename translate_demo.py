@@ -50,7 +50,6 @@ parser.add_argument('--force-vertical', action='store_true', help='Force text to
 parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 4, 8, 16, 32], help='waifu2x image upscale ratio')
 parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some typesetting')
 parser.add_argument('--ws-url', default='ws://localhost:5000', type=str, help='Server URL for WebSocket mode')
-parser.add_argument('--ws-secret', default='', type=str, help='Secret for WebSocket mode')
 parser.add_argument('--font-path', default='', type=str, help='Path to font file, subsequent fonts (seperated by commas) will be used as backup')
 args = parser.parse_args()
 
@@ -350,7 +349,9 @@ async def main(mode = 'demo'):
         import websockets
         import ws_pb2
 
-        async for websocket in websockets.connect(args.ws_url, extra_headers = { "x-secret": args.ws_secret }, max_size=100_000_000):
+        WS_SECRET = os.getenv('WS_SECRET', '') # Secret to authenticate with websocket server
+
+        async for websocket in websockets.connect(args.ws_url, extra_headers = { "x-secret": WS_SECRET }, max_size=100_000_000):
             try:
                 print(' -- Connected to websocket server')
                 async for raw in websocket:
