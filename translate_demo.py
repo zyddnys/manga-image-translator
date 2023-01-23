@@ -344,7 +344,6 @@ async def main(mode = 'demo'):
     
     elif mode == 'ws':
         print(' -- Running in websocket service mode')
-        print(' -- Waiting for translation tasks')
 
         import io
         import shutil
@@ -388,6 +387,8 @@ async def main(mode = 'demo'):
                         result.finish_task.id = task.id
                         result.finish_task.translation_mask = img_bytes
                         await websocket.send(result.SerializeToString())
+
+                        print(' -- Waiting for translation tasks')
 
             except Exception:
                 import traceback
