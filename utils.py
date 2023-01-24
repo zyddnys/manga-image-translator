@@ -431,7 +431,7 @@ def load_image(img: Image.Image):
     else:
         return np.array(img.convert('RGB')), None
 
-def dump_image(img: np.ndarray, alpha_ch: Image.Image):
+def dump_image(img: np.ndarray, alpha_ch: Image.Image = None):
     if alpha_ch is not None:
         img = np.concatenate([img.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
     else:
