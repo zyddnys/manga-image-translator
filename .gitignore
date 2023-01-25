@@ -8,3 +8,5 @@ ocrs
 Manga
 Manga-translated
 models
+.env
+.env.local

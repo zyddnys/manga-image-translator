@@ -152,9 +152,9 @@ class FourierUnit(nn.Module):
         # squeeze and excitation block
         self.use_se = use_se
         # if use_se:
-        #	 if se_kwargs is None:
-        #		 se_kwargs = {}
-        #	 self.se = SELayer(self.conv_layer.in_channels, **se_kwargs)
+        #     if se_kwargs is None:
+        #         se_kwargs = {}
+        #     self.se = SELayer(self.conv_layer.in_channels, **se_kwargs)
 
         self.spatial_scale_factor = spatial_scale_factor
         self.spatial_scale_mode = spatial_scale_mode
@@ -367,8 +367,8 @@ class FFCResnetBlock(nn.Module):
                                 padding_type=padding_type,
                                 **conv_kwargs)
         # if spatial_transform_kwargs is not None:
-        #	 self.conv1 = LearnableSpatialTransformWrapper(self.conv1, **spatial_transform_kwargs)
-        #	 self.conv2 = LearnableSpatialTransformWrapper(self.conv2, **spatial_transform_kwargs)
+        #     self.conv1 = LearnableSpatialTransformWrapper(self.conv1, **spatial_transform_kwargs)
+        #     self.conv2 = LearnableSpatialTransformWrapper(self.conv2, **spatial_transform_kwargs)
         self.inline = inline
 
     def forward(self, x):

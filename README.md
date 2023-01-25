@@ -11,8 +11,8 @@
 > Join us on discord <https://discord.gg/Ak8APNy4vb>
 
 Some manga/images will never be translated, therefore this project is born.\
-Primarily designed for translating Japanese text, but also support Chinese, English and Korean.\
-Support inpainting and text rendering.\
+Primarily designed for translating Japanese text, but also supports Chinese, English and Korean.\
+Supports inpainting and text rendering.\
 Successor to <https://github.com/PatchyVideo/MMDOCR-HighPerformance>
 
 **This is a hobby project, you are welcome to contribute!**\
@@ -35,7 +35,7 @@ Browser Userscript (by QiroNT): <https://greasyfork.org/scripts/437569>
   In that case you can wait for me to restart the service, which may take up to 24 hrs.
 - Note this online demo is using the current main branch version.
 
-Samples can be found [here](#samples)
+Sample images can be found [here](#samples)
 
 ## Installation
 
@@ -53,7 +53,7 @@ $ pip install -r requirements.txt
 $ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 ```
 
-The models will be downloaded into __./models__ on runtime.
+The models will be downloaded into _./models_ at runtime.
 
 #### If you are on windows:
 Some pip dependencies will not compile without _Microsoft C++ Build Tools_
@@ -94,7 +94,7 @@ $ python translate_demo.py --verbose --mode batch --use-cuda --translator=google
 # same options as above.
 # use `--mode web` to start a web server.
 $ python translate_demo.py --verbose --mode web --use-cuda
-# the demo will be serving on http://127.0.0.1:5003>
+# the demo will be serving on http://127.0.0.1:5003
 ```
 
 #### Manual translation
@@ -275,12 +275,6 @@ Or  (For the web server + GPU)
 ```bash
 docker-compose -f demo/doc/docker-compose-web-with-gpu.yml up
 ```
-
-### Offline translation
-
-When using offline translation the model is downloaded at runtime into a cache within the container.
-This cache can be cleared when re-creating the container.
-In order to avoid this you can create a docker volume and mount it under `/root/.cache/huggingface/`.
 
 ### Building locally
 

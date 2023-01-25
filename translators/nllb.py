@@ -6,23 +6,23 @@ from translators.common import OfflineTranslator
 
 ISO_639_1_TO_FLORES_200 = {
     'zh': 'zho_Hans',
-	'ja': 'jpn_Jpan',
-	'en': 'eng_Latn',
-	'kn': 'kor_Hang',
-	'vi': 'vie_Latn',
-	'cs': 'ces_Latn',
-	'nl': 'nld_Latn',
-	'fr': 'fra_Latn',
-	'de': 'deu_Latn',
-	'hu': 'hun_Latn',
-	'it': 'ita_Latn',
-	'pl': 'pol_Latn',
-	'pt': 'por_Latn',
-	'ro': 'ron_Latn',
-	'ru': 'rus_Cyrl',
-	'es': 'spa_Latn',
+    'ja': 'jpn_Jpan',
+    'en': 'eng_Latn',
+    'kn': 'kor_Hang',
+    'vi': 'vie_Latn',
+    'cs': 'ces_Latn',
+    'nl': 'nld_Latn',
+    'fr': 'fra_Latn',
+    'de': 'deu_Latn',
+    'hu': 'hun_Latn',
+    'it': 'ita_Latn',
+    'pl': 'pol_Latn',
+    'pt': 'por_Latn',
+    'ro': 'ron_Latn',
+    'ru': 'rus_Cyrl',
+    'es': 'spa_Latn',
     'uk': 'ukr_Cyrl',
-	'tr': 'tur_Latn',
+    'tr': 'tur_Latn',
 }
 
 class NLLBTranslator(OfflineTranslator):
@@ -82,7 +82,7 @@ class NLLBTranslator(OfflineTranslator):
             from_lang = self._map_detected_lang_to_translator(detected_lang)
 
         if from_lang == None:
-            print(f'Warning: Offline Translation Failed. Could not detect language (Or language not supported for text: {query})')
+            print(f'Warning: NLLB Translation Failed. Could not detect language (Or language not supported for text: {query})')
             return ''
 
         translator = pipeline('translation', 
@@ -97,7 +97,6 @@ class NLLBTranslator(OfflineTranslator):
         result = translator(query)
         translated_text = self._clean_translation_output(result[0]['translation_text'])
 
-        print(f'Offline Translation[{from_lang} -> {to_lang}] "{query}" -> "{translated_text}"')
         return translated_text
 
     def _map_detected_lang_to_translator(self, lang):

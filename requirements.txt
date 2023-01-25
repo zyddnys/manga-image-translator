@@ -24,4 +24,6 @@ sentencepiece
 editdistance
 numpy
 tensorboardX
+websockets
+protobuf
 ctranslate2
