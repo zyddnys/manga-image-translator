@@ -59,11 +59,7 @@ async def noop(*args, **kwargs):
 def get_task(nonce):
     try:
         rjson = requests.get(f'http://{args.host}:{args.port}/task-internal?nonce={nonce}', timeout = 3600).json()
-        if 'task_id' in rjson and 'data' in rjson:
-            return rjson['task_id'], rjson['data']
-        elif 'data' in rjson:
-            return None, rjson['data']
-        return None, None
+        return rjson.get('task_id'), rjson.get('data')
     except Exception:
         return None, None
 
@@ -130,12 +126,12 @@ async def infer(
     # will get upscaled automatically unless --upscale-ratio=1 was set
     if args.upscale_ratio:
         print(' -- Running upscaling')
-        await update_state('upscaling')
+        await update_state(task_id, 'upscaling')
         img_upscaled_pil = (await dispatch_upscaling('waifu2x', [image], args.upscale_ratio, args.use_cuda))[0]
         img_rgb, img_alpha = load_image(img_upscaled_pil)
 
     print(' -- Running text detection')
-    await update_state('detection')
+    await update_state(task_id, 'detection')
     text_regions, mask = await dispatch_detection(detector, img_rgb, img_detect_size, args.text_threshold, args.box_threshold,
                                                   args.unclip_ratio, args.det_rearrange_max_batches, args.use_cuda, args.verbose)
     if not text_regions:
@@ -147,19 +143,19 @@ async def infer(
         cv2.imwrite(f'result/{task_id}/bboxes.png', bboxes)
 
     print(' -- Running OCR')
-    await update_state('ocr')
+    await update_state(task_id, 'ocr')
     text_regions = await dispatch_ocr(args.ocr, img_rgb, text_regions, args.use_cuda, args.verbose)
 
     # filter regions by their text
     text_regions = list(filter(lambda r: count_valuable_text(r.get_text()) > 1 and not r.get_text().isnumeric(), text_regions))
     if detector == 'default':
-        await update_state('mask_generation')
+        await update_state(task_id, 'mask_generation')
         cv2.imwrite(f'result/{task_id}/mask_raw.png', mask)
         mask = await dispatch_mask_refinement(text_regions, img_rgb, mask)
 
     # in web mode, we can start online translation tasks async
     if mode == 'web' and task_id and options.get('translator') not in OFFLINE_TRANSLATORS:
-        await update_state('translating')
+        await update_state(task_id, 'translating')
         requests.post(f'http://{args.host}:{args.port}/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 20)
 
     if args.verbose:
@@ -168,7 +164,7 @@ async def infer(
         cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
 
     print(' -- Running inpainting')
-    await update_state('inpainting')
+    await update_state(task_id, 'inpainting')
     img_inpainted = await dispatch_inpainting(args.inpainter, img_rgb, mask, args.inpainting_size, args.use_cuda, args.verbose)
 
     if args.verbose:
@@ -177,7 +173,7 @@ async def infer(
     print(' -- Translating')
     translated_sentences = None
     if mode != 'web' or translator in OFFLINE_TRANSLATORS:
-        await update_state('translating')
+        await update_state(task_id, 'translating')
         queries = [r.get_text() for r in text_regions]
         translated_sentences = await dispatch_translation(translator, src_lang, tgt_lang, queries, args.mtpe, use_cuda=args.use_cuda and not args.use_cuda_limited)
     else:
@@ -193,7 +189,7 @@ async def infer(
                 translated_sentences = ret['result']
                 if isinstance(translated_sentences, str):
                     if translated_sentences == 'error':
-                        await update_state('error-lang')
+                        await update_state(task_id, 'error-lang')
                         return
                 break
             await asyncio.sleep(0.01)
@@ -201,11 +197,11 @@ async def infer(
     print(' -- Rendering translated text')
     if translated_sentences == None:
         print("No text found!")
-        await update_state('error-no-txt')
+        await update_state(task_id, 'error-no-txt')
         return
 
     # render translated texts
-    await update_state('render')
+    await update_state(task_id, 'render')
 
     render_mask = np.copy(mask)
     render_mask[render_mask < 127] = 0
@@ -232,7 +228,7 @@ async def infer(
     img_pil = dump_image(output, img_alpha)
     img_pil.save(dst_image_name)
 
-    await update_state('finished')
+    await update_state(task_id, 'finished')
 
 
 async def infer_safe(
@@ -252,11 +248,12 @@ async def infer_safe(
             options,
             task_id,
             dst_image_name,
+            update_state,
         )
     except Exception:
         import traceback
         traceback.print_exc()
-        await update_state('error')
+        await update_state(task_id, 'error')
 
 def replace_prefix(s: str, old: str, new: str):
     if s.startswith(old):
@@ -313,7 +310,13 @@ async def main(mode = 'demo'):
             try:
                 task_id, options = get_task(nonce)
 
-                async def update_state(state):
+                if options and 'exit' in options:
+                    break
+                if not (task_id and options):
+                    await asyncio.sleep(0.1)
+                    continue
+
+                async def update_state(task_id, state):
                     while True:
                         try:
                             requests.post(f'http://{args.host}:{args.port}/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 20)
@@ -323,20 +326,13 @@ async def main(mode = 'demo'):
                                 continue
                             else:
                                 break
-
-                if options and 'exit' in options:
-                    break
-                if task_id:
-                    try:
-                        print(f' -- Processing task {task_id}')
-                        infer_task = asyncio.create_task(infer_safe(Image.open(f'result/{task_id}/input.png'), mode, nonce, options, task_id, None, update_state))
-                        asyncio.gather(infer_task)
-                    except Exception:
-                        import traceback
-                        traceback.print_exc()
-                        await update_state('error')
-                else:
-                    await asyncio.sleep(0.1)
+                try:
+                    print(f' -- Processing task {task_id}')
+                    infer_task = asyncio.create_task(infer_safe(Image.open(f'result/{task_id}/input.png'), mode, nonce, options, task_id, None, update_state))
+                    asyncio.gather(infer_task)
+                except Exception as e:
+                    await update_state('error')
+                    raise e
             except Exception:
                 import traceback
                 traceback.print_exc()
@@ -372,9 +368,9 @@ async def main(mode = 'demo'):
                             'size': task.size,
                         }
                         
-                        async def update_state(state):
+                        async def update_state(task_id, state):
                             msg = ws_pb2.WebSocketMessage()
-                            msg.status.id = task.id
+                            msg.status.id = task_id
                             msg.status.status = state
                             await websocket.send(msg.SerializeToString())
 

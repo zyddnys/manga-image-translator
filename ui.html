@@ -258,6 +258,8 @@
               return 'Did not get any text back from the translation service'
             case 'error-too-large':
               return 'Image size too large (greater than 8000x8000 px)'
+            case 'error-disconnect':
+              return 'Lost connection to server'
             default:
               return 'Error'
           }
@@ -286,6 +288,9 @@
 
           const xhr = new XMLHttpRequest()
           xhr.open('POST', `${BASE_URI}submit`, true)
+          xhr.onerror = (e) => {
+            this.status = 'error-disconnect'
+          }
           xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) this.progress = formatProgress(e.loaded, e.total)
           }
@@ -303,10 +308,23 @@
 
             this.status = 'pending'
 
+            async function tryFetchTaskState() {
+              try {
+                return await (await fetch(`${BASE_URI}task-state?taskid=${task_id}`)).json()
+              }
+              catch {
+                return null
+              }
+            }
+
             for (;;) {
               const timer = new Promise((resolve) => setTimeout(resolve, 500))
-
-              const { state, waiting } = await (await fetch(`${BASE_URI}task-state?taskid=${task_id}`)).json()
+              const res = await tryFetchTaskState()
+              if (res == null) {
+                this.status = 'error-disconnect'
+                break
+              }
+              const { state, waiting } = res
 
               if (state === 'finished') {
                 this.progress = null

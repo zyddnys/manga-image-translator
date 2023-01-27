@@ -16,6 +16,7 @@ VALID_DETECTORS = set(['default', 'ctd'])
 VALID_DIRECTIONS = set(['auto', 'h', 'v'])
 
 MAX_NUM_TASKS = 1
+MAX_IMAGE_SIZE = 8000**2
 NUM_ONGOING_TASKS = 0
 NONCE = ''
 QUEUE = deque()
@@ -105,7 +106,8 @@ async def handle_post(request):
     try:
         img = Image.open(io.BytesIO(content))
         img.verify()
-        if img.width * img.height > 8000**2:
+        img = Image.open(io.BytesIO(content))
+        if img.width * img.height > MAX_IMAGE_SIZE:
             return web.json_response({'status': 'error-too-large'})
     except Exception:
         return web.json_response({'status': 'error-img-corrupt'})
@@ -140,7 +142,7 @@ async def run_async(request):
         state = TASK_STATES[task_id]
         if state in ['finished', 'error', 'error-lang']:
             break
-    return web.json_response({'task_id' : task_id, 'status': 'successful' if state == 'finished' else state})
+    return web.json_response({'task_id': task_id, 'status': 'successful' if state == 'finished' else state})
 
 
 @routes.get("/task-internal")
