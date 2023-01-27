@@ -307,33 +307,29 @@ async def main(mode = 'demo'):
             subprocess.Popen([*web_executable, *web_process_args], **extra_web_args)
 
         while True:
+            task_id, options = get_task(nonce)
+            if options and 'exit' in options:
+                break
+            if not (task_id and options):
+                await asyncio.sleep(0.1)
+                continue
+
+            async def update_state(task_id, state):
+                while True:
+                    try:
+                        requests.post(f'http://{args.host}:{args.port}/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 20)
+                        return
+                    except Exception:
+                        if 'error' in state or 'finished' in state:
+                            continue
+                        else:
+                            break
             try:
-                task_id, options = get_task(nonce)
-
-                if options and 'exit' in options:
-                    break
-                if not (task_id and options):
-                    await asyncio.sleep(0.1)
-                    continue
-
-                async def update_state(task_id, state):
-                    while True:
-                        try:
-                            requests.post(f'http://{args.host}:{args.port}/task-update-internal', json = {'task_id': task_id, 'nonce': nonce, 'state': state}, timeout = 20)
-                            return
-                        except Exception:
-                            if 'error' in state or 'finished' in state:
-                                continue
-                            else:
-                                break
-                try:
-                    print(f' -- Processing task {task_id}')
-                    infer_task = asyncio.create_task(infer_safe(Image.open(f'result/{task_id}/input.png'), mode, nonce, options, task_id, None, update_state))
-                    asyncio.gather(infer_task)
-                except Exception as e:
-                    await update_state('error')
-                    raise e
+                print(f' -- Processing task {task_id}')
+                infer_task = asyncio.create_task(infer_safe(Image.open(f'result/{task_id}/input.png'), mode, nonce, options, task_id, None, update_state))
+                asyncio.gather(infer_task)
             except Exception:
+                await update_state(task_id, 'error')
                 import traceback
                 traceback.print_exc()
     
