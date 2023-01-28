@@ -105,21 +105,7 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose
     for node_set in nx.algorithms.components.connected_components(G):
         nodes = list(node_set)
         txtlns = np.array(bboxes)[nodes]
-        # get overall bbox
-        # kq = np.concatenate([x.pts for x in txtlns], axis = 0)
-        # if sum([int(a.is_approximate_axis_aligned) for a in txtlns]) > len(txtlns) // 2:
-        #     max_coord = np.max(kq, axis = 0)
-        #     min_coord = np.min(kq, axis = 0)
-        #     merged_box = np.maximum(np.array([
-        #         np.array([min_coord[0], min_coord[1]]),
-        #         np.array([max_coord[0], min_coord[1]]),
-        #         np.array([max_coord[0], max_coord[1]]),
-        #         np.array([min_coord[0], max_coord[1]])
-        #         ]), 0)
-        #     bbox = np.concatenate([a[None, :] for a in merged_box], axis = 0).astype(int)
-        # else:
-        #     # TODO: use better method
-        #     bbox = np.concatenate([a[None, :] for a in get_mini_boxes(kq)], axis = 0).astype(int)
+
         # calculate average fg and bg color
         fg_r = round(np.mean([box.fg_r for box in txtlns]))
         fg_g = round(np.mean([box.fg_g for box in txtlns]))
@@ -127,22 +113,17 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose
         bg_r = round(np.mean([box.bg_r for box in txtlns]))
         bg_g = round(np.mean([box.bg_g for box in txtlns]))
         bg_b = round(np.mean([box.bg_b for box in txtlns]))
+
         # majority vote for direction
         dirs = [box.direction for box in txtlns]
         majority_dir = Counter(dirs).most_common(1)[0][0]
 
-        # sort
+        # sort textlines
         if majority_dir == 'h':
             nodes = sorted(nodes, key=lambda x: bboxes[x].aabb.y + bboxes[x].aabb.h // 2)
         elif majority_dir == 'v':
             nodes = sorted(nodes, key=lambda x: -(bboxes[x].aabb.x + bboxes[x].aabb.w))
-
-        nodes = np.array(nodes) - min(nodes)
-        for missing_value in reversed(list( set(range(max(nodes))).difference(set(nodes) ))):
-            for i, node in enumerate(nodes):
-                if node > missing_value:
-                    nodes[i] = node - 1
-        txtlns = [txtlns[i] for i in nodes]
+        txtlns = np.array(bboxes)[nodes]
 
         # yield overall bbox and sorted indices
         yield txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
