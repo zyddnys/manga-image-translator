@@ -262,13 +262,11 @@ async def get_task_state_async(request):
 async def post_task_update_async(request):
     global NONCE, NUM_ONGOING_TASKS
     rqjson = (await request.json())
-    print('task-update', rqjson)
     if constant_compare(rqjson.get('nonce'), NONCE):
         task_id = rqjson['task_id']
         if task_id in TASK_STATES and task_id in TASK_DATA:
             TASK_STATES[task_id] = rqjson['state']
             terminated = rqjson['state'] == 'finished' or rqjson['state'].startswith('error')
-            print('terminated', terminated)
             if terminated and not TASK_DATA[task_id].get('manual', False):
                 NUM_ONGOING_TASKS -= 1
             print(f'Task state {task_id} to {TASK_STATES[task_id]}')
