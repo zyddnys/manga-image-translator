@@ -135,7 +135,8 @@ async def infer(
     text_regions, mask = await dispatch_detection(detector, img_rgb, img_detect_size, args.text_threshold, args.box_threshold,
                                                   args.unclip_ratio, args.det_rearrange_max_batches, args.use_cuda, args.verbose)
     if not text_regions:
-        print('No text regions were detected - Skipping')
+        print('No text regions! - Skipping')
+        await update_state(task_id, 'finished')
         image.save(dst_image_name)
         return
     if args.verbose:
@@ -152,6 +153,12 @@ async def infer(
         await update_state(task_id, 'mask_generation')
         cv2.imwrite(f'result/{task_id}/mask_raw.png', mask)
         mask = await dispatch_mask_refinement(text_regions, img_rgb, mask)
+
+    if not text_regions:
+        print("No text regions with text! - Skipping")
+        await update_state(task_id, 'finished')
+        image.save(dst_image_name)
+        return
 
     # in web mode, we can start online translation tasks async
     if mode == 'web' and task_id and options.get('translator') not in OFFLINE_TRANSLATORS:
@@ -195,12 +202,6 @@ async def infer(
             await asyncio.sleep(0.01)
 
     print(' -- Rendering translated text')
-    if translated_sentences == None:
-        print("No text found!")
-        await update_state(task_id, 'error-no-txt')
-        return
-
-    # render translated texts
     await update_state(task_id, 'render')
 
     render_mask = np.copy(mask)
@@ -300,7 +301,7 @@ async def main(mode = 'demo'):
         import sys
         nonce = crypto_utils.rand_bytes(16).hex()
 
-        extra_web_args = {'stdout':sys.stdout, 'stderr':sys.stderr} if args.log_web else {}
+        extra_web_args = {'stdout': sys.stdout, 'stderr': sys.stderr} if args.log_web else {}
         web_executable = [sys.executable, '-u'] if args.log_web else [sys.executable]
         web_process_args = ['web_main.py', nonce, str(args.host), str(args.port)]
         subprocess.Popen([*web_executable, *web_process_args], **extra_web_args)
