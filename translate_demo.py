@@ -122,8 +122,8 @@ async def infer(
     print(' -- Preparing translator')
     await prepare_translation(translator, src_lang, tgt_lang)
 
-    # The default text detector doesn't work very well on smaller images, so small images
-    # will get upscaled automatically unless --upscale-ratio=1 was set
+    # The default text detector doesn't work very well on smaller images, might want to
+    # consider adding automatic upscaling on certain kinds of small images.
     if args.upscale_ratio:
         print(' -- Running upscaling')
         await update_state(task_id, 'upscaling')
@@ -264,8 +264,11 @@ def replace_prefix(s: str, old: str, new: str):
 async def main(mode = 'demo'):
     print(' -- Preload Checks')
     args.image = os.path.expanduser(args.image)
-    if not os.path.exists(args.image) and not args.mode.startswith('web'):
-        raise FileNotFoundError(args.image)
+    if not args.mode.startswith('web'):
+        if not args.image:
+            raise Exception('No input image was supplied. Use -i <image_path>')
+        elif not os.path.exists(args.image):
+            raise FileNotFoundError(args.image)
 
     if args.use_cuda_limited:
         args.use_cuda = True
