@@ -22,7 +22,7 @@ from text_rendering.text_render import count_valuable_text
 from utils import load_image, dump_image
 
 parser = argparse.ArgumentParser(description='Seamlessly translate mangas into a chosen language')
-parser.add_argument('-m', '--mode', default='demo', type=str, choices=['demo', 'batch', 'web', 'web2', 'ws'], help='Run demo in either single image demo mode (demo), web service mode (web) or batch translation mode (batch)')
+parser.add_argument('-m', '--mode', default='demo', type=str, choices=['demo', 'batch', 'web', 'ws'], help='Run demo in either single image demo mode (demo), web service mode (web) or batch translation mode (batch)')
 parser.add_argument('-i', '--image', default='', type=str, help='Path to an image file if using demo mode, or path to an image folder if using batch mode')
 parser.add_argument('-o', '--image-dst', default='', type=str, help='Path to the destination folder for translated images in batch mode')
 parser.add_argument('-l', '--target-lang', default='CHS', type=str, choices=VALID_LANGUAGES, help='Destination language')
@@ -292,19 +292,18 @@ async def main(mode = 'demo'):
             return
         await infer(Image.open(args.image), mode)
 
-    elif mode == 'web' or mode == 'web2':
+    elif mode == 'web':
         print(' -- Running in web service mode')
         print(' -- Waiting for translation tasks')
 
-        if mode == 'web':
-            import subprocess
-            import sys
-            nonce = crypto_utils.rand_bytes(16).hex()
+        import subprocess
+        import sys
+        nonce = crypto_utils.rand_bytes(16).hex()
 
-            extra_web_args = {'stdout':sys.stdout, 'stderr':sys.stderr} if args.log_web else {}
-            web_executable = [sys.executable, '-u'] if args.log_web else [sys.executable]
-            web_process_args = ['web_main.py', nonce, str(args.host), str(args.port)]
-            subprocess.Popen([*web_executable, *web_process_args], **extra_web_args)
+        extra_web_args = {'stdout':sys.stdout, 'stderr':sys.stderr} if args.log_web else {}
+        web_executable = [sys.executable, '-u'] if args.log_web else [sys.executable]
+        web_process_args = ['web_main.py', nonce, str(args.host), str(args.port)]
+        subprocess.Popen([*web_executable, *web_process_args], **extra_web_args)
 
         while True:
             task_id, options = get_task(nonce)
