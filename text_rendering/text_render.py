@@ -8,6 +8,8 @@ import unicodedata
 import freetype
 from PIL import ImageFont
 from typing import Tuple, Optional
+import functools
+from typing import List
 
 def _is_whitespace(ch):
     """Checks whether `chars` is a whitespace character."""
@@ -49,9 +51,6 @@ def _is_punctuation(ch):
 def count_valuable_text(text) -> int:
     return sum([1 for ch in text if not _is_punctuation(ch) and not _is_control(ch) and not _is_whitespace(ch)])
 
-AVAILABLE_FONTS =[]
-FONT_FACE_MAP = {}
-CDPT_FONT_MAP = {}
 
 CJK_H2V = {
     "‥" :"︰" ,
@@ -182,10 +181,16 @@ def add_color(bw_char_map, color, stroke_char_map, stroke_color):
     #alpha_char_map[alpha_char_map > 0] = 255
     return bg#, alpha_char_map
 
-CACHED_FONT_FACE = []
+FONT_SELECTION: List[freetype.Face] = []
+font_cache = {}
+def get_cached_font(path: str) -> freetype.Face:
+    if not font_cache.get(path):
+        font_cache[path] = freetype.Face(path)
+    return font_cache[path]
 
-import functools
-import copy
+def update_font_selection(font_paths: List[str]):
+    global FONT_SELECTION
+    FONT_SELECTION = [get_cached_font(p) for p in font_paths]
 
 class namespace:
     pass
@@ -210,50 +215,51 @@ class Glyph:
         self.metrics.vertAdvance = glyph.metrics.vertAdvance
 
 @functools.lru_cache(maxsize = 1024, typed = True)
-def get_char_glyph(cdpt, font_size: int, direction: int):
-    global CACHED_FONT_FACE
-    for i, face in enumerate(CACHED_FONT_FACE):
-        if face.get_char_index(cdpt) == 0 and i != len(CACHED_FONT_FACE) - 1:
+def get_char_glyph(cdpt: str, font_size: int, direction: int):
+    global FONT_SELECTION
+    for i, face in enumerate(FONT_SELECTION):
+        if face.get_char_index(cdpt) == 0 and i != len(FONT_SELECTION) - 1:
             continue
+        print(cdpt, i)
         if direction == 0:
-            face.set_pixel_sizes( 0, font_size )
+            face.set_pixel_sizes(0, font_size)
         elif direction == 1:
-            face.set_pixel_sizes( font_size, 0 )
+            face.set_pixel_sizes(font_size, 0)
         face.load_char(cdpt)
         return Glyph(face.glyph)
 
 #@functools.lru_cache(maxsize = 1024, typed = True)
-def get_char_border(cdpt, font_size: int, direction: int):
-    global CACHED_FONT_FACE
-    for i, face in enumerate(CACHED_FONT_FACE):
-        if face.get_char_index(cdpt) == 0 and i != len(CACHED_FONT_FACE) - 1:
+def get_char_border(cdpt: str, font_size: int, direction: int):
+    global FONT_SELECTION
+    for i, face in enumerate(FONT_SELECTION):
+        if face.get_char_index(cdpt) == 0 and i != len(FONT_SELECTION) - 1:
             continue
         if direction == 0:
-            face.set_pixel_sizes( 0, font_size )
+            face.set_pixel_sizes(0, font_size)
         elif direction == 1:
-            face.set_pixel_sizes( font_size, 0 )
+            face.set_pixel_sizes(font_size, 0)
         face.load_char(cdpt, freetype.FT_LOAD_DEFAULT | freetype.FT_LOAD_NO_BITMAP)
         slot_border = face.glyph
         return slot_border.get_glyph()
 
-def get_char_kerning(cdpt, prev, font_size: int, direction: int):
-    global CACHED_FONT_FACE
-    for i, face in enumerate(CACHED_FONT_FACE):
-        if face.get_char_index(cdpt) == 0 and i != len(CACHED_FONT_FACE) - 1:
-            continue
-        if direction == 0:
-            face.set_pixel_sizes( 0, font_size )
-        elif direction == 1:
-            face.set_pixel_sizes( font_size, 0 )
-        face.load_char(cdpt, freetype.FT_LOAD_DEFAULT | freetype.FT_LOAD_NO_BITMAP)
-        #print("VV", prev, cdpt, face.get_char_index(prev), face.get_char_index(cdpt))
-        print("VR", face.has_kerning)
-        return face.get_kerning(face.get_char_index(prev), face.get_char_index(cdpt))
+# def get_char_kerning(cdpt, prev, font_size: int, direction: int):
+#     global FONT_SELECTION
+#     for i, face in enumerate(FONT_SELECTION):
+#         if face.get_char_index(cdpt) == 0 and i != len(FONT_SELECTION) - 1:
+#             continue
+#         if direction == 0:
+#             face.set_pixel_sizes(0, font_size)
+#         elif direction == 1:
+#             face.set_pixel_sizes(font_size, 0)
+#         face.load_char(cdpt, freetype.FT_LOAD_DEFAULT | freetype.FT_LOAD_NO_BITMAP)
+#         #print("VV", prev, cdpt, face.get_char_index(prev), face.get_char_index(cdpt))
+#         print("VR", face.has_kerning)
+#         return face.get_kerning(face.get_char_index(prev), face.get_char_index(cdpt))
 
-def get_font(font_size: int, direction=0):
-    font_filenames = ['fonts/Arial-Unicode-Regular.ttf', 'fonts/msyh.ttc', 'fonts/msgothic.ttc']
-    for face in font_filenames:
-        return ImageFont.truetype(face, font_size)
+# def get_font(font_size: int, direction=0):
+#     font_filenames = ['fonts/Arial-Unicode-Regular.ttf', 'fonts/msyh.ttc', 'fonts/msgothic.ttc']
+#     for face in font_filenames:
+#         return ImageFont.truetype(face, font_size)
 
 def calc_vertical(font_size: int, rot: int, text: str, max_height: int, spacing_x: int):
     line_text_list = []
@@ -473,7 +479,6 @@ def put_char_horizontal(font_size: int, rot: int, cdpt: str, pen_l: Tuple[int, i
 def put_text_horizontal(font_size: int, mag_ratio: float, text: str, w: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
     bgsize = int(max(font_size * 0.07, 1)) if bg is not None else 0
     spacing_y = int(font_size * 0.2)
-    spacing_x = 0
     rot = 0
 
     # calc
@@ -505,16 +510,15 @@ def put_text_horizontal(font_size: int, mag_ratio: float, text: str, w: int, fg:
     x, y, w, h = cv2.boundingRect(canvas_border)
     return line_box[y:y+h, x:x+w]
 
-def put_text(img: np.ndarray, text: str, line_count: int, x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
-    pass
+# def put_text(img: np.ndarray, text: str, line_count: int, x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
+#     pass
 
-def prepare_renderer(font_filenames = ['fonts/Arial-Unicode-Regular.ttf', 'fonts/msyh.ttc', 'fonts/msgothic.ttc']):
-    global CACHED_FONT_FACE
-    for font_filename in font_filenames:
-        CACHED_FONT_FACE.append(freetype.Face(font_filename))
+# def prepare_renderer(font_filenames = ['fonts/Arial-Unicode-Regular.ttf', 'fonts/msyh.ttc', 'fonts/msgothic.ttc']):
+#     global FONT_SELECTION
+#     for font_filename in font_filenames:
+#         FONT_SELECTION.append(freetype.Face(font_filename))
 
 def test():
-    prepare_renderer()
     #canvas = put_text_vertical(64, 1.0, '因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉。', 700, (0, 0, 0), (255, 128, 128))
     canvas = put_text_horizontal(64, 1.0, '因为不同‼ [这"真的是普]通的》肉！那个“姑娘”的恶作剧！是吗？咲夜⁉', 400, (0, 0, 0), (255, 128, 128))
     cv2.imwrite('text_render_combined.png', canvas)

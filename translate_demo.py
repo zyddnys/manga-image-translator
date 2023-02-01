@@ -17,7 +17,7 @@ from inpainting import INPAINTERS, dispatch as dispatch_inpainting, prepare as p
 from translators import OFFLINE_TRANSLATORS, TRANSLATORS, VALID_LANGUAGES, dispatch as dispatch_translation, prepare as prepare_translation
 from upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
 from textmask_refinement import dispatch as dispatch_mask_refinement
-from text_rendering import text_render, dispatch as dispatch_rendering
+from text_rendering import dispatch as dispatch_rendering, dispatch_eng_render
 from text_rendering.text_render import count_valuable_text
 from utils import load_image, dump_image
 
@@ -201,7 +201,15 @@ async def infer(
                 break
             await asyncio.sleep(0.01)
 
+    if not translated_sentences:
+        await update_state(task_id, 'error-translator')
+        return
+
     print(' -- Rendering translated text')
+    for blk, tr in zip(text_regions, translated_sentences):
+        blk.translation = tr
+        blk.target_lang = tgt_lang
+
     await update_state(task_id, 'render')
 
     render_mask = np.copy(mask)
@@ -210,15 +218,9 @@ async def infer(
     render_mask = render_mask[:, :, None]
 
     if tgt_lang == 'ENG' and args.manga2eng:
-        from text_rendering import dispatch_eng_render
-        dispatch_eng_render_options = [np.copy(img_inpainted), img_rgb, text_regions, translated_sentences]
-        if args.font_path:
-            font_path = args.font_path.split(',')
-            if font_path and font_path[0]:
-                dispatch_eng_render_options.append(font_path[0])
-        output = await dispatch_eng_render(*dispatch_eng_render_options)
+        output = await dispatch_eng_render(np.copy(img_inpainted), img_rgb, text_regions, args.font_path)
     else:
-        output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, translated_sentences, text_regions, render_text_direction_overwrite, tgt_lang, args.font_size_offset, render_mask)
+        output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, text_regions, render_text_direction_overwrite, args.font_path, args.font_size_offset, render_mask)
 
     print(' -- Saving results')
     if mode == 'ws':
@@ -264,7 +266,7 @@ def replace_prefix(s: str, old: str, new: str):
 async def main(mode = 'demo'):
     print(' -- Preload Checks')
     args.image = os.path.expanduser(args.image)
-    if not args.mode.startswith('web'):
+    if args.mode not in ('web', 'ws'):
         if not args.image:
             raise Exception('No input image was supplied. Use -i <image_path>')
         elif not os.path.exists(args.image):
@@ -278,11 +280,6 @@ async def main(mode = 'demo'):
 
     print(' -- Loading models')
     os.makedirs('result', exist_ok=True)
-    if args.font_path:
-        font_path = args.font_path.split(',')
-        text_render.prepare_renderer(font_path)
-    else:
-        text_render.prepare_renderer()
     await prepare_upscaling('waifu2x')
     await prepare_detection(args.detector)
     await prepare_ocr(args.ocr, args.use_cuda)

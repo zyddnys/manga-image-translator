@@ -2,16 +2,18 @@ import cv2
 import numpy as np
 from PIL import ImageFont, ImageDraw, Image
 from typing import List, Tuple
+# from freetype import Face
 
+# from .text_render import calc_horizontal, put_text_horizontal
 from detection.ctd_utils import TextBlock
+from .ballon_extractor import extract_ballon_region
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 PUNSET_RIGHT_ENG = {'.', '?', '!', ':', ';', ')', '}', "\""}
 
 
-class Line:
-
+class Textline:
     def __init__(self, text: str = '', pos_x: int = 0, pos_y: int = 0, length: float = 0, spacing: int = 0) -> None:
         self.text = text
         self.pos_x = pos_x
@@ -45,123 +47,24 @@ class Line:
         self.pos_x += self.spacing
         self.spacing = 0
 
-
-def enlarge_window(rect, im_w, im_h, ratio=2.5, aspect_ratio=1.0) -> List:
-    assert ratio > 1.0
-    
-    x1, y1, x2, y2 = rect
-    w = x2 - x1
-    h = y2 - y1
-
-    if w <= 0 or h <= 0:
-        return [0, 0, 0, 0]
-
-    # https://numpy.org/doc/stable/reference/generated/numpy.roots.html
-    coeff = [aspect_ratio, w+h*aspect_ratio, (1-ratio)*w*h]
-    roots = np.roots(coeff)
-    roots.sort()
-    delta = int(round(roots[-1] / 2 ))
-    delta_w = int(delta * aspect_ratio)
-    delta_w = min(x1, im_w - x2, delta_w)
-    delta = min(y1, im_h - y2, delta)
-    rect = np.array([x1-delta_w, y1-delta, x2+delta_w, y2+delta], dtype=np.int64)
-    rect[::2] = np.clip(rect[::2], 0, im_w - 1)
-    rect[1::2] = np.clip(rect[1::2], 0, im_h - 1)
-    return rect.tolist()
-
-def extract_ballon_region(img: np.ndarray, ballon_rect: List, show_process=False, enlarge_ratio=2.0, cal_region_rect=False) -> Tuple[np.ndarray, int, List]:
-
-    x1, y1, x2, y2 = ballon_rect[0], ballon_rect[1], \
-        ballon_rect[2] + ballon_rect[0], ballon_rect[3] + ballon_rect[1]
-    if enlarge_ratio > 1:
-        x1, y1, x2, y2 = enlarge_window([x1, y1, x2, y2], img.shape[1], img.shape[0], enlarge_ratio, aspect_ratio=ballon_rect[3] / ballon_rect[2])
-
-    img = img[y1:y2, x1:x2].copy()
-
-    kernel = np.ones((3,3),np.uint8)
-    orih, oriw = img.shape[0], img.shape[1]
-    scaleR = 1
-    if orih > 300 and oriw > 300:
-        scaleR = 0.6
-    elif orih < 120 or oriw < 120:
-        scaleR = 1.4
-
-    if scaleR != 1:
-        h, w = img.shape[0], img.shape[1]
-        orimg = np.copy(img)
-        img = cv2.resize(img, (int(w*scaleR), int(h*scaleR)), interpolation=cv2.INTER_AREA)
-    h, w = img.shape[0], img.shape[1]
-    img_area = h * w
-
-    cpimg = cv2.GaussianBlur(img,(3,3),cv2.BORDER_DEFAULT)
-    detected_edges = cv2.Canny(cpimg, 70, 140, L2gradient=True, apertureSize=3)
-    cv2.rectangle(detected_edges, (0, 0), (w-1, h-1), WHITE, 1, cv2.LINE_8)
-    cons, hiers = cv2.findContours(detected_edges, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
-    cv2.rectangle(detected_edges, (0, 0), (w-1, h-1), BLACK, 1, cv2.LINE_8)
-
-    ballon_mask, outer_index = np.zeros((h, w), np.uint8), -1
-    min_retval = np.inf
-    mask = np.zeros((h, w), np.uint8)
-    difres = 10
-    seedpnt = (int(w/2), int(h/2))
-    for ii in range(len(cons)):
-        rect = cv2.boundingRect(cons[ii])
-        if rect[2]*rect[3] < img_area*0.4:
-            continue
-
-        mask = cv2.drawContours(mask, cons, ii, (255), 2)
-        cpmask = np.copy(mask)
-        cv2.rectangle(mask, (0, 0), (w-1, h-1), WHITE, 1, cv2.LINE_8)
-        retval, _, _, rect = cv2.floodFill(cpmask, mask=None, seedPoint=seedpnt,  flags=4, newVal=(127), loDiff=(difres, difres, difres), upDiff=(difres, difres, difres))
-
-        if retval <= img_area * 0.3:
-            mask = cv2.drawContours(mask, cons, ii, (0), 2)
-        if retval < min_retval and retval > img_area * 0.3:
-            min_retval = retval
-            ballon_mask = cpmask
-
-    ballon_mask = 127 - ballon_mask
-    ballon_mask = cv2.dilate(ballon_mask, kernel,iterations = 1)
-    ballon_area, _, _, rect = cv2.floodFill(ballon_mask, mask=None, seedPoint=seedpnt,  flags=4, newVal=(30), loDiff=(difres, difres, difres), upDiff=(difres, difres, difres))
-    ballon_mask = 30 - ballon_mask    
-    retval, ballon_mask = cv2.threshold(ballon_mask, 1, 255, cv2.THRESH_BINARY)
-    ballon_mask = cv2.bitwise_not(ballon_mask, ballon_mask)
-
-    box_kernel = int(np.sqrt(ballon_area) / 30)
-    if box_kernel > 1:
-        box_kernel = np.ones((box_kernel,box_kernel),np.uint8)
-        ballon_mask = cv2.dilate(ballon_mask, box_kernel, iterations = 1)
-        ballon_mask = cv2.erode(ballon_mask, box_kernel, iterations = 1)
-
-    if scaleR != 1:
-        img = orimg
-        ballon_mask = cv2.resize(ballon_mask, (oriw, orih))
-
-    if show_process:
-        cv2.imshow('ballon_mask', ballon_mask)
-        cv2.imshow('img', img)
-        cv2.waitKey(0)
-    if cal_region_rect:
-        return ballon_mask, (ballon_mask > 0).sum(), [x1, y1, x2, y2], cv2.boundingRect(ballon_mask)
-    return ballon_mask, (ballon_mask > 0).sum(), [x1, y1, x2, y2]
-
 def render_lines(
-    line_lst: List[Line], 
-    canvas_h: int, 
-    canvas_w: int, 
-    font: ImageFont.FreeTypeFont, 
-    stroke_width: int, 
-    font_color: Tuple[int] = (0, 0, 0), 
+    lines: List[Textline],
+    canvas_h: int,
+    canvas_w: int,
+    font: ImageFont.FreeTypeFont,
+    stroke_width: int,
+    font_color: Tuple[int] = (0, 0, 0),
     stroke_color: Tuple[int] = (255, 255, 255)) -> Image.Image:
 
     c = Image.new('RGBA', (canvas_w, canvas_h), color = (0, 0, 0, 0))
     d = ImageDraw.Draw(c)
     d.fontmode = 'L'
-    for line in line_lst:
+    for line in lines:
         d.text((line.pos_x, line.pos_y), line.text, font=font, fill=font_color, stroke_width=stroke_width, stroke_fill=stroke_color)
     return c
 
 def seg_eng(text: str) -> List[str]:
+    # TODO: replace with regexes
     text = text.upper().replace('  ', ' ').replace(' .', '.').replace('\n', ' ')
     processed_text = ''
 
@@ -227,7 +130,7 @@ def layout_lines_aligncenter(
     spacing: int = 0,
     delimiter: str = ' ',
     max_central_width: float = np.inf,
-    word_break: bool = False)->List[Line]:
+    word_break: bool = False)->List[Textline]:
 
     m = cv2.moments(mask)
     mask = 255 - mask
@@ -260,7 +163,7 @@ def layout_lines_aligncenter(
     pos_x = centroid_x - wl_list[central_index] // 2
 
     bh, bw = mask.shape[:2]
-    central_line = Line(words[central_index], pos_x, pos_y, wl_list[central_index], spacing)
+    central_line = Textline(words[central_index], pos_x, pos_y, wl_list[central_index], spacing)
     line_bottom = pos_y + line_height
     while sum_left > 0 or sum_right > 0:
         left_valid, right_valid = False, False
@@ -309,7 +212,7 @@ def layout_lines_aligncenter(
         pos_x = centroid_x - wl // 2
         pos_y = centroid_y + line_height // 2
         line_bottom = pos_y + line_height
-        line = Line(w, pos_x, pos_y, wl, spacing)
+        line = Textline(w, pos_x, pos_y, wl, spacing)
         lines.append(line)
         sum_right -= wl
         while sum_right > 0:
@@ -342,7 +245,7 @@ def layout_lines_aligncenter(
                 pos_y = line_bottom
                 line_bottom += line_height
                 line.strip_spacing()
-                line = Line(w, pos_x, pos_y, wl, spacing)
+                line = Textline(w, pos_x, pos_y, wl, spacing)
                 lines.append(line)
 
     # layout top half
@@ -351,7 +254,7 @@ def layout_lines_aligncenter(
         pos_x = centroid_x - wl // 2
         pos_y = centroid_y - line_height // 2 - line_height
         line_bottom = pos_y + line_height
-        line = Line(w, pos_x, pos_y, wl, spacing)
+        line = Textline(w, pos_x, pos_y, wl, spacing)
         lines.insert(0, line)
         sum_left -= wl
         while sum_left > 0:
@@ -384,7 +287,7 @@ def layout_lines_aligncenter(
                 pos_y -= line_height
                 line_bottom = pos_y + line_height
                 line.strip_spacing()
-                line = Line(w, pos_x, pos_y, wl, spacing)
+                line = Textline(w, pos_x, pos_y, wl, spacing)
                 lines.insert(0, line)
 
     # rbgmsk = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
@@ -397,16 +300,16 @@ def layout_lines_aligncenter(
     return lines
 
 def render_textblock_list_eng(
-    img: np.ndarray, 
-    blk_list: List[TextBlock], 
-    font_path: str, 
-    font_color = (0, 0, 0), 
-    stroke_color = (255, 255, 255), 
+    img: np.ndarray,
+    text_regions: List[TextBlock],
+    font_path: str,
+    font_color = (0, 0, 0),
+    stroke_color = (255, 255, 255),
     delimiter: str = ' ',
-    align_center=True, 
+    align_center=True,
     line_spacing: float = 1.0,
     stroke_width: float = 0.1,
-    size_tol: float = 1.0, 
+    size_tol: float = 1.0,
     ballonarea_thresh: float = 2,
     downscale_constraint: float = 0.7,
     ref_textballon: bool = True,
@@ -421,45 +324,45 @@ def render_textblock_list_eng(
     """
 
     def get_font(font_size: int):
-        fs = int(font_size / (1 + 2*stroke_width))
+        fs = int(font_size / (1 + 2 * stroke_width))
         font = ImageFont.truetype(font_path, fs)
         sw = int(stroke_width * font.size)
         line_height = font.getmetrics()[0]
         line_height = int(line_height * line_spacing + 2 * sw)
         delimiter_len = int(font.getlength(delimiter))
         base_length = -1
-        wl_list = []
+        wordlengths = []
         for word in words:
             wl = int(font.getlength(word))
-            wl_list.append(wl)
+            wordlengths.append(wl)
             if wl > base_length:
                 base_length = wl
-        return font, sw, line_height, delimiter_len, base_length, wl_list
+        return font, sw, line_height, delimiter_len, base_length, wordlengths
 
     pilimg = Image.fromarray(img)
 
-    for blk in blk_list:
-        words = seg_eng(blk.translation)
+    for region in text_regions:
+        words = seg_eng(region.translation)
         num_words = len(words)
         if not num_words:
             continue
 
-        font, sw, line_height, delimiter_len, base_length, wl_list = get_font(blk.font_size)
+        font, sw, line_height, delimiter_len, base_length, wordlengths = get_font(region.font_size)
 
         if ref_textballon:
             assert original_img is not None
-            br = blk.bounding_rect()
+            bounding_rect = region.bounding_rect()
             # non-dl textballon segmentation
-            enlarge_ratio = min(max(br[2] / br[3], br[3] / br[2]) * 1.5, 3)
-            ballon_region, ballon_area, xyxy = extract_ballon_region(original_img, br, show_process=False, enlarge_ratio=enlarge_ratio)
+            enlarge_ratio = min(max(bounding_rect[2] / bounding_rect[3], bounding_rect[3] / bounding_rect[2]) * 1.5, 3)
+            ballon_region, ballon_area, xyxy = extract_ballon_region(original_img, bounding_rect, show_process=False, enlarge_ratio=enlarge_ratio)
             rotated, rx, ry = False, 0, 0
-            angle = blk.angle
+            angle = region.angle
             if abs(angle) > 3:
                 rotated = True
                 rad = np.deg2rad(angle)
                 r_sin = np.sin(rad)
                 r_cos = np.cos(rad)
-                rotated_ballon_region = Image.fromarray(ballon_region).rotate(blk.angle, expand=True)
+                rotated_ballon_region = Image.fromarray(ballon_region).rotate(region.angle, expand=True)
                 rotated_ballon_region = np.array(rotated_ballon_region)
 
                 angle %= 360
@@ -475,11 +378,11 @@ def render_textblock_list_eng(
                     rx = abs(ballon_region.shape[0] * r_sin)
                 ballon_region = rotated_ballon_region
 
-            str_length, _ = font.getsize(blk.translation)
-            str_area = str_length * line_height + delimiter_len * (num_words - 1) * line_height
-            area_ratio = ballon_area / str_area
+            line_width, _ = font.getsize(region.translation)
+            line_area = line_width * line_height + delimiter_len * (num_words - 1) * line_height
+            area_ratio = ballon_area / line_area
             resize_ratio = 1
-            if area_ratio < ballonarea_thresh:
+            if area_ratio < ballonarea_thresh: # if ballon area is bigger than textline area
                 resize_ratio = ballonarea_thresh / area_ratio
                 ballon_area = int(resize_ratio * ballon_area)
                 resize_ratio = min(np.sqrt(resize_ratio), (1 / downscale_constraint) ** 2)
@@ -487,13 +390,14 @@ def render_textblock_list_eng(
                 ry *= resize_ratio
                 ballon_region = cv2.resize(ballon_region, (int(resize_ratio * ballon_region.shape[1]), int(resize_ratio * ballon_region.shape[0])))
 
+            # new region bbox
             region_x, region_y, region_w, region_h = cv2.boundingRect(cv2.findNonZero(ballon_region))
 
-            new_fnt_size = max(region_w / (base_length + 2*sw), downscale_constraint)
-            if new_fnt_size < 1:
-                font, sw, line_height, delimiter_len, base_length, wl_list = get_font(int(blk.font_size * new_fnt_size))
+            new_font_size = max(region_w / (base_length + 2*sw), downscale_constraint)
+            if new_font_size < 1:
+                font, sw, line_height, delimiter_len, base_length, wordlengths = get_font(int(region.font_size * new_font_size))
 
-            lines = layout_lines_aligncenter(ballon_region, words, wl_list, delimiter_len, line_height, delimiter=delimiter)
+            lines = layout_lines_aligncenter(ballon_region, words, wordlengths, delimiter_len, line_height, delimiter=delimiter)
 
             line_cy = np.array([line.pos_y for line in lines]).mean() + line_height / 2
             region_cy = region_y + region_h / 2
@@ -518,7 +422,7 @@ def render_textblock_list_eng(
                 line.pos_x -= canvas_l
                 line.pos_y -= canvas_t
 
-            raw_lines = render_lines(lines, canvas_h, canvas_w, font, sw, font_color, stroke_color)
+            textlines_image = render_lines(lines, canvas_h, canvas_w, font, sw, font_color, stroke_color)
             rel_cx = ((canvas_l + canvas_r) / 2 - rx) / resize_ratio
             rel_cy = ((canvas_t + canvas_b) / 2 - ry + y_offset) / resize_ratio
 
@@ -535,37 +439,37 @@ def render_textblock_list_eng(
                 rcy = rel_cx * r_sin + rel_cy * r_cos
                 rel_cx = rcx
                 rel_cy = rcy
-                raw_lines = raw_lines.rotate(-blk.angle, expand=True, resample=Image.BILINEAR)
-                raw_lines = raw_lines.crop(raw_lines.getbbox())
+                textlines_image = textlines_image.rotate(-region.angle, expand=True, resample=Image.BILINEAR)
+                textlines_image = textlines_image.crop(textlines_image.getbbox())
 
             abs_cx = rel_cx + xyxy[0]
             abs_cy = rel_cy + xyxy[1]
 
             if resize_ratio != 1:
-                raw_lines = raw_lines.resize((int(raw_lines.width / resize_ratio), int(raw_lines.height / resize_ratio)))
-            abs_x = int(abs_cx - raw_lines.width / 2)
-            abs_y = int(abs_cy - raw_lines.height / 2)
-            pilimg.paste(raw_lines, (abs_x, abs_y), mask=raw_lines)
+                textlines_image = textlines_image.resize((int(textlines_image.width / resize_ratio), int(textlines_image.height / resize_ratio)))
+            abs_x = int(abs_cx - textlines_image.width / 2)
+            abs_y = int(abs_cy - textlines_image.height / 2)
+            pilimg.paste(textlines_image, (abs_x, abs_y), mask=textlines_image)
             # cv2.imshow('ballon_region', ballon_region)
             # cv2.imshow('cropped', original_img[xyxy[1]:xyxy[3], xyxy[0]:xyxy[2]])
             # cv2.imshow('raw_lines', np.array(raw_lines))
             # cv2.waitKey(0)
-        # older method
-        else:
-            min_bbox = blk.min_rect(rotate_back=False)[0]
+
+        else: # older method
+            min_bbox = region.min_rect(rotate_back=False)[0]
             bx, by = min_bbox[0]
             bw, bh = min_bbox[2] - min_bbox[0]
             cx, cy = bx + bw / 2, by + bh / 2
             base_length = max(base_length, bw)
 
             pos_x, pos_y = 0, 0
-            line = Line(words[0], 0, 0, wl_list[0])
+            line = Textline(words[0], 0, 0, wordlengths[0])
             lines = [line]
-            for word, wl in zip(words[1:], wl_list[1:]):
+            for word, wl in zip(words[1:], wordlengths[1:]):
                 added_len = int(delimiter_len + wl + line.length)
                 if added_len > base_length:
                     pos_y += line_height
-                    line = Line(word, 0, pos_y, wl)
+                    line = Textline(word, 0, pos_y, wl)
                     lines.append(line)
                 else:
                     line.text = line.text + ' ' + word
@@ -576,18 +480,18 @@ def render_textblock_list_eng(
 
             for line in lines:
                 line.pos_x = int((base_length - line.length) / 2) if align_center else 0
-            raw_lines = render_lines(lines, canvas_h, canvas_w, font, sw, font_color, stroke_color)
+            textlines_image = render_lines(lines, canvas_h, canvas_w, font, sw, font_color, stroke_color)
 
-            if abs(blk.angle) > 3:
-                raw_lines = raw_lines.rotate(-blk.angle, expand=True)
-            im_w, im_h = raw_lines.size
+            if abs(region.angle) > 3:
+                textlines_image = textlines_image.rotate(-region.angle, expand=True)
+            im_w, im_h = textlines_image.size
             scale = max(min(bh / im_h * size_tol, bw / im_w * size_tol), downscale_constraint)
             if scale < 1:
-                raw_lines = raw_lines.resize((int(im_w*scale), int(im_h*scale)))
+                textlines_image = textlines_image.resize((int(im_w*scale), int(im_h*scale)))
 
-            im_w, im_h = raw_lines.size
+            im_w, im_h = textlines_image.size
             paste_x, paste_y = int(cx - im_w / 2), int(cy - im_h / 2)
 
-            pilimg.paste(raw_lines, (paste_x, paste_y), mask=raw_lines)
+            pilimg.paste(textlines_image, (paste_x, paste_y), mask=textlines_image)
 
     return np.array(pilimg)
