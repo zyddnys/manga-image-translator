@@ -2,7 +2,6 @@ from typing import List
 import numpy as np
 import cv2
 import os
-from freetype import Face
 
 from utils import findNextPowerOf2, color_difference
 from detection.ctd_utils import TextBlock
@@ -31,12 +30,6 @@ LANGAUGE_ORIENTATION_PRESETS = {
     'TRK': 'h',
     'VIN': 'h',
 }
-
-# font_cache = {}
-# def get_cached_font(path: str) -> Face:
-#     if not font_cache.get(path):
-#         font_cache[path] = Face(path)
-#     return font_cache[path]
 
 def parse_font_paths(path: str, default: List[str] = None) -> List[str]:
     if path:
@@ -124,6 +117,7 @@ def render(
     font_size += font_size_offset
     print('font_size:', font_size)
 
+    # TODO: Add ballon extractor
     # bounding_rect = region.bounding_rect()
     # # non-dl textballon segmentation
     # enlarge_ratio = min(max(bounding_rect[2] / bounding_rect[3], bounding_rect[3] / bounding_rect[2]) * 1.5, 3)
@@ -193,4 +187,4 @@ async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, 
         font_path = 'fonts/comic shanns 2.ttf'
     text_render.set_font(font_path)
 
-    return render_textblock_list_eng(img_canvas, text_regions, font_path, size_tol=1.2, original_img=original_img, downscale_constraint=0.8)
+    return render_textblock_list_eng(img_canvas, text_regions, size_tol=1.2, original_img=original_img, downscale_constraint=0.8)

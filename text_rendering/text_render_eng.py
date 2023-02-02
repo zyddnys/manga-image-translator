@@ -335,7 +335,6 @@ def layout_lines_aligncenter(
 def render_textblock_list_eng(
     img: np.ndarray,
     text_regions: List[TextBlock],
-    font_path: str,
     font_color = (0, 0, 0),
     stroke_color = (255, 255, 255),
     delimiter: str = ' ',
