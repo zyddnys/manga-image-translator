@@ -82,7 +82,7 @@ async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: L
 
     translator = get_translator(translator_key)
     if isinstance(translator, OfflineTranslator):
-        await translator.load(src_lang, tgt_lang, 'cuda:0' if use_cuda else 'cpu')
+        await translator.load(src_lang, tgt_lang, 'cuda' if use_cuda else 'cpu')
     return await translator.translate(src_lang, tgt_lang, queries, use_mtpe)
 
 async def test():

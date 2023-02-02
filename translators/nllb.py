@@ -51,6 +51,8 @@ class NLLBTranslator(OfflineTranslator):
     async def _load(self, from_lang: str, to_lang: str, device: str):
         from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
+        if ':' not in device:
+            device += ':0'
         self.device = device
         self.model = AutoModelForSeq2SeqLM.from_pretrained(self._TRANSLATOR_MODEL)
         self.tokenizer = AutoTokenizer.from_pretrained(self._TRANSLATOR_MODEL)
