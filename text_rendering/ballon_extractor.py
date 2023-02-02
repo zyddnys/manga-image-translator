@@ -19,7 +19,7 @@ def enlarge_window(rect, im_w, im_h, ratio=2.5, aspect_ratio=1.0) -> List:
     coeff = [aspect_ratio, w+h*aspect_ratio, (1-ratio)*w*h]
     roots = np.roots(coeff)
     roots.sort()
-    delta = int(round(roots[-1] / 2 ))
+    delta = int(round(roots[-1] / 2))
     delta_w = int(delta * aspect_ratio)
     delta_w = min(x1, im_w - x2, delta_w)
     delta = min(y1, im_h - y2, delta)
@@ -28,7 +28,7 @@ def enlarge_window(rect, im_w, im_h, ratio=2.5, aspect_ratio=1.0) -> List:
     rect[1::2] = np.clip(rect[1::2], 0, im_h - 1)
     return rect.tolist()
 
-def extract_ballon_region(img: np.ndarray, ballon_rect: List, show_process=False, enlarge_ratio=2.0, cal_region_rect=False) -> Tuple[np.ndarray, int, List]:
+def extract_ballon_region(img: np.ndarray, ballon_rect: List, enlarge_ratio=2.0, verbose=False) -> Tuple[np.ndarray, int, List]:
 
     x1, y1, x2, y2 = ballon_rect[0], ballon_rect[1], \
         ballon_rect[2] + ballon_rect[0], ballon_rect[3] + ballon_rect[1]
@@ -58,30 +58,30 @@ def extract_ballon_region(img: np.ndarray, ballon_rect: List, show_process=False
     cons, hiers = cv2.findContours(detected_edges, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
     cv2.rectangle(detected_edges, (0, 0), (w-1, h-1), BLACK, 1, cv2.LINE_8)
 
-    ballon_mask, outer_index = np.zeros((h, w), np.uint8), -1
+    ballon_mask = np.zeros((h, w), np.uint8)
     min_retval = np.inf
     mask = np.zeros((h, w), np.uint8)
     difres = 10
     seedpnt = (int(w/2), int(h/2))
-    for ii in range(len(cons)):
-        rect = cv2.boundingRect(cons[ii])
+    for i in range(len(cons)):
+        rect = cv2.boundingRect(cons[i])
         if rect[2]*rect[3] < img_area*0.4:
             continue
 
-        mask = cv2.drawContours(mask, cons, ii, (255), 2)
+        mask = cv2.drawContours(mask, cons, i, (255), 2)
         cpmask = np.copy(mask)
         cv2.rectangle(mask, (0, 0), (w-1, h-1), WHITE, 1, cv2.LINE_8)
-        retval, _, _, rect = cv2.floodFill(cpmask, mask=None, seedPoint=seedpnt,  flags=4, newVal=(127), loDiff=(difres, difres, difres), upDiff=(difres, difres, difres))
+        retval, _, _, rect = cv2.floodFill(cpmask, mask=None, seedPoint=seedpnt, flags=4, newVal=(127), loDiff=(difres, difres, difres), upDiff=(difres, difres, difres))
 
         if retval <= img_area * 0.3:
-            mask = cv2.drawContours(mask, cons, ii, (0), 2)
+            mask = cv2.drawContours(mask, cons, i, (0), 2)
         if retval < min_retval and retval > img_area * 0.3:
             min_retval = retval
             ballon_mask = cpmask
 
     ballon_mask = 127 - ballon_mask
     ballon_mask = cv2.dilate(ballon_mask, kernel,iterations = 1)
-    ballon_area, _, _, rect = cv2.floodFill(ballon_mask, mask=None, seedPoint=seedpnt,  flags=4, newVal=(30), loDiff=(difres, difres, difres), upDiff=(difres, difres, difres))
+    ballon_area, _, _, rect = cv2.floodFill(ballon_mask, mask=None, seedPoint=seedpnt, flags=4, newVal=(30), loDiff=(difres, difres, difres), upDiff=(difres, difres, difres))
     ballon_mask = 30 - ballon_mask    
     retval, ballon_mask = cv2.threshold(ballon_mask, 1, 255, cv2.THRESH_BINARY)
     ballon_mask = cv2.bitwise_not(ballon_mask, ballon_mask)
@@ -96,10 +96,9 @@ def extract_ballon_region(img: np.ndarray, ballon_rect: List, show_process=False
         img = orimg
         ballon_mask = cv2.resize(ballon_mask, (oriw, orih))
 
-    if show_process:
+    if verbose:
         cv2.imshow('ballon_mask', ballon_mask)
         cv2.imshow('img', img)
         cv2.waitKey(0)
-    if cal_region_rect:
-        return ballon_mask, (ballon_mask > 0).sum(), [x1, y1, x2, y2], cv2.boundingRect(ballon_mask)
+
     return ballon_mask, (ballon_mask > 0).sum(), [x1, y1, x2, y2]

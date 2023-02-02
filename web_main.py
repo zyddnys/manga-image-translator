@@ -16,7 +16,8 @@ VALID_DETECTORS = set(['default', 'ctd'])
 VALID_DIRECTIONS = set(['auto', 'h', 'v'])
 
 MAX_NUM_TASKS = 1
-MAX_IMAGE_SIZE = 8000**2
+MAX_IMAGE_SIZE = 8000**2 # px
+
 NUM_ONGOING_TASKS = 0
 NONCE = ''
 QUEUE = deque()

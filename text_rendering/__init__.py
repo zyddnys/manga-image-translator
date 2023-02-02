@@ -8,6 +8,7 @@ from utils import findNextPowerOf2, color_difference
 from detection.ctd_utils import TextBlock
 from . import text_render
 from .text_render_eng import render_textblock_list_eng
+from .ballon_extractor import extract_ballon_region
 
 
 LANGAUGE_ORIENTATION_PRESETS = {
@@ -31,20 +32,11 @@ LANGAUGE_ORIENTATION_PRESETS = {
     'VIN': 'h',
 }
 
-def determine_orientation():
-    ...
-
-def fg_bg_compare(fg, bg):
-    fg_avg = np.mean(fg)
-    if color_difference(fg, bg) < 15:
-        bg = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
-    return fg, bg
-
-font_cache = {}
-def get_cached_font(path: str) -> Face:
-    if not font_cache.get(path):
-        font_cache[path] = Face(path)
-    return font_cache[path]
+# font_cache = {}
+# def get_cached_font(path: str) -> Face:
+#     if not font_cache.get(path):
+#         font_cache[path] = Face(path)
+#     return font_cache[path]
 
 def parse_font_paths(path: str, default: List[str] = None) -> List[str]:
     if path:
@@ -54,6 +46,12 @@ def parse_font_paths(path: str, default: List[str] = None) -> List[str]:
         parsed = default or []
     return parsed
 
+def fg_bg_compare(fg, bg):
+    fg_avg = np.mean(fg)
+    if color_difference(fg, bg) < 15:
+        bg = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
+    return fg, bg
+
 async def dispatch(
     img: np.ndarray,
     text_mag_ratio: np.integer,
@@ -61,11 +59,11 @@ async def dispatch(
     text_direction_overwrite: str,
     font_path: str = '',
     font_size_offset: int = 0,
-    render_mask: np.ndarray = None
+    render_mask: np.ndarray = None,
+    original_img: np.ndarray = None,
     ) -> np.ndarray:
 
-    font_paths = parse_font_paths(font_path, default=['fonts/Arial-Unicode-Regular.ttf', 'fonts/msyh.ttc', 'fonts/msgothic.ttc'])
-    text_render.update_font_selection(font_paths)
+    text_render.set_font(font_path)
 
     for region in text_regions:
         print(f'text: {region.get_text()} \n trans: {region.translation}')
@@ -81,6 +79,7 @@ async def dispatch(
         if majority_dir not in ['h', 'v']:
             if region.vertical:
                 majority_dir = 'v'
+                # TODO: Make this unnecessary
                 region.angle += 90
                 angle_changed = True
             else:
@@ -93,21 +92,21 @@ async def dispatch(
         if not isinstance(font_size, int):
             font_size = int(font_size)
 
-        img = render(img, font_size, text_mag_ratio, region, majority_dir, fg, bg, font_size_offset, render_mask)
+        img = render(img, region, font_size, text_mag_ratio, majority_dir, fg, bg, original_img, font_size_offset, render_mask)
         if angle_changed:
             region.angle -= 90
     return img
 
 def render(
     img,
+    region: TextBlock,
     font_size,
     text_mag_ratio,
-    region: TextBlock,
     majority_dir,
-    fg,
-    bg,
+    fg, bg,
+    original_img,
     font_size_offset: int = 0,
-    render_mask: np.ndarray = None
+    render_mask: np.ndarray = None,
 ):
     # round font_size to fixed powers of 2, so later LRU cache can work
     font_size_enlarged = findNextPowerOf2(font_size) * text_mag_ratio
@@ -124,6 +123,12 @@ def render(
         break
     font_size += font_size_offset
     print('font_size:', font_size)
+
+    # bounding_rect = region.bounding_rect()
+    # # non-dl textballon segmentation
+    # enlarge_ratio = min(max(bounding_rect[2] / bounding_rect[3], bounding_rect[3] / bounding_rect[2]) * 1.5, 3)
+    # ballon_mask, ballon_area, xyxy = extract_ballon_region(original_img, bounding_rect, enlarge_ratio=enlarge_ratio)
+
     if majority_dir == 'h':
         temp_box = text_render.put_text_horizontal(
             font_size,
@@ -183,5 +188,9 @@ def render(
 async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, text_regions: List[TextBlock], font_path: str = '') -> np.ndarray:
     if len(text_regions) == 0:
         return img_canvas
-    font_paths = parse_font_paths(font_path, default=['fonts/comic shanns 2.ttf'])
-    return render_textblock_list_eng(img_canvas, text_regions, font_paths[0], size_tol=1.2, original_img=original_img, downscale_constraint=0.8)
+
+    if not font_path:
+        font_path = 'fonts/comic shanns 2.ttf'
+    text_render.set_font(font_path)
+
+    return render_textblock_list_eng(img_canvas, text_regions, font_path, size_tol=1.2, original_img=original_img, downscale_constraint=0.8)

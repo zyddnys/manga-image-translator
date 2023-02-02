@@ -140,7 +140,7 @@ async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verb
         x2 = max([txtln.aabb.x + txtln.aabb.w for txtln in txtlns])
         y1 = min([txtln.aabb.y for txtln in txtlns])
         y2 = max([txtln.aabb.y + txtln.aabb.h for txtln in txtlns])
-        font_size = min([txtln.font_size for txtln in txtlns])
+        font_size = int(min([txtln.font_size for txtln in txtlns]))
         angle = np.rad2deg(np.mean([txtln.angle for txtln in txtlns])) - 90
         if abs(angle) < 3:
             angle = 0

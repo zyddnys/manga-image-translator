@@ -50,7 +50,7 @@ parser.add_argument('--force-vertical', action='store_true', help='Force text to
 parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 4, 8, 16, 32], help='waifu2x image upscale ratio')
 parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some typesetting')
 parser.add_argument('--ws-url', default='ws://localhost:5000', type=str, help='Server URL for WebSocket mode')
-parser.add_argument('--font-path', default='', type=str, help='Path to font file, subsequent fonts (seperated by commas) will be used as backup')
+parser.add_argument('--font-path', default='', type=str, help='Path to font file')
 args = parser.parse_args()
 
 async def noop(*args, **kwargs):
@@ -220,7 +220,7 @@ async def infer(
     if tgt_lang == 'ENG' and args.manga2eng:
         output = await dispatch_eng_render(np.copy(img_inpainted), img_rgb, text_regions, args.font_path)
     else:
-        output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, text_regions, render_text_direction_overwrite, args.font_path, args.font_size_offset, render_mask)
+        output = await dispatch_rendering(np.copy(img_inpainted), args.text_mag_ratio, text_regions, render_text_direction_overwrite, args.font_path, args.font_size_offset, render_mask, img_rgb)
 
     print(' -- Saving results')
     if mode == 'ws':
@@ -277,6 +277,9 @@ async def main(mode = 'demo'):
     if not torch.cuda.is_available() and args.use_cuda:
         raise Exception('CUDA compatible device could not be found while %s args was set...'
                         % ('--use_cuda_limited' if args.use_cuda_limited else '--use_cuda'))
+
+    if args.font_path and not os.path.exists(args.font_path):
+        raise FileNotFoundError(args.font_path)
 
     print(' -- Loading models')
     os.makedirs('result', exist_ok=True)
