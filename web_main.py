@@ -16,6 +16,8 @@ VALID_DETECTORS = set(['default', 'ctd'])
 VALID_DIRECTIONS = set(['auto', 'h', 'v'])
 
 MAX_NUM_TASKS = 1
+MAX_IMAGE_SIZE = 8000**2 # px
+
 NUM_ONGOING_TASKS = 0
 NONCE = ''
 QUEUE = deque()
@@ -105,7 +107,8 @@ async def handle_post(request):
     try:
         img = Image.open(io.BytesIO(content))
         img.verify()
-        if img.width * img.height > 8000**2:
+        img = Image.open(io.BytesIO(content))
+        if img.width * img.height > MAX_IMAGE_SIZE:
             return web.json_response({'status': 'error-too-large'})
     except Exception:
         return web.json_response({'status': 'error-img-corrupt'})
@@ -138,9 +141,9 @@ async def run_async(request):
         if task_id not in TASK_STATES:
             break
         state = TASK_STATES[task_id]
-        if state in ['finished', 'error', 'error-lang']:
+        if state == 'finished' or state.startswith('error'):
             break
-    return web.json_response({'task_id' : task_id, 'status': 'successful' if state == 'finished' else state})
+    return web.json_response({'task_id': task_id, 'status': 'successful' if state == 'finished' else state})
 
 
 @routes.get("/task-internal")
@@ -198,7 +201,7 @@ async def post_translation_result(request):
             TASK_DATA[task_id]['trans_result'] = trans_result
             while True:
                 await asyncio.sleep(0.1)
-                if TASK_STATES[task_id] in ['error', 'error-lang', 'error-no-txt']:
+                if TASK_STATES[task_id].startswith('error'):
                     ret = web.json_response({'task_id': task_id, 'status': 'error'})
                     break
                 if TASK_STATES[task_id] == 'finished':
@@ -247,7 +250,7 @@ async def get_task_state_async(request):
         now = time.time()
         to_del_task_ids = set()
         for tid, state in TASK_STATES.items():
-            if state in ['finished', 'error', 'error-lang'] and now - TASK_DATA[tid]['created_at'] > 1800:
+            if state == 'finished' or state.startswith('error') and now - TASK_DATA[tid]['created_at'] > 1800:
                 # remove old tasks
                 to_del_task_ids.add(tid)
         for tid in to_del_task_ids:
@@ -264,7 +267,8 @@ async def post_task_update_async(request):
         task_id = rqjson['task_id']
         if task_id in TASK_STATES and task_id in TASK_DATA:
             TASK_STATES[task_id] = rqjson['state']
-            if rqjson['state'] in ['finished', 'error', 'error-lang', 'error-no-txt'] and not TASK_DATA[task_id].get('manual', False):
+            terminated = rqjson['state'] == 'finished' or rqjson['state'].startswith('error')
+            if terminated and not TASK_DATA[task_id].get('manual', False):
                 NUM_ONGOING_TASKS -= 1
             print(f'Task state {task_id} to {TASK_STATES[task_id]}')
     return web.json_response({})
@@ -312,7 +316,7 @@ async def manual_translate_async(request):
         await asyncio.sleep(1)
         if 'trans_request' in TASK_DATA[task_id]:
             return web.json_response({'task_id' : task_id, 'status': 'pending', 'trans_result': TASK_DATA[task_id]['trans_request']})
-        if TASK_STATES[task_id] in ['error', 'error-lang']:
+        if TASK_STATES[task_id].startswith('error'):
             break
         if TASK_STATES[task_id] == 'finished':
             # no texts detected

@@ -13,10 +13,10 @@ LANG_LIST = ['eng', 'ja', 'unknown']
 LANGCLS2IDX = {'eng': 0, 'ja': 1, 'unknown': 2}
 
 class TextBlock(object):
-    def __init__(self, xyxy: List, 
-                 lines: List = None, 
+    def __init__(self, xyxy: List,
+                 lines: List = None,
                  language: str = 'unknown',
-                 vertical: bool = False, 
+                 vertical: bool = False,
                  font_size: float = -1,
                  distance: List = None,
                  angle: int = 0,
@@ -31,7 +31,7 @@ class TextBlock(object):
                  fg_b = 0,
                  bg_r = 0,
                  bg_g = 0,
-                 bg_b = 0,                
+                 bg_b = 0,
                  line_spacing = 1.,
                  letter_spacing = 1.,
                  font_family: str = "",
@@ -43,15 +43,15 @@ class TextBlock(object):
                  _bounding_rect: List = None,
                  accumulate_color = True,
                  default_stroke_width = 0.2,
-                 font_weight = 50, 
-                 _target_lang: str = "",
+                 font_weight = 50,
+                 target_lang: str = "",
                  opacity: float = 1.,
                  shadow_radius: float = 0.,
                  shadow_strength: float = 1.,
                  shadow_color: Tuple = (0, 0, 0),
                  shadow_offset: List = [0, 0],
                  **kwargs) -> None:
-        self.xyxy = [int(num) for num in xyxy]                    # boundingbox of textblock
+        self.xyxy = [int(num) for num in xyxy]          # boundingbox of textblock
         self.lines = [] if lines is None else lines     # polygons of textlines
         self.vertical = vertical            # orientation of textlines
         self.language = language
@@ -86,7 +86,7 @@ class TextBlock(object):
         self.line_spacing = line_spacing
         self.letter_spacing = letter_spacing
         self._alignment = _alignment
-        self._target_lang = _target_lang
+        self.target_lang = target_lang
 
         self._bounding_rect = _bounding_rect
         self.default_stroke_width = default_stroke_width
@@ -135,26 +135,25 @@ class TextBlock(object):
         return (xyxy[:2] + xyxy[2:]) / 2
 
     def unrotated_polygons(self) -> np.ndarray:
-        angled = self.angle != 0
         center = self.center()
         polygons = self.lines_array().reshape(-1, 8)
-        if angled:
+        if self.angle != 0:
             polygons = rotate_polygons(center, polygons, self.angle)
-        return angled, center, polygons
+        return center, polygons
 
     def min_rect(self, rotate_back=True) -> List[int]:
-        angled, center, polygons = self.unrotated_polygons()
+        center, polygons = self.unrotated_polygons()
         min_x = polygons[:, ::2].min()
         min_y = polygons[:, 1::2].min()
         max_x = polygons[:, ::2].max()
         max_y = polygons[:, 1::2].max()
         min_bbox = np.array([[min_x, min_y, max_x, min_y, max_x, max_y, min_x, max_y]])
-        if angled and rotate_back:
+        if self.angle != 0 and rotate_back:
             min_bbox = rotate_polygons(center, min_bbox, -self.angle)
         return min_bbox.reshape(-1, 4, 2).astype(np.int64)
 
     def normalizd_width_list(self) -> List[float]:
-        angled, center, polygons = self.unrotated_polygons()
+        center, polygons = self.unrotated_polygons()
         width_list = []
         for polygon in polygons:
             width_list.append((polygon[[2, 4]] - polygon[[0, 6]]).sum())
@@ -267,7 +266,7 @@ class TextBlock(object):
         lines = self.lines_array()
         if len(lines) == 1:
             return 1
-        angled, center, polygons = self.unrotated_polygons()
+        center, polygons = self.unrotated_polygons()
         polygons = polygons.reshape(-1, 4, 2)
 
         left_std = np.std(polygons[:, 0, 0])
@@ -277,9 +276,6 @@ class TextBlock(object):
             return 0
         else:
             return 1
-
-    def target_lang(self):
-        return self.target_lang
 
     @property
     def stroke_width(self):
