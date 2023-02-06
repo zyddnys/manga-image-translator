@@ -56,6 +56,9 @@ $ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 The models will be downloaded into _./models_ at runtime.
 
 #### If you are on windows:
+If you want to use cuda install the correct pytorch version from 
+as instructed on https://pytorch.org/ (add the `--upgrade --force-reinstall` flags to overwrite the currently installed version).
+
 Some pip dependencies will not compile without _Microsoft C++ Build Tools_
 (See ![#114](https://github.com/zyddnys/manga-image-translator/issues/114)).
 
