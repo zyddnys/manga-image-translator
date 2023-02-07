@@ -453,7 +453,6 @@ def calc_horizontal(font_size: int, text: str, limit_width: int) -> Tuple[List[s
     return line_text_list, line_width_list
 
 def put_char_horizontal(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_text: np.ndarray, canvas_border: np.ndarray, border_size: int):
-    text = compact_special_symbols(text)
     pen = pen_l.copy()
 
     # is_pun = _is_punctuation(cdpt)
@@ -484,6 +483,7 @@ def put_char_horizontal(font_size: int, cdpt: str, pen_l: Tuple[int, int], canva
     return char_offset_x
 
 def put_text_horizontal(font_size: int, mag_ratio: float, text: str, width: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
+    text = compact_special_symbols(text)
     bg_size = int(max(font_size * 0.07, 1)) if bg is not None else 0
     spacing_y = int(font_size * 0.2)
 
