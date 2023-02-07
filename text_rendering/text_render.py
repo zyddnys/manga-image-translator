@@ -335,7 +335,12 @@ def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_
         canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width] = cv2.add(canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width], bitmap_border)
     return char_offset_y
 
+def compact_special_symbols(text: str) -> str :
+    text = text.replace('...', '…')
+    return text
+
 def put_text_vertical(font_size: int, mag_ratio: float, text: str, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
+    text = compact_special_symbols(text)
     bgsize = int(max(font_size * 0.07, 1)) if bg is not None else 0
     spacing_y = 0
     spacing_x = int(font_size * 0.2)
@@ -448,6 +453,7 @@ def calc_horizontal(font_size: int, text: str, limit_width: int) -> Tuple[List[s
     return line_text_list, line_width_list
 
 def put_char_horizontal(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_text: np.ndarray, canvas_border: np.ndarray, border_size: int):
+    text = compact_special_symbols(text)
     pen = pen_l.copy()
 
     # is_pun = _is_punctuation(cdpt)
