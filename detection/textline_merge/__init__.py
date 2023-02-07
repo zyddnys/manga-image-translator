@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import networkx as nx
 
-from utils import Quadrilateral, quadrilateral_can_merge_region
+from utils import Quadrilateral, quadrilateral_can_merge_region_coarse
 from detection.ctd_utils import TextBlock
 
 def split_text_region(bboxes: List[Quadrilateral], region_indices: Set[int], gamma = 0.5, sigma = 2, std_threshold = 6.0, verbose: bool = False) -> List[Set[int]]:
@@ -91,18 +91,19 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose
 
     # step 1: divide into multiple text region candidates
     for ((u, ubox), (v, vbox)) in itertools.combinations(enumerate(bboxes), 2):
-        if quadrilateral_can_merge_region(ubox, vbox, aspect_ratio_tol=1.3, font_size_ratio_tol=1.7,
-                                          char_gap_tolerance=1, char_gap_tolerance2=3):
+        if quadrilateral_can_merge_region_coarse(ubox, vbox):
+        # if quadrilateral_can_merge_region(ubox, vbox, aspect_ratio_tol=1.3, font_size_ratio_tol=1.7,
+        #                                   char_gap_tolerance=1, char_gap_tolerance2=3):
             G.add_edge(u, v)
 
     # step 2: split each region
-    #- region_indices: List[Set[int]] = []
-    # for node_set in nx.algorithms.components.connected_components(G):
-    #-     region_indices.extend(split_text_region(bboxes, node_set, verbose = verbose))
-    # if verbose:
-    #     print('region_indices', region_indices)
-
+    region_indices: List[Set[int]] = []
     for node_set in nx.algorithms.components.connected_components(G):
+         region_indices.extend(split_text_region(bboxes, node_set, verbose = verbose))
+    if verbose:
+        print('region_indices', region_indices)
+
+    for node_set in region_indices: # nx.algorithms.components.connected_components(G):
         nodes = list(node_set)
         txtlns = np.array(bboxes)[nodes]
 
