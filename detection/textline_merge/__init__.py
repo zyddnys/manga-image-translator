@@ -8,7 +8,7 @@ import networkx as nx
 from utils import Quadrilateral, quadrilateral_can_merge_region_coarse
 from detection.ctd_utils import TextBlock
 
-def split_text_region(bboxes: List[Quadrilateral], region_indices: Set[int], gamma = 0.5, sigma = 2, std_threshold = 6.0, verbose: bool = False) -> List[Set[int]]:
+def split_text_region(bboxes: List[Quadrilateral], region_indices: Set[int], gamma = 0.5, sigma = 2, std_threshold = 5.0, verbose: bool = False) -> List[Set[int]]:
     region_indices = list(region_indices)
     if verbose:
         print('to split', region_indices)
