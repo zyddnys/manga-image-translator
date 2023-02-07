@@ -111,7 +111,7 @@ class Model48pxCTCOCR(OfflineOCR):
                         total_bg(int(bg * 255))
                         total_bb(int(bb * 255))
                 prob = np.exp(total_logprob())
-                if prob < 0.3:
+                if prob < 0.6:
                     continue
                 txt = ''.join(cur_texts)
                 fr = int(total_fr())
