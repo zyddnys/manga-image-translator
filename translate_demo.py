@@ -140,8 +140,7 @@ async def infer(
         image.save(dst_image_name)
         return
     if args.verbose:
-        bboxes = visualize_textblocks(cv2.cvtColor(img_rgb,cv2.COLOR_BGR2RGB), text_regions)
-        cv2.imwrite(f'result/{task_id}/bboxes.png', bboxes)
+        cv2.imwrite(f'result/{task_id}/bboxes.png', visualize_textblocks(cv2.cvtColor(img_rgb,cv2.COLOR_BGR2RGB), text_regions))
 
     print(' -- Running OCR')
     await update_state(task_id, 'ocr')
@@ -166,6 +165,7 @@ async def infer(
         requests.post(f'http://{args.host}:{args.port}/request-translation-internal', json = {'task_id': task_id, 'nonce': nonce, 'texts': [r.get_text() for r in text_regions]}, timeout = 20)
 
     if args.verbose:
+        cv2.imwrite(f'result/{task_id}/bboxes.png', visualize_textblocks(cv2.cvtColor(img_rgb,cv2.COLOR_BGR2RGB), text_regions))
         cv2.imwrite(f'result/{task_id}/mask_final.png', mask)
         inpaint_input_img = await dispatch_inpainting('none', img_rgb, mask)
         cv2.imwrite(f'result/{task_id}/inpaint_input.png', cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))

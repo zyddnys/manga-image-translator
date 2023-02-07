@@ -1,6 +1,7 @@
 from typing import List
 import cv2
 import numpy as np
+# from functools import reduce
 
 from utils import Quadrilateral
 from detection.ctd_utils import TextBlock
@@ -17,8 +18,8 @@ async def dispatch(text_regions: List[TextBlock], raw_image: np.ndarray, raw_mas
             bboxes_resized.append((a.aabb.x // 2, a.aabb.y // 2, a.aabb.w // 2, a.aabb.h // 2))
     mask_ccs, cc2textline_assignment = filter_masks(mask_resized, bboxes_resized)
     if mask_ccs:
-        #mask_filtered = reduce(cv2.bitwise_or, mask_ccs)
-        #cv2.imwrite(f'result/{task_id}/mask_filtered.png', mask_filtered)
+        # mask_filtered = reduce(cv2.bitwise_or, mask_ccs)
+        # cv2.imwrite(f'result/mask_filtered.png', mask_filtered)
         #cv2.imwrite(f'result/{task_id}/mask_filtered_img.png', overlay_mask(img_resized_2, mask_filtered))
         if method == 'fit_text':
             final_mask = complete_mask(img_resized, mask_ccs, bboxes_resized, cc2textline_assignment)

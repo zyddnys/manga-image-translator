@@ -18,7 +18,7 @@ def save_rgb(fn, img):
     else:
         cv2.imwrite(fn, img)
 
-def area(x1, y1, w1, h1, x2, y2, w2, h2):  # returns None if rectangles don't intersect
+def area_overlap(x1, y1, w1, h1, x2, y2, w2, h2):  # returns None if rectangles don't intersect
     x_overlap = max(0, min(x1 + w1, x2 + w2) - max(x1, x2))
     y_overlap = max(0, min(y1 + h1, y2 + h2) - max(y1, y2))
     return x_overlap * y_overlap
@@ -50,17 +50,17 @@ def rect_distance(x1, y1, x1b, y1b, x2, y2, x2b, y2b):
     else:             # rectangles intersect
         return 0
 
-def filter_masks(mask_img: np.ndarray, text_lines: List[Tuple[int, int, int, int]], keep_threshold = 1e-2):
+def filter_masks(mask_img: np.ndarray, textlines: List[Tuple[int, int, int, int]], keep_threshold = 1e-2):
     mask_img = mask_img.copy()
-    for (x, y, w, h) in text_lines:
+    for (x, y, w, h) in textlines:
         cv2.rectangle(mask_img, (x, y), (x + w, y + h), (0), 1)
-    if len(text_lines) == 0:
+    if len(textlines) == 0:
         return [], []
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_img)
 
     cc2textline_assignment = []
     result = []
-    M = len(text_lines)
+    M = len(textlines)
     ratio_mat = np.zeros(shape = (num_labels, M), dtype = np.float32)
     dist_mat = np.zeros(shape = (num_labels, M), dtype = np.float32)
     for i in range(1, num_labels):
@@ -71,19 +71,21 @@ def filter_masks(mask_img: np.ndarray, text_lines: List[Tuple[int, int, int, int
         x1, y1, w1, h1 = cv2.boundingRect(cc)
         area1 = w1 * h1
         for j in range(M):
-            x2, y2, w2, h2 = text_lines[j]
+            x2, y2, w2, h2 = textlines[j]
             area2 = w2 * h2
-            overlapping_area = area(x1, y1, w1, h1, x2, y2, w2, h2)
+            overlapping_area = area_overlap(x1, y1, w1, h1, x2, y2, w2, h2)
             ratio_mat[i, j] = overlapping_area / min(area1, area2)
             dist_mat[i, j] = rect_distance(x1, y1, x1 + w1, y1 + h1, x2, y2, x2 + w2, y2 + h2)
         j = np.argmax(ratio_mat[i])
-        unit = min([h1, w1, h2, w2])
         if ratio_mat[i, j] > keep_threshold:
             cc2textline_assignment.append(j)
             result.append(np.copy(cc))
         else:
             j = np.argmin(dist_mat[i])
-            if dist_mat[i, j] < 0.5 * unit:
+            area2 = textlines[j][2] * textlines[j][3]
+            unit = min([h1, w1, h2, w2])
+            # if small mask segment nearby textline
+            if dist_mat[i, j] < 0.5 * unit and area1 < area2:
                 cc2textline_assignment.append(j)
                 result.append(np.copy(cc))
             else:
