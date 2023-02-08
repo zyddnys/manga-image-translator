@@ -47,7 +47,7 @@ class BaiduTranslator(CommonTranslator):
                 result = await resp.json()
         result_list = []
         if "trans_result" not in result :
-            print(' -- Error translating using Youdao')
+            print(' -- Error translating using Baidu')
             print(result)
         for ret in result["trans_result"]:
             for v in ret["dst"].split('\n'):
