@@ -46,6 +46,9 @@ class BaiduTranslator(CommonTranslator):
             async with session.get('https://'+BASE_URL+url) as resp:
                 result = await resp.json()
         result_list = []
+        if "trans_result" not in result :
+            print(' -- Error translating using Youdao')
+            print(result)
         for ret in result["trans_result"]:
             for v in ret["dst"].split('\n'):
                 result_list.append(v)

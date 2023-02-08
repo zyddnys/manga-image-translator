@@ -60,6 +60,9 @@ class YoudaoTranslator(CommonTranslator):
 
         result = await self._do_request(data)
         result_list = []
+        if "translation" not in result :
+            print(' -- Error translating using Youdao')
+            print(result)
         for ret in result["translation"]:
             result_list.extend(ret.split('\n'))
         return result_list
