@@ -137,6 +137,8 @@ async def infer(
     if not text_regions:
         print('No text regions! - Skipping')
         await update_state(task_id, 'finished')
+        if mode == 'ws' :
+            return dump_image(np.zeros((image.shape[0], image.shape[1], 4)), dtype = np.uint8)
         image.save(dst_image_name)
         return
     if args.verbose:
@@ -157,7 +159,7 @@ async def infer(
         print("No text regions with text! - Skipping")
         await update_state(task_id, 'finished')
         if mode == 'ws' :
-            return dump_image(image)
+            return dump_image(np.zeros((image.shape[0], image.shape[1], 4)), dtype = np.uint8)
         image.save(dst_image_name)
         return
 
