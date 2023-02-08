@@ -156,6 +156,8 @@ async def infer(
     if not text_regions:
         print("No text regions with text! - Skipping")
         await update_state(task_id, 'finished')
+        if mode == 'ws' :
+            return dump_image(image)
         image.save(dst_image_name)
         return
 
@@ -225,8 +227,8 @@ async def infer(
     print(' -- Saving results')
     if mode == 'ws':
         if args.verbose:
-          # only keep sections in mask
-          cv2.imwrite(f'result/ws_inmask.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGRA) * render_mask)
+            # only keep sections in mask
+            cv2.imwrite(f'result/ws_inmask.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGRA) * render_mask)
         return dump_image(cv2.cvtColor(output, cv2.COLOR_RGB2RGBA) * render_mask)
     img_pil = dump_image(output, img_alpha)
     img_pil.save(dst_image_name)
