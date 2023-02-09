@@ -238,7 +238,7 @@
               return 'Detecting texts'
             case 'ocr':
               return 'Running OCR'
-            case 'mask_generation':
+            case 'mask-generation':
               return 'Generating text mask'
             case 'inpainting':
               return 'Running inpainting'
@@ -249,19 +249,19 @@
             case 'render':
               return 'Rendering translated texts'
             case 'error':
-              return 'Something went wrong (maybe your language is not supported), please try again'
+              return 'Something went wrong, please try again'
             case 'error-upload':
               return 'Upload failed, please try again'
             case 'error-lang':
-              return 'Your target language is not supported'
-            case 'error-translator':
-              return 'Did not get any text back from the translator service'
+              return 'Your target language is not supported by the chosen translator'
+            case 'error-translating':
+              return 'Did not get any text back from the text translation service'
             case 'error-too-large':
               return 'Image size too large (greater than 8000x8000 px)'
             case 'error-disconnect':
               return 'Lost connection to server'
             default:
-              return 'Error'
+              return ''
           }
         },
         get error() {
@@ -324,9 +324,9 @@
                 this.status = 'error-disconnect'
                 break
               }
-              const { state, waiting } = res
+              const { state, finished, qPos } = res
 
-              if (state === 'finished') {
+              if (finished) {
                 this.progress = null
                 this.status = 'download'
 
@@ -346,7 +346,7 @@
               }
 
               this.status = state
-              this.queuePos = waiting
+              this.queuePos = qPos
 
               if (/^error/.test(state)) {
                 break
