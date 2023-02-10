@@ -1,6 +1,6 @@
 from typing import List
 
-from .common import *
+from .common import CommonTranslator, OfflineTranslator
 from .baidu import BaiduTranslator
 from .google import GoogleTranslator
 from .youdao import YoudaoTranslator

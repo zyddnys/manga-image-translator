@@ -7,7 +7,7 @@ from ..utils import ModelWrapper
 
 try:
     import readline
-except:
+except Exception:
     readline = None
 
 class LanguageUnsupportedException(Exception):

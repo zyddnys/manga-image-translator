@@ -10,8 +10,27 @@ from io import BytesIO
 from imagehash import phash
 from collections import deque
 
-from translators import VALID_LANGUAGES, dispatch as dispatch_translation
-
+VALID_LANGUAGES = {
+    'CHS': 'Chinese (Simplified)',
+    'CHT': 'Chinese (Traditional)',
+    'CSY': 'Czech',
+    'NLD': 'Dutch',
+    'ENG': 'English',
+    'FRA': 'French',
+    'DEU': 'German',
+    'HUN': 'Hungarian',
+    'ITA': 'Italian',
+    'JPN': 'Japanese',
+    'KOR': 'Korean',
+    'PLK': 'Polish',
+    'PTB': 'Portuguese (Brazil)',
+    'ROM': 'Romanian',
+    'RUS': 'Russian',
+    'ESP': 'Spanish',
+    'TRK': 'Turkish',
+    'UKR': 'Ukrainian',
+    'VIN': 'Vietnamese',
+}
 VALID_DETECTORS = set(['default', 'ctd'])
 VALID_DIRECTIONS = set(['auto', 'h', 'v'])
 
@@ -158,9 +177,9 @@ async def run_async(request):
         if task_id not in TASK_STATES:
             break
         state = TASK_STATES[task_id]
-        if state.finished:
+        if state['finished']:
             break
-    return web.json_response({'task_id': task_id, 'status': 'successful' if state.finished else state.info})
+    return web.json_response({'task_id': task_id, 'status': 'successful' if state['finished'] else state['info']})
 
 
 @routes.get("/task-internal")
@@ -180,24 +199,24 @@ async def get_task_async(request):
             return web.json_response({})
     return web.json_response({})
 
-async def machine_trans_task(task_id, texts, translator = 'youdao', target_language = 'CHS'):
-    print('translator', translator)
-    print('target_language', target_language)
-    if task_id not in TASK_DATA:
-        TASK_DATA[task_id] = {}
-    if texts:
-        success = False
-        for _ in range(10):
-            try:
-                TASK_DATA[task_id]['trans_result'] = await asyncio.wait_for(dispatch_translation(translator, 'auto', target_language, texts), timeout = 15)
-                success = True
-                break
-            except Exception as ex:
-                continue
-        if not success:
-            TASK_DATA[task_id]['trans_result'] = 'error'
-    else:
-        TASK_DATA[task_id]['trans_result'] = []
+# async def machine_trans_task(task_id, texts, translator = 'youdao', target_language = 'CHS'):
+#     print('translator', translator)
+#     print('target_language', target_language)
+#     if task_id not in TASK_DATA:
+#         TASK_DATA[task_id] = {}
+#     if texts:
+#         success = False
+#         for _ in range(10):
+#             try:
+#                 TASK_DATA[task_id]['trans_result'] = await asyncio.wait_for(dispatch_translation(translator, 'auto', target_language, texts), timeout = 15)
+#                 success = True
+#                 break
+#             except Exception as ex:
+#                 continue
+#         if not success:
+#             TASK_DATA[task_id]['trans_result'] = 'error'
+#     else:
+#         TASK_DATA[task_id]['trans_result'] = []
 
 async def manual_trans_task(task_id, texts):
     if task_id not in TASK_DATA:
@@ -218,10 +237,10 @@ async def post_translation_result(request):
             TASK_DATA[task_id]['trans_result'] = trans_result
             while True:
                 await asyncio.sleep(0.1)
-                if TASK_STATES[task_id].info.startswith('error'):
+                if TASK_STATES[task_id]['info'].startswith('error'):
                     ret = web.json_response({'task_id': task_id, 'status': 'error'})
                     break
-                if TASK_STATES[task_id].finished:
+                if TASK_STATES[task_id]['finished']:
                     ret = web.json_response({'task_id': task_id, 'status': 'successful'})
                     break
             # remove old tasks
@@ -240,9 +259,9 @@ async def request_translation_internal(request):
             if TASK_DATA[task_id].get('manual', False):
                 # manual translation
                 asyncio.gather(manual_trans_task(task_id, rqjson['texts']))
-            else:
-                # using machine translation
-                asyncio.gather(machine_trans_task(task_id, rqjson['texts'], TASK_DATA[task_id]['translator'], TASK_DATA[task_id]['tgt']))
+            # else:
+            #     # using machine translation
+            #     asyncio.gather(machine_trans_task(task_id, rqjson['texts'], TASK_DATA[task_id]['translator'], TASK_DATA[task_id]['tgt']))
     return web.json_response({})
 
 @routes.post("/get-translation-result-internal")
@@ -263,20 +282,20 @@ async def get_task_state_async(request):
         state = TASK_STATES[task_id]
         try:
             ret = web.json_response({
-                'state': state.info,
-                'finished': state.finished,
+                'state': state['info'],
+                'finished': state['finished'],
                 'waiting': QUEUE.index(task_id) + 1,
             })
         except Exception:
             ret = web.json_response({
-                'state': state.info,
-                'finished': False,
+                'state': state['info'],
+                'finished': state['finished'],
                 'waiting': 0,
             })
         now = time.time()
         to_del_task_ids = set()
         for tid, s in TASK_STATES.items():
-            if s.finished and now - TASK_DATA[tid]['created_at'] > 1800:
+            if s['finished'] and now - TASK_DATA[tid]['created_at'] > 1800:
                 # remove old tasks
                 to_del_task_ids.add(tid)
         for tid in to_del_task_ids:
@@ -358,7 +377,7 @@ async def manual_translate_async(request):
             return web.json_response({'task_id' : task_id, 'status': 'pending', 'trans_result': TASK_DATA[task_id]['trans_request']})
         if TASK_STATES[task_id].state.startswith('error'):
             break
-        if TASK_STATES[task_id].finished:
+        if TASK_STATES[task_id]['finished']:
             # no texts detected
             return web.json_response({'task_id' : task_id, 'status': 'successful'})
     return web.json_response({'task_id' : task_id, 'status': 'error'})
@@ -389,6 +408,6 @@ if __name__ == '__main__':
 
     try:
         loop.run_forever()
-    except KeyboardInterrupt as err:
+    except KeyboardInterrupt:
         loop.run_until_complete(runner.cleanup())
 

@@ -10,11 +10,15 @@ from .utils import BASE_PATH
 async def dispatch(args: Namespace):
     args_dict = vars(args)
 
+    # TODO: rename batch mode to normal mode
     if args.mode in ('demo', 'batch'):
         if not args.input:
             raise Exception('No input image was supplied. Use -i <image_path>')
+        if args.mode == 'demo':
+            dest = os.path.join(BASE_PATH, 'result/final.png')
+        else:
+            dest = args.dest
         translator = MangaTranslator(args_dict)
-        dest = os.path.join(BASE_PATH, 'result/final.png') if args.mode == 'demo' else None
         await translator.translate_path(args.input, dest, args_dict)
 
     elif args.mode in ('web', 'web2'):
@@ -29,7 +33,8 @@ async def dispatch(args: Namespace):
 if __name__ == '__main__':
     try:
         args = parser.parse_args()
-        print(args)
+        if args.verbose:
+            print(args)
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(dispatch(args))

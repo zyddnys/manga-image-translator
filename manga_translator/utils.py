@@ -111,7 +111,8 @@ def prompt_yes_no(query: str, default: bool = None) -> bool:
         if inp:
             print('Error: Please answer with "y" or "n"')
 
-BASE_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')
+MODULE_PATH = os.path.dirname(os.path.realpath(__file__))
+BASE_PATH = os.path.join(MODULE_PATH, '..')
 
 # class InfererModule(ABC):
 #     _KEY = ''
