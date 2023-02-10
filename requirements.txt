@@ -27,3 +27,4 @@ tensorboardX
 websockets
 protobuf
 ctranslate2
+colorama

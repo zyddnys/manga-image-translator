@@ -13,6 +13,10 @@ import sys
 from argparse import Namespace
 import time
 import traceback
+import atexit
+import colorama
+
+colorama.init(autoreset=True)
 
 from .utils import BASE_PATH, MODULE_PATH, load_image, dump_image, replace_prefix
 from .args import DEFAULT_ARGS
@@ -24,7 +28,7 @@ from .upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscal
 from .ocr import dispatch as dispatch_ocr, prepare as prepare_ocr
 from .mask_refinement import dispatch as dispatch_mask_refinement
 from .inpainting import dispatch as dispatch_inpainting, prepare as prepare_inpainting
-from .translators import dispatch as dispatch_translation, prepare as prepare_translation
+from .translators import LanguageUnsupportedException, dispatch as dispatch_translation, prepare as prepare_translation
 from .text_rendering import LANGAUGE_ORIENTATION_PRESETS, dispatch as dispatch_rendering, dispatch_eng_render
 from .text_rendering.text_render import count_valuable_text
 
@@ -132,29 +136,26 @@ class MangaTranslator():
         if params_ns.font_path and not os.path.exists(params_ns.font_path):
             raise FileNotFoundError(params_ns.font_path)
 
-        # preload and download (not necessary, remove to lazy load)
-        print(' -- Loading models')
-        await prepare_upscaling('waifu2x')
-        await prepare_detection(params_ns.detector)
-        await prepare_ocr(params_ns.ocr, self.device)
-        await prepare_inpainting(params_ns.inpainter, self.device)
         try:
+            # preload and download models (not necessary, remove to lazy load)
+            print(' -- Loading models')
+            await prepare_upscaling('waifu2x')
+            await prepare_detection(params_ns.detector)
+            await prepare_ocr(params_ns.ocr, self.device)
+            await prepare_inpainting(params_ns.inpainter, self.device)
             await prepare_translation(params_ns.translator, 'auto', params_ns.target_lang)
-        except Exception as e:
-            self._report_progress('error', True)
-            if not self.ignore_errors:
-                raise e
-            traceback.print_exc()
-            return None
 
-        # translate
-        try:
+            # translate
             return await self._translate(image, params_ns)
         except Exception as e:
-            self._report_progress('error', True)
+            if isinstance(e, LanguageUnsupportedException):
+                self._report_progress('error-lang', True)
+            else:
+                self._report_progress('error', True)
             if not self.ignore_errors:
                 raise e
-            traceback.print_exc()
+            elif self.verbose:
+                traceback.print_exc()
             return None
 
     async def _translate(self, image: Image.Image, params: Namespace) -> Image.Image:
@@ -247,14 +248,15 @@ class MangaTranslator():
         }
         LOG_MESSAGES_ERROR = {
             'error-translating':    ' -- ERROR Text translator returned empty queries',
+            'error-lang':           ' -- ERROR Target language not supported by chosen translator',
         }
         def ph(state, finished):
             if state in LOG_MESSAGES:
                 print(LOG_MESSAGES[state])
             elif state in LOG_MESSAGES_SKIP:
-                print(LOG_MESSAGES[state])
+                print(colorama.Fore.YELLOW + LOG_MESSAGES_SKIP[state])
             elif state in LOG_MESSAGES_ERROR:
-                print(LOG_MESSAGES[state])
+                print(colorama.Fore.RED + LOG_MESSAGES_ERROR[state])
 
         self.add_progress_hook(ph)
 
@@ -300,8 +302,6 @@ class MangaTranslator():
             output = await dispatch_rendering(img, text_regions, text_mag_ratio, text_direction, font_path, font_size_offset, original_img)
         return output
 
-import atexit
-import signal
 
 class MangaTranslatorWeb(MangaTranslator):
     """
