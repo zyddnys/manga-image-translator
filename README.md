@@ -40,7 +40,7 @@ Sample images can be found [here](#samples)
 ## Installation
 
 ```bash
-# First, you need to have Python(>=3.8) installed on your system.
+# First, you need to have Python(>=3.8) installed on your system
 # The latest version often does not work with pytorch yet
 $ python --version
 Python 3.10.6
