@@ -314,7 +314,6 @@ class MangaTranslatorWeb(MangaTranslator):
         self.nonce = params.get('nonce', self.generate_nonce())
         self.log_web = params.get('log_web', False)
         self.ignore_errors = params.get('ignore_errors', True)
-        print(params.get('ignore_errors'), self.ignore_errors)
         self._task_id = None
         self._params = None
 
@@ -322,16 +321,11 @@ class MangaTranslatorWeb(MangaTranslator):
         return crypto_utils.rand_bytes(16).hex()
 
     def instantiate_webserver(self):
-        os.setpgrp()
         web_executable = [sys.executable, '-u'] if self.log_web else [sys.executable]
         web_process_args = [os.path.join(MODULE_PATH, 'web_main.py'), self.nonce, self.host, self.port]
         extra_web_args = {'stdout': sys.stdout, 'stderr': sys.stderr} if self.log_web else {}
-        subprocess.Popen([*web_executable, *web_process_args], **extra_web_args)
-        # https://stackoverflow.com/a/322317
-        atexit.register(self.terminate_webserver)
-
-    def terminate_webserver(self):
-        os.killpg(0, signal.SIGKILL)
+        proc = subprocess.Popen([*web_executable, *web_process_args], **extra_web_args)
+        atexit.register(proc.terminate)
 
     async def listen(self, translation_params: dict = None):
         """
