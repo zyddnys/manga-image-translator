@@ -56,12 +56,12 @@ $ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 
 The models will be downloaded into _./models_ at runtime.
 
-#### If you are on windows:
-*To use cuda on windows* install the correct pytorch version as instructed on https://pytorch.org/.  
-Add `--upgrade --force-reinstall` to the pip command to overwrite the currently installed version.
-
+#### If you are on windows
 Some pip dependencies will not compile without _Microsoft C++ Build Tools_
 (See ![#114](https://github.com/zyddnys/manga-image-translator/issues/114)).
+
+*To use cuda on windows* install the correct pytorch version as instructed on https://pytorch.org/.  
+Add `--upgrade --force-reinstall` to the pip command to overwrite the currently installed version.
 
 If you have trouble installing pydensecrf with the command above you can download the pre-compiled wheels
 from <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf> according to your python version and install it with pip.
