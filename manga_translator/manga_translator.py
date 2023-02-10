@@ -311,7 +311,9 @@ class MangaTranslatorWeb(MangaTranslator):
         super().__init__(params)
         self.host = params.get('host', '127.0.0.1')
         self.port = str(params.get('port', '5003'))
-        self.nonce = params.get('nonce', self.generate_nonce())
+        self.nonce = params.get('nonce', None)
+        if not isinstance(self.nonce, str):
+            self.nonce = self.generate_nonce()
         self.log_web = params.get('log_web', False)
         self.ignore_errors = params.get('ignore_errors', True)
         self._task_id = None
@@ -322,7 +324,7 @@ class MangaTranslatorWeb(MangaTranslator):
 
     def instantiate_webserver(self):
         web_executable = [sys.executable, '-u'] if self.log_web else [sys.executable]
-        web_process_args = [os.path.join(MODULE_PATH, 'web_main.py'), self.nonce, self.host, self.port]
+        web_process_args = [os.path.join(MODULE_PATH, 'server', 'web_main.py'), self.nonce, self.host, self.port]
         extra_web_args = {'stdout': sys.stdout, 'stderr': sys.stderr} if self.log_web else {}
         proc = subprocess.Popen([*web_executable, *web_process_args], **extra_web_args)
         atexit.register(proc.terminate)
@@ -414,14 +416,16 @@ class MangaTranslatorWeb(MangaTranslator):
 import io
 import shutil
 import websockets
-import manga_translator.ws_pb2 as ws_pb2
+import manga_translator.server.ws_pb2 as ws_pb2
 
 class MangaTranslatorWS(MangaTranslator):
     def __init__(self, params: dict = None):
         super().__init__(params)
         self.host = params.get('host', '127.0.0.1')
         self.port = str(params.get('port', '5003'))
-        self.nonce = params.get('nonce', self.generate_nonce())
+        self.nonce = params.get('nonce', None)
+        if not isinstance(self.nonce, str):
+            self.nonce = self.generate_nonce()
         self.ignore_errors = params.get('ignore_errors', True)
         self._task_id = None
 

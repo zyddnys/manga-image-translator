@@ -10,6 +10,8 @@ from io import BytesIO
 from imagehash import phash
 from collections import deque
 
+BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+
 VALID_LANGUAGES = {
     'CHS': 'Chinese (Simplified)',
     'CHT': 'Chinese (Traditional)',
@@ -64,12 +66,12 @@ def constant_compare(a, b):
 
 @routes.get("/")
 async def index_async(request):
-    with open('ui.html', 'r', encoding='utf8') as fp:
+    with open(os.path.join(BASE_DIR, 'ui.html'), 'r', encoding='utf8') as fp:
         return web.Response(text=fp.read(), content_type='text/html')
 
 @routes.get("/manual")
 async def index_async(request):
-    with open('manual.html', 'r', encoding='utf8') as fp:
+    with open(os.path.join(BASE_DIR, 'manual.html'), 'r', encoding='utf8') as fp:
         return web.Response(text=fp.read(), content_type='text/html')
 
 @routes.get("/result/{taskid}")
