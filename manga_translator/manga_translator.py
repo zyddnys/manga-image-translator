@@ -305,7 +305,7 @@ class MangaTranslator():
 
 class MangaTranslatorWeb(MangaTranslator):
     """
-    Translator client that executes tasks on behalf of the server in web_main.py.
+    Translator client that executes tasks on behalf of the webserver in web_main.py.
     """
     def __init__(self, params: dict = None):
         super().__init__(params)
@@ -410,7 +410,82 @@ class MangaTranslatorWeb(MangaTranslator):
         else:
             return await super()._run_text_translation(key, src_lang, tgt_lang, text_regions, use_mtpe)
 
+
+import io
+import shutil
+import websockets
+import manga_translator.ws_pb2 as ws_pb2
+
 class MangaTranslatorWS(MangaTranslator):
+    def __init__(self, params: dict = None):
+        super().__init__(params)
+        self.host = params.get('host', '127.0.0.1')
+        self.port = str(params.get('port', '5003'))
+        self.nonce = params.get('nonce', self.generate_nonce())
+        self.ignore_errors = params.get('ignore_errors', True)
+        self._task_id = None
+
+    def generate_nonce(self):
+        return os.getenv('WS_SECRET', '')
+
+    async def listen(self, translation_params: dict = None):
+        print(' -- Running in websocket service mode')
+
+        async for websocket in websockets.connect(f'ws://{self.host}:{self.port}', extra_headers={'x-secret': self.nonce}, max_size=100_000_000):
+            try:
+                print(' -- Connected to websocket server')
+                async for raw in websocket:
+                    msg = ws_pb2.WebSocketMessage()
+                    msg.ParseFromString(raw)
+                    if msg.WhichOneof('message') == 'new_task':
+                        task = msg.new_task
+                        self._task_id = task.id
+
+                        if self.verbose:
+                            shutil.rmtree(f'result/{self._task_id}', ignore_errors=True)
+                            os.makedirs(f'result/{self._task_id}', exist_ok=True)
+
+                        params = {
+                            'target_language': task.target_language,
+                            'detector': task.detector,
+                            'direction': task.direction,
+                            'translator': task.translator,
+                            'size': task.size,
+                        }
+
+                        # Make async for faster execution?
+                        def sync_state(state, finished):
+                            msg = ws_pb2.WebSocketMessage()
+                            msg.status.id = self._task_id
+                            msg.status.status = state
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            loop.run_until_complete(websocket.send(msg.SerializeToString()))
+
+                        self.add_progress_hook(sync_state)
+
+                        print(f' -- Processing task {self._task_id}')
+                        if translation_params:
+                            for p, value in translation_params.items():
+                                self._params.setdefault(p, value)
+                        output = await self.translate(Image.open(io.BytesIO(task.source_image)), params)
+                        if output:
+                            img = io.BytesIO()
+                            output.save(img, format='PNG')
+                            img_bytes = img.getvalue()
+
+                            result = ws_pb2.WebSocketMessage()
+                            result.finish_task.id = self._task_id
+                            result.finish_task.translation_mask = img_bytes
+                            await websocket.send(result.SerializeToString())
+
+                        print(' -- Waiting for translation tasks')
+                        self._task_id = None
+
+            except Exception:
+                import traceback
+                traceback.print_exc()
+
     async def _run_text_rendering(self, key: str, img: np.ndarray, text_mag_ratio: np.integer, text_regions: List[TextBlock], text_direction: str,
                                  font_path: str = '', font_size_offset: int = 0, original_img: np.ndarray = None, mask: np.ndarray = None):
 

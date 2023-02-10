@@ -10,7 +10,7 @@ from .utils import BASE_PATH
 async def dispatch(args: Namespace):
     args_dict = vars(args)
 
-    # TODO: rename batch mode to normal mode
+    # TODO: rename batch mode to normal? mode
     if args.mode in ('demo', 'batch'):
         if not args.input:
             raise Exception('No input image was supplied. Use -i <image_path>')
@@ -28,7 +28,8 @@ async def dispatch(args: Namespace):
         await translator.listen(args_dict)
 
     elif args.mode == 'ws':
-        translator = MangaTranslatorWS(args)
+        translator = MangaTranslatorWS(args_dict)
+        await translator.listen(args_dict)
 
 if __name__ == '__main__':
     try:
