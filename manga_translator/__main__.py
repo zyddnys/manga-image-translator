@@ -10,6 +10,8 @@ from .utils import BASE_PATH
 async def dispatch(args: Namespace):
     args_dict = vars(args)
 
+    print(f'Running in {args.mode} mode')
+
     # TODO: rename batch mode to normal? mode
     if args.mode in ('demo', 'batch'):
         if not args.input:

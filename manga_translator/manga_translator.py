@@ -335,7 +335,6 @@ class MangaTranslatorWeb(MangaTranslator):
         """
         Listens for translation tasks from web server.
         """
-        print(' -- Running in web service mode')
         print(' -- Waiting for translation tasks')
 
         def sync_state(state: str, finished: bool):
@@ -435,8 +434,6 @@ class MangaTranslatorWS(MangaTranslator):
         return os.getenv('WS_SECRET', '')
 
     async def listen(self, translation_params: dict = None):
-        print(' -- Running in websocket service mode')
-
         async for websocket in websockets.connect(f'ws://{self.host}:{self.port}', extra_headers={'x-secret': self.nonce}, max_size=100_000_000):
             try:
                 print(' -- Connected to websocket server')
