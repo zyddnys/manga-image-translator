@@ -23,4 +23,4 @@ COPY . /app
 # Prepare models
 RUN python -u docker_prepare.py
 
-ENTRYPOINT ["python", "-u", "/app/translate_demo.py"]
+ENTRYPOINT ["python", "-m", "/app/manga_translator"]
