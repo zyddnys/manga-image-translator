@@ -77,7 +77,7 @@ from <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf> according to your
 # use `--translator=none` if you only want to use inpainting (blank bubbles)
 # use `--target-lang <language_code>` to specify a target language.
 # replace <path_to_image_file> with the path to the image file.
-$ python translate_demo.py --verbose --use-cuda --translator=google -l ENG -i <path_to_image_file>
+$ python -m manga_translator -v --use-cuda --translator=google -l ENG -i <path_to_image_file>
 # result can be found in `result/`.
 ```
 
@@ -87,7 +87,7 @@ $ python translate_demo.py --verbose --use-cuda --translator=google -l ENG -i <p
 # same options as above.
 # use `--mode batch` to enable batch translation.
 # replace <path_to_image_folder> with the path to the image folder.
-$ python translate_demo.py --verbose --mode batch --use-cuda --translator=google -l ENG -i <path_to_image_folder>
+$ python -m manga_translator -v --mode batch --use-cuda --translator=google -l ENG -i <path_to_image_folder>
 # results can be found in `<path_to_image_folder>-translated/`.
 ```
 
@@ -96,7 +96,7 @@ $ python translate_demo.py --verbose --mode batch --use-cuda --translator=google
 ```bash
 # same options as above.
 # use `--mode web` to start a web server.
-$ python translate_demo.py --verbose --mode web --use-cuda
+$ python -m manga_translator -v --mode web --use-cuda
 # the demo will be serving on http://127.0.0.1:5003
 ```
 
@@ -191,7 +191,7 @@ Then you can find the translation result in `result/` directory, e.g. using Ngin
 
 ### Language Code Reference
 
-Used by the `--target-lang` argument.
+Used by the `--target-lang` or `-l` argument.
 
 ```yaml
 CHS: Chinese (Simplified)

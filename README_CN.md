@@ -102,7 +102,7 @@ VIN: Vietnames
 # 使用 `--translator=<翻译器名称>` 来指定翻译器
 # 使用 `--target-lang=<语言代码>` 来指定目标语言
 # 将 <图片文件路径> 替换为图片的路径
-$ python translate_demo.py --verbose --use-cuda --translator=google --target-lang=CHS --image <path_to_image_file>
+$ python -m manga_translator --verbose --use-cuda --translator=google --target-lang=CHS --image <path_to_image_file>
 # 结果会存放到 result 文件夹里
 ```
 
@@ -112,7 +112,7 @@ $ python translate_demo.py --verbose --use-cuda --translator=google --target-lan
 # 其它参数如上
 # 使用 `--mode batch` 开启批量翻译模式
 # 将 <图片文件夹路径> 替换为图片文件夹的路径
-$ python translate_demo.py --verbose --mode batch --use-cuda --translator=google --target-lang=CHS --image <图片文件夹路径>
+$ python -m manga_translator --verbose --mode batch --use-cuda --translator=google --target-lang=CHS --image <图片文件夹路径>
 # 结果会存放到 `<图片文件夹路径>-translated` 文件夹里
 ```
 
@@ -121,7 +121,7 @@ $ python translate_demo.py --verbose --mode batch --use-cuda --translator=google
 ```bash
 # 其它参数如上
 # 使用 `--mode web` 开启 Web 服务器模式
-$ python translate_demo.py --verbose --mode web --use-cuda
+$ python -m manga_translator --verbose --mode web --use-cuda
 # 程序服务会开启在 http://127.0.0.1:5003
 ```
 
