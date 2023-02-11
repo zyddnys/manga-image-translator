@@ -172,10 +172,10 @@ class ModelWrapper(ABC):
         hash                - Hash of downloaded file, Can be obtained upon ModelVerificationException
 
         file                - File download destination, If set to '.' the filename will be infered
-                            from the url (fallback is `model_id` value)
+                              from the url (fallback is `model_id` value)
 
-        archive             - List that contains all files/folders that are to be extracted from
-                            the downloaded archive, Mutually exclusive with `file`
+        archive             - Dict that contains all files/folders that are to be extracted from
+                              the downloaded archive and their destinations, Mutually exclusive with `file`
 
         executables         - List of files that need to have the executable flag set
     """

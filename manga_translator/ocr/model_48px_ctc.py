@@ -17,9 +17,12 @@ from ..utils import Quadrilateral, AvgMeter, chunks
 class Model48pxCTCOCR(OfflineOCR):
     _MODEL_MAPPING = {
         'model': {
-            'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/ocr-ctc.ckpt',
-            'hash': '8b0837a24da5fde96c23ca47bb7abd590cd5b185c307e348c6e0b7238178ed89',
-            'file': '.',
+            'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/ocr-ctc.zip',
+            'hash': 'fc61c52f7a811bc72c54f6be85df814c6b60f63585175db27cb94a08e0c30101',
+            'archive': {
+                'ocr-ctc.ckpt': '.',
+                'alphabet-all-v5.txt': '.',
+            },
         },
     }
 
@@ -27,10 +30,12 @@ class Model48pxCTCOCR(OfflineOCR):
         os.makedirs(self._MODEL_DIR, exist_ok=True)
         if os.path.exists('ocr-ctc.ckpt'):
             shutil.move('ocr-ctc.ckpt', self._get_file_path('ocr-ctc.ckpt'))
+        if os.path.exists('alphabet-all-v5.txt'):
+            shutil.move('alphabet-all-v5.txt', self._get_file_path('alphabet-all-v5.txt'))
         super().__init__(*args, **kwargs)
 
     async def _load(self, device: str):
-        with open('alphabet-all-v5.txt', 'r', encoding = 'utf-8') as fp:
+        with open(self._get_file_path('alphabet-all-v5.txt'), 'r', encoding = 'utf-8') as fp:
             dictionary = [s[:-1] for s in fp.readlines()]
 
         self.model: OCR = OCR(dictionary, 768)
