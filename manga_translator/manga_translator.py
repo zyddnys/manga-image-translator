@@ -104,15 +104,17 @@ class MangaTranslator():
                     output_dest = replace_prefix(file_path, path, dest)
                     if os.path.exists(output_dest):
                         continue
+                    img = None
                     try:
                         img = Image.open(file_path)
                     except Exception:
                         pass
-                    print('Processing', file_path, '->', output_dest)
-                    output = await self.translate(img, params)
-                    if output:
-                        output.save(output_dest)
-                        self._report_progress('saved', True)
+                    if img:
+                        print('Processing', file_path, '->', output_dest)
+                        output = await self.translate(img, params)
+                        if output:
+                            output.save(output_dest)
+                            self._report_progress('saved', True)
 
     async def translate(self, image: Image.Image, params: dict) -> Image.Image:
         # TODO: Take list of images to speed up batch processing
@@ -296,7 +298,7 @@ class MangaTranslator():
                                  font_path: str = '', font_size_offset: int = 0, original_img: np.ndarray = None, mask: np.ndarray = None):
 
         # manga2eng currently only supports horizontal rendering
-        if key == 'manga2eng' and text_regions and LANGAUGE_ORIENTATION_PRESETS.get[text_regions[0].target_lang] == 'h':
+        if key == 'manga2eng' and text_regions and LANGAUGE_ORIENTATION_PRESETS.get(text_regions[0].target_lang) == 'h':
             output = await dispatch_eng_render(img, original_img, text_regions, font_path)
         else:
             output = await dispatch_rendering(img, text_regions, text_mag_ratio, text_direction, font_path, font_size_offset, original_img)
