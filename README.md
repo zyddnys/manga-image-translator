@@ -60,7 +60,7 @@ The models will be downloaded into _./models_ at runtime.
 Some pip dependencies will not compile without _Microsoft C++ Build Tools_
 (See ![#114](https://github.com/zyddnys/manga-image-translator/issues/114)).
 
-*To use ![cuda](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64) on windows* install the correct pytorch version as instructed on https://pytorch.org/.  
+*To use [cuda](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64) on windows* install the correct pytorch version as instructed on https://pytorch.org/.  
 Add `--upgrade --force-reinstall` to the pip command to overwrite the currently installed version.
 
 If you have trouble installing pydensecrf with the command above you can download the pre-compiled wheels
