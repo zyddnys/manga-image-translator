@@ -301,7 +301,7 @@ class MangaTranslator():
         if key == 'manga2eng' and text_regions and LANGAUGE_ORIENTATION_PRESETS.get(text_regions[0].target_lang) == 'h':
             output = await dispatch_eng_render(img, original_img, text_regions, font_path)
         else:
-            output = await dispatch_rendering(img, text_regions, text_mag_ratio, text_direction, font_path, font_size_offset, original_img)
+            output = await dispatch_rendering(img, text_regions, text_mag_ratio, text_direction, font_path, font_size_offset, original_img, mask)
         return output
 
 
