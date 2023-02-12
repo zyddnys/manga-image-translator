@@ -33,8 +33,9 @@ class CommonDetector(ABC):
 
         # Remove border
         if new_w > img_w or new_h > img_h:
-            mask = cv2.resize(mask, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
-            mask = mask[:img_h, :img_w]
+            m = mask or raw_mask
+            m = cv2.resize(m, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+            m = m[:img_h, :img_w]
             new_text_regions = []
             # Filter out regions within the border and clamp the points of the remaining regions
             for region in text_regions:
