@@ -84,7 +84,7 @@ class MangaTranslator():
             if output:
                 os.makedirs(dest_root, exist_ok=True)
                 output.save(dest)
-                self._report_progress('saved', True)
+                await self._report_progress('saved', True)
 
         elif os.path.isdir(path):
             # Determine destination folder path
@@ -114,7 +114,7 @@ class MangaTranslator():
                         output = await self.translate(img, params)
                         if output:
                             output.save(output_dest)
-                            self._report_progress('saved', True)
+                            await self._report_progress('saved', True)
 
     async def translate(self, image: Image.Image, params: dict) -> Image.Image:
         # TODO: Take list of images to speed up batch processing
@@ -151,9 +151,9 @@ class MangaTranslator():
             return await self._translate(image, params_ns)
         except Exception as e:
             if isinstance(e, LanguageUnsupportedException):
-                self._report_progress('error-lang', True)
+                await self._report_progress('error-lang', True)
             else:
-                self._report_progress('error', True)
+                await self._report_progress('error', True)
             if not self.ignore_errors:
                 raise e
             elif self.verbose:
@@ -165,7 +165,7 @@ class MangaTranslator():
         # The default text detector doesn't work very well on smaller images, might want to
         # consider adding automatic upscaling on certain kinds of small images.
         if params.upscale_ratio:
-            self._report_progress('upscaling')
+            await self._report_progress('upscaling')
             image = (await self._run_upscaling('waifu2x', [image], params.upscale_ratio))[0]
 
         img_rgb, img_alpha = load_image(image)
@@ -174,7 +174,7 @@ class MangaTranslator():
         print(f' -- Detector using {params.detector}')
         print(f' -- Render text direction is {params.direction}')
 
-        self._report_progress('detection')
+        await self._report_progress('detection')
         text_regions, mask_raw, mask = await self._run_detection(params.detector, img_rgb, params.detection_size, params.text_threshold,
                                                                  params.box_threshold, params.unclip_ratio, params.det_rearrange_max_batches)
         if self.verbose:
@@ -183,19 +183,19 @@ class MangaTranslator():
             cv2.imwrite(self._result_path('bboxes.png'), bboxes)
 
         if not text_regions:
-            self._report_progress('no-regions', True)
+            await self._report_progress('no-regions', True)
             return image
 
-        self._report_progress('ocr')
+        await self._report_progress('ocr')
         text_regions = await self._run_ocr(params.ocr, img_rgb, text_regions)
 
         if not text_regions:
-            self._report_progress('no-text', True)
+            await self._report_progress('no-text', True)
             return image
     
         # Delayed mask refinement to take advantage of the region filtering done by ocr
         if not mask:
-            self._report_progress('mask-generation')
+            await self._report_progress('mask-generation')
             mask = await self._run_mask_refinement(text_regions, img_rgb, mask_raw)
 
         if self.verbose:
@@ -203,24 +203,24 @@ class MangaTranslator():
             cv2.imwrite(self._result_path('inpaint_input.png'), cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
             cv2.imwrite(self._result_path('mask_final.png'), mask)
 
-        self._report_progress('inpainting')
+        await self._report_progress('inpainting')
         img_inpainted = await self._run_inpainting(params.inpainter, img_rgb, mask, params.inpainting_size)
 
         if self.verbose:
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
 
-        self._report_progress('translating')
+        await self._report_progress('translating')
         translated_sentences = await self._run_text_translation(params.translator, 'auto', params.target_lang,
                                                                 text_regions, params.mtpe)
 
         if not translated_sentences:
-            self._report_progress('error-translating', True)
+            await self._report_progress('error-translating', True)
             return None
 
         output = await self._run_text_rendering(params.renderer, img_inpainted, text_regions, params.text_mag_ratio, params.direction,
                                                 params.font_path, params.font_size_offset, img_rgb)
 
-        self._report_progress('finished', True)
+        await self._report_progress('finished', True)
         output_image = dump_image(output, img_alpha)
         return output_image
 
@@ -230,9 +230,9 @@ class MangaTranslator():
     def add_progress_hook(self, ph):
         self._progress_hooks.append(ph)
 
-    def _report_progress(self, state: str, finished: bool = False):
+    async def _report_progress(self, state: str, finished: bool = False):
         for ph in self._progress_hooks:
-            ph(state, finished)
+            await ph(state, finished)
 
     def _add_logger_hook(self):
         LOG_MESSAGES = {
@@ -252,7 +252,7 @@ class MangaTranslator():
             'error-translating':    ' -- ERROR Text translator returned empty queries',
             'error-lang':           ' -- ERROR Target language not supported by chosen translator',
         }
-        def ph(state, finished):
+        async def ph(state, finished):
             if state in LOG_MESSAGES:
                 print(LOG_MESSAGES[state])
             elif state in LOG_MESSAGES_SKIP:
@@ -337,7 +337,7 @@ class MangaTranslatorWeb(MangaTranslator):
         """
         print(' -- Waiting for translation tasks')
 
-        def sync_state(state: str, finished: bool):
+        async def sync_state(state: str, finished: bool):
             # wait for translation to be saved first (bad solution?)
             finished = finished and not state == 'finished'
             while True:
@@ -414,12 +414,8 @@ class MangaTranslatorWeb(MangaTranslator):
             return await super()._run_text_translation(key, src_lang, tgt_lang, text_regions, use_mtpe)
 
 
-import io
-import shutil
-import websockets
-import manga_translator.server.ws_pb2 as ws_pb2
-
 class MangaTranslatorWS(MangaTranslator):
+
     def __init__(self, params: dict = None):
         super().__init__(params)
         self.host = params.get('host', '127.0.0.1')
@@ -434,6 +430,11 @@ class MangaTranslatorWS(MangaTranslator):
         return os.getenv('WS_SECRET', '')
 
     async def listen(self, translation_params: dict = None):
+        import io
+        import shutil
+        import websockets
+        import manga_translator.server.ws_pb2 as ws_pb2
+
         async for websocket in websockets.connect(f'ws://{self.host}:{self.port}', extra_headers={'x-secret': self.nonce}, max_size=100_000_000):
             try:
                 print(' -- Connected to websocket server')
@@ -457,7 +458,7 @@ class MangaTranslatorWS(MangaTranslator):
                         }
 
                         # Make async for faster execution?
-                        def sync_state(state, finished):
+                        async def sync_state(state, finished):
                             msg = ws_pb2.WebSocketMessage()
                             msg.status.id = self._task_id
                             msg.status.status = state
