@@ -166,7 +166,7 @@ class MangaTranslator():
         # consider adding automatic upscaling on certain kinds of small images.
         if params.upscale_ratio:
             self._report_progress('upscaling')
-            image = (await self._run_upscaling('waifu2x', [image], params.upscale_ratio, params.use_cuda))[0]
+            image = (await self._run_upscaling('waifu2x', [image], params.upscale_ratio))[0]
 
         img_rgb, img_alpha = load_image(image)
 
