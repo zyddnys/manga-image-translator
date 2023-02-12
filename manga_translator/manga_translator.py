@@ -194,7 +194,7 @@ class MangaTranslator():
             return image
     
         # Delayed mask refinement to take advantage of the region filtering done by ocr
-        if not mask:
+        if mask is None:
             await self._report_progress('mask-generation')
             mask = await self._run_mask_refinement(text_regions, img_rgb, mask_raw)
 

@@ -33,11 +33,11 @@ class CommonDetector(ABC):
 
         # Remove border
         if new_w > img_w or new_h > img_h:
-            if mask:
+            if mask is not None :
                 mask = cv2.resize(mask, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
                 mask = mask[:img_h, :img_w]
                 new_text_regions = []
-            if raw_mask:
+            if raw_mask is not None :
                 raw_mask = cv2.resize(raw_mask, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
                 raw_mask = raw_mask[:img_h, :img_w]
                 new_text_regions = []
