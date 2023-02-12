@@ -322,7 +322,7 @@ class ModelWrapper(ABC):
                         if os.path.isfile(p2):
                             if filecmp.cmp(p1, p2):
                                 continue
-                            raise InvalidModelMappingException(self._key, map_key, 'File "{orig}" already exists at "{dest}"')
+                            raise InvalidModelMappingException(self._key, map_key, f'File "{orig}" already exists at "{dest}"')
                         os.makedirs(os.path.dirname(p2), exist_ok=True)
                         shutil.move(p1, p2)
                     else:
