@@ -17,7 +17,7 @@ async def download(dict):
 async def main():
   await download({
     k: v for k, v in TRANSLATORS.items() 
-      if k not in ['offline_big', 'nllb_big', 'sugoi_small', 'sugoi_big']
+      if k not in ['offline', 'offline_big', 'nllb_big', 'jparacrawl']
   })
   await download(DETECTORS)
   await download(OCRS)

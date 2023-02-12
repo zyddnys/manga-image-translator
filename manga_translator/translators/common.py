@@ -74,6 +74,7 @@ class CommonTranslator(ABC):
             result = []
         else:
             result = await self._translate(*self.parse_language_codes(from_lang, to_lang, fatal=True), queries)
+        result = [self._clean_translation_output(r) for r in result]
 
         translated_sentences = []
         if len(result) < len(queries):
@@ -95,16 +96,21 @@ class CommonTranslator(ABC):
         '''
         Tries to spot and skim down invalid translations.
         '''
-        words = text.split()
-        elements = list(set(words))
-        if len(elements) / len(words) < 0.1:
-            words = words[:int(len(words) / 1.75)]
-            text = ' '.join(words)
+        # '  ' -> ' '
+        text = re.sub(r'\s+', r' ', text)
+        # ' .' -> '.'
+        text = re.sub(r'\s+([.,;])', r'\1', text)
 
-            # For words that appear more then four times consecutively, remove the excess
-            for el in elements:
-                el = re.escape(el)
-                text = re.sub(r'(?: ' + el + r'){4} (' + el + r' )+', ' ', text)
+        # words = text.split()
+        # elements = list(set(words))
+        # if len(elements) / len(words) < 0.1:
+        #     words = words[:int(len(words) / 1.75)]
+        #     text = ' '.join(words)
+
+        #     # For words that appear more then four times consecutively, remove the excess
+        #     for el in elements:
+        #         el = re.escape(el)
+        #         text = re.sub(r'(?: ' + el + r'){4} (' + el + r' )+', ' ', text)
 
         return text
 

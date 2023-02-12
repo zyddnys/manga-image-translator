@@ -1,10 +1,11 @@
 import ctranslate2
 import sentencepiece as spm
 from typing import List
+import re
 
 from .common import OfflineTranslator
 
-class SugoiTranslator(OfflineTranslator):
+class JparacrawlTranslator(OfflineTranslator):
     _LANGUAGE_CODE_MAP = {
         'JPN': 'ja',
         'ENG': 'en',
@@ -94,8 +95,9 @@ class SugoiTranslator(OfflineTranslator):
         return await super().forward(from_lang, to_lang, queries)
 
     async def _forward(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
-        translated = self.model.translate_batch(
-            source=self.tokenize(queries, from_lang),
+        queries_tokenized = self.tokenize(queries, from_lang)
+        translated_tokenized = self.model.translate_batch(
+            source=queries_tokenized,
             beam_size=5,
             num_hypotheses=1,
             return_alternatives=False,
@@ -103,8 +105,8 @@ class SugoiTranslator(OfflineTranslator):
             replace_unknowns=False,
             repetition_penalty=3,
         )
-        finalResult = self.detokenize(list(map(lambda t: t[0]["tokens"], translated)), to_lang)
-        return finalResult
+        translated = self.detokenize(list(map(lambda t: t[0]["tokens"], translated_tokenized)), to_lang)
+        return translated
 
     def tokenize(self, queries, lang):
         sp = self.sentence_piece_processors[lang]
@@ -118,7 +120,7 @@ class SugoiTranslator(OfflineTranslator):
         translation = sp.decode(queries)
         return translation
 
-class SugoiBigTranslator(SugoiTranslator):
+class JparacrawlBigTranslator(JparacrawlTranslator):
     _CT2_MODEL_FOLDERS = {
         'ja-en': 'jparacrawl/big-ja-en',
         'en-ja': 'jparacrawl/big-en-ja',
@@ -135,3 +137,35 @@ class SugoiBigTranslator(SugoiTranslator):
             },
         },
     }
+
+class SugoiTranslator(JparacrawlBigTranslator):
+    """
+    Sugoi model V4.0 for ja->en translation. For en->ja it falls back to jparacrawl.
+    """
+    _CT2_MODEL_FOLDERS = {
+        'ja-en': 'sugoi/big-ja-en',
+        'en-ja': 'jparacrawl/base-en-ja',
+    }
+    _MODEL_MAPPING = {
+        **JparacrawlBigTranslator._MODEL_MAPPING,
+        'models': {
+            'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/sugoi-models.zip',
+            'hash': '67e060a62dc16211157a5eaa4fa8f72c86db5999fc69322606a6fcdf57f587f7',
+            'archive': {
+                'spm.ja.nopretok.model': 'sugoi/',
+                'spm.en.nopretok.model': 'sugoi/',
+                'big-ja-en': f'{_CT2_MODEL_FOLDERS["ja-en"]}',
+            },
+        },
+    }
+
+    def tokenize(self, queries, lang):
+        if lang == 'ja':
+            queries = [q.replace('.', '@') for q in queries]
+        return super().tokenize(queries, lang)
+
+    def detokenize(self, queries, lang):
+        res = super().detokenize(queries, lang)
+        if lang == 'en':
+            res = [q.replace('@', '.').replace('▁', ' ').replace('<unk>', '') for q in res]
+        return res

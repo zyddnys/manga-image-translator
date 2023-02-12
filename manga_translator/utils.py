@@ -262,7 +262,7 @@ class ModelWrapper(ABC):
         Downloads models as defined in `_MODEL_MAPPING`. Can be overwritten (together
         with `_check_downloaded`) to implement unconventional download logic.
         '''
-        print('\nDownloading models\n')
+        print('\nDownloading models into ./models\n')
         for map_key, mapping in self._MODEL_MAPPING.items():
             if self._check_downloaded_map(map_key):
                 print(f' -- Skipping {map_key} as it\'s already downloaded')
@@ -326,7 +326,7 @@ class ModelWrapper(ABC):
                         os.makedirs(os.path.dirname(p2), exist_ok=True)
                         shutil.move(p1, p2)
                     else:
-                        raise InvalidModelMappingException(self._key, map_key, 'File "{orig}" does not exist within archive' +
+                        raise InvalidModelMappingException(self._key, map_key, f'File "{orig}" does not exist within archive' +
                                         '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
                 if len(mapping['archive']) == 0:
                     raise InvalidModelMappingException(self._key, map_key, 'No archive files specified' +

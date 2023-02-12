@@ -7,8 +7,8 @@ from .youdao import YoudaoTranslator
 from .deepl import DeeplTranslator
 from .papago import PapagoTranslator
 from .nllb import NLLBTranslator, NLLBBigTranslator
-from .sugoi import SugoiTranslator, SugoiBigTranslator
-from .selective import SelectiveOfflineTranslator, SelectiveBigOfflineTranslator, prepare as prepare_selective_translator
+from .sugoi import JparacrawlTranslator, JparacrawlBigTranslator, SugoiTranslator
+from .selective import SelectiveOfflineTranslator, prepare as prepare_selective_translator
 from .none import NoneTranslator
 from .original import OriginalTranslator
 
@@ -36,11 +36,11 @@ VALID_LANGUAGES = {
 
 OFFLINE_TRANSLATORS = {
     'offline': SelectiveOfflineTranslator,
-    'offline_big': SelectiveBigOfflineTranslator,
     'nllb': NLLBTranslator,
     'nllb_big': NLLBBigTranslator,
     'sugoi': SugoiTranslator,
-    'sugoi_big': SugoiBigTranslator,
+    'jparacrawl': JparacrawlTranslator,
+    'jparacrawl_big': JparacrawlBigTranslator,
 }
 
 TRANSLATORS = {

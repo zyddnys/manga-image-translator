@@ -56,18 +56,21 @@ $ pip install -r requirements.txt
 
 ### 翻译器列表
 
-| 名称                            | 是否需要 API Key | 是否离线可用 | 其他说明       |
-| ------------------------------- | ---------------- | ------------ | -------------- |
-| google                          |                  |              |                |
-| youdao                          | ✔️               |              |                |
-| baidu                           | ✔️               |              |                |
-| deepl                           | ✔️               |              |                |
-| papago                          |                  |              |                |
-| offline / offline_big           |                  | ✔️           |                |
-| nllb / nllb_big                 |                  | ✔️           |                |
-| sugoi / sugoi_small / sugoi_big |                  | ✔️           |                |
-| none                            |                  | ✔️           | 翻译成空白文本 |
-| original                        |                  | ✔️           | 翻译成源文本   |
+| 名称            | 是否需要 API Key | 是否离线可用 | 其他说明       |
+| -------------- | ------- | ------ | ----------------------------------------------------- |
+| google         |         | ✔️      |                                                       |
+| youdao         | ✔️       | ✔️      |                                                       |
+| baidu          | ✔️       | ✔️      |                                                       |
+| deepl          | ✔️       | ✔️      |                                                       |
+| papago         |         | ✔️      |                                                       | 
+| offline        |         | ✔️      |                                                       |
+| sugoi          |         | ✔️      |                                                       |
+| jparacrawl     |         |        |                                                       | 
+| jparacrawl_big |         | ✔️      |                                                       |
+| nllb           |         | ✔️      |                                                       |
+| nllb_big       |         |        |                                                       |
+| none           |         | ✔️      | 翻译成空白文本  |
+| original       |         | ✔️      | 翻译成源文本    |
 
 ### 语言代码列表
 

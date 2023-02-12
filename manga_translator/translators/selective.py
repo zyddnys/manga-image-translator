@@ -88,10 +88,10 @@ class SelectiveOfflineTranslator(OfflineTranslator):
     async def _forward(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         pass
 
-class SelectiveBigOfflineTranslator(SelectiveOfflineTranslator):
-    def _select_translator(self, from_lang: str, to_lang: str) -> OfflineTranslator:
-        if from_lang != 'auto':
-            sugoi_translator = get_translator('sugoi_big')
-            if sugoi_translator.supports_languages(from_lang, to_lang):
-                return sugoi_translator
-        return get_translator('nllb_big')
+# class SelectiveBigOfflineTranslator(SelectiveOfflineTranslator):
+#     def _select_translator(self, from_lang: str, to_lang: str) -> OfflineTranslator:
+#         if from_lang != 'auto':
+#             sugoi_translator = get_translator('sugoi')
+#             if sugoi_translator.supports_languages(from_lang, to_lang):
+#                 return sugoi_translator
+#         return get_translator('nllb_big')

@@ -170,21 +170,21 @@ Then you can find the translation result in `result/` directory, e.g. using Ngin
 
 ### Translators Reference
 
-| Name        | API Key | Offline | Docker | Note                                                  |
-| ----------- | ------- | ------- | ------ | ----------------------------------------------------- |
-| google      |         |         | ✔️      |                                                       |
-| youdao      | ✔️       |         | ✔️      | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`     |
-| baidu       | ✔️       |         | ✔️      | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`        |
-| deepl       | ✔️       |         | ✔️      | Requires `DEEPL_AUTH_KEY`                             |
-| papago      |         |         | ✔️      |                                                       |
-| offline     |         | ✔️       | ✔️      | Chooses most suitable offline translator for language |
-| offline_big |         | ✔️       |        |                                                       |
-| nllb        |         | ✔️       | ✔️      |                                                       |
-| nllb_big    |         | ✔️       |        |                                                       |
-| sugoi       |         | ✔️       | ✔️      |                                                       |
-| sugoi_big   |         | ✔️       |        |                                                       |
-| none        |         | ✔️       | ✔️      | Translate to empty texts                              |
-| original    |         | ✔️       | ✔️      | Keep original texts                                   |
+| Name           | API Key | Offline | Docker | Note                                                  |
+| -------------- | ------- | ------- | ------ | ----------------------------------------------------- |
+| google         |         |         | ✔️      |                                                       |
+| youdao         | ✔️       |         | ✔️      | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`     |
+| baidu          | ✔️       |         | ✔️      | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`        |
+| deepl          | ✔️       |         | ✔️      | Requires `DEEPL_AUTH_KEY`                             |
+| papago         |         |         | ✔️      |                                                       |
+| offline        |         | ✔️       | ✔️      | Chooses most suitable offline translator for language |
+| sugoi          |         | ✔️       | ✔️      | Sugoi V4.0 Models (recommended for JPN->ENG)          |
+| jparacrawl     |         | ✔️       |        | Supports JPN,ENG                                      |
+| jparacrawl_big |         | ✔️       | ✔️      |                                                       |
+| nllb           |         | ✔️       | ✔️      | Supports every language                               |
+| nllb_big       |         | ✔️       |        |                                                       |
+| none           |         | ✔️       | ✔️      | Translate to empty texts                              |
+| original       |         | ✔️       | ✔️      | Keep original texts                                   |
 
 - API Key: Whether the translator requires an API key to be set as environment variable.
 - Offline: Whether the translator can be used offline.
