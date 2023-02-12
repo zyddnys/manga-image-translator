@@ -233,7 +233,7 @@ It should be noted that this image is fairly large (~ 15GB).
 The web server can be hosted using (For CPU)
 
 ```bash
-docker run -p 5003:5003 -v result:/app/result --ipc=host --rm zyddnys/manga-image-translator:main -l ENG --manga2eng --verbose --log-web --mode web --host=0.0.0.0 --port=5003
+docker run -p 5003:5003 -v result:/app/result --ipc=host --rm zyddnys/manga-image-translator:main -l ENG --manga2eng -v --mode web --host=0.0.0.0 --port=5003
 ```
 
 or
