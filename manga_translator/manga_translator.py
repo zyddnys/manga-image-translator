@@ -325,7 +325,8 @@ class MangaTranslatorWeb(MangaTranslator):
         return crypto_utils.rand_bytes(16).hex()
 
     def instantiate_webserver(self):
-        os.setpgrp()
+        # from .server.web_main import start_async_app
+        # await start_async_app(self.host, self.port, self.nonce)
         web_executable = [sys.executable, '-u'] if self.log_web else [sys.executable]
         web_process_args = [os.path.join(MODULE_PATH, 'server', 'web_main.py'), self.nonce, self.host, self.port]
         extra_web_args = {'stdout': sys.stdout, 'stderr': sys.stderr} if self.log_web else {}
@@ -397,6 +398,12 @@ class MangaTranslatorWeb(MangaTranslator):
 
     async def _run_text_translation(self, key: str, src_lang: str, tgt_lang: str, text_regions: List[TextBlock], use_mtpe: bool = False):
         if self._params.get('manual', False):
+            requests.post(f'http://{self.host}:{self.port}/request-translation-internal', json = {
+                    'task_id': self._task_id,
+                    'nonce': self.nonce,
+                    'texts': [r.get_text() for r in text_regions]
+                }, timeout=20)
+
             # wait for at most 1 hour for manual translation
             wait_until = time.time() + 3600
             while time.time() < wait_until:
@@ -409,6 +416,9 @@ class MangaTranslatorWeb(MangaTranslator):
                     if isinstance(translated, str):
                         if translated == 'error':
                             return None
+                    for blk, tr in zip(text_regions, translated):
+                        blk.translation = tr
+                        blk.target_lang = tgt_lang
                     return translated
                 await asyncio.sleep(0.1)
         else:

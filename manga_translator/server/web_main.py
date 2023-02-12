@@ -377,7 +377,7 @@ async def manual_translate_async(request):
         await asyncio.sleep(1)
         if 'trans_request' in TASK_DATA[task_id]:
             return web.json_response({'task_id' : task_id, 'status': 'pending', 'trans_result': TASK_DATA[task_id]['trans_request']})
-        if TASK_STATES[task_id].state.startswith('error'):
+        if TASK_STATES[task_id]['info'].startswith('error'):
             break
         if TASK_STATES[task_id]['finished']:
             # no texts detected
