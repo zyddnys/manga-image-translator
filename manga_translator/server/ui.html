@@ -330,8 +330,8 @@
                 this.status = 'error-disconnect'
                 break
               }
-              const { state, finished, qPos } = res
-              console.log(state, finished, qPos)
+              const { state, finished, waiting } = res
+              console.log(state, finished, waiting)
 
               if (finished && !state.startsWith('error')) {
                 this.progress = null
@@ -353,7 +353,7 @@
               }
 
               this.status = state
-              this.queuePos = qPos
+              this.queuePos = waiting
 
               if (/^error/.test(state)) {
                 break
