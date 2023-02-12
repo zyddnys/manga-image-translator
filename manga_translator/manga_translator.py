@@ -218,7 +218,7 @@ class MangaTranslator():
             return None
 
         output = await self._run_text_rendering(params.renderer, img_inpainted, text_regions, params.text_mag_ratio, params.direction,
-                                                params.font_path, params.font_size_offset, img_rgb)
+                                                params.font_path, params.font_size_offset, img_rgb, mask)
 
         await self._report_progress('finished', True)
         output_image = dump_image(output, img_alpha)
@@ -317,7 +317,7 @@ class MangaTranslatorWeb(MangaTranslator):
         if not isinstance(self.nonce, str):
             self.nonce = self.generate_nonce()
         self.log_web = params.get('log_web', False)
-        self.ignore_errors = params.get('ignore_errors', True)
+        self.ignore_errors = params.get('ignore_errors', False)
         self._task_id = None
         self._params = None
 
@@ -325,6 +325,7 @@ class MangaTranslatorWeb(MangaTranslator):
         return crypto_utils.rand_bytes(16).hex()
 
     def instantiate_webserver(self):
+        os.setpgrp()
         web_executable = [sys.executable, '-u'] if self.log_web else [sys.executable]
         web_process_args = [os.path.join(MODULE_PATH, 'server', 'web_main.py'), self.nonce, self.host, self.port]
         extra_web_args = {'stdout': sys.stdout, 'stderr': sys.stderr} if self.log_web else {}
