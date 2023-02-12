@@ -317,7 +317,7 @@ class MangaTranslatorWeb(MangaTranslator):
         if not isinstance(self.nonce, str):
             self.nonce = self.generate_nonce()
         self.log_web = params.get('log_web', False)
-        self.ignore_errors = params.get('ignore_errors', False)
+        self.ignore_errors = params.get('ignore_errors', True)
         self._task_id = None
         self._params = None
 

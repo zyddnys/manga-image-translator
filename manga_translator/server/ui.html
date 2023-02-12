@@ -323,9 +323,9 @@
                 break
               }
               const { state, finished, qPos } = res
-              // console.log(state, finished, qPos)
+              console.log(state, finished, qPos)
 
-              if (finished) {
+              if (finished && !state.startsWith('error')) {
                 this.progress = null
                 this.status = 'download'
 
