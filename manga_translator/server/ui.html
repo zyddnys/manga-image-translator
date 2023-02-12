@@ -212,7 +212,15 @@
         progress: null,
         status: null,
         queuePos: null,
+        cachedStatusText: '',
         get statusText() {
+          var newStatusText = this._statusText
+          if (newStatusText != null && newStatusText != this.cachedStatusText) {
+            this.cachedStatusText = newStatusText
+          }
+          return this.cachedStatusText
+        },
+        get _statusText() {
           switch (this.status) {
             case 'upload': {
               if (this.progress) {
