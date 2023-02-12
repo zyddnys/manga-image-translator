@@ -1,11 +1,11 @@
 import asyncio
 
-from utils import ModelWrapper
-from detection import DETECTORS
-from translators import TRANSLATORS
-from ocr import OCRS
-from inpainting import INPAINTERS
-from upscaling import UPSCALERS
+from manga_translator.utils import ModelWrapper
+from manga_translator.detection import DETECTORS
+from manga_translator.translators import TRANSLATORS
+from manga_translator.ocr import OCRS
+from manga_translator.inpainting import INPAINTERS
+from manga_translator.upscaling import UPSCALERS
 
 async def download(dict):
   for key, value in dict.items():

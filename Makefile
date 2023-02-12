@@ -3,7 +3,7 @@ build-image:
 	docker build . --tag=manga-image-translator
 
 run-web-server:
-	docker run --gpus all -p 5003:5003 --ipc=host --rm manga-image-translator python /app/translate_demo.py \
+	docker run --gpus all -p 5003:5003 --ipc=host --rm manga-image-translator python -m /app/manga_translator \
 		--target-lang=ENG \
 		--manga2eng \
 		--verbose \
