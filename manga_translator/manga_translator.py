@@ -462,9 +462,7 @@ class MangaTranslatorWS(MangaTranslator):
                             msg = ws_pb2.WebSocketMessage()
                             msg.status.id = self._task_id
                             msg.status.status = state
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            loop.run_until_complete(websocket.send(msg.SerializeToString()))
+                            await websocket.send(msg.SerializeToString())
 
                         self.add_progress_hook(sync_state)
 
