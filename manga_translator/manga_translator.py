@@ -134,10 +134,6 @@ class MangaTranslator():
         # Turn dict to namespace to make values accessible through params_ns.<property>
         params_ns = Namespace(**params)
 
-        # error checks
-        if params_ns.font_path and not os.path.exists(params_ns.font_path):
-            raise FileNotFoundError(params_ns.font_path)
-
         try:
             # preload and download models (not necessary, remove to lazy load)
             print(' -- Loading models')
