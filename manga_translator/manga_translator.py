@@ -214,7 +214,7 @@ class MangaTranslator():
             return None
 
         output = await self._run_text_rendering(params.renderer, img_inpainted, text_regions, params.text_mag_ratio, params.direction,
-                                                params.font_path, params.font_size_offset, img_rgb, mask)
+                                                params.font_path, params.font_size_offset, img_rgb)
 
         await self._report_progress('finished', True)
         output_image = dump_image(output, img_alpha)
@@ -496,7 +496,7 @@ class MangaTranslatorWS(MangaTranslator):
         render_mask[render_mask >= 127] = 1
         render_mask = render_mask[:, :, None]
 
-        output = await super()._run_text_rendering(key, img, text_mag_ratio, text_regions, text_direction, font_path, font_size_offset, original_img, mask)
+        output = await super()._run_text_rendering(key, img, text_mag_ratio, text_regions, text_direction, font_path, font_size_offset, original_img, render_mask)
 
         # only keep sections in mask
         if self.verbose:
