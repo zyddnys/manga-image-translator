@@ -292,14 +292,15 @@ async def get_task_state_async(request):
     task_id = request.query.get('taskid')
     if task_id and task_id in TASK_STATES and task_id in TASK_DATA:
         state = TASK_STATES[task_id]
-        ret = web.json_response({
+        res_dict = {
             'state': state['info'],
             'finished': state['finished'],
-        })
+        }
         try:
-            ret['waiting'] = QUEUE.index(task_id) + 1
+            res_dict['waiting'] = QUEUE.index(task_id) + 1
         except Exception:
-            ret['waiting'] = 0
+            res_dict['waiting'] = 0
+        res = web.json_response(res_dict)
 
         # remove old tasks
         now = time.time()
@@ -311,7 +312,7 @@ async def get_task_state_async(request):
             del TASK_STATES[tid]
             del TASK_DATA[tid]
 
-        return ret
+        return res
     return web.json_response({'state': 'error'})
 
 @routes.post("/task-update-internal")
