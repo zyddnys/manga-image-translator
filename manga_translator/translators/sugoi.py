@@ -148,7 +148,7 @@ class SugoiTranslator(JparacrawlBigTranslator):
     }
     _MODEL_MAPPING = {
         **JparacrawlBigTranslator._MODEL_MAPPING,
-        'models': {
+        'models-sugoi': {
             'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/sugoi-models.zip',
             'hash': '67e060a62dc16211157a5eaa4fa8f72c86db5999fc69322606a6fcdf57f587f7',
             'archive': {
@@ -159,13 +159,21 @@ class SugoiTranslator(JparacrawlBigTranslator):
         },
     }
 
+    async def _load(self, from_lang: str, to_lang: str, device: str):
+        await super()._load(from_lang, to_lang, device)
+        self.sentence_piece_processors['en-sugoi'] = spm.SentencePieceProcessor(model_file=self._get_file_path('sugoi/spm.en.nopretok.model'))
+        self.sentence_piece_processors['ja-sugoi'] = spm.SentencePieceProcessor(model_file=self._get_file_path('sugoi/spm.ja.nopretok.model'))
+
     def tokenize(self, queries, lang):
         if lang == 'ja':
             queries = [q.replace('.', '@') for q in queries]
+            lang = 'ja-sugoi'
         return super().tokenize(queries, lang)
 
     def detokenize(self, queries, lang):
-        res = super().detokenize(queries, lang)
         if lang == 'en':
+            lang = 'en-sugoi'
+        res = super().detokenize(queries, lang)
+        if lang == 'en-sugoi':
             res = [q.replace('@', '.').replace('▁', ' ').replace('<unk>', '') for q in res]
         return res
