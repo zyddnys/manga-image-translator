@@ -24,6 +24,46 @@ except AttributeError: # Supports Python versions below 3.8
     from backports.cached_property import cached_property
     functools.cached_property = cached_property
 
+# Inspired by argparse.Namespace
+class Context(dict):
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __init__(self, **kwargs):
+        for name in kwargs:
+            setattr(self, name, kwargs[name])
+
+    def __eq__(self, other):
+        if not isinstance(other, Context):
+            return NotImplemented
+        return vars(self) == vars(other)
+
+    def __contains__(self, key):
+        return key in self.keys()
+    
+    def __repr__(self):
+        print('repprpr')
+        type_name = type(self).__name__
+        arg_strings = []
+        star_args = {}
+        for arg in self._get_args():
+            arg_strings.append(repr(arg))
+        for name, value in self._get_kwargs():
+            if name.isidentifier():
+                arg_strings.append('%s=%r' % (name, value))
+            else:
+                star_args[name] = value
+        if star_args:
+            arg_strings.append('**%s' % repr(star_args))
+        return '%s(%s)' % (type_name, ', '.join(arg_strings))
+
+    def _get_kwargs(self):
+        return list(self.items())
+
+    def _get_args(self):
+        return []
+
 def replace_prefix(s: str, old: str, new: str):
     if s.startswith(old):
         s = new + s[len(old):]

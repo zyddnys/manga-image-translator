@@ -10,7 +10,6 @@ import torch
 from typing import List
 import subprocess
 import sys
-from argparse import Namespace
 import time
 import traceback
 import atexit
@@ -18,7 +17,7 @@ import colorama
 
 colorama.init(autoreset=True)
 
-from .utils import BASE_PATH, MODULE_PATH, load_image, dump_image, replace_prefix
+from .utils import BASE_PATH, MODULE_PATH, Context, load_image, dump_image, replace_prefix
 from .args import DEFAULT_ARGS
 
 from .detection import dispatch as dispatch_detection, prepare as prepare_detection
@@ -42,10 +41,10 @@ class MangaTranslator():
 
         params = params or {}
         self.verbose = params.get('verbose', False)
-        self.device = 'cuda' if params.get('use_cuda', False) else 'cpu'
         self.ignore_errors = params.get('ignore_errors', False if params.get('mode', 'demo') == 'demo' else True)
-        self._cuda_limited_memory = params.get('use_cuda_limited', False)
 
+        self.device = 'cuda' if params.get('use_cuda', False) else 'cpu'
+        self._cuda_limited_memory = params.get('use_cuda_limited', False)
         if self._cuda_limited_memory and not self.using_cuda:
             self.device = 'cuda'
         if self.using_cuda and not torch.cuda.is_available():
@@ -119,8 +118,11 @@ class MangaTranslator():
     async def translate(self, image: Image.Image, params: dict) -> Image.Image:
         # TODO: Take list of images to speed up batch processing
 
-        # params auto completion
+        # Turn dict to context to make values accessible through params.<property>
         params = params or {}
+        params = Context(**params)
+
+        # params auto completion
         for arg in DEFAULT_ARGS:
             params.setdefault(arg, DEFAULT_ARGS[arg])
         if not 'direction' in params:
@@ -131,20 +133,19 @@ class MangaTranslator():
             else:
                 params['direction'] = 'auto'
         params.setdefault('renderer', 'manga2eng' if params['manga2eng'] else 'default')
-        # Turn dict to namespace to make values accessible through params_ns.<property>
-        params_ns = Namespace(**params)
+        # params_ns = Namespace(**params)
 
         try:
             # preload and download models (not necessary, remove to lazy load)
             print(' -- Loading models')
             await prepare_upscaling('waifu2x')
-            await prepare_detection(params_ns.detector)
-            await prepare_ocr(params_ns.ocr, self.device)
-            await prepare_inpainting(params_ns.inpainter, self.device)
-            await prepare_translation(params_ns.translator, 'auto', params_ns.target_lang)
+            await prepare_detection(params.detector)
+            await prepare_ocr(params.ocr, self.device)
+            await prepare_inpainting(params.inpainter, self.device)
+            await prepare_translation(params.translator, 'auto', params.target_lang)
 
             # translate
-            return await self._translate(image, params_ns)
+            return await self._translate(image, params)
         except Exception as e:
             if isinstance(e, LanguageUnsupportedException):
                 await self._report_progress('error-lang', True)
@@ -156,7 +157,7 @@ class MangaTranslator():
                 traceback.print_exc()
             return None
 
-    async def _translate(self, image: Image.Image, params: Namespace) -> Image.Image:
+    async def _translate(self, image: Image.Image, params: Context) -> Image.Image:
 
         # The default text detector doesn't work very well on smaller images, might want to
         # consider adding automatic upscaling on certain kinds of small images.
