@@ -144,7 +144,7 @@ class SugoiTranslator(JparacrawlBigTranslator):
     """
     _CT2_MODEL_FOLDERS = {
         'ja-en': 'sugoi/big-ja-en',
-        'en-ja': 'jparacrawl/base-en-ja',
+        'en-ja': 'jparacrawl/big-en-ja',
     }
     _MODEL_MAPPING = {
         **JparacrawlBigTranslator._MODEL_MAPPING,
