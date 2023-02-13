@@ -325,10 +325,8 @@ class MangaTranslatorWeb(MangaTranslator):
         return crypto_utils.rand_bytes(16).hex()
 
     def instantiate_webserver(self):
-        # from .server.web_main import start_async_app
-        # await start_async_app(self.host, self.port, self.nonce)
         web_executable = [sys.executable, '-u'] if self.log_web else [sys.executable]
-        web_process_args = [os.path.join(MODULE_PATH, 'server', 'web_main.py'), self.nonce, self.host, self.port]
+        web_process_args = [os.path.join(MODULE_PATH, 'server', 'web_main.py'), self.nonce, self.host, str(self.port)]
         extra_web_args = {'stdout': sys.stdout, 'stderr': sys.stderr} if self.log_web else {}
         proc = subprocess.Popen([*web_executable, *web_process_args], **extra_web_args)
         atexit.register(proc.terminate)
@@ -429,16 +427,10 @@ class MangaTranslatorWS(MangaTranslator):
 
     def __init__(self, params: dict = None):
         super().__init__(params)
-        self.host = params.get('host', '127.0.0.1')
-        self.port = str(params.get('port', '5003'))
-        self.nonce = params.get('nonce', None)
-        if not isinstance(self.nonce, str):
-            self.nonce = self.generate_nonce()
+        self.url = params.get('ws_url')
+        self.secret = params.get('ws_secret', os.getenv('WS_SECRET', ''))
         self.ignore_errors = params.get('ignore_errors', True)
         self._task_id = None
-
-    def generate_nonce(self):
-        return os.getenv('WS_SECRET', '')
 
     async def listen(self, translation_params: dict = None):
         import io
@@ -446,7 +438,7 @@ class MangaTranslatorWS(MangaTranslator):
         import websockets
         import manga_translator.server.ws_pb2 as ws_pb2
 
-        async for websocket in websockets.connect(f'ws://{self.host}:{self.port}', extra_headers={'x-secret': self.nonce}, max_size=100_000_000):
+        async for websocket in websockets.connect(self.url, extra_headers={'x-secret': self.secret}, max_size=100_000_000):
             try:
                 print(' -- Connected to websocket server')
                 async for raw in websocket:

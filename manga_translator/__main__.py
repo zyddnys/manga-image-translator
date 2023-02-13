@@ -10,7 +10,7 @@ from .utils import BASE_PATH
 async def dispatch(args: Namespace):
     args_dict = vars(args)
 
-    print(f'Running in {args.mode} mode')
+    print(f' -- Running in {args.mode} mode')
 
     # TODO: rename batch mode to normal? mode
     if args.mode in ('demo', 'batch'):
@@ -36,8 +36,7 @@ async def dispatch(args: Namespace):
 if __name__ == '__main__':
     try:
         args = parser.parse_args()
-        if args.verbose:
-            print(args)
+        print(args)
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(dispatch(args))

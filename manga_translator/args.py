@@ -39,10 +39,10 @@ parser.add_argument_group(g)
 parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 4, 8, 16, 32], help='waifu2x image upscale ratio')
 parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some typesetting')
 parser.add_argument('--font-path', default='', type=str, help='Path to font file')
-parser.add_argument('--host', default='127.0.0.1', type=str, help='Used by web and ws to decide which host to attach to')
-parser.add_argument('--port', default=5003, type=int, help='Used by web and ws to decide which port to attach to')
-parser.add_argument('--nonce', default=None, type=str, help='Used by web and ws as a secret for connecting to their server')
+parser.add_argument('--host', default='127.0.0.1', type=str, help='Used by web module to decide which host to attach to')
+parser.add_argument('--port', default=5003, type=int, help='Used by web module to decide which port to attach to')
 parser.add_argument('--log-web', action='store_true', help='Used by web module to decide if web logs should be surfaced')
+parser.add_argument('--ws-url', default='ws://localhost:5000', type=str, help='Server URL for WebSocket mode')
 
 # Generares dict with a default value for each argument
 DEFAULT_ARGS = vars(parser.parse_args({}))
