@@ -24,7 +24,7 @@ except AttributeError: # Supports Python versions below 3.8
     from backports.cached_property import cached_property
     functools.cached_property = cached_property
 
-# Inspired by argparse.Namespace
+# Adapted from argparse.Namespace
 class Context(dict):
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
@@ -43,7 +43,6 @@ class Context(dict):
         return key in self.keys()
     
     def __repr__(self):
-        print('repprpr')
         type_name = type(self).__name__
         arg_strings = []
         star_args = {}
@@ -152,7 +151,8 @@ def prompt_yes_no(query: str, default: bool = None) -> bool:
             print('Error: Please answer with "y" or "n"')
 
 MODULE_PATH = os.path.dirname(os.path.realpath(__file__))
-BASE_PATH = os.path.join(MODULE_PATH, '..')
+# BASE_PATH = os.path.join(MODULE_PATH, '..')
+BASE_PATH = '/'.join(MODULE_PATH.replace('\\', '/').split('/')[:-1])
 
 # class InfererModule(ABC):
 #     _KEY = ''

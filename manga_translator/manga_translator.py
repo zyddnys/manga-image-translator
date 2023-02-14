@@ -11,11 +11,8 @@ from typing import List
 import subprocess
 import sys
 import time
-import traceback
 import atexit
-import colorama
-
-colorama.init(autoreset=True)
+import logging
 
 from .utils import BASE_PATH, MODULE_PATH, Context, load_image, dump_image, replace_prefix
 from .args import DEFAULT_ARGS
@@ -31,7 +28,12 @@ from .translators import LanguageUnsupportedException, dispatch as dispatch_tran
 from .text_rendering import LANGAUGE_ORIENTATION_PRESETS, dispatch as dispatch_rendering, dispatch_eng_render
 from .text_rendering.text_render import count_valuable_text
 
-# TODO: Remove legacy model checks
+# Will be overwritten by __main__.py if module is being run directly (with python -m)
+logger = logging.getLogger('manga_translator')
+
+def set_logger(l):
+    global logger
+    logger = l
 
 class MangaTranslator():
 
@@ -109,7 +111,7 @@ class MangaTranslator():
                     except Exception:
                         pass
                     if img:
-                        print('Processing', file_path, '->', output_dest)
+                        logger.info(f'Processing {file_path} -> {output_dest}')
                         output = await self.translate(img, params)
                         if output:
                             output.save(output_dest)
@@ -126,18 +128,17 @@ class MangaTranslator():
         for arg in DEFAULT_ARGS:
             params.setdefault(arg, DEFAULT_ARGS[arg])
         if not 'direction' in params:
-            if params['force_horizontal']:
-                params['direction'] = 'h'
-            elif params['force_vertical']:
-                params['direction'] = 'v'
+            if params.force_horizontal:
+                params.direction = 'h'
+            elif params.force_vertical:
+                params.direction = 'v'
             else:
-                params['direction'] = 'auto'
+                params.direction = 'auto'
         params.setdefault('renderer', 'manga2eng' if params['manga2eng'] else 'default')
-        # params_ns = Namespace(**params)
 
         try:
             # preload and download models (not necessary, remove to lazy load)
-            print(' -- Loading models')
+            logger.info(' -- Loading models')
             await prepare_upscaling('waifu2x')
             await prepare_detection(params.detector)
             await prepare_ocr(params.ocr, self.device)
@@ -152,9 +153,10 @@ class MangaTranslator():
             else:
                 await self._report_progress('error', True)
             if not self.ignore_errors:
-                raise e
-            elif self.verbose:
-                traceback.print_exc()
+                raise
+            else:
+                logger.error(f'{e.__class__.__name__}: {e}',
+                             exc_info=e if self.verbose else None)
             return None
 
     async def _translate(self, image: Image.Image, params: Context) -> Image.Image:
@@ -166,10 +168,6 @@ class MangaTranslator():
             image = (await self._run_upscaling('waifu2x', [image], params.upscale_ratio))[0]
 
         img_rgb, img_alpha = load_image(image)
-
-        # TODO: Remove once using logger tags
-        print(f' -- Detector using {params.detector}')
-        print(f' -- Render text direction is {params.direction}')
 
         await self._report_progress('detection')
         text_regions, mask_raw, mask = await self._run_detection(params.detector, img_rgb, params.detection_size, params.text_threshold,
@@ -246,16 +244,16 @@ class MangaTranslator():
             'no-text':              ' -- No text regions with text! - Skipping',
         }
         LOG_MESSAGES_ERROR = {
-            'error-translating':    ' -- ERROR Text translator returned empty queries',
-            'error-lang':           ' -- ERROR Target language not supported by chosen translator',
+            'error-translating':    ' -- Text translator returned empty queries',
+            'error-lang':           ' -- Target language not supported by chosen translator',
         }
         async def ph(state, finished):
             if state in LOG_MESSAGES:
-                print(LOG_MESSAGES[state])
+                logger.info(LOG_MESSAGES[state])
             elif state in LOG_MESSAGES_SKIP:
-                print(colorama.Fore.YELLOW + LOG_MESSAGES_SKIP[state])
+                logger.warn(LOG_MESSAGES_SKIP[state])
             elif state in LOG_MESSAGES_ERROR:
-                print(colorama.Fore.RED + LOG_MESSAGES_ERROR[state])
+                logger.error(LOG_MESSAGES_ERROR[state])
 
         self.add_progress_hook(ph)
 
@@ -332,7 +330,7 @@ class MangaTranslatorWeb(MangaTranslator):
         """
         Listens for translation tasks from web server.
         """
-        print(' -- Waiting for translation tasks')
+        logger.info(' -- Waiting for translation tasks')
 
         async def sync_state(state: str, finished: bool):
             # wait for translation to be saved first (bad solution?)
@@ -364,7 +362,7 @@ class MangaTranslatorWeb(MangaTranslator):
                 continue
 
             self.result_sub_folder = self._task_id
-            print(f' -- Processing task {self._task_id}')
+            logger.info(f' -- Processing task {self._task_id}')
             if translation_params:
                 for p, value in translation_params.items():
                     self._params.setdefault(p, value)
@@ -437,7 +435,7 @@ class MangaTranslatorWS(MangaTranslator):
 
         async for websocket in websockets.connect(self.url, extra_headers={'x-secret': self.secret}, max_size=100_000_000):
             try:
-                print(' -- Connected to websocket server')
+                logger.info(' -- Connected to websocket server')
                 async for raw in websocket:
                     msg = ws_pb2.WebSocketMessage()
                     msg.ParseFromString(raw)
@@ -466,7 +464,7 @@ class MangaTranslatorWS(MangaTranslator):
 
                         self.add_progress_hook(sync_state)
 
-                        print(f' -- Processing task {self._task_id}')
+                        logger.info(f' -- Processing task {self._task_id}')
                         if translation_params:
                             for p, value in translation_params.items():
                                 self._params.setdefault(p, value)
@@ -481,12 +479,11 @@ class MangaTranslatorWS(MangaTranslator):
                             result.finish_task.translation_mask = img_bytes
                             await websocket.send(result.SerializeToString())
 
-                        print(' -- Waiting for translation tasks')
+                        logger.info(' -- Waiting for translation tasks')
                         self._task_id = None
 
-            except Exception:
-                import traceback
-                traceback.print_exc()
+            except Exception as e:
+                logger.error(f'{e.__class__.__name__}: {e}', exc_info=e if self.verbose else None)
 
     async def _run_text_rendering(self, key: str, img: np.ndarray, text_mag_ratio: np.integer, text_regions: List[TextBlock], text_direction: str,
                                  font_path: str = '', font_size_offset: int = 0, original_img: np.ndarray = None, mask: np.ndarray = None):
