@@ -66,6 +66,9 @@ class MangaTranslator():
         return self.device.startswith('cuda')
 
     async def translate_path(self, path: str, dest: str = None, params: dict = None):
+        """
+        Translates an image on the specified path.
+        """
         path = os.path.expanduser(path)
         if not os.path.exists(path):
             raise FileNotFoundError(path)
@@ -125,7 +128,11 @@ class MangaTranslator():
                             output.save(output_dest)
                             await self._report_progress('saved', True)
 
-    async def translate(self, image: Image.Image, params: dict) -> Image.Image:
+    async def translate(self, image: Image.Image, params: dict = None) -> Image.Image:
+        """
+        Translates a PIL image preferably from a manga.
+        Returns None if an error occured.
+        """
         # TODO: Take list of images to speed up batch processing
 
         # Turn dict to context to make values accessible through params.<property>
@@ -186,14 +193,14 @@ class MangaTranslator():
             cv2.imwrite(self._result_path('bboxes.png'), bboxes)
 
         if not text_regions:
-            await self._report_progress('no-regions', True)
+            await self._report_progress('skip-no-regions', True)
             return image
 
         await self._report_progress('ocr')
         text_regions = await self._run_ocr(params.ocr, img_rgb, text_regions)
 
         if not text_regions:
-            await self._report_progress('no-text', True)
+            await self._report_progress('skip-no-text', True)
             return image
     
         # Delayed mask refinement to take advantage of the region filtering done by ocr
@@ -249,8 +256,8 @@ class MangaTranslator():
             'saved':                '-- Saving results',
         }
         LOG_MESSAGES_SKIP = {
-            'no-regions':           'No text regions! - Skipping',
-            'no-text':              'No text regions with text! - Skipping',
+            'skip-no-regions':      'No text regions! - Skipping',
+            'skip-no-text':         'No text regions with text! - Skipping',
         }
         LOG_MESSAGES_ERROR = {
             'error-translating':    'Text translator returned empty queries',
@@ -308,6 +315,7 @@ class MangaTranslator():
             output = await dispatch_rendering(img, text_regions, text_mag_ratio, text_direction, font_path, font_size_offset, original_img, mask)
         return output
 
+from .utils import add_file_logger, remove_file_logger
 
 class MangaTranslatorWeb(MangaTranslator):
     """
@@ -339,7 +347,7 @@ class MangaTranslatorWeb(MangaTranslator):
         """
         Listens for translation tasks from web server.
         """
-        logger.info(' -- Waiting for translation tasks')
+        logger.info('-- Waiting for translation tasks')
 
         async def sync_state(state: str, finished: bool):
             # wait for translation to be saved first (bad solution?)
@@ -371,13 +379,20 @@ class MangaTranslatorWeb(MangaTranslator):
                 continue
 
             self.result_sub_folder = self._task_id
-            logger.info(f' -- Processing task {self._task_id}')
-            if translation_params:
+            logger.info(f'-- Processing task {self._task_id}')
+            if translation_params is not None:
+                # Combine default params with params chosen by webserver
                 for p, value in translation_params.items():
                     self._params.setdefault(p, value)
-            # TODO: Create log file per task_id folder
-            await self.translate_path(self._result_path('input.png'), self._result_path('final.png'), params=self._params)
+            if self.verbose:
+                # Write log file
+                log_file = self._result_path('log.txt')
+                add_file_logger(log_file)
 
+            await self.translate_path(self._result_path('input.png'), self._result_path('final.png'), params=self._params)
+            
+            if self.verbose:
+                remove_file_logger(log_file)
             self._task_id = None
             self._params = None
             self.result_sub_folder = ''
@@ -445,7 +460,7 @@ class MangaTranslatorWS(MangaTranslator):
 
         async for websocket in websockets.connect(self.url, extra_headers={'x-secret': self.secret}, max_size=100_000_000):
             try:
-                logger.info(' -- Connected to websocket server')
+                logger.info('-- Connected to websocket server')
                 async for raw in websocket:
                     msg = ws_pb2.WebSocketMessage()
                     msg.ParseFromString(raw)
@@ -474,7 +489,7 @@ class MangaTranslatorWS(MangaTranslator):
 
                         self.add_progress_hook(sync_state)
 
-                        logger.info(f' -- Processing task {self._task_id}')
+                        logger.info(f'-- Processing task {self._task_id}')
                         if translation_params:
                             for p, value in translation_params.items():
                                 self._params.setdefault(p, value)
@@ -489,7 +504,7 @@ class MangaTranslatorWS(MangaTranslator):
                             result.finish_task.translation_mask = img_bytes
                             await websocket.send(result.SerializeToString())
 
-                        logger.info(' -- Waiting for translation tasks')
+                        logger.info('-- Waiting for translation tasks')
                         self._task_id = None
 
             except Exception as e:

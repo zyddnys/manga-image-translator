@@ -43,6 +43,7 @@ class InfererModule(ABC):
 #     async def dispatch(self):
 #         ...
 
+
 class ModelVerificationException(Exception):
     pass
 
