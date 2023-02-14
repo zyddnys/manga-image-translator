@@ -2,12 +2,11 @@ from typing import List
 import numpy as np
 import cv2
 import os
-import logging
 
 from . import text_render
 from .text_render_eng import render_textblock_list_eng
 # from .ballon_extractor import extract_ballon_region
-from ..utils import TextBlock, findNextPowerOf2, color_difference
+from ..utils import TextBlock, findNextPowerOf2, color_difference, get_logger
 
 LANGAUGE_ORIENTATION_PRESETS = {
     'CHS': 'auto',
@@ -30,7 +29,7 @@ LANGAUGE_ORIENTATION_PRESETS = {
     'VIN': 'h',
 }
 
-logger = logging.getLogger('rendering')
+logger = get_logger('rendering')
 
 def parse_font_paths(path: str, default: List[str] = None) -> List[str]:
     if path:

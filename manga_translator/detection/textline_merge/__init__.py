@@ -6,7 +6,7 @@ import numpy as np
 import networkx as nx
 
 from ..ctd_utils import TextBlock
-from ...utils import Quadrilateral, quadrilateral_can_merge_region_coarse
+from ...utils import Quadrilateral, quadrilateral_can_merge_region_coarse, quadrilateral_can_merge_region
 
 def split_text_region(bboxes: List[Quadrilateral], region_indices: Set[int], gamma = 0.5, sigma = 2, std_threshold = 5.0, verbose: bool = False) -> List[Set[int]]:
     region_indices = list(region_indices)
@@ -103,7 +103,8 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose
     # if verbose:
     #     print('region_indices', region_indices)
 
-    for node_set in region_indices: # nx.algorithms.components.connected_components(G):
+    for node_set in region_indices:
+    # for node_set in nx.algorithms.components.connected_components(G):
         nodes = list(node_set)
         txtlns = np.array(bboxes)[nodes]
 

@@ -38,7 +38,7 @@ from .text_rendering.text_render import count_valuable_text
 # Will be overwritten by __main__.py if module is being run directly (with python -m)
 logger = logging.getLogger('manga_translator')
 
-def set_logger(l):
+def set_main_logger(l):
     global logger
     logger = l
 
@@ -118,6 +118,7 @@ class MangaTranslator():
                     except Exception:
                         pass
                     if img:
+                        print()
                         logger.info(f'Processing {file_path} -> {output_dest}')
                         output = await self.translate(img, params)
                         if output:
@@ -374,6 +375,7 @@ class MangaTranslatorWeb(MangaTranslator):
             if translation_params:
                 for p, value in translation_params.items():
                     self._params.setdefault(p, value)
+            # TODO: Create log file per task_id folder
             await self.translate_path(self._result_path('input.png'), self._result_path('final.png'), params=self._params)
 
             self._task_id = None

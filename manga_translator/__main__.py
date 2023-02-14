@@ -3,9 +3,9 @@ import os
 import logging
 from argparse import Namespace
 
-from .manga_translator import MangaTranslator, MangaTranslatorWeb, MangaTranslatorWS, set_logger
+from .manga_translator import MangaTranslator, MangaTranslatorWeb, MangaTranslatorWS, set_main_logger
 from .args import parser
-from .utils import BASE_PATH
+from .utils import BASE_PATH, get_logger, set_log_level
 
 async def dispatch(args: Namespace):
     args_dict = vars(args)
@@ -38,10 +38,10 @@ if __name__ == '__main__':
     args = None
     try:
         args = parser.parse_args()
-        logging.root.setLevel(level=logging.DEBUG if args.verbose else logging.INFO)
-        logger = logging.getLogger(args.mode)
+        set_log_level(level=logging.DEBUG if args.verbose else logging.INFO)
+        logger = get_logger(args.mode)
         logger.debug(args)
-        set_logger(logger)
+        set_main_logger(logger)
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
