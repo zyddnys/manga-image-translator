@@ -5,10 +5,8 @@ import os
 
 from . import text_render
 from .text_render_eng import render_textblock_list_eng
-from .ballon_extractor import extract_ballon_region
-from ..utils import findNextPowerOf2, color_difference
-from ..detection.ctd_utils import TextBlock
-
+# from .ballon_extractor import extract_ballon_region
+from ..utils import TextBlock, findNextPowerOf2, color_difference
 
 LANGAUGE_ORIENTATION_PRESETS = {
     'CHS': 'auto',

@@ -11,8 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .common import OfflineOCR
-from ..detection.ctd_utils.textblock import TextBlock
-from ..utils import Quadrilateral, AvgMeter, chunks
+from ..utils import TextBlock, Quadrilateral, AvgMeter, chunks
 
 class Model48pxCTCOCR(OfflineOCR):
     _MODEL_MAPPING = {

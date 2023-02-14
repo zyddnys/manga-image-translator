@@ -6,8 +6,8 @@ from shapely.geometry import Polygon
 import math
 import copy
 
-from ...utils import color_difference
-from .utils.imgproc_utils import union_area, xywh2xyxypoly, rotate_polygons
+from . import color_difference
+from ..detection.ctd_utils.utils.imgproc_utils import union_area, xywh2xyxypoly, rotate_polygons
 
 LANG_LIST = ['eng', 'ja', 'unknown']
 LANGCLS2IDX = {'eng': 0, 'ja': 1, 'unknown': 2}

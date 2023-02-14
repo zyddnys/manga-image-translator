@@ -14,12 +14,19 @@ import time
 import atexit
 import logging
 
-from .utils import BASE_PATH, MODULE_PATH, Context, load_image, dump_image, replace_prefix
 from .args import DEFAULT_ARGS
+from .utils import (
+    BASE_PATH,
+    MODULE_PATH,
+    Context,
+    load_image,
+    dump_image,
+    replace_prefix,
+    visualize_textblocks,
+)
 
 from .detection import dispatch as dispatch_detection, prepare as prepare_detection
 from .detection.ctd_utils import TextBlock
-from .detection.ctd_utils.textblock import visualize_textblocks
 from .upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
 from .ocr import dispatch as dispatch_ocr, prepare as prepare_ocr
 from .mask_refinement import dispatch as dispatch_mask_refinement
@@ -138,7 +145,7 @@ class MangaTranslator():
 
         try:
             # preload and download models (not necessary, remove to lazy load)
-            logger.info(' -- Loading models')
+            logger.info('Loading models')
             await prepare_upscaling('waifu2x')
             await prepare_detection(params.detector)
             await prepare_ocr(params.ocr, self.device)
@@ -231,21 +238,21 @@ class MangaTranslator():
 
     def _add_logger_hook(self):
         LOG_MESSAGES = {
-            'upscaling':            ' -- Running upscaling',
-            'detection':            ' -- Running text detection',
-            'ocr':                  ' -- Running OCR',
-            'mask-generation':      ' -- Running mask refinement',
-            'translating':          ' -- Translating',
-            'render':               ' -- Rendering translated text',
-            'saved':                ' -- Saving results',
+            'upscaling':            'Running upscaling',
+            'detection':            'Running text detection',
+            'ocr':                  'Running OCR',
+            'mask-generation':      'Running mask refinement',
+            'translating':          'Translating',
+            'render':               'Rendering translated text',
+            'saved':                'Saving results',
         }
         LOG_MESSAGES_SKIP = {
-            'no-regions':           ' -- No text regions! - Skipping',
-            'no-text':              ' -- No text regions with text! - Skipping',
+            'no-regions':           'No text regions! - Skipping',
+            'no-text':              'No text regions with text! - Skipping',
         }
         LOG_MESSAGES_ERROR = {
-            'error-translating':    ' -- Text translator returned empty queries',
-            'error-lang':           ' -- Target language not supported by chosen translator',
+            'error-translating':    'Text translator returned empty queries',
+            'error-lang':           'Target language not supported by chosen translator',
         }
         async def ph(state, finished):
             if state in LOG_MESSAGES:

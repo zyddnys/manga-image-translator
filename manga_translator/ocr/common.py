@@ -6,8 +6,7 @@ from collections import Counter
 import networkx as nx
 import itertools
 
-from ..utils import ModelWrapper, Quadrilateral
-from ..detection.ctd_utils import TextBlock
+from ..utils import TextBlock, ModelWrapper, Quadrilateral
 
 class CommonOCR(ABC):
     def generate_text_direction(self, bboxes: List[Union[Quadrilateral, TextBlock]]):

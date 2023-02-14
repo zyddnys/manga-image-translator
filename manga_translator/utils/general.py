@@ -150,7 +150,7 @@ def prompt_yes_no(query: str, default: bool = None) -> bool:
         if inp:
             print('Error: Please answer with "y" or "n"')
 
-MODULE_PATH = os.path.dirname(os.path.realpath(__file__))
+MODULE_PATH = '/'.join(os.path.dirname(os.path.realpath(__file__)).replace('\\', '/').split('/')[:-1])
 # BASE_PATH = os.path.join(MODULE_PATH, '..')
 BASE_PATH = '/'.join(MODULE_PATH.replace('\\', '/').split('/')[:-1])
 

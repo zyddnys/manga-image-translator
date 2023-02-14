@@ -5,7 +5,7 @@ from typing import List, Tuple
 
 from .text_render import get_char_glyph, put_char_horizontal, add_color
 from .ballon_extractor import extract_ballon_region
-from ..detection.ctd_utils import TextBlock
+from ..utils import TextBlock
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)

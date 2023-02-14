@@ -4,7 +4,7 @@ from typing import List
 from .common import CommonOCR, OfflineOCR
 from .model_32px import Model32pxOCR
 from .model_48px_ctc import Model48pxCTCOCR
-from ..detection.ctd_utils.textblock import TextBlock
+from ..utils import TextBlock
 
 OCRS = {
     '32px': Model32pxOCR,
