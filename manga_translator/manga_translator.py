@@ -239,13 +239,13 @@ class MangaTranslator():
 
     def _add_logger_hook(self):
         LOG_MESSAGES = {
-            'upscaling':            ' -- Running upscaling',
-            'detection':            ' -- Running text detection',
-            'ocr':                  ' -- Running OCR',
-            'mask-generation':      ' -- Running mask refinement',
-            'translating':          ' -- Translating',
-            'rendering':            ' -- Rendering translated text',
-            'saved':                ' -- Saving results',
+            'upscaling':            '-- Running upscaling',
+            'detection':            '-- Running text detection',
+            'ocr':                  '-- Running OCR',
+            'mask-generation':      '-- Running mask refinement',
+            'translating':          '-- Translating',
+            'rendering':            '-- Rendering translated text',
+            'saved':                '-- Saving results',
         }
         LOG_MESSAGES_SKIP = {
             'no-regions':           'No text regions! - Skipping',

@@ -60,8 +60,8 @@ async def dispatch(
     text_render.set_font(font_path)
 
     for region in text_regions:
-        logger.debug(f'text: {region.get_text()}')
-        logger.debug(f' trans: {region.translation}')
+        logger.info(f'text: {region.get_text()}')
+        logger.info(f' trans: {region.translation}')
         if not region.translation:
             continue
 

@@ -124,7 +124,7 @@ class Model48pxCTCOCR(OfflineOCR):
                 br = int(total_br())
                 bg = int(total_bg())
                 bb = int(total_bb())
-                self.logger.debug(f'prob: {prob} {txt} fg: ({fr}, {fg}, {fb}) bg: ({br}, {bg}, {bb})')
+                self.logger.info(f'prob: {prob} {txt} fg: ({fr}, {fg}, {fb}) bg: ({br}, {bg}, {bb})')
                 cur_region = quadrilaterals[indices[i]][0]
                 if isinstance(cur_region, Quadrilateral):
                     cur_region.text = txt

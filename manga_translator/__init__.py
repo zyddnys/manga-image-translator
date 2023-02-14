@@ -20,6 +20,7 @@ logging.basicConfig(level=logging.INFO)
 for h in logging.root.handlers:
     h.setFormatter(Formatter())
 
+# Limit asyncio logger
 logging.getLogger('asyncio').setLevel(logging.WARNING)
 
 from .manga_translator import *

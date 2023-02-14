@@ -70,7 +70,7 @@ class DefaultDetector(OfflineDetector):
             img_resized_h, img_resized_w = image.shape[:2]
             ratio_w = ratio_h = 1
             pad_h = pad_w = 0
-        self.logger.debug(f'Detection resolution: {img_resized_w}x{img_resized_h}')
+        self.logger.info(f'Detection resolution: {img_resized_w}x{img_resized_h}')
 
         mask = mask[0, 0, :, :]
         det = dbnet_utils.SegDetectorRepresenter(text_threshold, box_threshold, unclip_ratio=unclip_ratio)

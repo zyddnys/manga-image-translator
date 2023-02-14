@@ -105,7 +105,7 @@ class Model32pxOCR(OfflineOCR):
                         ch = ' '
                     seq.append(ch)
                 txt = ''.join(seq)
-                self.logger.debug(f'prob: {prob} {txt} fg: ({fr}, {fg}, {fb}) bg: ({br}, {bg}, {bb})')
+                self.logger.info(f'prob: {prob} {txt} fg: ({fr}, {fg}, {fb}) bg: ({br}, {bg}, {bb})')
                 cur_region = quadrilaterals[indices[i]][0]
                 if isinstance(cur_region, Quadrilateral):
                     cur_region.text = txt
