@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import List, Tuple
 import numpy as np
 import cv2
@@ -6,10 +6,9 @@ import os
 
 from .textline_merge import dispatch as dispatch_textline_merge
 from .ctd_utils import TextBlock
-from ..utils import ModelWrapper, Quadrilateral
+from ..utils import InfererModule, ModelWrapper, Quadrilateral
 
-class CommonDetector(ABC):
-
+class CommonDetector(InfererModule):
     async def _merge_textlines(self, textlines: List[Quadrilateral], img_width: int, img_height: int, verbose: bool = False) -> List[TextBlock]:
         return await dispatch_textline_merge(textlines, img_width, img_height, verbose)
 
@@ -33,11 +32,11 @@ class CommonDetector(ABC):
 
         # Remove border
         if new_w > img_w or new_h > img_h:
-            if mask is not None :
+            if mask is not None:
                 mask = cv2.resize(mask, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
                 mask = mask[:img_h, :img_w]
                 new_text_regions = []
-            if raw_mask is not None :
+            if raw_mask is not None:
                 raw_mask = cv2.resize(raw_mask, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
                 raw_mask = raw_mask[:img_h, :img_w]
                 new_text_regions = []

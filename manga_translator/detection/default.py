@@ -57,7 +57,7 @@ class DefaultDetector(OfflineDetector):
     async def _forward(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
                        unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
 
-        # TODO: Move det_rearrange_forward calls to common.py
+        # TODO: Move det_rearrange_forward to common.py and refactor
         db, mask = det_rearrange_forward(image, det_batch_forward_default, detect_size, det_rearrange_max_batches, device=self.device, verbose=verbose)
 
         if db is None:
@@ -65,13 +65,12 @@ class DefaultDetector(OfflineDetector):
             img_resized, target_ratio, _, pad_w, pad_h = imgproc.resize_aspect_ratio(cv2.bilateralFilter(image, 17, 80, 80), detect_size, cv2.INTER_LINEAR, mag_ratio = 1)
             img_resized_h, img_resized_w = img_resized.shape[:2]
             ratio_h = ratio_w = 1 / target_ratio
-            if verbose:
-                print(f'Detection resolution: {img_resized_w}x{img_resized_h}')
             db, mask = det_batch_forward_default([img_resized], self.device)
         else:
             img_resized_h, img_resized_w = image.shape[:2]
             ratio_w = ratio_h = 1
             pad_h = pad_w = 0
+        self.logger.debug(f'Detection resolution: {img_resized_w}x{img_resized_h}')
 
         mask = mask[0, 0, :, :]
         det = dbnet_utils.SegDetectorRepresenter(text_threshold, box_threshold, unclip_ratio=unclip_ratio)

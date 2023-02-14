@@ -12,7 +12,6 @@ async def dispatch(args: Namespace):
 
     logger.info(f'Running in {args.mode} mode')
 
-    # TODO: rename batch mode to file? mode
     if args.mode in ('demo', 'batch'):
         if not args.input:
             raise Exception('No input image was supplied. Use -i <image_path>')
@@ -39,8 +38,8 @@ if __name__ == '__main__':
     args = None
     try:
         args = parser.parse_args()
+        logging.root.setLevel(level=logging.DEBUG if args.verbose else logging.INFO)
         logger = logging.getLogger(args.mode)
-        logger.setLevel(logging.DEBUG if args.verbose else logging.INFO)
         logger.debug(args)
         set_logger(logger)
 

@@ -124,8 +124,7 @@ class Model48pxCTCOCR(OfflineOCR):
                 br = int(total_br())
                 bg = int(total_bg())
                 bb = int(total_bb())
-                if verbose:
-                    print(prob, txt, f'fg: ({fr}, {fg}, {fb})', f'bg: ({br}, {bg}, {bb})')
+                self.logger.debug(f'prob: {prob} {txt} fg: ({fr}, {fg}, {fb}) bg: ({br}, {bg}, {bb})')
                 cur_region = quadrilaterals[indices[i]][0]
                 if isinstance(cur_region, Quadrilateral):
                     cur_region.text = txt
@@ -454,24 +453,24 @@ class OCR(nn.Module):
         preds_index = preds_index.cpu()
         pred_color_values = pred_color_values.cpu().clamp_(0, 1)
         for b in range(pred_char_logits.size(0)):
-            if verbose:
-                print('------------------------------')
+            # if verbose:
+            #     print('------------------------------')
             last_ch = blank
             for t in range(pred_char_logits.size(1)):
                 pred_ch = preds_index[b, t]
                 if pred_ch != last_ch and pred_ch != blank:
                     lp = logprobs[b, t, pred_ch].item()
-                    if verbose:
-                        if lp < math.log(0.9):
-                            top5 = torch.topk(logprobs[b, t], 5)
-                            top5_idx = top5.indices
-                            top5_val = top5.values
-                            r = ''
-                            for i in range(5):
-                                r += f'{self.dictionary[top5_idx[i]]}: {math.exp(top5_val[i])}, '
-                            print(r)
-                        else:
-                            print(f'{self.dictionary[pred_ch]}: {math.exp(lp)}')
+                    # if verbose:
+                    #     if lp < math.log(0.9):
+                    #         top5 = torch.topk(logprobs[b, t], 5)
+                    #         top5_idx = top5.indices
+                    #         top5_val = top5.values
+                    #         r = ''
+                    #         for i in range(5):
+                    #             r += f'{self.dictionary[top5_idx[i]]}: {math.exp(top5_val[i])}, '
+                    #         print(r)
+                    #     else:
+                    #         print(f'{self.dictionary[pred_ch]}: {math.exp(lp)}')
                     pred_chars[b].append((
                         pred_ch,
                         lp,

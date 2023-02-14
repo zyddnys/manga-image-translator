@@ -489,7 +489,7 @@ def put_text_horizontal(font_size: int, mag_ratio: float, text: str, width: int,
 
     # calc
     line_text_list, line_width_list = calc_horizontal(font_size, text, width)
-    print(line_text_list, line_width_list)
+    # print(line_text_list, line_width_list)
 
     # make large canvas
     canvas_w = max(line_width_list) + (font_size + bg_size) * 2

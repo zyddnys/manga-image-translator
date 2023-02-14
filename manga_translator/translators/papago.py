@@ -8,7 +8,7 @@ import time
 import requests
 import re
 
-from .common import CommonTranslator
+from .common import CommonTranslator, InvalidServerResponse
 
 class PapagoTranslator(CommonTranslator):
     _LANGUAGE_CODE_MAP = {
@@ -34,9 +34,8 @@ class PapagoTranslator(CommonTranslator):
         data['target'] = to_lang
         data['text'] = '\n'.join(queries)
         result = await self._do_request(data, self._version_key)
-        if "translatedText" not in result :
-            print(' -- Error translating using Papago')
-            print(result)
+        if "translatedText" not in result:
+            raise InvalidServerResponse('Papago returned invalid response: ' + result + '\nAre the API keys set correctly?')
         result_list = [str.strip() for str in result["translatedText"].split("\n")]
         return result_list
 

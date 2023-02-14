@@ -219,6 +219,7 @@ class MangaTranslator():
             await self._report_progress('error-translating', True)
             return None
 
+        await self._report_progress('rendering')
         output = await self._run_text_rendering(params.renderer, img_inpainted, text_regions, params.text_mag_ratio, params.direction,
                                                 params.font_path, params.font_size_offset, img_rgb)
 
@@ -238,13 +239,13 @@ class MangaTranslator():
 
     def _add_logger_hook(self):
         LOG_MESSAGES = {
-            'upscaling':            'Running upscaling',
-            'detection':            'Running text detection',
-            'ocr':                  'Running OCR',
-            'mask-generation':      'Running mask refinement',
-            'translating':          'Translating',
-            'render':               'Rendering translated text',
-            'saved':                'Saving results',
+            'upscaling':            ' -- Running upscaling',
+            'detection':            ' -- Running text detection',
+            'ocr':                  ' -- Running OCR',
+            'mask-generation':      ' -- Running mask refinement',
+            'translating':          ' -- Translating',
+            'rendering':            ' -- Rendering translated text',
+            'saved':                ' -- Saving results',
         }
         LOG_MESSAGES_SKIP = {
             'no-regions':           'No text regions! - Skipping',

@@ -17,6 +17,7 @@ import torch
 import shutil
 import filecmp
 import einops
+import logging
 
 try:
       functools.cached_property
@@ -154,7 +155,12 @@ MODULE_PATH = '/'.join(os.path.dirname(os.path.realpath(__file__)).replace('\\',
 # BASE_PATH = os.path.join(MODULE_PATH, '..')
 BASE_PATH = '/'.join(MODULE_PATH.replace('\\', '/').split('/')[:-1])
 
-# class InfererModule(ABC):
+class InfererModule(ABC):
+    def __init__(self):
+        self.logger = logging.getLogger(self.__class__.__name__)
+        super().__init__()
+
+# class InfererModuleManager(ABC):
 #     _KEY = ''
 #     _VARIANTS = []
 
@@ -173,10 +179,6 @@ BASE_PATH = '/'.join(MODULE_PATH.replace('\\', '/').split('/')[:-1])
 
 #     async def dispatch(self):
 #         ...
-
-
-# async def inferer_module(func: Callable):
-#     await func()
 
 
 class ModelVerificationException(Exception):

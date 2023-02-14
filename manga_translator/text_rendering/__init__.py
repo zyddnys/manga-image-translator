@@ -2,6 +2,7 @@ from typing import List
 import numpy as np
 import cv2
 import os
+import logging
 
 from . import text_render
 from .text_render_eng import render_textblock_list_eng
@@ -28,6 +29,8 @@ LANGAUGE_ORIENTATION_PRESETS = {
     'TRK': 'h',
     'VIN': 'h',
 }
+
+logger = logging.getLogger('rendering')
 
 def parse_font_paths(path: str, default: List[str] = None) -> List[str]:
     if path:
@@ -57,7 +60,8 @@ async def dispatch(
     text_render.set_font(font_path)
 
     for region in text_regions:
-        print(f'text: {region.get_text()} \n trans: {region.translation}')
+        logger.debug(f'text: {region.get_text()}')
+        logger.debug(f' trans: {region.translation}')
         if not region.translation:
             continue
 
@@ -113,7 +117,7 @@ def render(
             continue
         break
     font_size += font_size_offset
-    print('font_size:', font_size)
+    logger.debug(f'font_size: {font_size}')
 
     # TODO: Add ballon extractor
     # bounding_rect = region.bounding_rect()
