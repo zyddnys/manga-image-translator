@@ -6,11 +6,10 @@ import cv2
 import einops
 from typing import List, Tuple
 
-from .ctd_utils import TextBlock
 from .default_utils.DBNet_resnet34 import TextDetection as TextDetectionDefault
 from .default_utils import imgproc, dbnet_utils, craft_utils
 from .common import OfflineDetector
-from ..utils import Quadrilateral, det_rearrange_forward
+from ..utils import TextBlock, Quadrilateral, det_rearrange_forward
 
 MODEL = None
 def det_batch_forward_default(batch: np.ndarray, device: str) -> Tuple[np.ndarray, np.ndarray]:

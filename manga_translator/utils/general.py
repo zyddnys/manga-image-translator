@@ -20,6 +20,9 @@ except AttributeError: # Supports Python versions below 3.8
     from backports.cached_property import cached_property
     functools.cached_property = cached_property
 
+MODULE_PATH = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+BASE_PATH = os.path.dirname(MODULE_PATH)
+
 # Adapted from argparse.Namespace
 class Context(dict):
     __getattr__ = dict.get
@@ -145,11 +148,6 @@ def prompt_yes_no(query: str, default: bool = None) -> bool:
             return default
         if inp:
             print('Error: Please answer with "y" or "n"')
-
-MODULE_PATH = '/'.join(os.path.dirname(os.path.realpath(__file__)).replace('\\', '/').split('/')[:-1])
-# BASE_PATH = os.path.join(MODULE_PATH, '..')
-BASE_PATH = '/'.join(MODULE_PATH.replace('\\', '/').split('/')[:-1])
-
 
 class AvgMeter():
     def __init__(self):

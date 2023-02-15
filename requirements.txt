@@ -28,3 +28,4 @@ websockets
 protobuf
 ctranslate2
 colorama
+pytest

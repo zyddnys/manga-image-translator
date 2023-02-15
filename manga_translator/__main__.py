@@ -40,8 +40,8 @@ if __name__ == '__main__':
         args = parser.parse_args()
         set_log_level(level=logging.DEBUG if args.verbose else logging.INFO)
         logger = get_logger(args.mode)
-        logger.debug(args)
         set_main_logger(logger)
+        logger.debug(args)
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

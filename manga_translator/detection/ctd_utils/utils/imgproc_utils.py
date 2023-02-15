@@ -196,4 +196,3 @@ def draw_connected_labels(num_labels, labels, stats, centroids, names="draw_conn
 
     cv2.imshow(names, labdraw)
     return labdraw
-

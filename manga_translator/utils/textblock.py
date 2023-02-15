@@ -1,12 +1,11 @@
 import cv2
 import numpy as np
 from typing import List, Tuple
-from functools import cached_property
 from shapely.geometry import Polygon
 import math
 import copy
 
-from . import color_difference
+from .general import color_difference
 from ..detection.ctd_utils.utils.imgproc_utils import union_area, xywh2xyxypoly, rotate_polygons
 
 LANG_LIST = ['eng', 'ja', 'unknown']
@@ -533,7 +532,7 @@ def group_output(blks, lines, im_w, im_h, mask=None, sort_blklist=True) -> List[
 
 def visualize_textblocks(canvas, blk_list: List[TextBlock]):
     lw = max(round(sum(canvas.shape) / 2 * 0.003), 2)  # line width
-    for ii, blk in enumerate(blk_list):
+    for i, blk in enumerate(blk_list):
         bx1, by1, bx2, by2 = blk.xyxy
         cv2.rectangle(canvas, (bx1, by1), (bx2, by2), (127, 255, 127), lw)
         lines = blk.lines_array(dtype=np.int32)
@@ -541,7 +540,7 @@ def visualize_textblocks(canvas, blk_list: List[TextBlock]):
             cv2.putText(canvas, str(jj), line[0], cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,127,0), 1)
             cv2.polylines(canvas, [line], True, (0,127,255), 2)
         cv2.polylines(canvas, [blk.min_rect()], True, (127,127,0), 2)
-        cv2.putText(canvas, str(ii), (bx1, by1 + lw + 2), 0, lw / 3, (255,127,127), max(lw-1, 1), cv2.LINE_AA)
+        cv2.putText(canvas, str(i), (bx1, by1 + lw), 0, lw / 3, (255,127,127), max(lw-1, 1), cv2.LINE_AA)
         center = [int((bx1 + bx2)/2), int((by1 + by2)/2)]
         cv2.putText(canvas, 'a: %.2f' % blk.angle, [bx1, center[1]], cv2.FONT_HERSHEY_SIMPLEX, 1, (127,127,255), 2)
         cv2.putText(canvas, 'x: %s' % bx1, [bx1, center[1] + 30], cv2.FONT_HERSHEY_SIMPLEX, 1, (127,127,255), 2)

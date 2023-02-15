@@ -5,8 +5,7 @@ import cv2
 import os
 
 from .textline_merge import dispatch as dispatch_textline_merge
-from .ctd_utils import TextBlock
-from ..utils import InfererModule, ModelWrapper, Quadrilateral
+from ..utils import InfererModule, ModelWrapper, TextBlock, Quadrilateral
 
 class CommonDetector(InfererModule):
     async def _merge_textlines(self, textlines: List[Quadrilateral], img_width: int, img_height: int, verbose: bool = False) -> List[TextBlock]:

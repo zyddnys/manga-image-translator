@@ -5,8 +5,7 @@ import cv2
 import numpy as np
 import networkx as nx
 
-from ..ctd_utils import TextBlock
-from ...utils import Quadrilateral, quadrilateral_can_merge_region_coarse, quadrilateral_can_merge_region
+from ...utils import TextBlock, Quadrilateral, quadrilateral_can_merge_region_coarse, quadrilateral_can_merge_region
 
 def split_text_region(bboxes: List[Quadrilateral], region_indices: Set[int], gamma = 0.5, sigma = 2, std_threshold = 5.0, verbose: bool = False) -> List[Set[int]]:
     region_indices = list(region_indices)
@@ -132,6 +131,9 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height, verbose
 
 async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verbose: bool = False) -> List[TextBlock]:
     text_regions: List[TextBlock] = []
+    # print(width, height)
+    # for l in textlines:
+    #     print(l.pts)
     for (txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines, width, height, verbose):
         total_logprobs = 0
         for txtln in txtlns:

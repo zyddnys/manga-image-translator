@@ -18,6 +18,7 @@ from .args import DEFAULT_ARGS
 from .utils import (
     BASE_PATH,
     MODULE_PATH,
+    TextBlock,
     Context,
     load_image,
     dump_image,
@@ -26,7 +27,6 @@ from .utils import (
 )
 
 from .detection import dispatch as dispatch_detection, prepare as prepare_detection
-from .detection.ctd_utils import TextBlock
 from .upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
 from .ocr import dispatch as dispatch_ocr, prepare as prepare_ocr
 from .mask_refinement import dispatch as dispatch_mask_refinement
@@ -189,7 +189,7 @@ class MangaTranslator():
                                                                  params.box_threshold, params.unclip_ratio, params.det_rearrange_max_batches)
         if self.verbose:
             cv2.imwrite(self._result_path('mask_raw.png'), mask_raw)
-            bboxes = visualize_textblocks(cv2.cvtColor(img_rgb,cv2.COLOR_BGR2RGB), text_regions)
+            bboxes = visualize_textblocks(cv2.cvtColor(img_rgb, cv2.COLOR_BGR2RGB), text_regions)
             cv2.imwrite(self._result_path('bboxes.png'), bboxes)
 
         if not text_regions:

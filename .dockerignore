@@ -6,3 +6,4 @@ result
 __pycache__
 ocrs
 models/*
+test/testdata/bboxes
