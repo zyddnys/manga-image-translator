@@ -254,6 +254,9 @@ class BBox(object):
         return tl, tr, br, bl
 
 class Quadrilateral(object):
+    """
+    Helper for storing textlines that contains various helper functions.
+    """
     def __init__(self, pts: np.ndarray, text: str, prob: float, fg_r: int = 0, fg_g: int = 0, fg_b: int = 0, bg_r: int = 0, bg_g: int = 0, bg_b: int = 0):
         self.pts = pts
         self.text = text
@@ -447,7 +450,7 @@ class Quadrilateral(object):
                 tuple(self.structure[0]),
                 tuple(self.structure[1]),
                 tuple(other.structure[0]),
-                tuple(other.structure[1])
+                tuple(other.structure[1]),
             ]).convex_hull
             dist1 = poly1.area / fs
             dist2 = poly2.area / fs

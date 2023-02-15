@@ -12,6 +12,9 @@ LANG_LIST = ['eng', 'ja', 'unknown']
 LANGCLS2IDX = {'eng': 0, 'ja': 1, 'unknown': 2}
 
 class TextBlock(object):
+    """
+    Object that stores a block of text made up of textlines.
+    """
     def __init__(self, xyxy: List,
                  lines: List = None,
                  language: str = 'unknown',
