@@ -23,4 +23,6 @@ COPY . /app
 # Prepare models
 RUN python -u docker_prepare.py
 
+RUN rm -rf /tmp
+
 ENTRYPOINT ["python", "-m", "/app/manga_translator"]
