@@ -13,7 +13,7 @@ def path(string):
     s = os.path.expanduser(string)
     if not os.path.exists(s):
         raise argparse.ArgumentTypeError(f'No such file or directory: "{string}"')
-    return string
+    return s
 
 def file_path(string):
     if not string:
