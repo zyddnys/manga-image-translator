@@ -31,7 +31,7 @@ def dir_path(string):
         raise argparse.ArgumentTypeError(f'No such directory: "{string}"')
     return s
 
-parser = argparse.ArgumentParser(description='Seamlessly translate mangas into a chosen language')
+parser = argparse.ArgumentParser(prog='manga_translator', description='Seamlessly translate mangas into a chosen language')
 parser.add_argument('-m', '--mode', default='demo', type=str, choices=['demo', 'batch', 'web', 'web2', 'ws'], help='Run demo in either single image demo mode (demo), web service mode (web) or batch translation mode (batch)')
 parser.add_argument('-i', '--input', default='', type=path, help='Path to an image file if using demo mode, or path to an image folder if using batch mode')
 parser.add_argument('-o', '--dest', default='', type=str, help='Path to the destination folder for translated images in batch mode')
