@@ -469,7 +469,7 @@ def put_char_horizontal(font_size: int, cdpt: str, pen_l: Tuple[int, int], canva
     #print(pen_l, pen, slot.metrics.vertBearingX >> 6, bitmap.width)
     #border
     if border_size > 0:
-        pen_border = (pen[0] - border_size, pen[1] - border_size)
+        pen_border = (max(pen[0] - border_size, 0), max(pen[1] - border_size, 0))
         #slot_border = 
         glyph_border = get_char_border(cdpt, font_size, 1)
         stroker = freetype.Stroker()

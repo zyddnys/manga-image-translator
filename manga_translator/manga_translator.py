@@ -67,7 +67,7 @@ class MangaTranslator():
 
     async def translate_path(self, path: str, dest: str = None, params: dict = None):
         """
-        Translates an image on the specified path.
+        Translates an image or folder (recursively) specified through the path.
         """
         path = os.path.expanduser(path)
         if not os.path.exists(path):
