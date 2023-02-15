@@ -1,14 +1,12 @@
-if __name__ == '__main__':
-    import sys, os
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
-
-import numpy as np
+import os
 import cv2
+import numpy as np
 import unicodedata
 import freetype
-from typing import Tuple, Optional
 import functools
-from typing import List
+from typing import Tuple, Optional, List
+
+from ..utils import BASE_PATH
 
 def _is_whitespace(ch):
     """Checks whether `chars` is a whitespace character."""
@@ -181,9 +179,9 @@ def add_color(bw_char_map, color, stroke_char_map, stroke_color):
     return bg#, alpha_char_map
 
 FALLBACK_FONTS = [
-    'fonts/Arial-Unicode-Regular.ttf',
-    'fonts/msyh.ttc',
-    'fonts/msgothic.ttc',
+    os.path.join(BASE_PATH, 'fonts/Arial-Unicode-Regular.ttf'),
+    os.path.join(BASE_PATH, 'fonts/msyh.ttc'),
+    os.path.join(BASE_PATH, 'fonts/msgothic.ttc'),
 ]
 FONT_SELECTION: List[freetype.Face] = []
 font_cache = {}

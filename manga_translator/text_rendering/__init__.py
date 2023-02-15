@@ -6,7 +6,13 @@ import os
 from . import text_render
 from .text_render_eng import render_textblock_list_eng
 # from .ballon_extractor import extract_ballon_region
-from ..utils import TextBlock, findNextPowerOf2, color_difference, get_logger
+from ..utils import (
+    BASE_PATH,
+    TextBlock,
+    findNextPowerOf2,
+    color_difference,
+    get_logger,
+)
 
 LANGAUGE_ORIENTATION_PRESETS = {
     'CHS': 'auto',
@@ -185,7 +191,7 @@ async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, 
         return img_canvas
 
     if not font_path:
-        font_path = 'fonts/comic shanns 2.ttf'
+        font_path = os.path.join(BASE_PATH, 'fonts/comic shanns 2.ttf')
     text_render.set_font(font_path)
 
     return render_textblock_list_eng(img_canvas, text_regions, size_tol=1.2, original_img=original_img, downscale_constraint=0.8)
