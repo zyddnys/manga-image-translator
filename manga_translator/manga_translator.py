@@ -261,7 +261,7 @@ class MangaTranslator():
         }
         LOG_MESSAGES_ERROR = {
             'error-translating':    'Text translator returned empty queries',
-            'error-lang':           'Target language not supported by chosen translator',
+            # 'error-lang':           'Target language not supported by chosen translator',
         }
         async def ph(state, finished):
             if state in LOG_MESSAGES:
