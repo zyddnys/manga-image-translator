@@ -146,10 +146,14 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height):
         yield txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
 
 async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verbose: bool = False) -> List[TextBlock]:
-    text_regions: List[TextBlock] = []
     # print(width, height)
+    # import re
     # for l in textlines:
-    #     print(l.pts)
+    #     s = str(l.pts)
+    #     s = re.sub(r'([\d\]]) ', r'\1, ', s.replace('\n ', ', ')).replace(']]', ']],')
+    #     print(s)
+
+    text_regions: List[TextBlock] = []
     for (txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines, width, height):
         total_logprobs = 0
         for txtln in txtlns:
