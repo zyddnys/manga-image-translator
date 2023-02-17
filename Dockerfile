@@ -25,4 +25,6 @@ RUN python -u docker_prepare.py
 
 RUN rm -rf /tmp
 
-ENTRYPOINT ["python", "-m", "/app/manga_translator"]
+WORKDIR /app
+
+ENTRYPOINT ["python", "-m", "manga_translator"]
