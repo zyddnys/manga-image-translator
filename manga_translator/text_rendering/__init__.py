@@ -5,10 +5,14 @@ import os
 
 from . import text_render
 from .text_render_eng import render_textblock_list_eng
-from .ballon_extractor import extract_ballon_region
-from ..utils import findNextPowerOf2, color_difference
-from ..detection.ctd_utils import TextBlock
-
+# from .ballon_extractor import extract_ballon_region
+from ..utils import (
+    BASE_PATH,
+    TextBlock,
+    findNextPowerOf2,
+    color_difference,
+    get_logger,
+)
 
 LANGAUGE_ORIENTATION_PRESETS = {
     'CHS': 'auto',
@@ -30,6 +34,8 @@ LANGAUGE_ORIENTATION_PRESETS = {
     'TRK': 'h',
     'VIN': 'h',
 }
+
+logger = get_logger('rendering')
 
 def parse_font_paths(path: str, default: List[str] = None) -> List[str]:
     if path:
@@ -59,7 +65,8 @@ async def dispatch(
     text_render.set_font(font_path)
 
     for region in text_regions:
-        print(f'text: {region.get_text()} \n trans: {region.translation}')
+        logger.info(f'text: {region.get_text()}')
+        logger.info(f' trans: {region.translation}')
         if not region.translation:
             continue
 
@@ -115,7 +122,7 @@ def render(
             continue
         break
     font_size += font_size_offset
-    print('font_size:', font_size)
+    logger.debug(f'font_size: {font_size}')
 
     # TODO: Add ballon extractor
     # bounding_rect = region.bounding_rect()
@@ -184,7 +191,7 @@ async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, 
         return img_canvas
 
     if not font_path:
-        font_path = 'fonts/comic shanns 2.ttf'
+        font_path = os.path.join(BASE_PATH, 'fonts/comic shanns 2.ttf')
     text_render.set_font(font_path)
 
     return render_textblock_list_eng(img_canvas, text_regions, size_tol=1.2, original_img=original_img, downscale_constraint=0.8)

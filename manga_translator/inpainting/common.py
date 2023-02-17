@@ -1,10 +1,10 @@
 import os
 import numpy as np
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
-from ..utils import ModelWrapper
+from ..utils import InfererModule, ModelWrapper
 
-class CommonInpainter(ABC):
+class CommonInpainter(InfererModule):
 
     async def inpaint(self, image: np.ndarray, mask: np.ndarray, inpainting_size: int = 1024, verbose: bool = False) -> np.ndarray:
         return await self._inpaint(image, mask, inpainting_size, verbose)

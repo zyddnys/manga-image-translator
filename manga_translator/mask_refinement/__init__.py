@@ -3,9 +3,8 @@ import cv2
 import numpy as np
 # from functools import reduce
 
-from ..utils import Quadrilateral
-from ..detection.ctd_utils import TextBlock
 from .text_mask_utils import complete_mask_fill, filter_masks, complete_mask
+from ..utils import TextBlock, Quadrilateral
 
 async def dispatch(text_regions: List[TextBlock], raw_image: np.ndarray, raw_mask: np.ndarray, method: str = 'fit_text', verbose: bool = False) -> np.ndarray:
     img_resized = cv2.resize(raw_image, (raw_image.shape[1] // 2, raw_image.shape[0] // 2), interpolation = cv2.INTER_LINEAR)

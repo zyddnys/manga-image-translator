@@ -10,3 +10,4 @@ Manga-translated
 models
 .env
 .env.local
+test/testdata/bboxes

@@ -212,7 +212,15 @@
         progress: null,
         status: null,
         queuePos: null,
+        cachedStatusText: '',
         get statusText() {
+          var newStatusText = this._statusText
+          if (newStatusText != null && newStatusText != this.cachedStatusText) {
+            this.cachedStatusText = newStatusText
+          }
+          return this.cachedStatusText
+        },
+        get _statusText() {
           switch (this.status) {
             case 'upload': {
               if (this.progress) {
@@ -246,7 +254,7 @@
               return 'Running upscaling'
             case 'translating':
               return 'Translating'
-            case 'render':
+            case 'rendering':
               return 'Rendering translated texts'
             case 'error':
               return 'Something went wrong, please try again'
@@ -322,10 +330,10 @@
                 this.status = 'error-disconnect'
                 break
               }
-              const { state, finished, qPos } = res
-              // console.log(state, finished, qPos)
+              const { state, finished, waiting } = res
+              // console.log(state, finished, waiting)
 
-              if (finished) {
+              if (finished && !state.startsWith('error')) {
                 this.progress = null
                 this.status = 'download'
 
@@ -345,7 +353,7 @@
               }
 
               this.status = state
-              this.queuePos = qPos
+              this.queuePos = waiting
 
               if (/^error/.test(state)) {
                 break

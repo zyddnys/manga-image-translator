@@ -67,7 +67,7 @@ class NLLBTranslator(OfflineTranslator):
             target_lang = self._map_detected_lang_to_translator(detected_lang)
 
             if target_lang == None:
-                print('Warning: Could not detect language from over all scentence. Will try per sentence.')
+                self.logger.warn('Could not detect language from over all sentence. Will try per sentence.')
             else:
                 from_lang = target_lang
 
@@ -84,7 +84,7 @@ class NLLBTranslator(OfflineTranslator):
             from_lang = self._map_detected_lang_to_translator(detected_lang)
 
         if from_lang == None:
-            print(f'Warning: NLLB Translation Failed. Could not detect language (Or language not supported for text: {query})')
+            self.logger.warn(f'NLLB Translation Failed. Could not detect language (Or language not supported for text: {query})')
             return ''
 
         translator = pipeline('translation', 
@@ -108,13 +108,9 @@ class NLLBTranslator(OfflineTranslator):
         return ISO_639_1_TO_FLORES_200[lang]
 
     async def _download(self):
-        # Preload models into cache as part of startup
-        print(f'Detected offline translation mode. Pre-loading offline translation model: {self._TRANSLATOR_MODEL} ' +
-              f'(This can take a long time as multiple GB\'s worth of data can be downloaded during this step)')
         huggingface_hub.snapshot_download(self._TRANSLATOR_MODEL)
 
     def _check_downloaded(self) -> bool:
-        print(f'Detected cached model for offline translation: {self._TRANSLATOR_MODEL}')
         return huggingface_hub.try_to_load_from_cache(self._TRANSLATOR_MODEL, 'pytorch_model.bin') is not None
 
 class NLLBBigTranslator(NLLBTranslator):

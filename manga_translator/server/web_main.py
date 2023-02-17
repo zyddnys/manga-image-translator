@@ -35,9 +35,10 @@ VALID_LANGUAGES = {
 }
 VALID_DETECTORS = set(['default', 'ctd'])
 VALID_DIRECTIONS = set(['auto', 'h', 'v'])
+VALID_TRANSLATORS = set(['youdao', 'baidu', 'google', 'deepl', 'papago', 'offline', 'none', 'original'])
 
 MAX_NUM_TASKS = 1
-MAX_IMAGE_SIZE = 8000**2 # px
+MAX_IMAGE_SIZE_PX = 8000**2
 
 NUM_ONGOING_TASKS = 0
 NONCE = ''
@@ -87,7 +88,7 @@ async def queue_size_async(request):
 
 async def handle_post(request):
     data = await request.post()
-    size = None
+    detection_size = None
     selected_translator = 'youdao'
     target_language = 'CHS'
     detector = 'default'
@@ -107,18 +108,18 @@ async def handle_post(request):
             direction = 'auto'
     if 'translator' in data:
         selected_translator = data['translator'].lower()
-        if selected_translator not in ['youdao', 'baidu', 'google', 'deepl', 'papago', 'offline', 'none', 'original']:
+        if selected_translator not in VALID_TRANSLATORS:
             selected_translator = 'youdao'
     if 'size' in data:
         size_text = data['size'].upper()
         if size_text == 'S':
-            size = 1024
+            detection_size = 1024
         elif size_text == 'M':
-            size = 1536
+            detection_size = 1536
         elif size_text == 'L':
-            size = 2048
+            detection_size = 2048
         elif size_text == 'X':
-            size = 2560
+            detection_size = 2560
     if 'file' in data:
         file_field = data['file']
         content = file_field.file.read()
@@ -136,11 +137,11 @@ async def handle_post(request):
         img = Image.open(io.BytesIO(content))
         img.verify()
         img = Image.open(io.BytesIO(content))
-        if img.width * img.height > MAX_IMAGE_SIZE:
+        if img.width * img.height > MAX_IMAGE_SIZE_PX:
             return web.json_response({'status': 'error-too-large'})
     except Exception:
         return web.json_response({'status': 'error-img-corrupt'})
-    return img, size, selected_translator, target_language, detector, direction
+    return img, detection_size, selected_translator, target_language, detector, direction
 
 @routes.post("/run")
 async def run_async(request):
@@ -163,7 +164,7 @@ async def run_async(request):
         img.save(f'result/{task_id}/input.png')
         QUEUE.append(task_id)
         TASK_DATA[task_id] = {
-            'size': size,
+            'detection_size': size,
             'translator': selected_translator,
             'target_lang': target_language,
             'detector': detector,
@@ -186,6 +187,9 @@ async def run_async(request):
 
 @routes.get("/task-internal")
 async def get_task_async(request):
+    """
+    Called by the translator to get a translation task.
+    """
     global NONCE, NUM_ONGOING_TASKS
     if constant_compare(request.rel_url.query.get('nonce'), NONCE):
         if len(QUEUE) > 0 and NUM_ONGOING_TASKS < MAX_NUM_TASKS:
@@ -279,37 +283,42 @@ async def get_translation_internal(request):
 
 @routes.get("/task-state")
 async def get_task_state_async(request):
+    """
+    Web API for getting the state of an on-going translation task from the website.
+
+    Is periodically called from ui.html. Once it returns a finished state,
+    the web client will try to fetch the corresponding image through /result/<task_id>
+    """
     task_id = request.query.get('taskid')
     if task_id and task_id in TASK_STATES and task_id in TASK_DATA:
         state = TASK_STATES[task_id]
+        res_dict = {
+            'state': state['info'],
+            'finished': state['finished'],
+        }
         try:
-            ret = web.json_response({
-                'state': state['info'],
-                'finished': state['finished'],
-                'waiting': QUEUE.index(task_id) + 1,
-            })
+            res_dict['waiting'] = QUEUE.index(task_id) + 1
         except Exception:
-            ret = web.json_response({
-                'state': state['info'],
-                'finished': state['finished'],
-                'waiting': 0,
-            })
+            res_dict['waiting'] = 0
+        res = web.json_response(res_dict)
+
+        # remove old tasks
         now = time.time()
         to_del_task_ids = set()
         for tid, s in TASK_STATES.items():
             if s['finished'] and now - TASK_DATA[tid]['created_at'] > 1800:
-                # remove old tasks
                 to_del_task_ids.add(tid)
         for tid in to_del_task_ids:
             del TASK_STATES[tid]
             del TASK_DATA[tid]
-        return ret
+
+        return res
     return web.json_response({'state': 'error'})
 
 @routes.post("/task-update-internal")
 async def post_task_update_async(request):
     """
-    Lets translator client update task state.
+    Lets the translator update the task state it is working on.
     """
     global NONCE, NUM_ONGOING_TASKS
     rqjson = (await request.json())
@@ -339,9 +348,16 @@ async def submit_async(request):
             'info': 'saved',
             'finished': True,
         }
-        TASK_DATA[task_id] = {'size': size, 'translator': selected_translator, 'tgt': target_language, 'detector': detector, 'direction': direction, 'created_at': time.time()}
+        TASK_DATA[task_id] = {
+            'detection_size': size,
+            'translator': selected_translator,
+            'target_lang': target_language,
+            'detector': detector,
+            'direction': direction,
+            'created_at': time.time(),
+        }
     # elif os.path.exists(f'result/{task_id}'):
-    #     # either image is being processed or error occurred 
+    #     # either image is being processed or error occurred
     #     if task_id not in TASK_STATES:
     #         # error occurred
     #         return web.json_response({'state': 'error'})
@@ -349,12 +365,19 @@ async def submit_async(request):
         os.makedirs(f'result/{task_id}/', exist_ok=True)
         img.save(f'result/{task_id}/input.png')
         QUEUE.append(task_id)
-        TASK_DATA[task_id] = {'size': size, 'translator': selected_translator, 'tgt': target_language, 'detector': detector, 'direction': direction, 'created_at': time.time()}
         TASK_STATES[task_id] = {
             'info': 'pending',
             'finished': False,
         }
-    return web.json_response({'task_id' : task_id, 'status': 'successful'})
+        TASK_DATA[task_id] = {
+            'detection_size': size,
+            'translator': selected_translator,
+            'target_lang': target_language,
+            'detector': detector,
+            'direction': direction,
+            'created_at': time.time(),
+        }
+    return web.json_response({'task_id': task_id, 'status': 'successful'})
 
 @routes.post("/manual-translate")
 async def manual_translate_async(request):
@@ -368,7 +391,13 @@ async def manual_translate_async(request):
     os.makedirs(f'result/{task_id}/', exist_ok=True)
     img.save(f'result/{task_id}/input.png')
     QUEUE.append(task_id)
-    TASK_DATA[task_id] = {'size': size, 'manual': True, 'detector': detector, 'direction': direction, 'created_at': time.time()}
+    TASK_DATA[task_id] = {
+        'detection_size': size,
+        'manual': True,
+        'detector': detector,
+        'direction': direction,
+        'created_at': time.time()
+    }
     TASK_STATES[task_id] = {
         'info': 'pending',
         'finished': False,
@@ -377,7 +406,7 @@ async def manual_translate_async(request):
         await asyncio.sleep(1)
         if 'trans_request' in TASK_DATA[task_id]:
             return web.json_response({'task_id' : task_id, 'status': 'pending', 'trans_result': TASK_DATA[task_id]['trans_request']})
-        if TASK_STATES[task_id].state.startswith('error'):
+        if TASK_STATES[task_id]['info'].startswith('error'):
             break
         if TASK_STATES[task_id]['finished']:
             # no texts detected
@@ -412,4 +441,3 @@ if __name__ == '__main__':
         loop.run_forever()
     except KeyboardInterrupt:
         loop.run_until_complete(runner.cleanup())
-

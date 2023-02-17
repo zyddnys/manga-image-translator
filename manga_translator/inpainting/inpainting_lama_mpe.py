@@ -63,8 +63,7 @@ class LamaMPEInpainter(OfflineInpainter):
         if new_h != h or new_w != w:
             image = cv2.resize(image, (new_w, new_h), interpolation = cv2.INTER_LINEAR)
             mask = cv2.resize(mask, (new_w, new_h), interpolation = cv2.INTER_LINEAR)
-        if verbose:
-            print(f'Inpainting resolution: {new_w}x{new_h}')
+        self.logger.info(f'Inpainting resolution: {new_w}x{new_h}')
         if isinstance(self.model, LamaFourier):
             img_torch = torch.from_numpy(image).permute(2, 0, 1).unsqueeze_(0).float() / 255.
         else:

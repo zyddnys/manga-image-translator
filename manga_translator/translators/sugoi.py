@@ -144,11 +144,11 @@ class SugoiTranslator(JparacrawlBigTranslator):
     """
     _CT2_MODEL_FOLDERS = {
         'ja-en': 'sugoi/big-ja-en',
-        'en-ja': 'jparacrawl/base-en-ja',
+        'en-ja': 'jparacrawl/big-en-ja',
     }
     _MODEL_MAPPING = {
         **JparacrawlBigTranslator._MODEL_MAPPING,
-        'models': {
+        'models-sugoi': {
             'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/sugoi-models.zip',
             'hash': '67e060a62dc16211157a5eaa4fa8f72c86db5999fc69322606a6fcdf57f587f7',
             'archive': {
@@ -159,13 +159,43 @@ class SugoiTranslator(JparacrawlBigTranslator):
         },
     }
 
+    def __init__(self):
+        self.query_splits = []
+        super().__init__()
+
+    async def _load(self, from_lang: str, to_lang: str, device: str):
+        await super()._load(from_lang, to_lang, device)
+        self.sentence_piece_processors['en-sugoi'] = spm.SentencePieceProcessor(model_file=self._get_file_path('sugoi/spm.en.nopretok.model'))
+        self.sentence_piece_processors['ja-sugoi'] = spm.SentencePieceProcessor(model_file=self._get_file_path('sugoi/spm.ja.nopretok.model'))
+
     def tokenize(self, queries, lang):
         if lang == 'ja':
-            queries = [q.replace('.', '@') for q in queries]
+            lang = 'ja-sugoi'
+            new_queries = []
+            self.query_splits = []
+            for q in queries:
+                # Split sentences into their own queries to prevent abbreviations
+                # regex will split by 。groups instead of putting them all in their own array.
+                sentences = re.split(r'(?:[^。]|^)[。.]+(?:[^。]|$)', q.replace('.', '@'))
+                sentences = list(filter(lambda x: x, sentences))
+                self.query_splits.append(len(sentences))
+                new_queries.extend([s + '。' for s in sentences])
+            queries = new_queries
         return super().tokenize(queries, lang)
 
     def detokenize(self, queries, lang):
-        res = super().detokenize(queries, lang)
         if lang == 'en':
-            res = [q.replace('@', '.').replace('▁', ' ').replace('<unk>', '') for q in res]
-        return res
+            lang = 'en-sugoi'
+        translations = super().detokenize(queries, lang)
+        if lang == 'en-sugoi':
+            new_translations = []
+            i = 0
+            for query_count in self.query_splits:
+                sentences = ''
+                for sentence in translations[i:i+query_count]:
+                    sentences += sentence + ('. ' if not sentence.endswith('.') else ' ')
+                sentences = sentences.replace('@', '.').replace('▁', ' ').replace('<unk>', '')
+                i += query_count
+                new_translations.append(sentences)
+            translations = new_translations
+        return translations

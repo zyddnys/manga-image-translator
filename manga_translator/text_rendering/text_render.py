@@ -1,14 +1,12 @@
-if __name__ == '__main__':
-    import sys, os
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
-
-import numpy as np
+import os
 import cv2
+import numpy as np
 import unicodedata
 import freetype
-from typing import Tuple, Optional
 import functools
-from typing import List
+from typing import Tuple, Optional, List
+
+from ..utils import BASE_PATH
 
 def _is_whitespace(ch):
     """Checks whether `chars` is a whitespace character."""
@@ -181,9 +179,9 @@ def add_color(bw_char_map, color, stroke_char_map, stroke_color):
     return bg#, alpha_char_map
 
 FALLBACK_FONTS = [
-    'fonts/Arial-Unicode-Regular.ttf',
-    'fonts/msyh.ttc',
-    'fonts/msgothic.ttc',
+    os.path.join(BASE_PATH, 'fonts/Arial-Unicode-Regular.ttf'),
+    os.path.join(BASE_PATH, 'fonts/msyh.ttc'),
+    os.path.join(BASE_PATH, 'fonts/msgothic.ttc'),
 ]
 FONT_SELECTION: List[freetype.Face] = []
 font_cache = {}
@@ -469,7 +467,7 @@ def put_char_horizontal(font_size: int, cdpt: str, pen_l: Tuple[int, int], canva
     #print(pen_l, pen, slot.metrics.vertBearingX >> 6, bitmap.width)
     #border
     if border_size > 0:
-        pen_border = (pen[0] - border_size, pen[1] - border_size)
+        pen_border = (max(pen[0] - border_size, 0), max(pen[1] - border_size, 0))
         #slot_border = 
         glyph_border = get_char_border(cdpt, font_size, 1)
         stroker = freetype.Stroker()
@@ -489,7 +487,7 @@ def put_text_horizontal(font_size: int, mag_ratio: float, text: str, width: int,
 
     # calc
     line_text_list, line_width_list = calc_horizontal(font_size, text, width)
-    print(line_text_list, line_width_list)
+    # print(line_text_list, line_width_list)
 
     # make large canvas
     canvas_w = max(line_width_list) + (font_size + bg_size) * 2

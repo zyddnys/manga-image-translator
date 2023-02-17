@@ -5,7 +5,7 @@ import hashlib
 import urllib.parse
 import random
 
-from .common import CommonTranslator
+from .common import CommonTranslator, InvalidServerResponse
 from .keys import BAIDU_APP_ID, BAIDU_SECRET_KEY
 
 # base api url
@@ -46,9 +46,8 @@ class BaiduTranslator(CommonTranslator):
             async with session.get('https://'+BASE_URL+url) as resp:
                 result = await resp.json()
         result_list = []
-        if "trans_result" not in result :
-            print(' -- Error translating using Baidu')
-            print(result)
+        if "trans_result" not in result:
+            raise InvalidServerResponse('Baidu returned invalid response: ' + result + '\nAre the API keys set correctly?')
         for ret in result["trans_result"]:
             for v in ret["dst"].split('\n'):
                 result_list.append(v)

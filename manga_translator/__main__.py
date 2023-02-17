@@ -1,22 +1,23 @@
 import asyncio
 import os
+import logging
 from argparse import Namespace
 
-from .manga_translator import MangaTranslator, MangaTranslatorWeb, MangaTranslatorWS
+from .manga_translator import MangaTranslator, MangaTranslatorWeb, MangaTranslatorWS, set_main_logger
 from .args import parser
-from .utils import BASE_PATH
-
+from .utils import BASE_PATH, get_logger, set_log_level
 
 async def dispatch(args: Namespace):
     args_dict = vars(args)
 
-    print(f'Running in {args.mode} mode')
+    logger.info(f'Running in {args.mode} mode')
 
-    # TODO: rename batch mode to normal? mode
     if args.mode in ('demo', 'batch'):
         if not args.input:
             raise Exception('No input image was supplied. Use -i <image_path>')
         if args.mode == 'demo':
+            if not os.path.isfile(args.input):
+                raise FileNotFoundError(f'Invalid image file path for demo mode: "{args.input}"')
             dest = os.path.join(BASE_PATH, 'result/final.png')
         else:
             dest = args.dest
@@ -34,12 +35,19 @@ async def dispatch(args: Namespace):
         await translator.listen(args_dict)
 
 if __name__ == '__main__':
+    args = None
     try:
         args = parser.parse_args()
-        if args.verbose:
-            print(args)
+        set_log_level(level=logging.DEBUG if args.verbose else logging.INFO)
+        logger = get_logger(args.mode)
+        set_main_logger(logger)
+        logger.debug(args)
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(dispatch(args))
     except KeyboardInterrupt:
         print()
+    except Exception as e:
+        logger.error(f'{e.__class__.__name__}: {e}',
+                     exc_info=e if args and args.verbose else None)

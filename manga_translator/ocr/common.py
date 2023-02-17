@@ -1,15 +1,14 @@
 import os
 import numpy as np
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import List, Union
 from collections import Counter
 import networkx as nx
 import itertools
 
-from ..utils import ModelWrapper, Quadrilateral
-from ..detection.ctd_utils import TextBlock
+from ..utils import InfererModule, TextBlock, ModelWrapper, Quadrilateral
 
-class CommonOCR(ABC):
+class CommonOCR(InfererModule):
     def generate_text_direction(self, bboxes: List[Union[Quadrilateral, TextBlock]]):
         if len(bboxes) > 0:
             if isinstance(bboxes[0], TextBlock):

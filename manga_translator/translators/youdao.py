@@ -6,7 +6,7 @@ import time
 import aiohttp
 import time
 
-from .common import CommonTranslator
+from .common import CommonTranslator, InvalidServerResponse
 from .keys import YOUDAO_APP_KEY, YOUDAO_SECRET_KEY
 
 def sha256_encode(signStr):
@@ -60,9 +60,8 @@ class YoudaoTranslator(CommonTranslator):
 
         result = await self._do_request(data)
         result_list = []
-        if "translation" not in result :
-            print(' -- Error translating using Youdao')
-            print(result)
+        if "translation" not in result:
+            raise InvalidServerResponse('Youdao returned invalid response: ' + result + '\nAre the API keys set correctly?')
         for ret in result["translation"]:
             result_list.extend(ret.split('\n'))
         return result_list

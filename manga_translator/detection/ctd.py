@@ -6,14 +6,13 @@ from typing import List, Union, Tuple
 import cv2
 import torch
 
-from .ctd_utils.textblock import TextBlock, group_output
 from .ctd_utils.basemodel import TextDetBase, TextDetBaseDNN
 from .ctd_utils.utils.yolov5_utils import non_max_suppression
 from .ctd_utils.utils.db_utils import SegDetectorRepresenter
 from .ctd_utils.utils.imgproc_utils import letterbox
 from .ctd_utils.textmask import refine_mask, refine_undetected_mask, REFINEMASK_INPAINT
 from .common import OfflineDetector
-from ..utils import det_rearrange_forward
+from ..utils import TextBlock, group_output, det_rearrange_forward
 
 def preprocess_img(img, input_size=(1024, 1024), device='cpu', bgr2rgb=True, half=False, to_tensor=True):
     if bgr2rgb:
