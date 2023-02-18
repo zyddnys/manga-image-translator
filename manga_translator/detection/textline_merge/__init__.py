@@ -133,7 +133,20 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height):
 
         # majority vote for direction
         dirs = [box.direction for box in txtlns]
-        majority_dir = Counter(dirs).most_common(1)[0][0]
+        majority_dir_top_2 = Counter(dirs).most_common(2)
+        if len(majority_dir_top_2) == 1 :
+            majority_dir = majority_dir_top_2[0][0]
+        elif majority_dir_top_2[0][1] == majority_dir_top_2[1][1] : # if top 2 have the same counts
+            max_aspect_ratio = -100
+            for box in txtlns :
+                if box.aspect_ratio > max_aspect_ratio :
+                    max_aspect_ratio = box.aspect_ratio
+                    majority_dir = box.direction
+                if 1.0 / box.aspect_ratio > max_aspect_ratio :
+                    max_aspect_ratio = 1.0 / box.aspect_ratio
+                    majority_dir = box.direction
+        else :
+            majority_dir = majority_dir_top_2[0][0]
 
         # sort textlines
         if majority_dir == 'h':
