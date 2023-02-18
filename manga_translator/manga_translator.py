@@ -247,13 +247,13 @@ class MangaTranslator():
 
     def _add_logger_hook(self):
         LOG_MESSAGES = {
-            'upscaling':            '-- Running upscaling',
-            'detection':            '-- Running text detection',
-            'ocr':                  '-- Running OCR',
-            'mask-generation':      '-- Running mask refinement',
-            'translating':          '-- Translating',
-            'rendering':            '-- Rendering translated text',
-            'saved':                '-- Saving results',
+            'upscaling':            'Running upscaling',
+            'detection':            'Running text detection',
+            'ocr':                  'Running OCR',
+            'mask-generation':      'Running mask refinement',
+            'translating':          'Translating',
+            'rendering':            'Rendering translated text',
+            'saved':                'Saving results',
         }
         LOG_MESSAGES_SKIP = {
             'skip-no-regions':      'No text regions! - Skipping',
@@ -347,7 +347,7 @@ class MangaTranslatorWeb(MangaTranslator):
         """
         Listens for translation tasks from web server.
         """
-        logger.info('-- Waiting for translation tasks')
+        logger.info('Waiting for translation tasks')
 
         async def sync_state(state: str, finished: bool):
             # wait for translation to be saved first (bad solution?)
@@ -379,7 +379,7 @@ class MangaTranslatorWeb(MangaTranslator):
                 continue
 
             self.result_sub_folder = self._task_id
-            logger.info(f'-- Processing task {self._task_id}')
+            logger.info(f'Processing task {self._task_id}')
             if translation_params is not None:
                 # Combine default params with params chosen by webserver
                 for p, value in translation_params.items():
@@ -460,7 +460,7 @@ class MangaTranslatorWS(MangaTranslator):
 
         async for websocket in websockets.connect(self.url, extra_headers={'x-secret': self.secret}, max_size=100_000_000):
             try:
-                logger.info('-- Connected to websocket server')
+                logger.info('Connected to websocket server')
                 async for raw in websocket:
                     msg = ws_pb2.WebSocketMessage()
                     msg.ParseFromString(raw)
@@ -489,7 +489,7 @@ class MangaTranslatorWS(MangaTranslator):
 
                         self.add_progress_hook(sync_state)
 
-                        logger.info(f'-- Processing task {self._task_id}')
+                        logger.info(f'Processing task {self._task_id}')
                         if translation_params:
                             for p, value in translation_params.items():
                                 self._params.setdefault(p, value)
@@ -504,7 +504,7 @@ class MangaTranslatorWS(MangaTranslator):
                             result.finish_task.translation_mask = img_bytes
                             await websocket.send(result.SerializeToString())
 
-                        logger.info('-- Waiting for translation tasks')
+                        logger.info('Waiting for translation tasks')
                         self._task_id = None
 
             except Exception as e:

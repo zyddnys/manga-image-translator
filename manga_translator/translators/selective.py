@@ -65,7 +65,7 @@ class SelectiveOfflineTranslator(OfflineTranslator):
 
     async def translate(self, from_lang: str, to_lang: str, queries: List[str], use_mtpe: bool) -> List[str]:
         self._real_translator = self.select_translator(from_lang, to_lang, queries)
-        print(f' -- Selected translator: {self._real_translator.__class__.__name__}')
+        print(f'Selected translator: {self._real_translator.__class__.__name__}')
 
         if self._cached_load_params:
             await self._real_translator.load(*self._cached_load_params)
