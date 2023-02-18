@@ -7,7 +7,7 @@ import os
 from oscrypto import util as crypto_utils
 import asyncio
 import torch
-from typing import List
+from typing import List, Tuple
 import subprocess
 import sys
 import time
@@ -91,7 +91,7 @@ class MangaTranslator():
                     dest = os.path.join(dest, f'{p}-translated{ext}')
             dest_root = os.path.dirname(dest)
 
-            output = await self.translate(Image.open(path), params)
+            output, _ = await self.translate(Image.open(path), params)
             if output:
                 os.makedirs(dest_root, exist_ok=True)
                 output.save(dest)
@@ -123,12 +123,12 @@ class MangaTranslator():
                     if img:
                         print()
                         logger.info(f'Processing {file_path} -> {output_dest}')
-                        output = await self.translate(img, params)
+                        output, _ = await self.translate(img, params)
                         if output:
                             output.save(output_dest)
                             await self._report_progress('saved', True)
 
-    async def translate(self, image: Image.Image, params: dict = None) -> Image.Image:
+    async def translate(self, image: Image.Image, params: dict = None) -> Tuple[Image.Image, bool]:
         """
         Translates a PIL image preferably from a manga.
         Returns None if an error occured.
@@ -194,14 +194,14 @@ class MangaTranslator():
 
         if not text_regions:
             await self._report_progress('skip-no-regions', True)
-            return image
+            return image, False
 
         await self._report_progress('ocr')
         text_regions = await self._run_ocr(params.ocr, img_rgb, text_regions)
 
         if not text_regions:
             await self._report_progress('skip-no-text', True)
-            return image
+            return image, False
     
         # Delayed mask refinement to take advantage of the region filtering done by ocr
         if mask is None:
@@ -225,15 +225,15 @@ class MangaTranslator():
 
         if not translated_sentences:
             await self._report_progress('error-translating', True)
-            return None
+            return None, False
 
         await self._report_progress('rendering')
         output = await self._run_text_rendering(params.renderer, img_inpainted, text_regions, params.text_mag_ratio, params.direction,
-                                                params.font_path, params.font_size_offset, img_rgb)
+                                                params.font_path, params.font_size_offset, img_rgb, mask = mask)
 
         await self._report_progress('finished', True)
         output_image = dump_image(output, img_alpha)
-        return output_image
+        return output_image, True
 
     def _result_path(self, path: str) -> str:
         return os.path.join(BASE_PATH, 'result', self.result_sub_folder, path)
@@ -490,13 +490,14 @@ class MangaTranslatorWS(MangaTranslator):
                         self.add_progress_hook(sync_state)
 
                         logger.info(f'-- Processing task {self._task_id}')
-                        if translation_params:
-                            for p, value in translation_params.items():
-                                self._params.setdefault(p, value)
-                        output = await self.translate(Image.open(io.BytesIO(task.source_image)), params)
+                        print(translation_params)
+                        output, has_text = await self.translate(Image.open(io.BytesIO(task.source_image)), params)
                         if output:
                             img = io.BytesIO()
+                            if not has_text :
+                                output = Image.fromarray(np.zeros((output.height, output.width, 4), dtype = np.uint8))
                             output.save(img, format='PNG')
+
                             img_bytes = img.getvalue()
 
                             result = ws_pb2.WebSocketMessage()
@@ -519,11 +520,17 @@ class MangaTranslatorWS(MangaTranslator):
         render_mask[render_mask >= 127] = 1
         render_mask = render_mask[:, :, None]
 
+
         output = await super()._run_text_rendering(key, img, text_mag_ratio, text_regions, text_direction, font_path, font_size_offset, original_img, render_mask)
+        render_mask[np.sum(img != output, axis = 2) > 0] = 1
+        if self.verbose:
+            cv2.imwrite(f'result/ws_mask.png', render_mask * 255)
 
         # only keep sections in mask
         if self.verbose:
             cv2.imwrite(f'result/ws_inmask.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGRA) * render_mask)
         output = cv2.cvtColor(output, cv2.COLOR_RGB2RGBA) * render_mask
+        if self.verbose:
+            cv2.imwrite(f'result/ws_final.png', cv2.cvtColor(output, cv2.COLOR_RGB2BGRA) * render_mask)
 
         return output
