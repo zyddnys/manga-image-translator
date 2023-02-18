@@ -51,7 +51,7 @@ def split_text_region(
     fontsize = np.mean([bboxes[idx].font_size for idx in connected_region_indices])
     distances_std = np.std(distances_sorted)
     distances_mean = np.mean(distances_sorted)
-    std_threshold = max(5.0 * fontsize / 30, 5.0)
+    std_threshold = max(5.0 * fontsize / 20, 5.0)
 
     # print(edges)
     # print(f'std: {distances_std}, mean: {distances_mean}')
@@ -59,8 +59,8 @@ def split_text_region(
 
     if (distances_sorted[0] <= distances_mean + distances_std * sigma \
             or distances_sorted[0] <= fontsize * (1 + gamma) \
-            or distances_sorted[0] - distances_sorted[1] < distances_std * sigma) \
-            and distances_std < std_threshold:
+            or distances_sorted[0] - distances_sorted[1] < distances_std * sigma \
+            ) and distances_std < std_threshold:
         return [set(connected_region_indices)]
     else:
         (split_u, split_v, _) = edges[0]
@@ -76,30 +76,30 @@ def split_text_region(
             ans.extend(split_text_region(bboxes, node_set, width, height))
         return ans
 
-def get_mini_boxes(contour):
-    bounding_box = cv2.minAreaRect(contour)
-    points = sorted(list(cv2.boxPoints(bounding_box)), key=lambda x: x[0])
+# def get_mini_boxes(contour):
+#     bounding_box = cv2.minAreaRect(contour)
+#     points = sorted(list(cv2.boxPoints(bounding_box)), key=lambda x: x[0])
 
-    index_1, index_2, index_3, index_4 = 0, 1, 2, 3
-    if points[1][1] > points[0][1]:
-        index_1 = 0
-        index_4 = 1
-    else:
-        index_1 = 1
-        index_4 = 0
-    if points[3][1] > points[2][1]:
-        index_2 = 2
-        index_3 = 3
-    else:
-        index_2 = 3
-        index_3 = 2
+#     index_1, index_2, index_3, index_4 = 0, 1, 2, 3
+#     if points[1][1] > points[0][1]:
+#         index_1 = 0
+#         index_4 = 1
+#     else:
+#         index_1 = 1
+#         index_4 = 0
+#     if points[3][1] > points[2][1]:
+#         index_2 = 2
+#         index_3 = 3
+#     else:
+#         index_2 = 3
+#         index_3 = 2
 
-    box = [points[index_1], points[index_2], points[index_3], points[index_4]]
-    box = np.array(box)
-    startidx = box.sum(axis=1).argmin()
-    box = np.roll(box, 4 - startidx, 0)
-    box = np.array(box)
-    return box
+#     box = [points[index_1], points[index_2], points[index_3], points[index_4]]
+#     box = np.array(box)
+#     startidx = box.sum(axis=1).argmin()
+#     box = np.roll(box, 4 - startidx, 0)
+#     box = np.array(box)
+#     return box
 
 def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height):
     G = nx.Graph()
@@ -146,10 +146,14 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height):
         yield txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
 
 async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verbose: bool = False) -> List[TextBlock]:
-    text_regions: List[TextBlock] = []
     # print(width, height)
+    # import re
     # for l in textlines:
-    #     print(l.pts)
+    #     s = str(l.pts)
+    #     s = re.sub(r'([\d\]]) ', r'\1, ', s.replace('\n ', ', ')).replace(']]', ']],')
+    #     print(s)
+
+    text_regions: List[TextBlock] = []
     for (txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines, width, height):
         total_logprobs = 0
         for txtln in txtlns:

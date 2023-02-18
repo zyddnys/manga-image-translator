@@ -28,7 +28,7 @@ class JparacrawlTranslator(OfflineTranslator):
     }
 
     # def _on_download_finished(self, map_key):
-    #     print(' -- Converting downloaded models to ct2 format')
+    #     print('Converting downloaded models to ct2 format')
     #     self._convert_fairseq_models_to_ct2(
     #         self._get_file_path(self._FAIRSEQ_MODEL_FILES['ja-en']),
     #         self._get_file_path('jparacrawl'),
