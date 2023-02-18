@@ -186,9 +186,7 @@ def load_image(img: Image.Image):
 
 def dump_image(img: np.ndarray, alpha_ch: Image.Image = None):
     if alpha_ch is not None:
-        if img.shape[2] == 4 :
-            img[..., 3] = np.minimum(np.array(alpha_ch).astype(np.uint8), img[..., 3])
-        else :
+        if img.shape[2] != 4 :
             img = np.concatenate([img.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
     else:
         img = img.astype(np.uint8)

@@ -490,6 +490,9 @@ class MangaTranslatorWS(MangaTranslator):
                         self.add_progress_hook(sync_state)
 
                         logger.info(f'-- Processing task {self._task_id}')
+                        if translation_params:
+                            for p, value in translation_params.items():
+                                params.setdefault(p, value)
                         output, has_text = await self.translate(Image.open(io.BytesIO(task.source_image)), params)
                         if output:
                             img = io.BytesIO()
