@@ -496,6 +496,8 @@ class MangaTranslatorWS(MangaTranslator):
                             if not has_text :
                                 output = Image.fromarray(np.zeros((output.height, output.width, 4), dtype = np.uint8))
                             output.save(img, format='PNG')
+                            if self.verbose:
+                                output.save(self._result_path('ws_final.png'))
 
                             img_bytes = img.getvalue()
 
@@ -523,13 +525,15 @@ class MangaTranslatorWS(MangaTranslator):
         output = await super()._run_text_rendering(key, img, text_mag_ratio, text_regions, text_direction, font_path, font_size_offset, original_img, render_mask)
         render_mask[np.sum(img != output, axis = 2) > 0] = 1
         if self.verbose:
-            cv2.imwrite(f'result/ws_mask.png', render_mask * 255)
+            cv2.imwrite(self._result_path('ws_render_in.png'), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+            cv2.imwrite(self._result_path('ws_render_out.png'), cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
+            cv2.imwrite(self._result_path('ws_mask.png'), render_mask * 255)
 
         # only keep sections in mask
         if self.verbose:
-            cv2.imwrite(f'result/ws_inmask.png', cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGRA) * render_mask)
+            cv2.imwrite(self._result_path('ws_inmask.png'), cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGRA) * render_mask)
         output = cv2.cvtColor(output, cv2.COLOR_RGB2RGBA) * render_mask
         if self.verbose:
-            cv2.imwrite(f'result/ws_final.png', cv2.cvtColor(output, cv2.COLOR_RGB2BGRA) * render_mask)
+            cv2.imwrite(self._result_path('ws_output.png'), cv2.cvtColor(output, cv2.COLOR_RGBA2BGRA) * render_mask)
 
         return output
