@@ -91,7 +91,7 @@ class MangaTranslator():
                     dest = os.path.join(dest, f'{p}-translated{ext}')
             dest_root = os.path.dirname(dest)
 
-            output, _ = await self.translate(Image.open(path), params)
+            output = await self.translate(Image.open(path), params)
             if output:
                 os.makedirs(dest_root, exist_ok=True)
                 output.save(dest)
@@ -123,15 +123,15 @@ class MangaTranslator():
                     if img:
                         print()
                         logger.info(f'Processing {file_path} -> {output_dest}')
-                        output, _ = await self.translate(img, params)
+                        output = await self.translate(img, params)
                         if output:
                             output.save(output_dest)
                             await self._report_progress('saved', True)
 
-    async def translate(self, image: Image.Image, params: dict = None) -> Tuple[Image.Image, bool]:
+    async def translate(self, image: Image.Image, params: dict = None) -> Image.Image:
         """
         Translates a PIL image preferably from a manga.
-        Returns None if an error occured.
+        Returns `None` if an error occured and `image` if no text was found.
         """
         # TODO: Take list of images to speed up batch processing
 
@@ -194,14 +194,14 @@ class MangaTranslator():
 
         if not text_regions:
             await self._report_progress('skip-no-regions', True)
-            return image, False
+            return image
 
         await self._report_progress('ocr')
         text_regions = await self._run_ocr(params.ocr, img_rgb, text_regions)
 
         if not text_regions:
             await self._report_progress('skip-no-text', True)
-            return image, False
+            return image
     
         # Delayed mask refinement to take advantage of the region filtering done by ocr
         if mask is None:
@@ -225,7 +225,7 @@ class MangaTranslator():
 
         if not translated_sentences:
             await self._report_progress('error-translating', True)
-            return None, False
+            return None
 
         await self._report_progress('rendering')
         output = await self._run_text_rendering(params.renderer, img_inpainted, text_regions, params.text_mag_ratio, params.direction,
@@ -233,7 +233,7 @@ class MangaTranslator():
 
         await self._report_progress('finished', True)
         output_image = dump_image(output, img_alpha)
-        return output_image, True
+        return output_image
 
     def _result_path(self, path: str) -> str:
         return os.path.join(BASE_PATH, 'result', self.result_sub_folder, path)
@@ -480,7 +480,6 @@ class MangaTranslatorWS(MangaTranslator):
                             'size': task.size,
                         }
 
-                        # Make async for faster execution?
                         async def sync_state(state, finished):
                             msg = ws_pb2.WebSocketMessage()
                             msg.status.id = self._task_id
@@ -493,11 +492,10 @@ class MangaTranslatorWS(MangaTranslator):
                         if translation_params:
                             for p, value in translation_params.items():
                                 params.setdefault(p, value)
-                        output, has_text = await self.translate(Image.open(io.BytesIO(task.source_image)), params)
-                        if output:
+                        image = Image.open(io.BytesIO(task.source_image))
+                        output = await self.translate(image, params)
+                        if output and output != image:
                             img = io.BytesIO()
-                            if not has_text :
-                                output = Image.fromarray(np.zeros((output.height, output.width, 4), dtype = np.uint8))
                             output.save(img, format='PNG')
                             if self.verbose:
                                 output.save(self._result_path('ws_final.png'))
