@@ -308,9 +308,8 @@ A list of what needs to be done next, you're welcome to contribute.
 6. ~~Mask refinement based using non deep learning algorithms, I am currently testing out CRF based algorithm.~~
 7. ~~Angled text region merge is not currently supported~~
 8. Make web page only show translators with API key
-9. Compress models in docker image and skim down
+9. Create pip repository
 10. Improve textline merge
-11. Create pip dependency
 
 ## Samples
 
