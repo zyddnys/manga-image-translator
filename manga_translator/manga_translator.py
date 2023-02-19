@@ -383,7 +383,7 @@ class MangaTranslatorWeb(MangaTranslator):
             if translation_params is not None:
                 # Combine default params with params chosen by webserver
                 for p, value in translation_params.items():
-                    self._params.setdefault(p, value)
+                    self._params[p] = self._params.get(p) or value
             if self.verbose:
                 # Write log file
                 log_file = self._result_path('log.txt')
@@ -491,7 +491,7 @@ class MangaTranslatorWS(MangaTranslator):
                         logger.info(f'-- Processing task {self._task_id}')
                         if translation_params:
                             for p, value in translation_params.items():
-                                params.setdefault(p, value)
+                                params[p] = params.get(p) or value
                         image = Image.open(io.BytesIO(task.source_image))
                         output = await self.translate(image, params)
                         if output:
