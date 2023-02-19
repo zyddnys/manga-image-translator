@@ -494,8 +494,10 @@ class MangaTranslatorWS(MangaTranslator):
                                 params.setdefault(p, value)
                         image = Image.open(io.BytesIO(task.source_image))
                         output = await self.translate(image, params)
-                        if output and output != image:
+                        if output:
                             img = io.BytesIO()
+                            if output == image:
+                                output = Image.fromarray(np.zeros((output.height, output.width, 4), dtype = np.uint8))
                             output.save(img, format='PNG')
                             if self.verbose:
                                 output.save(self._result_path('ws_final.png'))
