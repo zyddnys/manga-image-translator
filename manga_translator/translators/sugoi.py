@@ -160,7 +160,7 @@ class SugoiTranslator(JparacrawlBigTranslator):
     }
 
     def __init__(self):
-        self.query_splits = []
+        self.query_split_sizes = []
         super().__init__()
 
     async def _load(self, from_lang: str, to_lang: str, device: str):
@@ -172,14 +172,18 @@ class SugoiTranslator(JparacrawlBigTranslator):
         if lang == 'ja':
             lang = 'ja-sugoi'
             new_queries = []
-            self.query_splits = []
+            self.query_split_sizes = []
             for q in queries:
                 # Split sentences into their own queries to prevent abbreviations
-                # regex will split by 。groups instead of putting them all in their own array.
-                sentences = re.split(r'(?:[^。]|^)[。.]+(?:[^。]|$)', q.replace('.', '@'))
-                sentences = list(filter(lambda x: x, sentences))
-                self.query_splits.append(len(sentences))
-                new_queries.extend([s + '。' for s in sentences])
+                q = q.replace('.', '@')
+                sentences = list(filter(lambda x: x, re.sub(r'。+', r'。', q).split('。')))
+                if len(sentences) < 3:
+                    # Would reduce quality due to decreased context information?
+                    sentences = [q]
+                else:
+                    sentences = [s + '。' for s in sentences]
+                self.query_split_sizes.append(len(sentences))
+                new_queries.extend(sentences)
             queries = new_queries
         return super().tokenize(queries, lang)
 
@@ -190,7 +194,7 @@ class SugoiTranslator(JparacrawlBigTranslator):
         if lang == 'en-sugoi':
             new_translations = []
             i = 0
-            for query_count in self.query_splits:
+            for query_count in self.query_split_sizes:
                 sentences = ''
                 for sentence in translations[i:i+query_count]:
                     sentences += sentence + ('. ' if not sentence.endswith('.') else ' ')
