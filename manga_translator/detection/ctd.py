@@ -10,9 +10,9 @@ from .ctd_utils.basemodel import TextDetBase, TextDetBaseDNN
 from .ctd_utils.utils.yolov5_utils import non_max_suppression
 from .ctd_utils.utils.db_utils import SegDetectorRepresenter
 from .ctd_utils.utils.imgproc_utils import letterbox
-from .ctd_utils.textmask import refine_mask, refine_undetected_mask, REFINEMASK_INPAINT
+from .ctd_utils.textmask import REFINEMASK_INPAINT
 from .common import OfflineDetector
-from ..utils import TextBlock, group_output, det_rearrange_forward
+from ..utils import TextBlock, Quadrilateral, det_rearrange_forward
 
 def preprocess_img(img, input_size=(1024, 1024), device='cpu', bgr2rgb=True, half=False, to_tensor=True):
     if bgr2rgb:
@@ -161,13 +161,19 @@ class ComicTextDetector(OfflineDetector):
         # map output to input img
         mask = cv2.resize(mask, (im_w, im_h), interpolation=cv2.INTER_LINEAR)
 
-        if lines.size == 0:
-            lines = []
-        else:
-            lines = lines.astype(np.int32)
-        blk_list = group_output(blks, lines, im_w, im_h, mask)
-        mask_refined = refine_mask(image, mask, blk_list, refine_mode=refine_mode)
-        if keep_undetected_mask:
-            mask_refined = refine_undetected_mask(image, mask, mask_refined, blk_list, refine_mode=refine_mode)
+        # if lines.size == 0:
+        #     lines = []
+        # else:
+        #     lines = lines.astype(np.int32)
 
-        return blk_list, mask, mask_refined
+        textlines = [Quadrilateral(pts.astype(int), '', score) for pts, score in zip(lines, scores)]
+        text_regions = await self._merge_textlines(textlines, image.shape[1], image.shape[0], verbose=verbose)
+
+        return text_regions, mask, None
+
+        # blk_list = group_output(blks, lines, im_w, im_h, mask)
+        # mask_refined = refine_mask(image, mask, blk_list, refine_mode=refine_mode)
+        # if keep_undetected_mask:
+        #     mask_refined = refine_undetected_mask(image, mask, mask_refined, blk_list, refine_mode=refine_mode)
+
+        # return blk_list, mask, mask_refined
