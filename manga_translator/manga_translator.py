@@ -236,8 +236,9 @@ class MangaTranslator():
 
         if params.downscale:
             await self._report_progress('downscaling')
-            # Add alpha channel to rgb
-            output = np.concatenate([output.astype(np.uint8), np.array(img_alpha).astype(np.uint8)[..., None]], axis = 2)
+            if img_alpha:
+                # Add alpha channel to rgb
+                output = np.concatenate([output.astype(np.uint8), np.array(img_alpha).astype(np.uint8)[..., None]], axis = 2)
             output = cv2.resize(output, image.size, interpolation=cv2.INTER_LINEAR)
 
         await self._report_progress('finished', True)
