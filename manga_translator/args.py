@@ -61,7 +61,8 @@ g.add_argument('--force-horizontal', action='store_true', help='Force text to be
 g.add_argument('--force-vertical', action='store_true', help='Force text to be rendered vertically')
 parser.add_argument_group(g)
 
-parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 4, 8, 16, 32], help='waifu2x image upscale ratio')
+parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 4, 8, 16, 32], help='Image upscale ratio applied before detection. Can improve text detection.')
+parser.add_argument('--downscale', action='store_true', help='Downscales resulting image to original image size (Use with --upscale-ratio).')
 parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some typesetting')
 parser.add_argument('--mtpe', action='store_true', help='Turn on/off machine translation post editing (MTPE) on the command line (works only on linux right now)')
 parser.add_argument('--font-path', default='', type=file_path, help='Path to font file')

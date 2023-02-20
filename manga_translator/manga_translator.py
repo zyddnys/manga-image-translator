@@ -175,14 +175,17 @@ class MangaTranslator():
             return None
 
     async def _translate(self, image: Image.Image, params: Context) -> Image.Image:
+        # TODO: Split up into self sufficient functions that call what they need automatically
 
         # The default text detector doesn't work very well on smaller images, might want to
         # consider adding automatic upscaling on certain kinds of small images.
         if params.upscale_ratio:
             await self._report_progress('upscaling')
-            image = (await self._run_upscaling('waifu2x', [image], params.upscale_ratio))[0]
+            image_upscaled = (await self._run_upscaling('waifu2x', [image], params.upscale_ratio))[0]
+        else:
+            image_upscaled = image
 
-        img_rgb, img_alpha = load_image(image)
+        img_rgb, img_alpha = load_image(image_upscaled)
 
         await self._report_progress('detection')
         text_regions, mask_raw, mask = await self._run_detection(params.detector, img_rgb, params.detection_size, params.text_threshold,
@@ -231,8 +234,15 @@ class MangaTranslator():
         output = await self._run_text_rendering(params.renderer, img_inpainted, text_regions, params.text_mag_ratio, params.direction,
                                                 params.font_path, params.font_size_offset, img_rgb, mask = mask)
 
+        if params.downscale:
+            await self._report_progress('downscaling')
+            # Add alpha channel to rgb
+            output = np.concatenate([output.astype(np.uint8), np.array(img_alpha).astype(np.uint8)[..., None]], axis = 2)
+            output = cv2.resize(output, image.size, interpolation=cv2.INTER_LINEAR)
+
         await self._report_progress('finished', True)
         output_image = dump_image(output, img_alpha)
+
         return output_image
 
     def _result_path(self, path: str) -> str:
@@ -253,6 +263,7 @@ class MangaTranslator():
             'mask-generation':      'Running mask refinement',
             'translating':          'Translating',
             'rendering':            'Rendering translated text',
+            'downscaling':          'Running downscaling',
             'saved':                'Saving results',
         }
         LOG_MESSAGES_SKIP = {
