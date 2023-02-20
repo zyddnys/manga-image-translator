@@ -3,9 +3,11 @@ import numpy as np
 from .common import CommonInpainter, OfflineInpainter
 from .inpainting_aot import AotInpainter
 from .inpainting_lama_mpe import LamaMPEInpainter
+from .original import OriginalInpainter
 from .none import NoneInpainter
 
 INPAINTERS = {
+    'original': OriginalInpainter,
     'none': NoneInpainter,
     'default': AotInpainter,
     'lama_mpe': LamaMPEInpainter,
