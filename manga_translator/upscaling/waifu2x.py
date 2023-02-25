@@ -75,7 +75,7 @@ class Waifu2xUpscaler(OfflineUpscaler): # ~2GB of vram
             self._run_waifu2x_executable(in_dir, out_dir, upscale_ratio, 0)
         except Exception:
             # Maybe throw exception instead
-            self.logger.warn(f'waifu2x returned non-zero exit status. Skipping upscaling.')
+            self.logger.warn(f'Process returned non-zero exit status. Skipping upscaling.')
             return image_batch
 
         output_batch = []

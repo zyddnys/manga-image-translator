@@ -5,6 +5,7 @@ from .detection import DETECTORS
 from .ocr import OCRS
 from .inpainting import INPAINTERS
 from .translators import VALID_LANGUAGES, TRANSLATORS
+from .upscaling import UPSCALERS
 
 # Additional argparse types
 def path(string):
@@ -41,6 +42,7 @@ parser.add_argument('--detector', default='default', type=str, choices=DETECTORS
 parser.add_argument('--ocr', default='48px_ctc', type=str, choices=OCRS, help='Optical character recognition (OCR) model to use')
 parser.add_argument('--inpainter', default='lama_mpe', type=str, choices=INPAINTERS, help='Inpainting model to use')
 parser.add_argument('--translator', default='google', type=str, choices=TRANSLATORS, help='Language translator to use')
+parser.add_argument('--upscaler', default='esrgan', type=str, choices=UPSCALERS, help='Upscaler to use. --upscale-ratio has to be set for it to take effect.')
 
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--use-cuda', action='store_true', help='Turn on/off cuda')

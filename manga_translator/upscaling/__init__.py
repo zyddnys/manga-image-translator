@@ -3,9 +3,11 @@ from PIL import Image
 
 from .common import CommonUpscaler, OfflineUpscaler
 from .waifu2x import Waifu2xUpscaler
+from .esrgan import ESRGANUpscaler
 
 UPSCALERS = {
     'waifu2x': Waifu2xUpscaler,
+    'esrgan': ESRGANUpscaler,
 }
 upscaler_cache = {}
 

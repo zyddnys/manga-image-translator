@@ -76,6 +76,8 @@ class MangaTranslator():
         dest = os.path.abspath(os.path.expanduser(dest)) if dest else ''
         params = params or {}
 
+        # TODO: accept * in file paths
+
         if os.path.isfile(path):
             # Determine destination file path
             if not dest:
@@ -154,7 +156,7 @@ class MangaTranslator():
         try:
             # preload and download models (not necessary, remove to lazy load)
             logger.info('Loading models')
-            await prepare_upscaling('waifu2x')
+            await prepare_upscaling(params.upscaler)
             await prepare_detection(params.detector)
             await prepare_ocr(params.ocr, self.device)
             await prepare_inpainting(params.inpainter, self.device)
@@ -181,7 +183,7 @@ class MangaTranslator():
         # consider adding automatic upscaling on certain kinds of small images.
         if params.upscale_ratio:
             await self._report_progress('upscaling')
-            image_upscaled = (await self._run_upscaling('waifu2x', [image], params.upscale_ratio))[0]
+            image_upscaled = (await self._run_upscaling(params.upscaler, [image], params.upscale_ratio))[0]
         else:
             image_upscaled = image
 

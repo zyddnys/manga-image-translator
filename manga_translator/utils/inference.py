@@ -8,12 +8,15 @@ import shutil
 import filecmp
 from abc import ABC, abstractmethod
 from functools import cached_property
+from pathlib import Path
 
 from .general import (
     BASE_PATH,
     download_url_with_progressbar,
     prompt_yes_no,
-    get_digest,get_filename_from_url,
+    replace_prefix,
+    get_digest,
+    get_filename_from_url,
 )
 from .log import get_logger
 
@@ -159,7 +162,7 @@ class ModelWrapper(ABC):
                     break
                 except ModelVerificationException:
                     if not prompt_yes_no('Failed to verify signature. Do you want to restart the download?', default=True):
-                        print('Aborting.')
+                        print('Aborting.', end='')
                         raise KeyboardInterrupt()
 
     async def _download(self):
@@ -214,24 +217,29 @@ class ModelWrapper(ABC):
                     archive_files = []
                     for root, dirs, files in os.walk(extracted_path):
                         for name in files:
-                            file_path = os.path.join(root, name)
+                            file_path = replace_prefix(os.path.join(root, name), extracted_path, '')
                             archive_files.append(file_path)
                     return archive_files
 
+                extracted_path = Path(extracted_path)
+                # Move every specified file from archive to destination
                 for orig, dest in mapping['archive'].items():
-                    p1 = os.path.join(extracted_path, orig)
-                    if os.path.exists(p1):
-                        p2 = self._get_file_path(dest)
-                        if os.path.basename(p2) in ('', '.'):
-                            p2 = os.path.join(p2, os.path.basename(p1))
-                        if os.path.isfile(p2):
-                            if filecmp.cmp(p1, p2):
-                                continue
-                            raise InvalidModelMappingException(self._key, map_key, 'File "{orig}" already exists at "{dest}"')
-                        os.makedirs(os.path.dirname(p2), exist_ok=True)
-                        shutil.move(p1, p2)
-                    else:
-                        raise InvalidModelMappingException(self._key, map_key, f'File "{orig}" does not exist within archive' +
+                    print(extracted_path, orig)
+                    for p1 in extracted_path.glob(orig): # Handle patterns such as *
+                        p1 = str(p1)
+                        print(p1)
+                        if os.path.exists(p1):
+                            p2 = self._get_file_path(dest)
+                            if os.path.basename(p2) in ('', '.'):
+                                p2 = os.path.join(p2, os.path.basename(p1))
+                            if os.path.isfile(p2):
+                                if filecmp.cmp(p1, p2):
+                                    continue
+                                raise InvalidModelMappingException(self._key, map_key, 'File "{orig}" already exists at "{dest}"')
+                            os.makedirs(os.path.dirname(p2), exist_ok=True)
+                            shutil.move(p1, p2)
+                        else:
+                            raise InvalidModelMappingException(self._key, map_key, f'File "{orig}" does not exist within archive' +
                                         '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
                 if len(mapping['archive']) == 0:
                     raise InvalidModelMappingException(self._key, map_key, 'No archive files specified' +
@@ -267,12 +275,10 @@ class ModelWrapper(ABC):
                 path = os.path.join(path, get_filename_from_url(mapping['url'], map_key))
             if not os.path.exists(self._get_file_path(path)):
                 return False
-        
+
         elif 'archive' in mapping:
-            for from_path, to_path in mapping['archive'].items():
-                if os.path.basename(to_path) in ('.', ''):
-                    to_path = os.path.join(to_path, os.path.basename(from_path))
-                if not os.path.exists(self._get_file_path(to_path)):
+            for orig, dest in mapping['archive'].items():
+                if not os.path.exists(self._get_file_path(dest)):
                     return False
 
         self._grant_execute_permissions(map_key)

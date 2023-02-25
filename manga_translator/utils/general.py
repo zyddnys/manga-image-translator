@@ -70,7 +70,7 @@ def replace_prefix(s: str, old: str, new: str):
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
-        yield lst[i:i + n]
+        yield lst[i:i+n]
 
 def get_digest(file_path: str) -> str:
     h = hashlib.sha256()
