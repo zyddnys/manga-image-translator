@@ -7,7 +7,7 @@ import os
 from oscrypto import util as crypto_utils
 import asyncio
 import torch
-from typing import List, Tuple
+from typing import List
 import subprocess
 import sys
 import time

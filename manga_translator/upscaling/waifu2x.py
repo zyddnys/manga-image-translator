@@ -48,6 +48,7 @@ else:
         },
     }
 
+# https://github.com/nihui/waifu2x-ncnn-vulkan
 class Waifu2xUpscaler(OfflineUpscaler): # ~2GB of vram
     _MODEL_MAPPING = model_mapping
     _VALID_UPSCALE_RATIOS = [1, 2, 4, 8, 16, 32]
