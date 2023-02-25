@@ -25,6 +25,9 @@ RUN python -u docker_prepare.py
 
 RUN rm -rf /tmp
 
+# Add /app to Python module path
+ENV PYTHONPATH="${PYTHONPATH}:/app"
+
 WORKDIR /app
 
 ENTRYPOINT ["python", "-m", "manga_translator"]

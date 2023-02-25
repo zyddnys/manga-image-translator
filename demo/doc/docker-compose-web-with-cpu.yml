@@ -1,7 +1,7 @@
 version: "3.8"
 services:
   manga_image_translator:
-    image: zyddnys/manga-image-translator
+    image: zyddnys/manga-image-translator:main
     container_name: manga_image_translator_cpu
     command: --verbose --log-web --mode web --use-inpainting --host=0.0.0.0 --port=5003
     volumes:
