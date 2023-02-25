@@ -106,3 +106,4 @@ class ESRGANUpscaler(OfflineUpscaler):
                     progress = float(match.group(1))
                     bar.update(progress - last_progress)
                     last_progress = progress
+            bar.update(100 - last_progress)
