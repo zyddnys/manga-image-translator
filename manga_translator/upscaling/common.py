@@ -1,6 +1,7 @@
+import os
 from PIL import Image
 from typing import List
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 from ..utils import InfererModule, ModelWrapper
 
@@ -21,6 +22,7 @@ class CommonUpscaler(InfererModule):
         pass
 
 class OfflineUpscaler(CommonUpscaler, ModelWrapper):
+    _MODEL_DIR = os.path.join(ModelWrapper._MODEL_DIR, 'upscaling')
 
     async def _upscale(self, *args, **kwargs):
         return await self.forward(*args, **kwargs)
