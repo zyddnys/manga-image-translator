@@ -1,7 +1,6 @@
 import itertools
 from collections import Counter
 from typing import List, Set
-import cv2
 import numpy as np
 import networkx as nx
 
@@ -45,17 +44,16 @@ def split_text_region(
     for (u, v) in itertools.combinations(connected_region_indices, 2):
         G.add_edge(u, v, weight=bboxes[u].distance(bboxes[v]))
     # Get distances from neighbouring bboxes
-    edges = nx.algorithms.tree.minimum_spanning_edges(G, algorithm="kruskal", data=True)
+    edges = nx.algorithms.tree.minimum_spanning_edges(G, algorithm='kruskal', data=True)
     edges = sorted(edges, key=lambda a: a[2]['weight'], reverse=True)
     distances_sorted = [a[2]['weight'] for a in edges]
     fontsize = np.mean([bboxes[idx].font_size for idx in connected_region_indices])
     distances_std = np.std(distances_sorted)
     distances_mean = np.mean(distances_sorted)
-    std_threshold = max(5.0 * fontsize / 20, 5.0)
+    std_threshold = max(0.25 * fontsize + 5, 5)
 
     # print(edges)
-    # print(f'std: {distances_std}, mean: {distances_mean}')
-    # print(std_threshold)
+    # print(f'std: {distances_std} < thrshold: {std_threshold}, mean: {distances_mean}')
 
     if (distances_sorted[0] <= distances_mean + distances_std * sigma \
             or distances_sorted[0] <= fontsize * (1 + gamma) \
@@ -63,7 +61,7 @@ def split_text_region(
             ) and distances_std < std_threshold:
         return [set(connected_region_indices)]
     else:
-        (split_u, split_v, _) = edges[0]
+        # (split_u, split_v, _) = edges[0]
         # print(f'split between "{bboxes[split_u].pts}", "{bboxes[split_v].pts}"')
         G = nx.Graph()
         for idx in connected_region_indices:
