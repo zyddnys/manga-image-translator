@@ -18,7 +18,8 @@ if platform == 'win32':
             'url': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-windows.zip',
             'hash': 'abc02804e17982a3be33675e4d471e91ea374e65b70167abc09e31acb412802d',
             'archive': {
-                '*': esrgan_base_folder,
+                'realesrgan-ncnn-vulkan': esrgan_base_folder,
+                'models': esrgan_base_folder,
             },
         },
     }
@@ -30,7 +31,8 @@ elif platform == 'darwin':
             'url': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-macos.zip',
             'hash': 'e0ad05580abfeb25f8d8fb55aaf7bedf552c375b5b4d9bd3c8d59764d2cc333a',
             'archive': {
-                '*': esrgan_base_folder,
+                'realesrgan-ncnn-vulkan': esrgan_base_folder,
+                'models': esrgan_base_folder,
             },
         },
     }
@@ -42,7 +44,8 @@ else:
             'url': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-ubuntu.zip',
             'hash': 'e5aa6eb131234b87c0c51f82b89390f5e3e642b7b70f2b9bbe95b6a285a40c96',
             'archive': {
-                '*': esrgan_base_folder,
+                'realesrgan-ncnn-vulkan': esrgan_base_folder,
+                'models': esrgan_base_folder,
             },
             'executables': [
                 esrgan_executable_path

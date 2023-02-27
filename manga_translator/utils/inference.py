@@ -221,24 +221,22 @@ class ModelWrapper(ABC):
                             archive_files.append(file_path)
                     return archive_files
 
-                extracted_path = Path(extracted_path)
                 # Move every specified file from archive to destination
                 for orig, dest in mapping['archive'].items():
-                    for p1 in extracted_path.glob(orig): # Handle patterns such as *
-                        p1 = str(p1)
-                        if os.path.exists(p1):
-                            p2 = self._get_file_path(dest)
-                            if os.path.basename(p2) in ('', '.'):
-                                p2 = os.path.join(p2, os.path.basename(p1))
-                            if os.path.isfile(p2):
-                                if filecmp.cmp(p1, p2):
-                                    continue
-                                raise InvalidModelMappingException(self._key, map_key, 'File "{orig}" already exists at "{dest}"')
-                            os.makedirs(os.path.dirname(p2), exist_ok=True)
-                            shutil.move(p1, p2)
-                        else:
-                            raise InvalidModelMappingException(self._key, map_key, f'File "{orig}" does not exist within archive' +
-                                        '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
+                    p1 = os.path.join(extracted_path, orig)
+                    if os.path.exists(p1):
+                        p2 = self._get_file_path(dest)
+                        if os.path.basename(p2) in ('', '.'):
+                            p2 = os.path.join(p2, os.path.basename(p1))
+                        if os.path.isfile(p2):
+                            if filecmp.cmp(p1, p2):
+                                continue
+                            raise InvalidModelMappingException(self._key, map_key, 'File "{orig}" already exists at "{dest}"')
+                        os.makedirs(os.path.dirname(p2), exist_ok=True)
+                        shutil.move(p1, p2)
+                    else:
+                        raise InvalidModelMappingException(self._key, map_key, f'File "{orig}" does not exist within archive' +
+                                    '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
                 if len(mapping['archive']) == 0:
                     raise InvalidModelMappingException(self._key, map_key, 'No archive files specified' +
                                         '\nAvailable files:\n%s' % '\n'.join(get_real_archive_files()))
