@@ -276,6 +276,8 @@ class ModelWrapper(ABC):
 
         elif 'archive' in mapping:
             for orig, dest in mapping['archive'].items():
+                if os.path.basename(dest) in ('', '.'):
+                    dest = os.path.join(dest, os.path.basename(orig))
                 if not os.path.exists(self._get_file_path(dest)):
                     return False
 
