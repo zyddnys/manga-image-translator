@@ -62,6 +62,14 @@ class Context(dict):
     def _get_args(self):
         return []
 
+def repeating_sequence(s: str):
+    """Extracts repeating sequence from string. Example: 'abcabca' -> 'abc'."""
+    for i in range(1, len(s) // 2 + 1):
+        seq = s[:i]
+        if seq * (len(s)//len(seq)) + seq[:len(s)%len(seq)] == s:
+            return seq
+    return s
+
 def replace_prefix(s: str, old: str, new: str):
     if s.startswith(old):
         s = new + s[len(old):]
