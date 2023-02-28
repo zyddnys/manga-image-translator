@@ -462,7 +462,8 @@ def put_char_horizontal(font_size: int, cdpt: str, pen_l: Tuple[int, int], canva
     if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width:
         return char_offset_x
     pen[0] += slot.bitmap_left
-    pen[1] -= slot.bitmap_top
+    pen[1] = max(pen[1] - slot.bitmap_top, 0)
+    print(bitmap_char.shape, pen, bitmap.rows, bitmap.width)
     canvas_text[pen[1]:pen[1]+bitmap.rows, pen[0]:pen[0]+bitmap.width] = bitmap_char
     #print(pen_l, pen, slot.metrics.vertBearingX >> 6, bitmap.width)
     #border

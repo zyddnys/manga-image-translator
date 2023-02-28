@@ -293,7 +293,7 @@ class MangaTranslator():
         return await dispatch_upscaling(key, image_batch, upscale_ratio, self.device)
 
     async def _run_detection(self, key: str, img: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
-                           unclip_ratio: float, det_rearrange_max_batches: int):
+                             unclip_ratio: float, det_rearrange_max_batches: int):
         return await dispatch_detection(key, img, detect_size, text_threshold, box_threshold, unclip_ratio, det_rearrange_max_batches,
                                         self.device, self.verbose)
 
