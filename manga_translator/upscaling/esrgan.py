@@ -18,7 +18,7 @@ if platform == 'win32':
             'url': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-windows.zip',
             'hash': 'abc02804e17982a3be33675e4d471e91ea374e65b70167abc09e31acb412802d',
             'archive': {
-                'realesrgan-ncnn-vulkan': esrgan_base_folder,
+                'realesrgan-ncnn-vulkan.exe': esrgan_base_folder,
                 'models': esrgan_base_folder,
             },
         },
