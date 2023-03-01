@@ -5,7 +5,6 @@ import numpy as np
 import requests
 import os
 from oscrypto import util as crypto_utils
-import asyncio
 import torch
 from typing import List
 import subprocess
@@ -25,6 +24,8 @@ from .utils import (
     dump_image,
     replace_prefix,
     visualize_textblocks,
+    add_file_logger,
+    remove_file_logger,
 )
 
 from .detection import dispatch as dispatch_detection, prepare as prepare_detection
@@ -145,7 +146,7 @@ class MangaTranslator():
         # params auto completion
         for arg in DEFAULT_ARGS:
             params.setdefault(arg, DEFAULT_ARGS[arg])
-        if not 'direction' in params:
+        if 'direction' not in params:
             if params.force_horizontal:
                 params.direction = 'h'
             elif params.force_vertical:
@@ -209,7 +210,7 @@ class MangaTranslator():
         if not text_regions:
             await self._report_progress('skip-no-text', True)
             return image
-    
+
         # Delayed mask refinement to take advantage of the region filtering done by ocr
         if mask is None:
             await self._report_progress('mask-generation')
@@ -236,13 +237,13 @@ class MangaTranslator():
 
         await self._report_progress('rendering')
         output = await self._run_text_rendering(params.renderer, img_inpainted, text_regions, params.text_mag_ratio, params.direction,
-                                                params.font_path, params.font_size_offset, img_rgb, mask = mask)
+                                                params.font_path, params.font_size_offset, img_rgb, mask)
 
         if params.downscale:
             await self._report_progress('downscaling')
             if img_alpha:
                 # Add alpha channel to rgb
-                output = np.concatenate([output.astype(np.uint8), np.array(img_alpha).astype(np.uint8)[..., None]], axis = 2)
+                output = np.concatenate([output.astype(np.uint8), np.array(img_alpha).astype(np.uint8)[..., None]], axis=2)
             output = cv2.resize(output, image.size, interpolation=cv2.INTER_LINEAR)
 
         await self._report_progress('finished', True)
@@ -279,6 +280,7 @@ class MangaTranslator():
             'error-translating':    'Text translator returned empty queries',
             # 'error-lang':           'Target language not supported by chosen translator',
         }
+
         async def ph(state, finished):
             if state in LOG_MESSAGES:
                 logger.info(LOG_MESSAGES[state])
@@ -322,7 +324,7 @@ class MangaTranslator():
         return translated
 
     async def _run_text_rendering(self, key: str, img: np.ndarray, text_regions: List[TextBlock], text_mag_ratio: np.integer, text_direction: str,
-                                 font_path: str = '', font_size_offset: int = 0, original_img: np.ndarray = None, mask: np.ndarray = None):
+                                  font_path: str = '', font_size_offset: int = 0, original_img: np.ndarray = None, mask: np.ndarray = None):
 
         # manga2eng currently only supports horizontal rendering
         if key == 'manga2eng' and text_regions and LANGAUGE_ORIENTATION_PRESETS.get(text_regions[0].target_lang) == 'h':
@@ -331,7 +333,6 @@ class MangaTranslator():
             output = await dispatch_rendering(img, text_regions, text_mag_ratio, text_direction, font_path, font_size_offset, original_img, mask)
         return output
 
-from .utils import add_file_logger, remove_file_logger
 
 class MangaTranslatorWeb(MangaTranslator):
     """
@@ -407,7 +408,7 @@ class MangaTranslatorWeb(MangaTranslator):
                 add_file_logger(log_file)
 
             await self.translate_path(self._result_path('input.png'), self._result_path('final.png'), params=self._params)
-            
+
             if self.verbose:
                 remove_file_logger(log_file)
             self._task_id = None
@@ -425,27 +426,27 @@ class MangaTranslatorWeb(MangaTranslator):
         regions = await super()._run_ocr(key, img, regions)
         if self._params.get('manual', False):
             requests.post(f'http://{self.host}:{self.port}/request-translation-internal', json={
-                    'task_id': self._task_id,
-                    'nonce': self.nonce,
-                    'texts': [r.get_text() for r in regions],
-                }, timeout=20)
+                'task_id': self._task_id,
+                'nonce': self.nonce,
+                'texts': [r.get_text() for r in regions],
+            }, timeout=20)
         return regions
 
     async def _run_text_translation(self, key: str, src_lang: str, tgt_lang: str, text_regions: List[TextBlock], use_mtpe: bool = False):
         if self._params.get('manual', False):
-            requests.post(f'http://{self.host}:{self.port}/request-translation-internal', json = {
-                    'task_id': self._task_id,
-                    'nonce': self.nonce,
-                    'texts': [r.get_text() for r in text_regions]
-                }, timeout=20)
+            requests.post(f'http://{self.host}:{self.port}/request-translation-internal', json={
+                'task_id': self._task_id,
+                'nonce': self.nonce,
+                'texts': [r.get_text() for r in text_regions]
+            }, timeout=20)
 
             # wait for at most 1 hour for manual translation
             wait_until = time.time() + 3600
             while time.time() < wait_until:
                 ret = requests.post(f'http://{self.host}:{self.port}/get-translation-result-internal', json={
-                        'task_id': self._task_id,
-                        'nonce': self.nonce
-                    }, timeout=20).json()
+                    'task_id': self._task_id,
+                    'nonce': self.nonce
+                }, timeout=20).json()
                 if 'result' in ret:
                     translated = ret['result']
                     if isinstance(translated, str):
@@ -515,7 +516,7 @@ class MangaTranslatorWS(MangaTranslator):
                         if output:
                             img = io.BytesIO()
                             if output == image:
-                                output = Image.fromarray(np.zeros((output.height, output.width, 4), dtype = np.uint8))
+                                output = Image.fromarray(np.zeros((output.height, output.width, 4), dtype=np.uint8))
                             output.save(img, format='PNG')
                             if self.verbose:
                                 output.save(self._result_path('ws_final.png'))
@@ -534,7 +535,7 @@ class MangaTranslatorWS(MangaTranslator):
                 logger.error(f'{e.__class__.__name__}: {e}', exc_info=e if self.verbose else None)
 
     async def _run_text_rendering(self, key: str, img: np.ndarray, text_mag_ratio: np.integer, text_regions: List[TextBlock], text_direction: str,
-                                 font_path: str = '', font_size_offset: int = 0, original_img: np.ndarray = None, mask: np.ndarray = None):
+                                  font_path: str = '', font_size_offset: int = 0, original_img: np.ndarray = None, mask: np.ndarray = None):
 
         img_inpainted = np.copy(img)
         render_mask = np.copy(mask)
@@ -542,9 +543,8 @@ class MangaTranslatorWS(MangaTranslator):
         render_mask[render_mask >= 127] = 1
         render_mask = render_mask[:, :, None]
 
-
         output = await super()._run_text_rendering(key, img, text_mag_ratio, text_regions, text_direction, font_path, font_size_offset, original_img, render_mask)
-        render_mask[np.sum(img != output, axis = 2) > 0] = 1
+        render_mask[np.sum(img != output, axis=2) > 0] = 1
         if self.verbose:
             cv2.imwrite(self._result_path('ws_render_in.png'), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
             cv2.imwrite(self._result_path('ws_render_out.png'), cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
