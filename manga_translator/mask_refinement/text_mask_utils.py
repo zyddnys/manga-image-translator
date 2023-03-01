@@ -137,7 +137,7 @@ def complete_mask(img_np: np.ndarray, ccs: List[np.ndarray], text_lines: List[Tu
         textline_ccs[txtline] = cv2.bitwise_or(textline_ccs[txtline], cc)
     final_mask = np.zeros_like(ccs[0])
     img_np = cv2.bilateralFilter(img_np, 17, 80, 80)
-    for i, cc in enumerate(tqdm(textline_ccs)):
+    for i, cc in enumerate(tqdm(textline_ccs, '[mask]')):
         x1, y1, w1, h1 = cv2.boundingRect(cc)
         text_size = min(w1, h1)
         extend_size = int(text_size * 0.1)
