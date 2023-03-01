@@ -226,7 +226,7 @@ class CustomTransformerEncoderLayer(nn.Module):
             state['activation'] = F.relu
         super(CustomTransformerEncoderLayer, self).__setstate__(state)
 
-    def forward(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None, src_key_padding_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None, src_key_padding_mask: Optional[torch.Tensor] = None, is_causal = None) -> torch.Tensor:
         r"""Pass the input through the encoder layer.
 
         Args:
