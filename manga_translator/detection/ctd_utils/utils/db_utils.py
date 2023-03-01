@@ -72,7 +72,7 @@ class SegDetectorRepresenter():
             scores_batch.append(scores)
         return boxes_batch, scores_batch
 
-    def binarize(self, pred):
+    def binarize(self, pred) -> np.ndarray:
         return pred > self.thresh
 
     def polygons_from_bitmap(self, pred, _bitmap, dest_width, dest_height):
@@ -136,6 +136,7 @@ class SegDetectorRepresenter():
             pred = pred.cpu().detach().numpy()
         else:
             bitmap = _bitmap
+        # cv2.imwrite('tmp.png', (bitmap*255).astype(np.uint8))
         height, width = bitmap.shape
         contours, _ = cv2.findContours((bitmap * 255).astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
         num_contours = min(len(contours), self.max_candidates)

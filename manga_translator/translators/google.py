@@ -127,7 +127,7 @@ class GoogleTranslator(CommonTranslator):
         return json.dumps([[
             [
                 RPC_ID,
-                json.dumps([[text, src, dest, True],[None]], separators=(',', ':')),
+                json.dumps([[text, src, dest, True], [None]], separators=(',', ':')),
                 None,
                 'generic',
             ],
@@ -271,6 +271,7 @@ class GoogleTranslator(CommonTranslator):
         # should_spacing = parsed[1][0][0][3]
         should_spacing = True
         translated_parts = []
+        # print(parsed)
         for part in parsed[1][0][0][5]:
             try:
                 translated_parts.append(part[4][1][0])
