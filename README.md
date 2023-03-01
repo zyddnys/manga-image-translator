@@ -68,9 +68,9 @@ from <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf> according to your
 
 ## Usage
 
-#### Demo mode (singular image)
-
+#### Demo mode (default)
 ```bash
+# saves singular image into /result folder for demonstration purposes
 # `--use-cuda` is optional, if you have a compatible NVIDIA GPU, you can use it.
 # use `--use-cuda-limited` to defer vram expensive language translations to the cpu
 # use `--inpainter=none` to disable inpainting.
