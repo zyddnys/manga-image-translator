@@ -155,7 +155,7 @@ def refine_undetected_mask(img: np.ndarray, mask_pred: np.ndarray, mask_refined:
         mask_refined = cv2.bitwise_or(mask_refined, refine_mask(img, mask_pred, seg_blk_list, refine_mode=refine_mode))
     return mask_refined
 
-
+# Deprecated
 def refine_mask(img: np.ndarray, pred_mask: np.ndarray, blk_list: List[TextBlock], refine_mode: int = REFINEMASK_INPAINT) -> np.ndarray:
     mask_refined = np.zeros_like(pred_mask)
     for blk in blk_list:
@@ -173,4 +173,3 @@ def refine_mask(img: np.ndarray, pred_mask: np.ndarray, blk_list: List[TextBlock
         # cv2.waitKey(0)
     
     return mask_refined
-

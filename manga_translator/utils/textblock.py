@@ -1,7 +1,8 @@
 import cv2
 import numpy as np
 from typing import List, Tuple
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, MultiPoint
+from functools import cached_property
 import math
 import copy
 
@@ -11,17 +12,37 @@ from ..detection.ctd_utils.utils.imgproc_utils import union_area, xywh2xyxypoly,
 LANG_LIST = ['eng', 'ja', 'unknown']
 LANGCLS2IDX = {'eng': 0, 'ja': 1, 'unknown': 2}
 
+# determines render direction
+LANGAUGE_ORIENTATION_PRESETS = {
+    'CHS': 'auto',
+    'CHT': 'auto',
+    'CSY': 'h',
+    'NLD': 'h',
+    'ENG': 'h',
+    'FRA': 'h',
+    'DEU': 'h',
+    'HUN': 'h',
+    'ITA': 'h',
+    'JPN': 'auto',
+    'KOR': 'auto',
+    'PLK': 'h',
+    'PTB': 'h',
+    'ROM': 'h',
+    'RUS': 'h',
+    'ESP': 'h',
+    'TRK': 'h',
+    'VIN': 'h',
+}
+
 class TextBlock(object):
     """
     Object that stores a block of text made up of textlines.
     """
-    def __init__(self, xyxy: List,
-                 lines: List = None,
+    def __init__(self, lines: List,
                  language: str = 'unknown',
-                 vertical: bool = False,
                  font_size: float = -1,
-                 distance: List = None,
                  angle: int = 0,
+                 direction: str = 'auto',
                  vec: List = None,
                  norm: float = -1,
                  merged: bool = False,
@@ -40,7 +61,7 @@ class TextBlock(object):
                  bold: bool = False,
                  underline: bool = False,
                  italic: bool = False,
-                 _alignment: int = -1,
+                 _alignment: str = 'auto',
                  rich_text: str = "",
                  _bounding_rect: List = None,
                  accumulate_color = True,
@@ -53,13 +74,12 @@ class TextBlock(object):
                  shadow_color: Tuple = (0, 0, 0),
                  shadow_offset: List = [0, 0],
                  **kwargs) -> None:
-        self.xyxy = [int(num) for num in xyxy]          # boundingbox of textblock
-        self.lines = [] if lines is None else lines     # polygons of textlines
-        self.vertical = vertical            # orientation of textlines
+        self.lines = np.array(lines, dtype=np.int32)
+        # self.lines.sort()
         self.language = language
-        self.font_size = font_size          # font pixel size
-        self.distance = None if distance is None else np.array(distance, np.float64)   # distance between textlines and "origin"          
-        self.angle = angle                  # rotation angle of textlines
+        self.font_size = font_size
+        self.angle = angle
+        self._direction = direction
 
         self.vec = None if vec is None else np.array(vec, np.float64) # primary vector of textblock
         self.norm = norm                    # primary norm of textblock
@@ -101,61 +121,71 @@ class TextBlock(object):
         self.shadow_color = shadow_color
         self.shadow_offset = shadow_offset
 
-    def adjust_bbox(self, with_bbox=False):
-        lines = self.lines_array().astype(np.int32)
-        if with_bbox:
-            self.xyxy[0] = min(lines[..., 0].min(), self.xyxy[0])
-            self.xyxy[1] = min(lines[..., 1].min(), self.xyxy[1])
-            self.xyxy[2] = max(lines[..., 0].max(), self.xyxy[2])
-            self.xyxy[3] = max(lines[..., 1].max(), self.xyxy[3])
-        else:
-            self.xyxy[0] = lines[..., 0].min()
-            self.xyxy[1] = lines[..., 1].min()
-            self.xyxy[2] = lines[..., 0].max()
-            self.xyxy[3] = lines[..., 1].max()
+    @cached_property
+    def xyxy(self):
+        x1 = self.lines[..., 0].min()
+        y1 = self.lines[..., 1].min()
+        x2 = self.lines[..., 0].max()
+        y2 = self.lines[..., 1].max()
+        return [x1, y1, x2, y2]
 
-    def sort_lines(self):
-        if self.distance is not None:
-            idx = np.argsort(self.distance)
-            self.distance = self.distance[idx]
-            lines = np.array(self.lines, dtype=np.int32)
-            self.lines = lines[idx].tolist()
+    @cached_property
+    def xywh(self):
+        x, y, w, h = self.xyxy
+        return [x, y, w-x, h-y]
 
-    def lines_array(self, dtype=np.float64):
-        return np.array(self.lines, dtype=dtype)
-
-    @property
-    def aspect_ratio(self) -> float:
-        min_rect = self.min_rect()
-        middle_pnts = (min_rect[:, [1, 2, 3, 0]] + min_rect) / 2
-        norm_v = np.linalg.norm(middle_pnts[:, 2] - middle_pnts[:, 0])
-        norm_h = np.linalg.norm(middle_pnts[:, 1] - middle_pnts[:, 3])
-        return norm_v / norm_h
-
+    @cached_property
     def center(self) -> np.ndarray:
         xyxy = np.array(self.xyxy)
         return (xyxy[:2] + xyxy[2:]) / 2
 
+    @cached_property
     def unrotated_polygons(self) -> np.ndarray:
-        center = self.center()
-        polygons = self.lines_array().reshape(-1, 8)
+        polygons = self.lines.reshape(-1, 8)
         if self.angle != 0:
-            polygons = rotate_polygons(center, polygons, self.angle)
-        return center, polygons
+            polygons = rotate_polygons(self.center, polygons, self.angle)
+        return polygons
 
-    def min_rect(self, rotate_back=True) -> List[int]:
-        center, polygons = self.unrotated_polygons()
+    @cached_property
+    def min_rect(self) -> np.ndarray:
+        polygons = self.unrotated_polygons
         min_x = polygons[:, ::2].min()
         min_y = polygons[:, 1::2].min()
         max_x = polygons[:, ::2].max()
         max_y = polygons[:, 1::2].max()
         min_bbox = np.array([[min_x, min_y, max_x, min_y, max_x, max_y, min_x, max_y]])
-        if self.angle != 0 and rotate_back:
-            min_bbox = rotate_polygons(center, min_bbox, -self.angle)
+        if self.angle != 0:
+            min_bbox = rotate_polygons(self.center, min_bbox, -self.angle)
         return min_bbox.reshape(-1, 4, 2).astype(np.int64)
 
+    @cached_property
+    def polygon_aspect_ratio(self) -> float:
+        polygons = self.unrotated_polygons.reshape(-1, 4, 2)
+        middle_pts = (polygons[:, [1, 2, 3, 0]] + polygons) / 2
+        norm_v = np.linalg.norm(middle_pts[:, 2] - middle_pts[:, 0], axis=1)
+        norm_h = np.linalg.norm(middle_pts[:, 1] - middle_pts[:, 3], axis=1)
+        return np.mean(norm_v / norm_h)
+
+    @cached_property
+    def aspect_ratio(self) -> float:
+        """height / width"""
+        middle_pts = (self.min_rect[:, [1, 2, 3, 0]] + self.min_rect) / 2
+        norm_v = np.linalg.norm(middle_pts[:, 2] - middle_pts[:, 0])
+        norm_h = np.linalg.norm(middle_pts[:, 1] - middle_pts[:, 3])
+        a = self.polygon_aspect_ratio
+        return norm_v / norm_h
+
+    @property
+    def polygon_object(self) -> Polygon:
+        min_rect = self.min_rect[0]
+        return MultiPoint([tuple(min_rect[0]), tuple(min_rect[1]), tuple(min_rect[2]), tuple(min_rect[3])]).convex_hull
+
+    @property
+    def area(self) -> float:
+        return self.polygon_object.area
+
     def normalizd_width_list(self) -> List[float]:
-        center, polygons = self.unrotated_polygons()
+        polygons = self.unrotated_polygons
         width_list = []
         for polygon in polygons:
             width_list.append((polygon[[2, 4]] - polygon[[0, 6]]).sum())
@@ -165,19 +195,14 @@ class TextBlock(object):
 
     # equivalent to qt's boundingRect, ignore angle
     def bounding_rect(self) -> List[int]:
-        if self._bounding_rect is None:
-        # if True:
-            min_bbox = self.min_rect(rotate_back=False)[0]
-            x, y = min_bbox[0]
-            w, h = min_bbox[2] - min_bbox[0]
-            return [int(x), int(y), int(w), int(h)]
-        return self._bounding_rect
-
-    def __getattribute__(self, name: str):
-        if name == 'pts':
-            return self.lines_array()
-        # else:
-        return object.__getattribute__(self, name)
+        return self.xywh
+        # if self._bounding_rect is None:
+        # # if True:
+        #     min_bbox = self.min_rect(rotate_back=False)[0]
+        #     x, y = min_bbox[0]
+        #     w, h = min_bbox[2] - min_bbox[0]
+        #     return [int(x), int(y), int(w), int(h)]
+        # return self._bounding_rect
 
     def __len__(self):
         return len(self.lines)
@@ -219,14 +244,7 @@ class TextBlock(object):
     def get_text(self):
         if isinstance(self.text, str):
             return self.text
-        text = ''
-        for t in self.text:
-            if text and t:
-                if text[-1].isalpha() and t[0].isalpha():
-                    text += ' '
-            text += t
-
-        return text.strip()
+        return ' '.join(self.text).strip()
 
     def set_font_colors(self, frgb, srgb, accumulate=True):
         self.accumulate_color = accumulate
@@ -255,29 +273,61 @@ class TextBlock(object):
         else:
             return frgb, brgb
 
-    def xywh(self):
-        x, y, w, h = self.xyxy
-        return [x, y, w-x, h-y]
+    @property
+    def direction(self):
+        """Inferes render direction based on used language and aspect ratio."""
+        if self.target_lang in LANGAUGE_ORIENTATION_PRESETS:
+            d = LANGAUGE_ORIENTATION_PRESETS[self.target_lang]
+            if d in ('h', 'v'):
+                return d
 
-    # alignleft: 0, center: 1, right: 2 
+        if self._direction == 'auto':
+            if self.aspect_ratio > 1:
+                return 'v'
+            else:
+                return 'h'
+        return self._direction
+
+    @property
+    def vertical(self):
+        return self.direction == 'v'
+
+    @property
+    def horizontal(self):
+        return self.direction == 'h'
+
+    @property
     def alignment(self):
-        if self._alignment >= 0:
+        """Can be left, center or right"""
+        # TODO: Finish implementation
+        if self._alignment in ('left', 'center', 'right'):
             return self._alignment
-        elif self.vertical:
-            return 0
-        lines = self.lines_array()
-        if len(lines) == 1:
-            return 1
-        center, polygons = self.unrotated_polygons()
-        polygons = polygons.reshape(-1, 4, 2)
+        if len(self.lines) == 1:
+            return 'center'
 
-        left_std = np.std(polygons[:, 0, 0])
-        # right_std = np.std(polygons[:, 1, 0])
-        center_std = np.std((polygons[:, 0, 0] + polygons[:, 1, 0]) / 2)
-        if left_std < center_std:
-            return 0
+        x1, y1, x2, y2 = self.xyxy
+        polygons = self.unrotated_polygons
+        polygons = polygons.reshape(-1, 4, 2)
+        print(self.polygon_aspect_ratio, self.xyxy)
+        print(polygons[:, :, 0] - x1)
+        print()
+        if self.polygon_aspect_ratio > 1:
+            left_std = abs(np.std(polygons[:, :2, 1] - y1))
+            right_std = abs(np.std(polygons[:, 2:, 1] - y2))
+            center_std = abs(np.std(((polygons[:, :, 1] + polygons[:, :, 1]) - (y2 - y1)) / 2))
+            print(center_std)
+            print('a', left_std, right_std, center_std)
         else:
-            return 1
+            left_std = abs(np.std(polygons[:, ::2, 0] - x1))
+            right_std = abs(np.std(polygons[:, 2:, 0] - x2))
+            center_std = abs(np.std(((polygons[:, :, 0] + polygons[:, :, 0]) - (x2 - x1)) / 2))
+        min_std = min(left_std, right_std, center_std)
+        if left_std == min_std:
+            return 'left'
+        elif right_std == min_std:
+            return 'right'
+        else:
+            return 'center'
 
     @property
     def stroke_width(self):
@@ -444,29 +494,30 @@ def split_textblk(blk: TextBlock):
             current_blk.adjust_bbox(with_bbox=False)
     return textblock_splitted, sub_blk_list
 
+# Deprecated
 def group_output(blks, lines, im_w, im_h, mask=None, sort_blklist=True) -> List[TextBlock]:
     blk_list: List[TextBlock] = []
     scattered_lines = {'ver': [], 'hor': []}
-    for bbox, cls, conf in zip(*blks):
+    for bbox, lang_id, conf in zip(*blks):
         # cls could give wrong result
-        blk_list.append(TextBlock(bbox, language=LANG_LIST[cls]))
+        blk_list.append(TextBlock(bbox, language=LANG_LIST[lang_id]))
 
     # step1: filter & assign lines to textblocks
     bbox_score_thresh = 0.4
     mask_score_thresh = 0.1
-    for ii, line in enumerate(lines):
+    for line in lines:
         bx1, bx2 = line[:, 0].min(), line[:, 0].max()
         by1, by2 = line[:, 1].min(), line[:, 1].max()
         bbox_score, bbox_idx = -1, -1
         line_area = (by2-by1) * (bx2-bx1)
-        for jj, blk in enumerate(blk_list):
+        for i, blk in enumerate(blk_list):
             score = union_area(blk.xyxy, [bx1, by1, bx2, by2]) / line_area
             if bbox_score < score:
                 bbox_score = score
-                bbox_idx = jj
+                bbox_idx = i
         if bbox_score > bbox_score_thresh:
             blk_list[bbox_idx].lines.append(line)
-        else:   # if no textblock was assigned, check whether there is "enough" textmask
+        else: # if no textblock was assigned, check whether there is "enough" textmask
             if mask is not None:
                 mask_score = mask[by1: by2, bx1: bx2].mean() / 255
                 if mask_score < mask_score_thresh:
@@ -538,11 +589,10 @@ def visualize_textblocks(canvas, blk_list: List[TextBlock]):
     for i, blk in enumerate(blk_list):
         bx1, by1, bx2, by2 = blk.xyxy
         cv2.rectangle(canvas, (bx1, by1), (bx2, by2), (127, 255, 127), lw)
-        lines = blk.lines_array(dtype=np.int32)
-        for jj, line in enumerate(lines):
-            cv2.putText(canvas, str(jj), line[0], cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,127,0), 1)
+        for j, line in enumerate(blk.lines):
+            cv2.putText(canvas, str(j), line[0], cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,127,0), 1)
             cv2.polylines(canvas, [line], True, (0,127,255), 2)
-        cv2.polylines(canvas, [blk.min_rect()], True, (127,127,0), 2)
+        cv2.polylines(canvas, [blk.min_rect], True, (127,127,0), 2)
         cv2.putText(canvas, str(i), (bx1, by1 + lw), 0, lw / 3, (255,127,127), max(lw-1, 1), cv2.LINE_AA)
         center = [int((bx1 + bx2)/2), int((by1 + by2)/2)]
         cv2.putText(canvas, 'a: %.2f' % blk.angle, [bx1, center[1]], cv2.FONT_HERSHEY_SIMPLEX, 1, (127,127,255), 2)

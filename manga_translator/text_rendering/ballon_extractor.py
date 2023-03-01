@@ -37,7 +37,7 @@ def extract_ballon_region(img: np.ndarray, ballon_rect: List, enlarge_ratio=2.0,
 
     img = img[y1:y2, x1:x2].copy()
 
-    kernel = np.ones((3,3),np.uint8)
+    kernel = np.ones((3,3), np.uint8)
     orih, oriw = img.shape[0], img.shape[1]
     scaleR = 1
     if orih > 300 and oriw > 300:
@@ -52,7 +52,7 @@ def extract_ballon_region(img: np.ndarray, ballon_rect: List, enlarge_ratio=2.0,
     h, w = img.shape[0], img.shape[1]
     img_area = h * w
 
-    cpimg = cv2.GaussianBlur(img,(3,3),cv2.BORDER_DEFAULT)
+    cpimg = cv2.GaussianBlur(img, (3,3), cv2.BORDER_DEFAULT)
     detected_edges = cv2.Canny(cpimg, 70, 140, L2gradient=True, apertureSize=3)
     cv2.rectangle(detected_edges, (0, 0), (w-1, h-1), WHITE, 1, cv2.LINE_8)
     cons, hiers = cv2.findContours(detected_edges, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)

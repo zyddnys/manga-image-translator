@@ -359,7 +359,7 @@ def put_text_vertical(font_size: int, mag_ratio: float, text: str, h: int, fg: T
     for t in text:
         if line_height == 0:
             pen_line = pen_orig.copy()
-            if t == " ":
+            if t == ' ':
                 continue
         offset_y = put_char_vertical(font_size, t, pen_line, canvas_text, canvas_border, border_size=bgsize)
         line_height += offset_y

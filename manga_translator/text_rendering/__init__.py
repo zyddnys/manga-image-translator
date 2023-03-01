@@ -14,27 +14,6 @@ from ..utils import (
     get_logger,
 )
 
-LANGAUGE_ORIENTATION_PRESETS = {
-    'CHS': 'auto',
-    'CHT': 'auto',
-    'CSY': 'h',
-    'NLD': 'h',
-    'ENG': 'h',
-    'FRA': 'h',
-    'DEU': 'h',
-    'HUN': 'h',
-    'ITA': 'h',
-    'JPN': 'auto',
-    'KOR': 'auto',
-    'PLK': 'h',
-    'PTB': 'h',
-    'ROM': 'h',
-    'RUS': 'h',
-    'ESP': 'h',
-    'TRK': 'h',
-    'VIN': 'h',
-}
-
 logger = get_logger('rendering')
 
 def parse_font_paths(path: str, default: List[str] = None) -> List[str]:
@@ -70,20 +49,12 @@ async def dispatch(
         if not region.translation:
             continue
 
-        majority_dir = None
-        angle_changed = False
-        if text_direction in ['h', 'v']:
-            majority_dir = text_direction
-        elif region.target_lang in LANGAUGE_ORIENTATION_PRESETS:
-            majority_dir = LANGAUGE_ORIENTATION_PRESETS[region.target_lang]
-        if majority_dir not in ['h', 'v']:
-            if region.vertical:
-                majority_dir = 'v'
-                # TODO: Make this unnecessary
-                region.angle += 90
-                angle_changed = True
-            else:
-                majority_dir = 'h'
+        # print(region.angle, region.alignment)
+        render_direction = None
+        if text_direction in ('h', 'v'):
+            render_direction = text_direction
+        else:
+            render_direction = region.direction
 
         fg, bg = region.get_font_colors()
         fg, bg = fg_bg_compare(fg, bg)
@@ -92,9 +63,7 @@ async def dispatch(
         if not isinstance(font_size, int):
             font_size = int(font_size)
 
-        img = render(img, region, font_size, text_mag_ratio, majority_dir, fg, bg, original_img, font_size_offset, render_mask)
-        if angle_changed:
-            region.angle -= 90
+        img = render(img, region, font_size, text_mag_ratio, render_direction, fg, bg, original_img, font_size_offset, render_mask)
     return img
 
 def render(
@@ -102,7 +71,7 @@ def render(
     region: TextBlock,
     font_size,
     text_mag_ratio,
-    majority_dir,
+    render_direction,
     fg, bg,
     original_img,
     font_size_offset: int = 0,
@@ -130,7 +99,7 @@ def render(
     # enlarge_ratio = min(max(bounding_rect[2] / bounding_rect[3], bounding_rect[3] / bounding_rect[2]) * 1.5, 3)
     # ballon_mask, ballon_area, xyxy = extract_ballon_region(original_img, bounding_rect, enlarge_ratio=enlarge_ratio)
 
-    if majority_dir == 'h':
+    if render_direction == 'h':
         temp_box = text_render.put_text_horizontal(
             font_size,
             enlarge_ratio * 1.0,
@@ -149,20 +118,18 @@ def render(
             bg,
         )
     h, w, _ = temp_box.shape
-    r_prime = w / h
+    r_temp = w / h
+    r_orig = 1 / region.aspect_ratio
 
-    r = region.aspect_ratio
-    if majority_dir != 'v':
-        r = 1 / r
-
+    # Extend temporary box so that it has same ratio as original
     w_ext = 0
     h_ext = 0
-    if r_prime > r:
-        h_ext = int(w / (2 * r) - h / 2)
+    if r_temp > r_orig:
+        h_ext = int(w / (2 * r_orig) - h / 2)
         box = np.zeros((h + h_ext * 2, w, 4), dtype=np.uint8)
         box[h_ext:h + h_ext, 0:w] = temp_box
     else:
-        w_ext = int((h * r - w) / 2)
+        w_ext = int((h * r_orig - w) / 2)
         box = np.zeros((h, w + w_ext * 2, 4), dtype=np.uint8)
         box[0:h, w_ext:w_ext+w] = temp_box
     #h_ext += region_ext
@@ -171,9 +138,7 @@ def render(
     src_points = np.array([[0, 0], [box.shape[1], 0], [box.shape[1], box.shape[0]], [0, box.shape[0]]]).astype(np.float32)
     #src_pts[:, 0] = np.clip(np.round(src_pts[:, 0]), 0, enlarged_w * 2)
     #src_pts[:, 1] = np.clip(np.round(src_pts[:, 1]), 0, enlarged_h * 2)
-    dst_points = region.min_rect()
-    if majority_dir == 'v':
-        dst_points = dst_points[:, [3, 0, 1, 2]]
+    dst_points = region.min_rect
 
     if render_mask is not None:
         # set render_mask to 1 for the region that is inside dst_points

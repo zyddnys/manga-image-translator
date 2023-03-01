@@ -130,25 +130,25 @@ class ComicTextDetector(OfflineDetector):
     async def _forward(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
                        unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
 
-        keep_undetected_mask = False
-        refine_mode = REFINEMASK_INPAINT
+        # keep_undetected_mask = False
+        # refine_mode = REFINEMASK_INPAINT
 
         im_h, im_w = image.shape[:2]
         lines_map, mask = det_rearrange_forward(image, self.det_batch_forward_ctd, self.input_size[0], det_rearrange_max_batches, self.device, verbose)
-        blks = []
-        resize_ratio = [1, 1]
+        # blks = []
+        # resize_ratio = [1, 1]
         if lines_map is None:
             img_in, ratio, dw, dh = preprocess_img(image, input_size=self.input_size, device=self.device, half=self.half, to_tensor=self.backend=='torch')
             blks, mask, lines_map = self.model(img_in)
 
             if self.backend == 'opencv':
-                if mask.shape[1] == 2:     # some version of opencv spit out reversed result
+                if mask.shape[1] == 2: # some version of opencv spit out reversed result
                     tmp = mask
                     mask = lines_map
                     lines_map = tmp
             mask = mask.squeeze()
-            resize_ratio = (im_w / (self.input_size[0] - dw), im_h / (self.input_size[1] - dh))
-            blks = postprocess_yolo(blks, self.conf_thresh, self.nms_thresh, resize_ratio)
+            # resize_ratio = (im_w / (self.input_size[0] - dw), im_h / (self.input_size[1] - dh))
+            # blks = postprocess_yolo(blks, self.conf_thresh, self.nms_thresh, resize_ratio)
             mask = mask[..., :mask.shape[0]-dh, :mask.shape[1]-dw]
             lines_map = lines_map[..., :lines_map.shape[2]-dh, :lines_map.shape[3]-dw]
 
@@ -165,6 +165,11 @@ class ComicTextDetector(OfflineDetector):
         #     lines = []
         # else:
         #     lines = lines.astype(np.int32)
+
+        # YOLO was used for finding bboxes which to order the lines into. This is now solved
+        # through the textline merger instead, which seems to work more reliably.
+        # The YOLO language detection seems unnecessary as it could never be as good as
+        # using the OCR extracted string directly.
 
         textlines = [Quadrilateral(pts.astype(int), '', score) for pts, score in zip(lines, scores)]
         text_regions = await self._merge_textlines(textlines, image.shape[1], image.shape[0], verbose=verbose)

@@ -18,6 +18,7 @@ from .args import DEFAULT_ARGS
 from .utils import (
     BASE_PATH,
     MODULE_PATH,
+    LANGAUGE_ORIENTATION_PRESETS,
     TextBlock,
     Context,
     load_image,
@@ -32,7 +33,7 @@ from .ocr import dispatch as dispatch_ocr, prepare as prepare_ocr
 from .mask_refinement import dispatch as dispatch_mask_refinement
 from .inpainting import dispatch as dispatch_inpainting, prepare as prepare_inpainting
 from .translators import LanguageUnsupportedException, dispatch as dispatch_translation, prepare as prepare_translation
-from .text_rendering import LANGAUGE_ORIENTATION_PRESETS, dispatch as dispatch_rendering, dispatch_eng_render
+from .text_rendering import dispatch as dispatch_rendering, dispatch_eng_render
 from .text_rendering.text_render import count_valuable_text
 
 # Will be overwritten by __main__.py if module is being run directly (with python -m)
@@ -156,7 +157,8 @@ class MangaTranslator():
         try:
             # preload and download models (not necessary, remove to lazy load)
             logger.info('Loading models')
-            await prepare_upscaling(params.upscaler)
+            if params.upscale_ratio:
+                await prepare_upscaling(params.upscaler)
             await prepare_detection(params.detector)
             await prepare_ocr(params.ocr, self.device)
             await prepare_inpainting(params.inpainter, self.device)

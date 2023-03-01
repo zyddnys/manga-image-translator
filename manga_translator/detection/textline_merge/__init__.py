@@ -26,7 +26,7 @@ def split_text_region(
         fs1 = bboxes[connected_region_indices[0]].font_size
         fs2 = bboxes[connected_region_indices[1]].font_size
         fs = max(fs1, fs2)
-        
+
         # print(bboxes[connected_region_indices[0]].pts, bboxes[connected_region_indices[1]].pts)
         # print(fs, bboxes[connected_region_indices[0]].distance(bboxes[connected_region_indices[1]]), (1 + gamma) * fs)
         # print(bboxes[connected_region_indices[0]].angle, bboxes[connected_region_indices[1]].angle, 4 * np.pi / 180)
@@ -116,6 +116,7 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height):
     for node_set in nx.algorithms.components.connected_components(G):
          region_indices.extend(split_text_region(bboxes, node_set, width, height))
 
+    # step 3: return regions
     for node_set in region_indices:
     # for node_set in nx.algorithms.components.connected_components(G):
         nodes = list(node_set)
@@ -171,17 +172,13 @@ async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verb
             total_logprobs += np.log(txtln.prob) * txtln.area
         total_logprobs /= sum([txtln.area for txtln in textlines])
 
-        x1 = min([txtln.aabb.x for txtln in txtlns])
-        x2 = max([txtln.aabb.x + txtln.aabb.w for txtln in txtlns])
-        y1 = min([txtln.aabb.y for txtln in txtlns])
-        y2 = max([txtln.aabb.y + txtln.aabb.h for txtln in txtlns])
         font_size = int(min([txtln.font_size for txtln in txtlns]))
         angle = np.rad2deg(np.mean([txtln.angle for txtln in txtlns])) - 90
         if abs(angle) < 3:
             angle = 0
         lines = [txtln.pts for txtln in txtlns]
 
-        region = TextBlock([x1, y1, x2, y2], lines, font_size=font_size, vertical=(majority_dir == 'v'), angle=angle,
+        region = TextBlock(lines, font_size=font_size, direction=majority_dir, angle=angle,
                            fg_r=fg_r, fg_g=fg_g, fg_b=fg_b, bg_r=bg_r, bg_g=bg_g, bg_b=bg_b)
         region.prob = np.exp(total_logprobs)
         text_regions.append(region)
