@@ -6,6 +6,7 @@ You can translate text using this module.
 """
 import random
 import typing
+import time
 import json
 import urllib
 from typing import List
@@ -151,11 +152,20 @@ class GoogleTranslator(CommonTranslator):
             'soc-device': 1,
             'rt': 'c',
         }
-        r = await self.client.post(url, params=params, data=data)
+        encountered_exception = None
+        for _ in range(2):
+            try:
+                r = await self.client.post(url, params=params, data=data)
 
-        if r.status_code != 200 and self.raise_Exception:
-            raise Exception('Unexpected status code "{}" from {}'.format(
-                r.status_code, self.service_urls))
+                if r.status_code != 200 and self.raise_Exception:
+                    raise Exception('Unexpected status code "{}" from {}'.format(
+                        r.status_code, self.service_urls))
+                break
+            except Exception as e:
+                encountered_exception = e
+                time.sleep(0.5)
+        else:
+            raise encountered_exception
 
         return r.text, r
 
