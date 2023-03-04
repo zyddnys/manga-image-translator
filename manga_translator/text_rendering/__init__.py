@@ -2,6 +2,8 @@ import cv2
 import os
 import numpy as np
 from typing import List
+from shapely import affinity
+from shapely.geometry import Polygon
 
 from . import text_render
 from .text_render_eng import render_textblock_list_eng
@@ -110,29 +112,29 @@ async def dispatch(
     dst_points_list = []
     for region in text_regions:
         # Resize regions that are to small
-        # x1, y1, x2, y2 = region.xyxy
+        x1, y1, x2, y2 = region.xyxy
         # Minimal size is based on render direction
-        # size = (x2 - x1) if region.direction == 'h' else (y2 - y1)
-        # if size < MINIMAL_SIZE:
-        #     # poly = Polygon(region.min_rect[0])
-        #     # scale = MINIMAL_SIZE / size
-        #     # poly = shapely.affinity.scale(poly, xfact=scale, yfact=scale)
-        #     # dst_points = np.array(poly.exterior.coords[:4])
-        #     # dst_points = dst_points.reshape((-1, 4, 2))
+        size = (x2 - x1) if region.direction == 'h' else (y2 - y1)
+        if size < MINIMAL_SIZE:
+            poly = Polygon(region.min_rect[0])
+            scale = MINIMAL_SIZE / size
+            poly = affinity.scale(poly, xfact=scale, yfact=scale)
+            dst_points = np.array(poly.exterior.coords[:4])
+            dst_points = dst_points.reshape((-1, 4, 2))
 
-        #     # # Shift dst_points back into canvas
-        #     # min_x, min_y = dst_points.min(axis=0)
-        #     # max_x, max_y = dst_points.max(axis=0)
-        #     # if min_x < 0:
-        #     #     dst_points -= min_x
-        #     # elif max_x > img.shape[1]:
-        #     #     dst_points -= max_x - img.shape[1]
-        #     # if min_y < 0:
-        #     #     dst_points -= min_y
-        #     # elif max_y > img.shape[0]:
-        #     #     dst_points -= max_y - img.shape[0]
-        # else:
-        dst_points = region.min_rect
+            # # Shift dst_points back into canvas
+            # min_x, min_y = dst_points.min(axis=0)
+            # max_x, max_y = dst_points.max(axis=0)
+            # if min_x < 0:
+            #     dst_points -= min_x
+            # elif max_x > img.shape[1]:
+            #     dst_points -= max_x - img.shape[1]
+            # if min_y < 0:
+            #     dst_points -= min_y
+            # elif max_y > img.shape[0]:
+            #     dst_points -= max_y - img.shape[0]
+        else:
+            dst_points = region.min_rect
 
         dst_points_list.append(dst_points)
 
