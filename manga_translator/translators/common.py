@@ -114,7 +114,7 @@ class CommonTranslator(InfererModule):
         if len(query) < 0.6 * len(trans) and len(seq) < 0.5 * len(trans):
             # Extend sequence to length of original query
             trans = seq * max(len(query) // len(seq), 1)
-            # Apply capitalization of query to extracted repeating sequence
+            # Transfer capitalization of query to translation
             nTrans = ''
             for i in range(min(len(trans), len(query))):
                 nTrans += trans[i].upper() if query[i].isupper() else trans[i]

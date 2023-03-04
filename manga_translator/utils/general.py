@@ -3,7 +3,6 @@ from typing import List, Callable, Tuple
 import numpy as np
 import cv2
 import functools
-from abc import ABC
 from shapely.geometry import Polygon, MultiPoint
 from PIL import Image
 import tqdm
@@ -12,7 +11,6 @@ import sys
 import hashlib
 import re
 import einops
-import logging
 
 try:
     functools.cached_property

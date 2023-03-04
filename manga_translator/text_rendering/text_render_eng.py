@@ -385,10 +385,10 @@ def render_textblock_list_eng(
 
         if ref_textballon:
             assert original_img is not None
-            bounding_rect = region.bounding_rect()
             # non-dl textballon segmentation
-            enlarge_ratio = min(max(bounding_rect[2] / bounding_rect[3], bounding_rect[3] / bounding_rect[2]) * 1.5, 3)
-            ballon_mask, ballon_area, xyxy = extract_ballon_region(original_img, bounding_rect, enlarge_ratio=enlarge_ratio)
+            enlarge_ratio = min(max(region.xywh[2] / region.xywh[3], region.xywh[3] / region.xywh[2]) * 1.5, 3)
+            ballon_mask, xyxy = extract_ballon_region(original_img, region.xywh, enlarge_ratio=enlarge_ratio)
+            ballon_area = (ballon_mask > 0).sum()
             rotated, rx, ry = False, 0, 0
             if abs(region.angle) > 3:
                 rotated = True
@@ -412,12 +412,12 @@ def render_textblock_list_eng(
                 ballon_mask = rotated_ballon_mask
 
             line_width = sum(word_lengths) + delimiter_len * (len(word_lengths) - 1)
-            line_area = line_width * line_height + delimiter_len * (len(words) - 1) * line_height
-            area_ratio = ballon_area / line_area
+            region_area = line_width * line_height + delimiter_len * (len(words) - 1) * line_height
+            area_ratio = ballon_area / region_area
             resize_ratio = 1
-            # if ballon_area is smaller than 2*line_area
+            # if ballon_area is smaller than 2*region_area
             if area_ratio < ballonarea_thresh:
-                # resize so that it is 2*line_area
+                # resize so that it is 2*region_area
                 resize_ratio = ballonarea_thresh / area_ratio
                 ballon_area = int(resize_ratio * ballon_area) # = ballonarea_thresh * line_area
                 resize_ratio = min(np.sqrt(resize_ratio), (1/downscale_constraint)**2)

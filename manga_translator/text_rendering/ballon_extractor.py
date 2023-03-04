@@ -28,10 +28,9 @@ def enlarge_window(rect, im_w, im_h, ratio=2.5, aspect_ratio=1.0) -> List:
     rect[1::2] = np.clip(rect[1::2], 0, im_h - 1)
     return rect.tolist()
 
-def extract_ballon_region(img: np.ndarray, ballon_rect: List, enlarge_ratio=2.0, verbose=False) -> Tuple[np.ndarray, int, List]:
+def extract_ballon_region(img: np.ndarray, ballon_rect: List, enlarge_ratio=1, verbose=False) -> Tuple[np.ndarray, int, List]:
 
-    x1, y1, x2, y2 = ballon_rect[0], ballon_rect[1], \
-        ballon_rect[2] + ballon_rect[0], ballon_rect[3] + ballon_rect[1]
+    x1, y1, x2, y2 = ballon_rect[0], ballon_rect[1], ballon_rect[2] + ballon_rect[0], ballon_rect[3] + ballon_rect[1]
     if enlarge_ratio > 1:
         x1, y1, x2, y2 = enlarge_window([x1, y1, x2, y2], img.shape[1], img.shape[0], enlarge_ratio, aspect_ratio=ballon_rect[3] / ballon_rect[2])
 
@@ -101,4 +100,4 @@ def extract_ballon_region(img: np.ndarray, ballon_rect: List, enlarge_ratio=2.0,
         cv2.imshow('img', img)
         cv2.waitKey(0)
 
-    return ballon_mask, (ballon_mask > 0).sum(), [x1, y1, x2, y2]
+    return ballon_mask, [x1, y1, x2, y2]

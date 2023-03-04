@@ -66,24 +66,6 @@ def yolo_xywh2xyxy(xywh: np.array, w: int, h:  int, to_int=True):
         xywh = xywh.astype(np.int64)
     return xywh
 
-def rotate_polygons(center, polygons, rotation, new_center=None, to_int=True):
-    if new_center is None:
-        new_center = center
-    rotation = np.deg2rad(rotation)
-    s, c = np.sin(rotation), np.cos(rotation)
-    polygons = polygons.astype(np.float32)
-
-    polygons[:, 1::2] -= center[1]
-    polygons[:, ::2] -= center[0]
-    rotated = np.copy(polygons)
-    rotated[:, 1::2] = polygons[:, 1::2] * c - polygons[:, ::2] * s
-    rotated[:, ::2] = polygons[:, 1::2] * s + polygons[:, ::2] * c
-    rotated[:, 1::2] += new_center[1]
-    rotated[:, ::2] += new_center[0]
-    if to_int:
-        return rotated.astype(np.int64)
-    return rotated
-
 def letterbox(im, new_shape=(640, 640), color=(0, 0, 0), auto=False, scaleFill=False, scaleup=True, stride=128):
     # Resize and pad image while meeting stride-multiple constraints
     shape = im.shape[:2]  # current shape [height, width]

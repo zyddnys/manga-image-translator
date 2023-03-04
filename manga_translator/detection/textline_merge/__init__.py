@@ -120,7 +120,7 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height):
     for node_set in region_indices:
     # for node_set in nx.algorithms.components.connected_components(G):
         nodes = list(node_set)
-        txtlns = np.array(bboxes)[nodes]
+        txtlns: List[Quadrilateral] = np.array(bboxes)[nodes]
 
         # calculate average fg and bg color
         fg_r = round(np.mean([box.fg_r for box in txtlns]))
@@ -155,7 +155,7 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height):
         txtlns = np.array(bboxes)[nodes]
 
         # yield overall bbox and sorted indices
-        yield txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
+        yield txtlns, (fg_r, fg_g, fg_b), (bg_r, bg_g, bg_b)
 
 async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verbose: bool = False) -> List[TextBlock]:
     # print(width, height)
@@ -165,8 +165,8 @@ async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verb
     #     s = re.sub(r'([\d\]]) ', r'\1, ', s.replace('\n ', ', ')).replace(']]', ']],')
     #     print(s)
 
-    text_regions: List[TextBlock] = []
-    for (txtlns, majority_dir, fg_r, fg_g, fg_b, bg_r, bg_g, bg_b) in merge_bboxes_text_region(textlines, width, height):
+    text_regions = []
+    for (txtlns, fg_color, bg_color) in merge_bboxes_text_region(textlines, width, height):
         total_logprobs = 0
         for txtln in txtlns:
             total_logprobs += np.log(txtln.prob) * txtln.area
@@ -177,9 +177,7 @@ async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verb
         if abs(angle) < 3:
             angle = 0
         lines = [txtln.pts for txtln in txtlns]
-
-        region = TextBlock(lines, font_size=font_size, direction=majority_dir, angle=angle,
-                           fg_r=fg_r, fg_g=fg_g, fg_b=fg_b, bg_r=bg_r, bg_g=bg_g, bg_b=bg_b)
-        region.prob = np.exp(total_logprobs)
+        region = TextBlock(lines, font_size=font_size, angle=angle, prob=np.exp(total_logprobs),
+                           fg_color=fg_color, bg_color=bg_color)
         text_regions.append(region)
     return text_regions

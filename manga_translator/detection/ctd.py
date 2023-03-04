@@ -10,7 +10,7 @@ from .ctd_utils.basemodel import TextDetBase, TextDetBaseDNN
 from .ctd_utils.utils.yolov5_utils import non_max_suppression
 from .ctd_utils.utils.db_utils import SegDetectorRepresenter
 from .ctd_utils.utils.imgproc_utils import letterbox
-from .ctd_utils.textmask import REFINEMASK_INPAINT
+# from .ctd_utils.textmask import REFINEMASK_INPAINT
 from .common import OfflineDetector
 from ..utils import TextBlock, Quadrilateral, det_rearrange_forward
 
@@ -167,9 +167,11 @@ class ComicTextDetector(OfflineDetector):
         #     lines = lines.astype(np.int32)
 
         # YOLO was used for finding bboxes which to order the lines into. This is now solved
-        # through the textline merger instead, which seems to work more reliably.
+        # through the textline merger, which seems to work more reliably.
         # The YOLO language detection seems unnecessary as it could never be as good as
         # using the OCR extracted string directly.
+        # Doing it for increasing the textline merge accuracy doesn't really work either,
+        # as the merge could be postponed until after the OCR finishes.
 
         textlines = [Quadrilateral(pts.astype(int), '', score) for pts, score in zip(lines, scores)]
         text_regions = await self._merge_textlines(textlines, image.shape[1], image.shape[0], verbose=verbose)

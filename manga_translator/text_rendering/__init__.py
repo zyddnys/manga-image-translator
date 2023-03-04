@@ -1,20 +1,25 @@
-from typing import List
-import numpy as np
 import cv2
 import os
+import numpy as np
+from typing import List
+import shapely
+from shapely.geometry import Polygon
 
 from . import text_render
 from .text_render_eng import render_textblock_list_eng
-# from .ballon_extractor import extract_ballon_region
+from .ballon_extractor import extract_ballon_region
 from ..utils import (
     BASE_PATH,
     TextBlock,
     findNextPowerOf2,
     color_difference,
     get_logger,
+    LANGAUGE_ORIENTATION_PRESETS,
 )
 
 logger = get_logger('rendering')
+
+MINIMAL_SIZE = 120
 
 def parse_font_paths(path: str, default: List[str] = None) -> List[str]:
     if path:
@@ -30,56 +35,130 @@ def fg_bg_compare(fg, bg):
         bg = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
     return fg, bg
 
+# def dst_points_intersect(pts1, pts2):
+#     poly1, poly2 = Polygon(pts1), Polygon(pts2)
+#     return poly1.intersects(poly2)
+
+# def rearrange_dst_points(img, text_regions, dst_points_list):
+#     n_dst_points_list = []
+
+#     # Step 1: Collect regions with aspect ratio that does not work with render direction
+#     v_regions = []
+#     h_regions = []
+#     other_regions = []
+#     for region in text_regions:
+#         # If target language can be rendered in both orientations
+#         if LANGAUGE_ORIENTATION_PRESETS.get(region.target_lang) == 'auto':
+#             continue
+#         if region.aspect_ratio < 1 and region.direction == 'h':
+#             h_regions.append(region)
+#         elif region.aspect_ratio > 1 and region.direction == 'v':
+#             v_regions.append(region)
+#         else:
+#             other_regions.append(region)
+
+#     # Step 2: Group collected regions if they share same text bubble/area
+#     for d in ('v', 'h'):
+#         for region in (v_regions if d == 'v' else h_regions):
+#             dst_points = region.min_rect
+
+#             # ballon_mask, xyxy = extract_ballon_region(img, [0, 0, img.shape[1], img.shape[0]], enlarge_ratio=1, verbose=True)
+#             if img is not None:
+#                 # Group regions if their dst_points intersect
+#                 ...
+
+#                 # If original text_direction is vertical, sort groups from right to left
+#                 # Else, sort groups from top to bottom
+#             n_dst_points_list.append(dst_points)
+
+#     # Step 3: Resize groups and single regions to remove intersections
+#     # distribute based on minimum width/height requirements otherwise higher area means more favor
+
+#     # Step 4: Rearrange grouped regions
+
+# def generate_region_placement(img, text_regions):
+#     # Expand dst_points to ballon region
+#     dst_points_list = []
+#     for region in text_regions:
+#         ballon_mask, searched_xyxy = extract_ballon_region(img, region.xywh, enlarge_ratio=1.2, verbose=True)
+#         ballon_xywh = np.array(cv2.boundingRect(cv2.findNonZero(ballon_mask)))
+#         ballon_xywh[:2] += searched_xyxy[:2]
+
+#         print(ballon_xywh)
+#         dst_points_list.append(region.min_rect)
+
+#     # To prevent intersections, rearrange or resize regions
+
+#     # Resize
+
+
 async def dispatch(
     img: np.ndarray,
     text_regions: List[TextBlock],
     text_mag_ratio: np.integer,
-    text_direction: str = 'auto',
     font_path: str = '',
     font_size_offset: int = 0,
-    original_img: np.ndarray = None,
+    rearrange_regions = False,
     render_mask: np.ndarray = None,
     ) -> np.ndarray:
 
     text_render.set_font(font_path)
+    text_regions = list(filter(lambda region: region.translation, text_regions))
 
+    # if rearrange_regions:
+    #     # Rearrange regions in same ballon region if render direction is different from source
+    #     # dst_points_list = generate_region_placement(img, text_regions)
+    # else:
+    dst_points_list = []
     for region in text_regions:
+        # Resize regions that are to small
+        poly = Polygon(region.min_rect[0])
+        x1, y1, x2, y2 = poly.bounds
+        # Minimal size is based on render direction
+        size = (x2 - x1) if region.direction == 'h' else (y2 - y1)
+        if size < MINIMAL_SIZE:
+            scale = MINIMAL_SIZE / size
+            poly = shapely.affinity.scale(poly, xfact=scale, yfact=scale)
+        dst_points = np.array(poly.exterior.coords[:4])
+
+        # # Shift dst_points back into canvas
+        # min_x, min_y = dst_points.min(axis=0)
+        # max_x, max_y = dst_points.max(axis=0)
+        # if min_x < 0:
+        #     dst_points -= min_x
+        # elif max_x > img.shape[1]:
+        #     dst_points -= max_x - img.shape[1]
+        # if min_y < 0:
+        #     dst_points -= min_y
+        # elif max_y > img.shape[0]:
+        #     dst_points -= max_y - img.shape[0]
+
+        dst_points_list.append(dst_points.reshape((-1, 4, 2)))
+
+    # Render text
+    for region, dst_points in zip(text_regions, dst_points_list):
         logger.info(f'text: {region.get_text()}')
         logger.info(f' trans: {region.translation}')
-        if not region.translation:
-            continue
 
-        # print(region.angle, region.alignment)
-        render_direction = None
-        if text_direction in ('h', 'v'):
-            render_direction = text_direction
-        else:
-            render_direction = region.direction
+        if render_mask is not None:
+            # set render_mask to 1 for the region that is inside dst_points
+            cv2.fillConvexPoly(render_mask, dst_points.astype(np.int32), 1)
 
-        fg, bg = region.get_font_colors()
-        fg, bg = fg_bg_compare(fg, bg)
-        font_size = region.font_size
-        font_size = round(font_size)
-        if not isinstance(font_size, int):
-            font_size = int(font_size)
-
-        img = render(img, region, font_size, text_mag_ratio, render_direction, fg, bg, original_img, font_size_offset, render_mask)
+        img = render(img, region, dst_points, text_mag_ratio, font_size_offset)
     return img
 
 def render(
     img,
     region: TextBlock,
-    font_size,
+    dst_points,
     text_mag_ratio,
-    render_direction,
-    fg, bg,
-    original_img,
     font_size_offset: int = 0,
-    render_mask: np.ndarray = None,
 ):
-    # round font_size to fixed powers of 2, so later LRU cache can work
-    font_size_enlarged = findNextPowerOf2(font_size) * text_mag_ratio
-    enlarge_ratio = font_size_enlarged / font_size
+
+    # Round font_size to fixed powers of 2, to take advantage of the font cache.
+    # Generated image snippet with text will be downscaled to dst_points after rendering.
+    font_size_enlarged = findNextPowerOf2(region.font_size) * text_mag_ratio
+    enlarge_ratio = font_size_enlarged / region.font_size
     font_size = font_size_enlarged
     while True:
         enlarged_w = round(enlarge_ratio * (region.xyxy[2] - region.xyxy[0]))
@@ -93,16 +172,12 @@ def render(
     font_size += font_size_offset
     logger.debug(f'font_size: {font_size}')
 
-    # TODO: Add ballon extractor
-    # bounding_rect = region.bounding_rect()
-    # # non-dl textballon segmentation
-    # enlarge_ratio = min(max(bounding_rect[2] / bounding_rect[3], bounding_rect[3] / bounding_rect[2]) * 1.5, 3)
-    # ballon_mask, ballon_area, xyxy = extract_ballon_region(original_img, bounding_rect, enlarge_ratio=enlarge_ratio)
+    fg, bg = region.get_font_colors()
+    fg, bg = fg_bg_compare(fg, bg)
 
-    if render_direction == 'h':
+    if region.direction == 'h':
         temp_box = text_render.put_text_horizontal(
             font_size,
-            enlarge_ratio * 1.0,
             region.translation,
             enlarged_w,
             fg,
@@ -111,7 +186,6 @@ def render(
     else:
         temp_box = text_render.put_text_vertical(
             font_size,
-            enlarge_ratio * 1.0,
             region.translation,
             enlarged_h,
             fg,
@@ -119,7 +193,7 @@ def render(
         )
     h, w, _ = temp_box.shape
     r_temp = w / h
-    r_orig = 1 / region.aspect_ratio
+    r_orig = region.aspect_ratio
 
     # Extend temporary box so that it has same ratio as original
     w_ext = 0
@@ -138,14 +212,9 @@ def render(
     src_points = np.array([[0, 0], [box.shape[1], 0], [box.shape[1], box.shape[0]], [0, box.shape[0]]]).astype(np.float32)
     #src_pts[:, 0] = np.clip(np.round(src_pts[:, 0]), 0, enlarged_w * 2)
     #src_pts[:, 1] = np.clip(np.round(src_pts[:, 1]), 0, enlarged_h * 2)
-    dst_points = region.min_rect
-
-    if render_mask is not None:
-        # set render_mask to 1 for the region that is inside dst_points
-        cv2.fillConvexPoly(render_mask, dst_points.astype(np.int32), 1)
 
     M, _ = cv2.findHomography(src_points, dst_points, cv2.RANSAC, 5.0)
-    rgba_region = np.clip(cv2.warpPerspective(box, M, (img.shape[1], img.shape[0]), flags = cv2.INTER_LINEAR, borderMode = cv2.BORDER_CONSTANT, borderValue = 0), 0, 255)
+    rgba_region = np.clip(cv2.warpPerspective(box, M, (img.shape[1], img.shape[0]), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0), 0, 255)
     canvas_region = rgba_region[:, :, 0: 3]
     mask_region = rgba_region[:, :, 3: 4].astype(np.float32) / 255.0
     img = np.clip((img.astype(np.float32) * (1 - mask_region) + canvas_region.astype(np.float32) * mask_region), 0, 255).astype(np.uint8)

@@ -1,10 +1,10 @@
 import numpy as np
 from typing import List, Tuple
 
-from .ctd_utils import TextBlock
 from .default import DefaultDetector
 from .ctd import ComicTextDetector
 from .common import CommonDetector, OfflineDetector
+from ..utils import TextBlock
 
 DETECTORS = {
     'default': DefaultDetector,

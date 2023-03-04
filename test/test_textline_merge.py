@@ -266,6 +266,6 @@ async def test_merge_image6():
         [[1055,  172], [1187,  172], [1187,  200], [1055,  200]],
         [[538, 154], [660, 154], [660, 182], [538, 182]],
     ]
-    print((await generate_combinations(lines, width, height))[0])
+    # print((await generate_combinations(lines, width, height))[0])
     expected_combinations = [[0, 1, 2, 3, 4, 5], [6, 7, 8, 10], [9, 11, 12, 13, 14, 15], [16, 17, 19], [18, 20, 21, 22, 24], [23, 25, 27, 29, 31], [26, 28, 30]]
     await run_test(lines, expected_combinations, width, height, '5.png')

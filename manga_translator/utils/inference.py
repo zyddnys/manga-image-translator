@@ -8,7 +8,6 @@ import shutil
 import filecmp
 from abc import ABC, abstractmethod
 from functools import cached_property
-from pathlib import Path
 
 from .general import (
     BASE_PATH,

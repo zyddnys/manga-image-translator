@@ -337,7 +337,7 @@ def compact_special_symbols(text: str) -> str :
     text = text.replace('...', '…')
     return text
 
-def put_text_vertical(font_size: int, mag_ratio: float, text: str, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
+def put_text_vertical(font_size: int, text: str, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
     text = compact_special_symbols(text)
     bgsize = int(max(font_size * 0.07, 1)) if bg is not None else 0
     spacing_y = 0
@@ -480,7 +480,7 @@ def put_char_horizontal(font_size: int, cdpt: str, pen_l: Tuple[int, int], canva
         canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width] = cv2.add(canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width], bitmap_border)
     return char_offset_x
 
-def put_text_horizontal(font_size: int, mag_ratio: float, text: str, width: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
+def put_text_horizontal(font_size: int, text: str, width: int, fg: Tuple[int, int, int], bg: Tuple[int, int, int]):
     text = compact_special_symbols(text)
     bg_size = int(max(font_size * 0.07, 1)) if bg is not None else 0
     spacing_y = int(font_size * 0.2)
