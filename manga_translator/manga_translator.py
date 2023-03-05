@@ -482,6 +482,15 @@ class MangaTranslatorWS(MangaTranslator):
         async for websocket in websockets.connect(self.url, extra_headers={'x-secret': self.secret}, max_size=100_000_000):
             try:
                 logger.info('Connected to websocket server')
+
+                async def sync_state(state, finished):
+                    msg = ws_pb2.WebSocketMessage()
+                    msg.status.id = self._task_id
+                    msg.status.status = state
+                    await websocket.send(msg.SerializeToString())
+
+                self.add_progress_hook(sync_state)
+
                 async for raw in websocket:
                     msg = ws_pb2.WebSocketMessage()
                     msg.ParseFromString(raw)
@@ -500,14 +509,6 @@ class MangaTranslatorWS(MangaTranslator):
                             'translator': task.translator,
                             'size': task.size,
                         }
-
-                        async def sync_state(state, finished):
-                            msg = ws_pb2.WebSocketMessage()
-                            msg.status.id = self._task_id
-                            msg.status.status = state
-                            await websocket.send(msg.SerializeToString())
-
-                        self.add_progress_hook(sync_state)
 
                         logger.info(f'-- Processing task {self._task_id}')
                         if translation_params:
