@@ -539,7 +539,7 @@ class MangaTranslatorWS(MangaTranslator):
                 logger.error(f'{e.__class__.__name__}: {e}', exc_info=e if self.verbose else None)
 
     async def _run_text_rendering(self, key: str, img: np.ndarray, text_mag_ratio: np.integer, text_regions: List[TextBlock], text_direction: str,
-                                  font_path: str = '', font_size_offset: int = 0, original_img: np.ndarray = None, mask: np.ndarray = None):
+                                  font_path: str = '', font_size_offset: int = 0, original_img: np.ndarray = None, mask: np.ndarray = None, rearrange_regions = False)):
 
         img_inpainted = np.copy(img)
         render_mask = np.copy(mask)
