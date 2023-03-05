@@ -74,7 +74,7 @@ class ComicTextDetector(OfflineDetector):
     }
 
     def __init__(self, *args, **kwargs):
-        os.makedirs(self._MODEL_DIR, exist_ok=True)
+        os.makedirs(self.model_dir, exist_ok=True)
         if os.path.exists('comictextdetector.pt'):
             shutil.move('comictextdetector.pt', self._get_file_path('comictextdetector.pt'))
         if os.path.exists('comictextdetector.pt.onnx'):

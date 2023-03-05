@@ -22,7 +22,7 @@ class CommonUpscaler(InfererModule):
         pass
 
 class OfflineUpscaler(CommonUpscaler, ModelWrapper):
-    _MODEL_DIR = os.path.join(ModelWrapper._MODEL_DIR, 'upscaling')
+    _MODEL_SUB_DIR = 'upscaling'
 
     async def _upscale(self, *args, **kwargs):
         return await self.forward(*args, **kwargs)

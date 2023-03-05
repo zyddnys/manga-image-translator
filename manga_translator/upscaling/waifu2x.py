@@ -54,7 +54,7 @@ class Waifu2xUpscaler(OfflineUpscaler): # ~2GB of vram
     _VALID_UPSCALE_RATIOS = [1, 2, 4, 8, 16, 32]
 
     def __init__(self, *args, **kwargs):
-        os.makedirs(self._MODEL_DIR, exist_ok=True)
+        os.makedirs(self.model_dir, exist_ok=True)
         if os.path.exists(os.path.join('models', waifu2x_base_folder)):
             shutil.move(os.path.join('models', waifu2x_base_folder), self._get_file_path(waifu2x_base_folder))
         super().__init__(*args, **kwargs)

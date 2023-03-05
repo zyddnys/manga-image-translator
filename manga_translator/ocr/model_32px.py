@@ -27,7 +27,7 @@ class Model32pxOCR(OfflineOCR):
     }
 
     def __init__(self, *args, **kwargs):
-        os.makedirs(self._MODEL_DIR, exist_ok=True)
+        os.makedirs(self.model_dir, exist_ok=True)
         if os.path.exists('ocr.ckpt'):
             shutil.move('ocr.ckpt', self._get_file_path('ocr.ckpt'))
         if os.path.exists('alphabet-all-v5.txt'):

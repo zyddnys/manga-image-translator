@@ -34,7 +34,7 @@ class DefaultDetector(OfflineDetector):
     }
 
     def __init__(self, *args, **kwargs):
-        os.makedirs(self._MODEL_DIR, exist_ok=True)
+        os.makedirs(self.model_dir, exist_ok=True)
         if os.path.exists('detect.ckpt'):
             shutil.move('detect.ckpt', self._get_file_path('detect.ckpt'))
         super().__init__(*args, **kwargs)

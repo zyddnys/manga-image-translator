@@ -18,6 +18,7 @@ from .utils import (
     BASE_PATH,
     MODULE_PATH,
     LANGAUGE_ORIENTATION_PRESETS,
+    ModelWrapper,
     TextBlock,
     Context,
     load_image,
@@ -158,6 +159,8 @@ class MangaTranslator():
         try:
             # preload and download models (not necessary, remove to lazy load)
             logger.info('Loading models')
+            if params.model_dir:
+                ModelWrapper._MODEL_DIR = params.model_dir
             if params.upscale_ratio:
                 await prepare_upscaling(params.upscaler)
             await prepare_detection(params.detector)

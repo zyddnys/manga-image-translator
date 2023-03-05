@@ -26,7 +26,7 @@ class Model48pxCTCOCR(OfflineOCR):
     }
 
     def __init__(self, *args, **kwargs):
-        os.makedirs(self._MODEL_DIR, exist_ok=True)
+        os.makedirs(self.model, exist_ok=True)
         if os.path.exists('ocr-ctc.ckpt'):
             shutil.move('ocr-ctc.ckpt', self._get_file_path('ocr-ctc.ckpt'))
         if os.path.exists('alphabet-all-v5.txt'):

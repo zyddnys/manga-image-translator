@@ -134,7 +134,7 @@ class CommonTranslator(InfererModule):
         return trans
 
 class OfflineTranslator(CommonTranslator, ModelWrapper):
-    _MODEL_DIR = os.path.join(ModelWrapper._MODEL_DIR, 'translators')
+    _MODEL_SUB_DIR = 'translators'
 
     async def _translate(self, *args, **kwargs):
         return await self.forward(*args, **kwargs)

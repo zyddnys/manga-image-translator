@@ -87,11 +87,12 @@ class ModelWrapper(ABC):
         executables         - List of files that need to have the executable flag set
     """
     _MODEL_DIR = os.path.join(BASE_PATH, 'models')
+    _MODEL_SUB_DIR = ''
     _MODEL_MAPPING = {}
     _KEY = ''
 
     def __init__(self):
-        os.makedirs(self._MODEL_DIR, exist_ok=True)
+        os.makedirs(self.model_dir, exist_ok=True)
         self._key = self._KEY or self.__class__.__name__
         self._loaded = False
         self._check_for_malformed_model_mapping()
@@ -103,8 +104,12 @@ class ModelWrapper(ABC):
     def is_downloaded(self) -> bool:
         return self._downloaded
 
+    @property
+    def model_dir(self):
+        return os.path.join(self._MODEL_DIR, self._MODEL_SUB_DIR)
+
     def _get_file_path(self, relative_path: str) -> str:
-        return os.path.join(self._MODEL_DIR, relative_path)
+        return os.path.join(self.model_dir, relative_path)
 
     def _get_used_gpu_memory(self) -> bool:
         '''

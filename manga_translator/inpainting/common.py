@@ -14,7 +14,7 @@ class CommonInpainter(InfererModule):
         pass
 
 class OfflineInpainter(CommonInpainter, ModelWrapper):
-    _MODEL_DIR = os.path.join(ModelWrapper._MODEL_DIR, 'inpainting')
+    _MODEL_SUB_DIR = 'inpainting'
 
     async def _inpaint(self, *args, **kwargs):
         return await self.forward(*args, **kwargs)

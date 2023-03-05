@@ -50,7 +50,7 @@ class CommonOCR(InfererModule):
         pass
 
 class OfflineOCR(CommonOCR, ModelWrapper):
-    _MODEL_DIR = os.path.join(ModelWrapper._MODEL_DIR, 'ocr')
+    _MODEL_SUB_DIR = 'ocr'
 
     async def _recognize(self, *args, **kwargs):
         return await self.forward(*args, **kwargs)
