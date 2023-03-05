@@ -174,7 +174,7 @@ class ModelWrapper(ABC):
         Downloads models as defined in `_MODEL_MAPPING`. Can be overwritten (together
         with `_check_downloaded`) to implement unconventional download logic.
         '''
-        print('\nDownloading models into ./models\n')
+        print(f'\nDownloading models into {self.model_dir}\n')
         for map_key, mapping in self._MODEL_MAPPING.items():
             if self._check_downloaded_map(map_key):
                 print(f' -- Skipping {map_key} as it\'s already downloaded')
