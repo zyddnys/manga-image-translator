@@ -118,12 +118,8 @@ class Model32pxOCR(OfflineOCR):
                     cur_region.bg_b = bb
                 else:
                     cur_region.text.append(txt)
-                    cur_region.fg_r += fr
-                    cur_region.fg_g += fg
-                    cur_region.fg_b += fb
-                    cur_region.bg_r += br
-                    cur_region.bg_g += bg
-                    cur_region.bg_b += bb
+                    cur_region.fg_colors += np.array([fr, fg, fb])
+                    cur_region.bg_colors += np.array([br, bg, bb])
 
                 out_regions.append(cur_region)
 
