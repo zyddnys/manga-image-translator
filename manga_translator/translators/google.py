@@ -9,6 +9,7 @@ import typing
 import time
 import json
 import urllib
+import langid
 from typing import List
 
 import httpcore
@@ -216,21 +217,48 @@ class GoogleTranslator(CommonTranslator):
 
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         empty_l = 0
+        empty_r = len(queries)
         for query in queries:
             if query == '':
                 empty_l += 1
             else:
                 break
-        query_text = '\n'.join(queries)
-        result = await self._translate_query(from_lang, to_lang, query_text)
-        if not isinstance(result, list):
-            result = empty_l * [''] + result.text.split('\n')
-            empty_r = len(query_text) - len(result)
-            if empty_r > 0:
-                result = result + empty_r * ['']
+        for query in queries[::-1]:
+            if query == '':
+                empty_r -= 1
+            else:
+                break
+        queries = queries[empty_l:empty_r]
+
+        langid.set_languages(['en', 'ja'])
+        en_queries = []
+        ja_queries = []
+        result = []
+        for i, query in enumerate(queries):
+            detected_lang = langid.classify(query)[0]
+            if detected_lang == 'ja':
+                ja_queries.append(query)
+                result.append('ja')
+            else:
+                en_queries.append(query)
+                result.append('en')
+        langid.set_languages(None)
+
+        en_result = await self._translate_query(from_lang, to_lang, '\n'.join(en_queries))
+        en_result = en_result.text.split('\n')
+        ja_result = await self._translate_query(from_lang, to_lang, '\n'.join(ja_queries))
+        ja_result = ja_result.text.split('\n')
+
+        for i, lang in enumerate(result):
+            if lang == 'ja':
+                result[i] = ja_result.pop(0)
+            else:
+                result[i] = en_result.pop(0)
+
+        result = empty_l * [''] + result + empty_r * ['']
         return [text.strip() for text in result]
 
-    async def _translate_query(self, from_lang: str, to_lang: str, query: str) -> List[str]:
+    async def _translate_query(self, from_lang: str, to_lang: str, query: str) -> Translated:
         to_lang = to_lang.lower().split('_', 1)[0]
         from_lang = from_lang.lower().split('_', 1)[0]
 
@@ -281,7 +309,7 @@ class GoogleTranslator(CommonTranslator):
         # should_spacing = parsed[1][0][0][3]
         should_spacing = True
         translated_parts = []
-        # print(parsed)
+        print(parsed)
         for part in parsed[1][0][0][5]:
             try:
                 translated_parts.append(part[4][1][0])
