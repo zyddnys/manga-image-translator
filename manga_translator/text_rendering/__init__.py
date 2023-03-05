@@ -4,6 +4,7 @@ import numpy as np
 from typing import List
 from shapely import affinity
 from shapely.geometry import Polygon
+from PIL import Image
 
 from . import text_render
 from .text_render_eng import render_textblock_list_eng
@@ -15,11 +16,13 @@ from ..utils import (
     color_difference,
     get_logger,
     LANGAUGE_ORIENTATION_PRESETS,
+    load_image,
+    dump_image,
 )
 
-logger = get_logger('rendering')
+MIN_FONT_SIZE = 10
 
-MINIMAL_SIZE = 120
+logger = get_logger('rendering')
 
 def parse_font_paths(path: str, default: List[str] = None) -> List[str]:
     if path:
@@ -101,7 +104,6 @@ async def dispatch(
     rearrange_regions = False,
     render_mask: np.ndarray = None,
     ) -> np.ndarray:
-
     text_render.set_font(font_path)
     text_regions = list(filter(lambda region: region.translation, text_regions))
 
@@ -112,13 +114,33 @@ async def dispatch(
     dst_points_list = []
     for region in text_regions:
         # Resize regions that are to small
-        x1, y1, x2, y2 = region.xyxy
         # Minimal size is based on render direction
-        size = (x2 - x1) if region.direction == 'h' else (y2 - y1)
-        if size < MINIMAL_SIZE:
+
+        # font_size = region.font_size + font_size_offset
+        font_size_enlarged = findNextPowerOf2(region.font_size) * text_mag_ratio
+        enlarge_ratio = font_size_enlarged / region.font_size
+        font_size = font_size_enlarged
+        while True:
+            enlarged_w = round(enlarge_ratio * region.xywh[2])
+            enlarged_h = round(enlarge_ratio * region.xywh[3])
+            rows = enlarged_h // (font_size * 1.3)
+            cols = enlarged_w // (font_size * 1.3)
+            if rows * cols < len(region.translation):
+                enlarge_ratio *= 1.1
+                continue
+            break
+        font_size += font_size_offset
+
+        if region.direction == 'h':
+            line_text_list, line_width_list = text_render.calc_horizontal(font_size, region.translation, enlarged_w)
+            target_scale = 1.2 * max([len(t) for t in line_text_list]) * MIN_FONT_SIZE / region.xywh[2]
+        else:
+            line_text_list, line_height_list = text_render.calc_vertical(font_size, region.translation, enlarged_h)
+            target_scale = 1.2 * max([len(t) for t in line_text_list]) * MIN_FONT_SIZE / region.xywh[3]
+
+        if target_scale > 1:
             poly = Polygon(region.min_rect[0])
-            scale = MINIMAL_SIZE / size
-            poly = affinity.scale(poly, xfact=scale, yfact=scale)
+            poly = affinity.scale(poly, xfact=target_scale, yfact=target_scale)
             dst_points = np.array(poly.exterior.coords[:4])
             dst_points = dst_points.reshape((-1, 4, 2))
 
@@ -150,6 +172,37 @@ async def dispatch(
         img = render(img, region, dst_points, text_mag_ratio, font_size_offset)
     return img
 
+
+# async def dispatch(
+#     img: np.ndarray,
+#     text_regions: List[TextBlock],
+#     text_mag_ratio: np.integer,
+#     font_path: str = '',
+#     font_size_offset: int = 0,
+#     rearrange_regions = False,
+#     render_mask: np.ndarray = None,
+#     ) -> np.ndarray:
+
+#     text_render.set_font(font_path)
+#     text_regions = list(filter(lambda region: region.translation, text_regions))
+
+#     dst_points_list = []
+#     for region in text_regions:
+#         dst_points = region.min_rect
+#         dst_points_list.append(dst_points)
+
+#     # Render text
+#     for region, dst_points in zip(text_regions, dst_points_list):
+#         logger.info(f'text: {region.get_text()}')
+#         logger.info(f' trans: {region.translation}')
+
+#         if render_mask is not None:
+#             # set render_mask to 1 for the region that is inside dst_points
+#             cv2.fillConvexPoly(render_mask, dst_points.astype(np.int32), 1)
+
+#         img = render(img, region, dst_points, text_mag_ratio, font_size_offset)
+#     return img
+
 def render(
     img,
     region: TextBlock,
@@ -164,8 +217,8 @@ def render(
     enlarge_ratio = font_size_enlarged / region.font_size
     font_size = font_size_enlarged
     while True:
-        enlarged_w = round(enlarge_ratio * (region.xyxy[2] - region.xyxy[0]))
-        enlarged_h = round(enlarge_ratio * (region.xyxy[3] - region.xyxy[1]))
+        enlarged_w = round(enlarge_ratio * region.xywh[2])
+        enlarged_h = round(enlarge_ratio * region.xywh[3])
         rows = enlarged_h // (font_size * 1.3)
         cols = enlarged_w // (font_size * 1.3)
         if rows * cols < len(region.translation):
@@ -199,8 +252,6 @@ def render(
     r_orig = region.aspect_ratio
 
     # Extend temporary box so that it has same ratio as original
-    w_ext = 0
-    h_ext = 0
     if r_temp > r_orig:
         h_ext = int(w / (2 * r_orig) - h / 2)
         box = np.zeros((h + h_ext * 2, w, 4), dtype=np.uint8)

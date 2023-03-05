@@ -296,11 +296,11 @@ class Quadrilateral(object):
         angle = np.arccos(dot_product) * 180 / np.pi
         return abs(angle - 90) < 10
 
-    @functools.cached_property
+    @property
     def fg_colors(self):
         return self.fg_r, self.fg_g, self.fg_b
 
-    @functools.cached_property
+    @property
     def bg_colors(self):
         return self.bg_r, self.bg_g, self.bg_b
 
