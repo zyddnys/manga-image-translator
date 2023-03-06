@@ -142,11 +142,12 @@ async def dispatch(
             target_scale = min(target_scale, 2)
             poly = Polygon(region.min_rect[0])
             poly = affinity.scale(poly, xfact=target_scale, yfact=target_scale)
+            
             dst_points = np.array(poly.exterior.coords[:4])
-            dst_points.clip(0, 1)
             dst_points[..., 0] = dst_points[..., 0].clip(0, img.shape[1])
             dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0])
             dst_points = dst_points.reshape((-1, 4, 2))
+
             # # Shift dst_points back into canvas
             # min_x, min_y = dst_points.min(axis=0)
             # max_x, max_y = dst_points.max(axis=0)
