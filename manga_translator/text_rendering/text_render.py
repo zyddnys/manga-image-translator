@@ -265,7 +265,7 @@ def get_char_border(cdpt: str, font_size: int, direction: int):
 #         print("VR", face.has_kerning)
 #         return face.get_kerning(face.get_char_index(prev), face.get_char_index(cdpt))
 
-def calc_vertical(font_size: int, text: str, max_height: int, spacing_x: int):
+def calc_vertical(font_size: int, text: str, max_height: int):
     line_text_list = []
     line_width_list = []
     line_height_list = []
@@ -275,7 +275,6 @@ def calc_vertical(font_size: int, text: str, max_height: int, spacing_x: int):
     line_width_left = 0
     line_width_right = 0
     for i, cdpt in enumerate(text):
-        is_pun = _is_punctuation(cdpt)
         cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 1)
         slot = get_char_glyph(cdpt, font_size, 1)
         bitmap = slot.bitmap
@@ -303,9 +302,9 @@ def calc_vertical(font_size: int, text: str, max_height: int, spacing_x: int):
     line_height_list.append(line_height)
     line_width_list.append(line_width_left + line_width_right)
 
-    box_calc_x = sum(line_width_list) + (len(line_width_list) - 1) * spacing_x
-    box_calc_y = max(line_height_list)
-    return line_text_list, box_calc_x, box_calc_y
+    # box_calc_x = sum(line_width_list) + (len(line_width_list) - 1) * spacing_x
+    # box_calc_y = max(line_height_list)
+    return line_text_list, line_width_list
 
 def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_text: np.ndarray, canvas_border: np.ndarray, border_size: int):
     pen = pen_l.copy()
@@ -339,21 +338,20 @@ def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_
 
 def put_text_vertical(font_size: int, text: str, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
     text = compact_special_symbols(text)
-    bgsize = int(max(font_size * 0.07, 1)) if bg is not None else 0
-    spacing_y = 0
+    bg_size = int(max(font_size * 0.07, 1)) if bg is not None else 0
     spacing_x = int(font_size * 0.2)
 
     # make large canvas
     num_char_y = h // font_size
     num_char_x = len(text) // num_char_y + 1
-    canvas_x = font_size * num_char_x + spacing_x * (num_char_x - 1) + (font_size + bgsize) * 2
-    canvas_y = font_size * num_char_y + (font_size + bgsize) * 2
-    ##line_text_list, canvas_x, canvas_y = calc_vertical(font_size, text, h, spacing_x=spacing_x)
+    canvas_x = font_size * num_char_x + spacing_x * (num_char_x - 1) + (font_size + bg_size) * 2
+    canvas_y = font_size * num_char_y + (font_size + bg_size) * 2
+    # line_text_list, line_height_list = calc_vertical(font_size, text, h)
     canvas_text = np.zeros((canvas_y, canvas_x), dtype=np.uint8)
     canvas_border = canvas_text.copy()
 
     # pen (x, y)
-    pen_orig = [canvas_text.shape[1] - (font_size + bgsize), font_size + bgsize]
+    pen_orig = [canvas_text.shape[1] - (font_size + bg_size), font_size + bg_size]
     line_height = 0
     # write stuff
     for t in text:
@@ -361,7 +359,7 @@ def put_text_vertical(font_size: int, text: str, h: int, fg: Tuple[int, int, int
             pen_line = pen_orig.copy()
             if t == ' ':
                 continue
-        offset_y = put_char_vertical(font_size, t, pen_line, canvas_text, canvas_border, border_size=bgsize)
+        offset_y = put_char_vertical(font_size, t, pen_line, canvas_text, canvas_border, border_size=bg_size)
         line_height += offset_y
         if line_height + font_size > h:
             pen_orig[0] -= spacing_x + font_size
@@ -377,20 +375,18 @@ def put_text_vertical(font_size: int, text: str, h: int, fg: Tuple[int, int, int
     x, y, w, h = cv2.boundingRect(canvas_border)
     return line_box[y:y+h, x:x+w]
 
-def calc_horizontal(font_size: int, text: str, limit_width: int) -> Tuple[List[str], List[int]]:
+def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str], List[int]]:
     line_text_list = []
     line_width_list = []
     line_str = ""
     line_width = 0
     word_str = ""
     word_width = 0
-    max_width = limit_width + font_size
+    # max_width = limit_width + font_size
     space = False
 
     # 1. JPN, CHN : left-align, no spaces, confine to limit_width
-    previous_cdpt = ''
     for i, cdpt in enumerate(text):
-        is_pun = _is_punctuation(cdpt)
         cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 0)
         glyph = get_char_glyph(cdpt, font_size, 0)
         bitmap = glyph.bitmap
@@ -406,7 +402,7 @@ def calc_horizontal(font_size: int, text: str, limit_width: int) -> Tuple[List[s
             space = False
 
         if space:
-            if line_width + word_width > limit_width or word_width > limit_width:
+            if line_width + word_width > max_width or word_width > max_width:
                 if len(line_str.strip()) > 0: # make sure not to add empty lines
                     line_text_list.append(line_str.strip())
                     line_width_list.append(line_width)
@@ -416,7 +412,7 @@ def calc_horizontal(font_size: int, text: str, limit_width: int) -> Tuple[List[s
             line_width += word_width
             word_width = 0
             word_str = ""
-        if line_width + word_width + char_offset_x > limit_width: # force line break mid word
+        if line_width + word_width + char_offset_x > max_width: # force line break mid word
             if len(word_str) <= 6 or next_is_space: # word is too short or next char would be a space anyway
                 # clear the current line and start a new one
                 if len(line_str.strip()) > 0: # make sure not to add empty lines
@@ -438,7 +434,6 @@ def calc_horizontal(font_size: int, text: str, limit_width: int) -> Tuple[List[s
                 line_width = 0
         word_str += cdpt
         word_width += char_offset_x
-        previous_cdpt = cdpt
 
     # last char
     line_str += word_str

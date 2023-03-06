@@ -247,7 +247,7 @@ class TextBlock(object):
 
     @property
     def direction(self):
-        """Render direction which is set depending on used language or aspect ratio."""
+        """Render direction determined through used language or aspect ratio."""
         if self._direction not in ('h', 'v'):
             if self.target_lang in LANGAUGE_ORIENTATION_PRESETS:
                 d = LANGAUGE_ORIENTATION_PRESETS[self.target_lang]
@@ -270,8 +270,7 @@ class TextBlock(object):
 
     @property
     def alignment(self):
-        """Can be left, center or right"""
-        # TODO: Finish implementation
+        """Render alignment determined through used language."""
         if self._alignment in ('left', 'center', 'right'):
             return self._alignment
         if len(self.lines) == 1:

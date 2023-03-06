@@ -106,14 +106,12 @@ async def dispatch(
     text_render.set_font(font_path)
     text_regions = list(filter(lambda region: region.translation, text_regions))
 
+    dst_points_list = []
     # if rearrange_regions:
     #     # Rearrange regions in same ballon region if render direction is different from source
     #     # dst_points_list = generate_region_placement(img, text_regions)
-    # else:
-    dst_points_list = []
     for region in text_regions:
         # Resize regions that are to small
-        # Minimal size is based on render direction
 
         # font_size = region.font_size + font_size_offset
         font_size_enlarged = findNextPowerOf2(region.font_size) * text_mag_ratio
@@ -130,7 +128,10 @@ async def dispatch(
             break
         font_size += font_size_offset
 
-        if region.direction == 'h':
+        # Find current font size to minimal font size ratio
+        if font_size_minimum <= 0:
+            target_scale = 1
+        elif region.horizontal:
             line_text_list, line_width_list = text_render.calc_horizontal(font_size, region.translation, enlarged_w)
             target_scale = 1.2 * max([len(t) for t in line_text_list]) * font_size_minimum / region.xywh[2]
         else:
