@@ -248,8 +248,10 @@ class MangaTranslator():
             return None
 
         await self._report_progress('rendering')
-        for i, region in enumerate(text_regions):
-            region.translation = translated_sentences[i]
+        for region, translation in zip(text_regions, translated_sentences):
+            if params.capitalize:
+                translation = translation.upper()
+            region.translation = translation
             region.target_lang = params.target_lang
             region._alignment = params.alignment
             region._direction = params.direction
