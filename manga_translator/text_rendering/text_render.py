@@ -480,7 +480,7 @@ def put_char_horizontal(font_size: int, cdpt: str, pen_l: Tuple[int, int], canva
         canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width] = cv2.add(canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width], bitmap_border)
     return char_offset_x
 
-def put_text_horizontal(font_size: int, text: str, width: int, fg: Tuple[int, int, int], bg: Tuple[int, int, int]):
+def put_text_horizontal(font_size: int, text: str, width: int, alignment: str, fg: Tuple[int, int, int], bg: Tuple[int, int, int]):
     text = compact_special_symbols(text)
     bg_size = int(max(font_size * 0.07, 1)) if bg is not None else 0
     spacing_y = int(font_size * 0.2)
@@ -499,8 +499,12 @@ def put_text_horizontal(font_size: int, text: str, width: int, fg: Tuple[int, in
     pen_orig = [font_size + bg_size, font_size + bg_size]
 
     # write stuff
-    for line_text in line_text_list:
+    for line_text, line_width in zip(line_text_list, line_width_list):
         pen_line = pen_orig.copy()
+        if alignment == 'center':
+            pen_line[0] += (max(line_width_list) - line_width) // 2
+        elif alignment == 'right':
+            pen_line[0] += max(line_width_list) - line_width
         for c in line_text:
             offset_x = put_char_horizontal(font_size, c, pen_line, canvas_text, canvas_border, border_size=bg_size)
             pen_line[0] += offset_x

@@ -96,7 +96,7 @@ def fg_bg_compare(fg, bg):
 async def dispatch(
     img: np.ndarray,
     text_regions: List[TextBlock],
-    text_mag_ratio: np.integer,
+    text_mag_ratio: int,
     font_path: str = '',
     font_size_offset: int = 0,
     font_size_minimum: int = 0,
@@ -168,7 +168,7 @@ async def dispatch(
             # set render_mask to 1 for the region that is inside dst_points
             cv2.fillConvexPoly(render_mask, dst_points.astype(np.int32), 1)
 
-        img = render(img, region, dst_points, text_mag_ratio, font_size_offset)
+        img = render(img, region, dst_points, region.alignment, text_mag_ratio, font_size_offset)
     return img
 
 
@@ -206,7 +206,8 @@ def render(
     img,
     region: TextBlock,
     dst_points,
-    text_mag_ratio,
+    alignment: str,
+    text_mag_ratio: int = 1,
     font_size_offset: int = 0,
 ):
 
@@ -235,6 +236,7 @@ def render(
             font_size,
             region.translation,
             enlarged_w,
+            alignment,
             fg,
             bg,
         )

@@ -277,29 +277,34 @@ class TextBlock(object):
         if len(self.lines) == 1:
             return 'center'
 
-        x1, y1, x2, y2 = self.xyxy
-        polygons = self.unrotated_polygons
-        polygons = polygons.reshape(-1, 4, 2)
-        print(self.polygon_aspect_ratio, self.xyxy)
-        print(polygons[:, :, 0] - x1)
-        print()
-        if self.polygon_aspect_ratio < 1:
-            left_std = abs(np.std(polygons[:, :2, 1] - y1))
-            right_std = abs(np.std(polygons[:, 2:, 1] - y2))
-            center_std = abs(np.std(((polygons[:, :, 1] + polygons[:, :, 1]) - (y2 - y1)) / 2))
-            print(center_std)
-            print('a', left_std, right_std, center_std)
-        else:
-            left_std = abs(np.std(polygons[:, ::2, 0] - x1))
-            right_std = abs(np.std(polygons[:, 2:, 0] - x2))
-            center_std = abs(np.std(((polygons[:, :, 0] + polygons[:, :, 0]) - (x2 - x1)) / 2))
-        min_std = min(left_std, right_std, center_std)
-        if left_std == min_std:
+        if LANGAUGE_ORIENTATION_PRESETS[self.target_lang] == 'v':
             return 'left'
-        elif right_std == min_std:
-            return 'right'
         else:
             return 'center'
+
+        # x1, y1, x2, y2 = self.xyxy
+        # polygons = self.unrotated_polygons
+        # polygons = polygons.reshape(-1, 4, 2)
+        # print(self.polygon_aspect_ratio, self.xyxy)
+        # print(polygons[:, :, 0] - x1)
+        # print()
+        # if self.polygon_aspect_ratio < 1:
+        #     left_std = abs(np.std(polygons[:, :2, 1] - y1))
+        #     right_std = abs(np.std(polygons[:, 2:, 1] - y2))
+        #     center_std = abs(np.std(((polygons[:, :, 1] + polygons[:, :, 1]) - (y2 - y1)) / 2))
+        #     print(center_std)
+        #     print('a', left_std, right_std, center_std)
+        # else:
+        #     left_std = abs(np.std(polygons[:, ::2, 0] - x1))
+        #     right_std = abs(np.std(polygons[:, 2:, 0] - x2))
+        #     center_std = abs(np.std(((polygons[:, :, 0] + polygons[:, :, 0]) - (x2 - x1)) / 2))
+        # min_std = min(left_std, right_std, center_std)
+        # if left_std == min_std:
+        #     return 'left'
+        # elif right_std == min_std:
+        #     return 'right'
+        # else:
+        #     return 'center'
 
     @property
     def stroke_width(self):

@@ -154,6 +154,15 @@ class MangaTranslator():
                 params.direction = 'v'
             else:
                 params.direction = 'auto'
+        if 'alignment' not in params:
+            if params.align_left:
+                params.alignment = 'left'
+            elif params.align_center:
+                params.alignment = 'center'
+            elif params.align_right:
+                params.alignment = 'right'
+            else:
+                params.alignment = 'auto'
         params.setdefault('renderer', 'manga2eng' if params['manga2eng'] else 'default')
 
         try:
@@ -239,9 +248,15 @@ class MangaTranslator():
             return None
 
         await self._report_progress('rendering')
+        for i, region in enumerate(text_regions):
+            region.translation = translated_sentences[i]
+            region.target_lang = params.target_lang
+            region._alignment = params.alignment
+            region._direction = params.direction
+
         output = await self._run_text_rendering(params.renderer, img_inpainted, text_regions, params.text_mag_ratio, params.direction,
-                                                params.font_path, params.font_size_offset, params.font_size_minimum, img_rgb, mask,
-                                                rearrange_regions=(params.inpainter != 'none'))
+                                                params.font_path, params.font_size_offset, params.font_size_minimum, img_rgb,
+                                                mask, rearrange_regions=(params.inpainter != 'none'))
 
         if params.downscale:
             await self._report_progress('downscaling')
@@ -319,20 +334,12 @@ class MangaTranslator():
         return await dispatch_inpainting(key, img, mask, inpainting_size, self.using_cuda, self.verbose)
 
     async def _run_text_translation(self, key: str, src_lang: str, tgt_lang: str, text_regions: List[TextBlock], use_mtpe: bool = False):
-
-        translated = await dispatch_translation(key, src_lang, tgt_lang, [r.get_text() for r in text_regions], use_mtpe,
+        return await dispatch_translation(key, src_lang, tgt_lang, [r.get_text() for r in text_regions], use_mtpe,
                                                 'cpu' if self._cuda_limited_memory else self.device)
-        for blk, tr in zip(text_regions, translated):
-            blk.translation = tr
-            blk.target_lang = tgt_lang
-        return translated
 
     async def _run_text_rendering(self, key: str, img: np.ndarray, text_regions: List[TextBlock], text_mag_ratio: np.integer,
                                   text_direction: str = 'auto', font_path: str = '', font_size_offset: int = 0, font_size_minimum: int = 0,
                                   original_img: np.ndarray = None, mask: np.ndarray = None, rearrange_regions: bool = False):
-        for region in text_regions:
-            region._direction = text_direction
-
         # manga2eng currently only supports horizontal rendering
         if key == 'manga2eng' and text_regions and LANGAUGE_ORIENTATION_PRESETS.get(text_regions[0].target_lang) == 'h':
             output = await dispatch_eng_render(img, original_img, text_regions, font_path)
@@ -542,8 +549,9 @@ class MangaTranslatorWS(MangaTranslator):
             except Exception as e:
                 logger.error(f'{e.__class__.__name__}: {e}', exc_info=e if self.verbose else None)
 
-    async def _run_text_rendering(self, key: str, img: np.ndarray, text_mag_ratio: np.integer, text_regions: List[TextBlock], text_direction: str,
-                                  font_path: str = '', font_size_offset: int = 0, original_img: np.ndarray = None, mask: np.ndarray = None, rearrange_regions = False):
+    async def _run_text_rendering(self, key: str, img: np.ndarray, text_regions: List[TextBlock], text_mag_ratio: np.integer,
+                                  text_direction: str = 'auto', font_path: str = '', font_size_offset: int = 0, font_size_minimum: int = 0,
+                                  original_img: np.ndarray = None, mask: np.ndarray = None, rearrange_regions: bool = False):
 
         img_inpainted = np.copy(img)
         render_mask = np.copy(mask)
@@ -551,7 +559,8 @@ class MangaTranslatorWS(MangaTranslator):
         render_mask[render_mask >= 127] = 1
         render_mask = render_mask[:, :, None]
 
-        output = await super()._run_text_rendering(key, img, text_mag_ratio, text_regions, text_direction, font_path, font_size_offset, original_img, render_mask)
+        output = await super()._run_text_rendering(key, img, text_mag_ratio, text_regions, text_direction, font_path, font_size_offset,
+                                                   font_size_minimum, original_img, render_mask, rearrange_regions)
         render_mask[np.sum(img != output, axis=2) > 0] = 1
         if self.verbose:
             cv2.imwrite(self._result_path('ws_render_in.png'), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
