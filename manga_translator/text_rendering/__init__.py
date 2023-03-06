@@ -139,11 +139,14 @@ async def dispatch(
             target_scale = 1.2 * max([len(t) for t in line_text_list]) * font_size_minimum / region.xywh[3]
 
         if target_scale > 1:
+            target_scale = min(target_scale, 2)
             poly = Polygon(region.min_rect[0])
             poly = affinity.scale(poly, xfact=target_scale, yfact=target_scale)
             dst_points = np.array(poly.exterior.coords[:4])
+            dst_points.clip(0, 1)
+            dst_points[..., 0] = dst_points[..., 0].clip(0, img.shape[1])
+            dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0])
             dst_points = dst_points.reshape((-1, 4, 2))
-
             # # Shift dst_points back into canvas
             # min_x, min_y = dst_points.min(axis=0)
             # max_x, max_y = dst_points.max(axis=0)
@@ -221,7 +224,11 @@ def render(
         )
     h, w, _ = temp_box.shape
     r_temp = w / h
-    r_orig = region.aspect_ratio
+
+    middle_pts = (dst_points[:, [1, 2, 3, 0]] + dst_points) / 2
+    norm_v = np.linalg.norm(middle_pts[:, 2] - middle_pts[:, 0], axis=1)
+    norm_h = np.linalg.norm(middle_pts[:, 1] - middle_pts[:, 3], axis=1)
+    r_orig = np.mean(norm_h / norm_v)
 
     # Extend temporary box so that it has same ratio as original
     if r_temp > r_orig:
