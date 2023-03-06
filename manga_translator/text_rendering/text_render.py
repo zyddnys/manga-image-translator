@@ -356,20 +356,6 @@ def put_text_vertical(font_size: int, text: str, h: int, alignment: str, fg: Tup
 
     # pen (x, y)
     pen_orig = [canvas_text.shape[1] - (font_size + bg_size), font_size + bg_size]
-    # line_height = 0
-    # write stuff
-    # for t in text:
-    #     if line_height == 0:
-    #         pen_line = pen_orig.copy()
-    #         if t == ' ':
-    #             continue
-    #     offset_y = put_char_vertical(font_size, t, pen_line, canvas_text, canvas_border, border_size=bg_size)
-    #     line_height += offset_y
-    #     if line_height + font_size > h:
-    #         pen_orig[0] -= spacing_x + font_size
-    #         line_height = 0
-    #     else:
-    #         pen_line[1] += offset_y
 
     # write stuff
     for line_text, line_height in zip(line_text_list, line_height_list):

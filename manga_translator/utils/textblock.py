@@ -249,10 +249,9 @@ class TextBlock(object):
     def direction(self):
         """Render direction determined through used language or aspect ratio."""
         if self._direction not in ('h', 'v'):
-            if self.target_lang in LANGAUGE_ORIENTATION_PRESETS:
-                d = LANGAUGE_ORIENTATION_PRESETS[self.target_lang]
-                if d in ('h', 'v'):
-                    return d
+            d = LANGAUGE_ORIENTATION_PRESETS.get(self.target_lang)
+            if d in ('h', 'v'):
+                return d
 
             if self.aspect_ratio < 1:
                 return 'v'
@@ -276,7 +275,7 @@ class TextBlock(object):
         if len(self.lines) == 1:
             return 'center'
 
-        if LANGAUGE_ORIENTATION_PRESETS[self.target_lang] == 'h':
+        if LANGAUGE_ORIENTATION_PRESETS.get(self.target_lang) == 'h':
             return 'center'
         else:
             return 'left'

@@ -172,37 +172,6 @@ async def dispatch(
         img = render(img, region, dst_points, region.alignment, text_mag_ratio, font_size_offset)
     return img
 
-
-# async def dispatch(
-#     img: np.ndarray,
-#     text_regions: List[TextBlock],
-#     text_mag_ratio: np.integer,
-#     font_path: str = '',
-#     font_size_offset: int = 0,
-#     rearrange_regions = False,
-#     render_mask: np.ndarray = None,
-#     ) -> np.ndarray:
-
-#     text_render.set_font(font_path)
-#     text_regions = list(filter(lambda region: region.translation, text_regions))
-
-#     dst_points_list = []
-#     for region in text_regions:
-#         dst_points = region.min_rect
-#         dst_points_list.append(dst_points)
-
-#     # Render text
-#     for region, dst_points in zip(text_regions, dst_points_list):
-#         logger.info(f'text: {region.get_text()}')
-#         logger.info(f' trans: {region.translation}')
-
-#         if render_mask is not None:
-#             # set render_mask to 1 for the region that is inside dst_points
-#             cv2.fillConvexPoly(render_mask, dst_points.astype(np.int32), 1)
-
-#         img = render(img, region, dst_points, text_mag_ratio, font_size_offset)
-#     return img
-
 def render(
     img,
     region: TextBlock,
