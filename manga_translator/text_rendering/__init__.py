@@ -20,8 +20,6 @@ from ..utils import (
     dump_image,
 )
 
-MIN_FONT_SIZE = 10
-
 logger = get_logger('rendering')
 
 def parse_font_paths(path: str, default: List[str] = None) -> List[str]:
@@ -101,6 +99,7 @@ async def dispatch(
     text_mag_ratio: np.integer,
     font_path: str = '',
     font_size_offset: int = 0,
+    font_size_minimum: int = 0,
     rearrange_regions = False,
     render_mask: np.ndarray = None,
     ) -> np.ndarray:
@@ -133,10 +132,10 @@ async def dispatch(
 
         if region.direction == 'h':
             line_text_list, line_width_list = text_render.calc_horizontal(font_size, region.translation, enlarged_w)
-            target_scale = 1.2 * max([len(t) for t in line_text_list]) * MIN_FONT_SIZE / region.xywh[2]
+            target_scale = 1.2 * max([len(t) for t in line_text_list]) * font_size_minimum / region.xywh[2]
         else:
             line_text_list, line_height_list = text_render.calc_vertical(font_size, region.translation, enlarged_h)
-            target_scale = 1.2 * max([len(t) for t in line_text_list]) * MIN_FONT_SIZE / region.xywh[3]
+            target_scale = 1.2 * max([len(t) for t in line_text_list]) * font_size_minimum / region.xywh[3]
 
         if target_scale > 1:
             poly = Polygon(region.min_rect[0])

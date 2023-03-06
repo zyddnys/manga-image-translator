@@ -140,6 +140,10 @@ def CJK_Compatibility_Forms_translate(cdpt: str, direction: int):
             return cdpt, 0
     return cdpt, 0
 
+def compact_special_symbols(text: str) -> str :
+    text = text.replace('...', '…')
+    return text
+
 def rotate_image(image, angle):
     if angle == 0:
         return image, (0, 0)
@@ -333,10 +337,6 @@ def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_
         canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width] = cv2.add(canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width], bitmap_border)
     return char_offset_y
 
-def compact_special_symbols(text: str) -> str :
-    text = text.replace('...', '…')
-    return text
-
 def put_text_vertical(font_size: int, text: str, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
     text = compact_special_symbols(text)
     bgsize = int(max(font_size * 0.07, 1)) if bg is not None else 0
@@ -425,7 +425,7 @@ def calc_horizontal(font_size: int, text: str, limit_width: int) -> Tuple[List[s
                 line_str = ""
                 line_width = 0
             else:
-                # add a word break with a -
+                # add "-" to a word break
                 word_str += "-"
                 word_width += char_offset_x
                 line_str += word_str
@@ -491,7 +491,7 @@ def put_text_horizontal(font_size: int, text: str, width: int, fg: Tuple[int, in
 
     # make large canvas
     canvas_w = max(line_width_list) + (font_size + bg_size) * 2
-    canvas_h = font_size * len(line_width_list) + spacing_y * (len(line_width_list) - 1)  + (font_size + bg_size) * 2
+    canvas_h = font_size * len(line_width_list) + spacing_y * (len(line_width_list) - 1) + (font_size + bg_size) * 2
     canvas_text = np.zeros((canvas_h, canvas_w), dtype=np.uint8)
     canvas_border = canvas_text.copy()
 

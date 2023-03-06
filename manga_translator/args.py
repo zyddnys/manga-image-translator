@@ -58,6 +58,7 @@ parser.add_argument('--box-threshold', default=0.7, type=float, help='Threshold 
 parser.add_argument('--text-threshold', default=0.5, type=float, help='Threshold for text detection')
 parser.add_argument('--text-mag-ratio', default=1, type=int, help='Text rendering magnification ratio, larger means higher quality')
 parser.add_argument('--font-size-offset', default=0, type=int, help='Offset font size by a given amount, positive number increase font size and vice versa')
+parser.add_argument('--font-size-minimum', default=10, type=int, help='Minimum output font size')
 
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--force-horizontal', action='store_true', help='Force text to be rendered horizontally')

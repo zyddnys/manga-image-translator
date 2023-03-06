@@ -240,7 +240,8 @@ class MangaTranslator():
 
         await self._report_progress('rendering')
         output = await self._run_text_rendering(params.renderer, img_inpainted, text_regions, params.text_mag_ratio, params.direction,
-                                                params.font_path, params.font_size_offset, img_rgb, mask, rearrange_regions=(params.inpainter != 'none'))
+                                                params.font_path, params.font_size_offset, params.font_size_minimum, img_rgb, mask,
+                                                rearrange_regions=(params.inpainter != 'none'))
 
         if params.downscale:
             await self._report_progress('downscaling')
@@ -327,8 +328,8 @@ class MangaTranslator():
         return translated
 
     async def _run_text_rendering(self, key: str, img: np.ndarray, text_regions: List[TextBlock], text_mag_ratio: np.integer,
-                                  text_direction: str = 'auto', font_path: str = '', font_size_offset: int = 0, original_img: np.ndarray = None,
-                                  mask: np.ndarray = None, rearrange_regions: bool = False):
+                                  text_direction: str = 'auto', font_path: str = '', font_size_offset: int = 0, font_size_minimum: int = 0,
+                                  original_img: np.ndarray = None, mask: np.ndarray = None, rearrange_regions: bool = False):
         for region in text_regions:
             region._direction = text_direction
 
@@ -336,7 +337,7 @@ class MangaTranslator():
         if key == 'manga2eng' and text_regions and LANGAUGE_ORIENTATION_PRESETS.get(text_regions[0].target_lang) == 'h':
             output = await dispatch_eng_render(img, original_img, text_regions, font_path)
         else:
-            output = await dispatch_rendering(img, text_regions, text_mag_ratio, font_path, font_size_offset, rearrange_regions, mask)
+            output = await dispatch_rendering(img, text_regions, text_mag_ratio, font_path, font_size_offset, font_size_minimum, rearrange_regions, mask)
         return output
 
 
