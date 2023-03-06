@@ -246,6 +246,7 @@ def render(
             font_size,
             region.translation,
             enlarged_h,
+            alignment,
             fg,
             bg,
         )

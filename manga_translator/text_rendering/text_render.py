@@ -50,33 +50,34 @@ def count_valuable_text(text) -> int:
 
 
 CJK_H2V = {
-    "‥" :"︰" ,
-    "—" :"︱" ,
-    "–" :"︲" ,
-    "_" :"︳" ,
+    "‥" :"︰",
+    "—" :"︱",
+    "―": "|",
+    "–" :"︲",
+    "_" :"︳",
     "_" :"︴",
-    "(" :"︵" ,
-    ")" :"︶" ,
-    "（" :"︵" ,
-    "）" :"︶" ,
-    "{" :"︷" ,
-    "}" :"︸" ,
-    "〔":"︹" ,
-    "〕":"︺" ,
-    "【":"︻" ,
-    "】":"︼" ,
-    "《":"︽" ,
-    "》":"︾" ,
-    "〈":"︿" ,
-    "〉":"﹀" ,
-    "「":"﹁" ,
-    "」":"﹂" ,
-    "『":"﹃" ,
-    "』":"﹄" ,
+    "(" :"︵",
+    ")" :"︶",
+    "（" :"︵",
+    "）" :"︶",
+    "{" :"︷",
+    "}" :"︸",
+    "〔":"︹",
+    "〕":"︺",
+    "【":"︻",
+    "】":"︼",
+    "《":"︽",
+    "》":"︾",
+    "〈":"︿",
+    "〉":"﹀",
+    "「":"﹁",
+    "」":"﹂",
+    "『":"﹃",
+    "』":"﹄",
     "﹑":"﹅",
-    "﹆" :"﹆" ,
-    "[" :"﹇" ,
-    "]" :"﹈" ,
+    "﹆" :"﹆",
+    "[" :"﹇",
+    "]" :"﹈",
     "﹉":"﹉",
     "﹊":"﹊",
     "﹋":"﹋",
@@ -84,19 +85,19 @@ CJK_H2V = {
     "﹍":"﹍",
     "﹎":"﹎",
     "﹏":"﹏",
-    "…": "⋮"
+    "…": "⋮",
 }
 
 CJK_V2H = {
-    "︰" :"‥" ,
-    "︱" :"—" ,
-    "︲" :"–" ,
-    "︳" :"_" ,
-    "︴":"_" ,
-    "︵" :"(" ,
-    "︶" :")" ,
-    "︷" :"{" ,
-    "︸" :"}" ,
+    "︰" :"‥",
+    "︱" :"—",
+    "︲" :"–",
+    "︳" :"_",
+    "︴":"_",
+    "︵" :"(",
+    "︶" :")",
+    "︷" :"{",
+    "︸" :"}",
     "︹" :"〔",
     "︺" :"〕",
     "︻" :"【",
@@ -110,9 +111,9 @@ CJK_V2H = {
     "﹃" :"『",
     "﹄" :"』",
     "﹅":"﹑",
-    "﹆" :"﹆" ,
-    "﹇" :"[" ,
-    "﹈" :"]" ,
+    "﹆" :"﹆",
+    "﹇" :"[",
+    "﹈" :"]",
     "﹉":"﹉",
     "﹊":"﹊",
     "﹋":"﹋",
@@ -120,19 +121,20 @@ CJK_V2H = {
     "﹍":"﹍",
     "﹎":"﹎",
     "﹏":"﹏",
-    "⋮": "…"
+    "⋮": "…",
 }
 
 def CJK_Compatibility_Forms_translate(cdpt: str, direction: int):
+    """direction: 0 - horizonal, 1 - vertical"""
     if cdpt == 'ー' and direction == 1:
         return 'ー', 90
-    if cdpt in ["︰", "︱", "︲", "︳", "︴", "︵", "︶", "︷", "︸", "︹", "︺", "︻", "︼", "︽", "︾", "︿", "﹀", "﹁", "﹂", "﹃", "﹄", "﹅", "﹆", "﹇", "﹈", "﹉", "﹊", "﹋", "﹌", "﹍", "﹎", "﹏", "⋮"]:
+    if cdpt in CJK_V2H:
         if direction == 0:
             # translate
             return CJK_V2H[cdpt], 0
         else:
             return cdpt, 0
-    elif cdpt in ["‥", "—", "–", "_", "_", "(", ")", "（", "）", "{", "}", "〔", "〕", "【", "】", "《", "》", "〈", "〉", "「", "」", "『", "』", "﹑", "﹆", "[", "]", "﹉", "﹊", "﹋", "﹌", "﹍", "﹎", "﹏", "…"]:
+    elif cdpt in CJK_H2V:
         if direction == 1:
             # translate
             return CJK_H2V[cdpt], 0
@@ -267,7 +269,7 @@ def get_char_border(cdpt: str, font_size: int, direction: int):
 
 def calc_vertical(font_size: int, text: str, max_height: int):
     line_text_list = []
-    line_width_list = []
+    # line_width_list = []
     line_height_list = []
 
     line_str = ""
@@ -275,20 +277,22 @@ def calc_vertical(font_size: int, text: str, max_height: int):
     line_width_left = 0
     line_width_right = 0
     for i, cdpt in enumerate(text):
+        if line_height == 0 and cdpt == ' ':
+            continue
         cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 1)
-        slot = get_char_glyph(cdpt, font_size, 1)
-        bitmap = slot.bitmap
+        ckpt = get_char_glyph(cdpt, font_size, 1)
+        bitmap = ckpt.bitmap
         # spaces, etc
         if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width:
-            char_offset_y = slot.metrics.vertBearingY >> 6
+            char_offset_y = ckpt.metrics.vertBearingY >> 6
         else:
-            char_offset_y = slot.metrics.vertAdvance >> 6
+            char_offset_y = ckpt.metrics.vertAdvance >> 6
         char_width = bitmap.width
-        char_bearing_x = slot.metrics.vertBearingX >> 6
+        char_bearing_x = ckpt.metrics.vertBearingX >> 6
         if line_height + char_offset_y > max_height:
             line_text_list.append(line_str)
             line_height_list.append(line_height)
-            line_width_list.append(line_width_left + line_width_right)
+            # line_width_list.append(line_width_left + line_width_right)
             line_str = ""
             line_height = 0
             line_width_left = 0
@@ -300,11 +304,11 @@ def calc_vertical(font_size: int, text: str, max_height: int):
     # last char
     line_text_list.append(line_str)
     line_height_list.append(line_height)
-    line_width_list.append(line_width_left + line_width_right)
+    # line_width_list.append(line_width_left + line_width_right)
 
     # box_calc_x = sum(line_width_list) + (len(line_width_list) - 1) * spacing_x
     # box_calc_y = max(line_height_list)
-    return line_text_list, line_width_list
+    return line_text_list, line_height_list
 
 def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_text: np.ndarray, canvas_border: np.ndarray, border_size: int):
     pen = pen_l.copy()
@@ -336,7 +340,7 @@ def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_
         canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width] = cv2.add(canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width], bitmap_border)
     return char_offset_y
 
-def put_text_vertical(font_size: int, text: str, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
+def put_text_vertical(font_size: int, text: str, h: int, alignment: str, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
     text = compact_special_symbols(text)
     bg_size = int(max(font_size * 0.07, 1)) if bg is not None else 0
     spacing_x = int(font_size * 0.2)
@@ -346,26 +350,39 @@ def put_text_vertical(font_size: int, text: str, h: int, fg: Tuple[int, int, int
     num_char_x = len(text) // num_char_y + 1
     canvas_x = font_size * num_char_x + spacing_x * (num_char_x - 1) + (font_size + bg_size) * 2
     canvas_y = font_size * num_char_y + (font_size + bg_size) * 2
-    # line_text_list, line_height_list = calc_vertical(font_size, text, h)
+    line_text_list, line_height_list = calc_vertical(font_size, text, h)
     canvas_text = np.zeros((canvas_y, canvas_x), dtype=np.uint8)
     canvas_border = canvas_text.copy()
 
     # pen (x, y)
     pen_orig = [canvas_text.shape[1] - (font_size + bg_size), font_size + bg_size]
-    line_height = 0
+    # line_height = 0
     # write stuff
-    for t in text:
-        if line_height == 0:
-            pen_line = pen_orig.copy()
-            if t == ' ':
-                continue
-        offset_y = put_char_vertical(font_size, t, pen_line, canvas_text, canvas_border, border_size=bg_size)
-        line_height += offset_y
-        if line_height + font_size > h:
-            pen_orig[0] -= spacing_x + font_size
-            line_height = 0
-        else:
+    # for t in text:
+    #     if line_height == 0:
+    #         pen_line = pen_orig.copy()
+    #         if t == ' ':
+    #             continue
+    #     offset_y = put_char_vertical(font_size, t, pen_line, canvas_text, canvas_border, border_size=bg_size)
+    #     line_height += offset_y
+    #     if line_height + font_size > h:
+    #         pen_orig[0] -= spacing_x + font_size
+    #         line_height = 0
+    #     else:
+    #         pen_line[1] += offset_y
+
+    # write stuff
+    for line_text, line_height in zip(line_text_list, line_height_list):
+        pen_line = pen_orig.copy()
+        if alignment == 'center':
+            pen_line[1] += (max(line_height_list) - line_height) // 2
+        elif alignment == 'right':
+            pen_line[1] += max(line_height_list) - line_height
+
+        for c in line_text:
+            offset_y = put_char_vertical(font_size, c, pen_line, canvas_text, canvas_border, border_size=bg_size)
             pen_line[1] += offset_y
+        pen_orig[0] -= spacing_x + font_size
 
     # colorize
     canvas_border = np.clip(canvas_border, 0, 255)
@@ -500,6 +517,7 @@ def put_text_horizontal(font_size: int, text: str, width: int, alignment: str, f
             pen_line[0] += (max(line_width_list) - line_width) // 2
         elif alignment == 'right':
             pen_line[0] += max(line_width_list) - line_width
+
         for c in line_text:
             offset_x = put_char_horizontal(font_size, c, pen_line, canvas_text, canvas_border, border_size=bg_size)
             pen_line[0] += offset_x

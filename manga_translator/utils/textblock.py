@@ -276,10 +276,10 @@ class TextBlock(object):
         if len(self.lines) == 1:
             return 'center'
 
-        if LANGAUGE_ORIENTATION_PRESETS[self.target_lang] == 'v':
-            return 'left'
-        else:
+        if LANGAUGE_ORIENTATION_PRESETS[self.target_lang] == 'h':
             return 'center'
+        else:
+            return 'left'
 
         # x1, y1, x2, y2 = self.xyxy
         # polygons = self.unrotated_polygons
