@@ -50,78 +50,46 @@ def count_valuable_text(text) -> int:
 
 
 CJK_H2V = {
-    "‥" :"︰",
-    "—" :"︱",
+    "‥": "︰",
+    "—": "︱",
     "―": "|",
-    "–" :"︲",
-    "_" :"︳",
-    "_" :"︴",
-    "(" :"︵",
-    ")" :"︶",
-    "（" :"︵",
-    "）" :"︶",
-    "{" :"︷",
-    "}" :"︸",
-    "〔":"︹",
-    "〕":"︺",
-    "【":"︻",
-    "】":"︼",
-    "《":"︽",
-    "》":"︾",
-    "〈":"︿",
-    "〉":"﹀",
-    "「":"﹁",
-    "」":"﹂",
-    "『":"﹃",
-    "』":"﹄",
-    "﹑":"﹅",
-    "﹆" :"﹆",
-    "[" :"﹇",
-    "]" :"﹈",
-    "﹉":"﹉",
-    "﹊":"﹊",
-    "﹋":"﹋",
-    "﹌":"﹌",
-    "﹍":"﹍",
-    "﹎":"﹎",
-    "﹏":"﹏",
+    "–": "︲",
+    "_": "︳",
+    "_": "︴",
+    "(": "︵",
+    ")": "︶",
+    "（": "︵",
+    "）": "︶",
+    "{": "︷",
+    "}": "︸",
+    "〔": "︹",
+    "〕": "︺",
+    "【": "︻",
+    "】": "︼",
+    "《": "︽",
+    "》": "︾",
+    "〈": "︿",
+    "〉": "﹀",
+    "「": "﹁",
+    "」": "﹂",
+    "『": "﹃",
+    "』": "﹄",
+    "﹑": "﹅",
+    "﹆": "﹆",
+    "[": "﹇",
+    "]": "﹈",
+    "﹉": "﹉",
+    "﹊": "﹊",
+    "﹋": "﹋",
+    "﹌": "﹌",
+    "﹍": "﹍",
+    "﹎": "﹎",
+    "﹏": "﹏",
     "…": "⋮",
 }
 
 CJK_V2H = {
-    "︰" :"‥",
-    "︱" :"—",
-    "︲" :"–",
-    "︳" :"_",
-    "︴":"_",
-    "︵" :"(",
-    "︶" :")",
-    "︷" :"{",
-    "︸" :"}",
-    "︹" :"〔",
-    "︺" :"〕",
-    "︻" :"【",
-    "︼" :"】",
-    "︽" :"《",
-    "︾" :"》",
-    "︿" :"〈",
-    "﹀" :"〉",
-    "﹁" :"「",
-    "﹂" :"」",
-    "﹃" :"『",
-    "﹄" :"』",
-    "﹅":"﹑",
-    "﹆" :"﹆",
-    "﹇" :"[",
-    "﹈" :"]",
-    "﹉":"﹉",
-    "﹊":"﹊",
-    "﹋":"﹋",
-    "﹌":"﹌",
-    "﹍":"﹍",
-    "﹎":"﹎",
-    "﹏":"﹏",
-    "⋮": "…",
+    **dict(zip(CJK_H2V.items(), CJK_H2V.keys())),
 }
 
 def CJK_Compatibility_Forms_translate(cdpt: str, direction: int):
@@ -385,16 +353,12 @@ def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str
     line_width = 0
     word_str = ""
     word_width = 0
-    # max_width = limit_width + font_size
-    space = False
+    max_width += font_size
 
-    # 1. JPN, CHN : left-align, no spaces, confine to limit_width
     for i, cdpt in enumerate(text):
         cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 0)
         glyph = get_char_glyph(cdpt, font_size, 0)
         bitmap = glyph.bitmap
-        # next_glyph = get_char_glyph(text[min(i+1, len(text)-1)], font_size, 0)
-        # next_bitmap = next_glyph.bitmap
         next_is_space = _is_whitespace(text[min(i+1, len(text)-1)]) or _is_punctuation(text[min(i+1, len(text)-1)])
         # spaces, etc
         if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width:
@@ -405,7 +369,7 @@ def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str
             space = False
 
         if space:
-            if line_width + word_width > max_width or word_width > max_width:
+            if line_width + word_width > max_width:
                 if len(line_str.strip()) > 0: # make sure not to add empty lines
                     line_text_list.append(line_str.strip())
                     line_width_list.append(line_width)
@@ -417,12 +381,13 @@ def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str
             word_str = ""
         if line_width + word_width + char_offset_x > max_width: # force line break mid word
             if len(word_str) <= 6 or next_is_space: # word is too short or next char would be a space anyway
-                # clear the current line and start a new one
-                if len(line_str.strip()) > 0: # make sure not to add empty lines
-                    line_text_list.append(line_str.strip())
-                    line_width_list.append(line_width)
-                line_str = ""
-                line_width = 0
+                if line_width + word_width + char_offset_x > max(line_width_list or [0]):
+                    # clear the current line and start a new one
+                    if len(line_str.strip()) > 0: # make sure not to add empty lines
+                        line_text_list.append(line_str.strip())
+                        line_width_list.append(line_width)
+                    line_str = ""
+                    line_width = 0
             else:
                 # add "-" to a word break
                 word_str += "-"
@@ -443,8 +408,6 @@ def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str
     line_width += word_width
     line_text_list.append(line_str.strip())
     line_width_list.append(line_width)
-
-    # 2. ELSE : center-align, break on spaces, can reach max_width if necessary (one word)
 
     return line_text_list, line_width_list
 
