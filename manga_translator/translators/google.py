@@ -246,7 +246,10 @@ class GoogleTranslator(CommonTranslator):
                 lang_to_translation[lang] = (await self._translate_query(from_lang, to_lang, '\n'.join(lang_queries))).text.split('\n')
 
         for i, lang in enumerate(result):
-            result[i] = lang_to_translation[lang].pop(0)
+            if len(lang_to_translation[lang]) > 0:
+                result[i] = lang_to_translation[lang].pop(0)
+            else: # Server has translated incorrectly
+                result[i] = ''
 
         result = empty_l * [''] + result + empty_r * ['']
         return [text.strip() for text in result]
