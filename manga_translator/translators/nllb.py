@@ -96,10 +96,8 @@ class NLLBTranslator(OfflineTranslator):
             max_length = 512,
         )
 
-        result = translator(query)
-        translated_text = self._clean_translation_output(result[0]['translation_text'])
-
-        return translated_text
+        result = translator(query)[0]['translation_text']
+        return result
 
     def _map_detected_lang_to_translator(self, lang):
         if not lang in ISO_639_1_TO_FLORES_200:
