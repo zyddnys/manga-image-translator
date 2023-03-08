@@ -87,7 +87,7 @@ class NLLBTranslator(OfflineTranslator):
             self.logger.warn(f'NLLB Translation Failed. Could not detect language (Or language not supported for text: {query})')
             return ''
 
-        translator = pipeline('translation', 
+        translator = pipeline('translation',
             device=self.device,
             model=self.model,
             tokenizer=self.tokenizer,

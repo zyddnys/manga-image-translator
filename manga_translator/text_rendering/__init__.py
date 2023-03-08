@@ -3,12 +3,12 @@ import os
 import numpy as np
 from typing import List
 from shapely import affinity
-from shapely.geometry import Polygon
-from PIL import Image
+from shapely.geometry import Polygon, LineString, Point, mapping
+from shapely.validation import make_valid
 
 from . import text_render
 from .text_render_eng import render_textblock_list_eng
-from .ballon_extractor import extract_ballon_region
+# from .ballon_extractor import extract_ballon_region
 from ..utils import (
     BASE_PATH,
     TextBlock,
@@ -92,6 +92,126 @@ def fg_bg_compare(fg, bg):
 
 #     # Resize
 
+def shrink_polygon_edge_towards_point(poly_pts, side_pt_idxs, target_pt):
+    """
+    Moves two neighboring points of poly_pts towards target_pt.
+    The edge of those two points will be made to touch target_pt.
+    """
+
+    # 1 and 2 are neighboring points in poly_pts
+    i1, i2 = side_pt_idxs
+    i3 = (i1 - 1) % 4 if (i1 - 1) % 4 != i2 else (i1 + 1) % 4
+    i4 = (i2 - 1) % 4 if (i2 - 1) % 4 != i1 else (i2 + 1) % 4
+
+    side_pt1 = poly_pts[i1]
+    side_pt2 = poly_pts[i2]
+    side_pt3 = poly_pts[i3]
+    side_pt4 = poly_pts[i4]
+    print(i1, i2, i3, i4)
+    print(side_pt1, side_pt2)
+
+    # Calculate functions and their intersections which will be the new points
+    m_13 = (side_pt1[1] - side_pt3[1]) / (side_pt1[0] - side_pt3[0])
+    m_24 = (side_pt2[1] - side_pt4[1]) / (side_pt2[0] - side_pt4[0])
+    t_13 = side_pt1[1] - m_13 * side_pt1[0]
+    t_24 = side_pt2[1] - m_24 * side_pt2[0]
+    if side_pt1[0] - side_pt2[0] == 0:
+        x1 = target_pt[0]
+        x2 = target_pt[0]
+    else:
+        m = (side_pt1[1] - side_pt2[1]) / (side_pt1[0] - side_pt2[0])
+        t = target_pt[1] - m * target_pt[0]
+        x1 = (t_13 - t) / (m - m_13)
+        x2 = (t_24 - t) / (m - m_24)
+
+    y1 = m_13 * x1 + t_13
+    y2 = m_24 * x2 + t_24
+
+    poly_pts[i1] = (x1, y1)
+    poly_pts[i2] = (x2, y2)
+    return poly_pts
+
+def remove_intersections(points_list: np.ndarray):
+    """
+    Resizes points of polygons to remove intersections with all other polygons.
+    Expects 4 point per polygon that has (4, 2) shape.
+    Ignores polygons that are completely within one another.
+    """
+    polygons = [make_valid(Polygon(pts)) for pts in points_list]
+    for i, (poly_pts1, poly1) in enumerate(zip(points_list, polygons)):
+        for j, (poly_pts2, poly2) in enumerate(zip(points_list[i+1:], polygons[i+1:])):
+            print('COMPARE', poly1, poly2)
+            if poly1.intersects(poly2):
+                intersection = poly1.intersection(poly2)
+                intersection_centroid = intersection.centroid.coords[0]
+                intersection_pts = np.array(mapping(intersection)['coordinates'][0][:-1])
+                print(intersection_centroid, intersection_pts)
+                print(len(intersection_pts))
+
+                # Sort intersection_pts to corresponding polygon
+                ipts1 = []
+                ipts2 = []
+                outside_polygon_pts = [] # Can be pts1 or pts2
+                remaining_points = []
+                for pt in intersection_pts:
+                    added = False
+                    print(poly_pts1, poly_pts2, pt)
+                    print(np.all(poly_pts1 == pt, axis=1))
+                    print(np.all(poly_pts2 == pt, axis=1))
+                    if np.any(np.all(poly_pts1 == pt, axis=1)):
+                        ipts1.append(pt)
+                        added = True
+                    if np.any(np.all(poly_pts2 == pt, axis=1)):
+                        ipts2.append(pt)
+                        added = True
+                    if not added:
+                        remaining_points.append(pt)
+
+                assert not (len(ipts1) == 0 and len(ipts2) == 0)
+
+                if len(ipts1) == 0:
+                    outside_polygon_pts = poly_pts1
+                elif len(ipts2) == 0:
+                    outside_polygon_pts = poly_pts2
+
+                ipts1 = np.array(ipts1)
+                ipts2 = np.array(ipts2)
+                remaining_points = np.array(remaining_points)
+
+                for poly_pts, ipts in zip((poly_pts1, poly_pts2), (ipts1, ipts2)):
+                    print('LEN', len(ipts), ipts)
+                    if len(ipts) == 1:
+                        pt_idx = np.all(poly_pts == ipts[0], axis=1).nonzero()[0]
+                        poly_pts[pt_idx] = intersection_centroid
+                        print('NOW', poly_pts)
+                    elif len(ipts) == 2:
+                        # Move edge between the two points to the centroid
+                        i1 = np.all(poly_pts == ipts[0], axis=1).nonzero()[0][0]
+                        i2 = np.all(poly_pts == ipts[1], axis=1).nonzero()[0][0]
+                        shrink_polygon_edge_towards_point(poly_pts, (i1, i2), intersection_centroid)
+                        print('UPDATED', poly_pts)
+                    elif len(ipts) == 3:
+                        ...
+                    # else completely inside the other polygon
+
+                print('OUTSIDE', len(outside_polygon_pts), outside_polygon_pts)
+                if outside_polygon_pts is not None:
+                    print(remaining_points)
+                    if len(remaining_points) == 2:
+                        # Move edge that contains both of the remaining_points
+                        # Find side which contains remaining_points
+                        for i1, pt1 in enumerate(outside_polygon_pts):
+                            i2 = (i1 + 1) % 4
+                            pt2 = outside_polygon_pts[i2]
+                            line = LineString((pt1, pt2))
+                            print(pt1, pt2)
+                            print(line.within(Point(*remaining_points[0])), line.distance(Point(*remaining_points[0])), Point(*remaining_points[0]))
+                            if line.distance(Point(*remaining_points[0])) <= 0.01:
+                                print('TOUCHES')
+                                shrink_polygon_edge_towards_point(outside_polygon_pts, (i1, i2), intersection_centroid)
+                                break
+
+    return points_list
 
 async def dispatch(
     img: np.ndarray,
@@ -142,10 +262,12 @@ async def dispatch(
             target_scale = min(target_scale, 2)
             poly = Polygon(region.min_rect[0])
             poly = affinity.scale(poly, xfact=target_scale, yfact=target_scale)
-            
             dst_points = np.array(poly.exterior.coords[:4])
+
+            # Clip to img width and height
             dst_points[..., 0] = dst_points[..., 0].clip(0, img.shape[1])
             dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0])
+
             dst_points = dst_points.reshape((-1, 4, 2))
 
             # # Shift dst_points back into canvas
@@ -163,6 +285,9 @@ async def dispatch(
             dst_points = region.min_rect
 
         dst_points_list.append(dst_points)
+
+    # Remove intersections
+    remove_intersections([pts[0] for pts in dst_points_list])
 
     # Render text
     for region, dst_points in zip(text_regions, dst_points_list):

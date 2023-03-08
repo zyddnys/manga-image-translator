@@ -102,7 +102,7 @@ def split_text_region(
 def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height):
     G = nx.Graph()
     for i, box in enumerate(bboxes):
-        G.add_node(i, box = box)
+        G.add_node(i, box=box)
 
     # step 1: divide into multiple text region candidates
     for ((u, ubox), (v, vbox)) in itertools.combinations(enumerate(bboxes), 2):
