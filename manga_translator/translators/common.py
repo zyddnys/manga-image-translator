@@ -1,4 +1,3 @@
-import os
 import re
 from typing import List, Tuple
 from abc import abstractmethod
@@ -11,6 +10,9 @@ except Exception:
     readline = None
 
 class InvalidServerResponse(Exception):
+    pass
+
+class MissingAPIKeyException(Exception):
     pass
 
 class LanguageUnsupportedException(Exception):
