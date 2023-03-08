@@ -243,7 +243,8 @@ class GoogleTranslator(CommonTranslator):
         lang_to_translation = {}
         for lang, lang_queries in lang_to_queries.items():
             if lang_queries:
-                lang_to_translation[lang] = (await self._translate_query(from_lang, to_lang, '\n'.join(lang_queries))).text.split('\n')
+                translation = await self._translate_query(from_lang, to_lang, '\n'.join(lang_queries))
+                lang_to_translation[lang] = [] if not translation else translation.text.split('\n')
 
         for i, lang in enumerate(result):
             if len(lang_to_translation[lang]) > 0:
@@ -255,6 +256,9 @@ class GoogleTranslator(CommonTranslator):
         return [text.strip() for text in result]
 
     async def _translate_query(self, from_lang: str, to_lang: str, query: str) -> Translated:
+        if not query:
+            return None
+
         to_lang = to_lang.lower().split('_', 1)[0]
         from_lang = from_lang.lower().split('_', 1)[0]
 
@@ -300,6 +304,8 @@ class GoogleTranslator(CommonTranslator):
                 break
 
         data = json.loads(resp)
+        if not data[0][2]:
+            return None
         parsed = json.loads(data[0][2])
         # not sure
         # should_spacing = parsed[1][0][0][3]
