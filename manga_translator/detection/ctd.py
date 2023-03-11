@@ -201,5 +201,4 @@ class ComicTextDetector(OfflineDetector):
                     break
             else:
                 sorted_regions.append(region)
-            print([r.xyxy[:2] for r in sorted_regions])
         return sorted_regions
