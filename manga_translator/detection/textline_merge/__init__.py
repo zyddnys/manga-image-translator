@@ -165,7 +165,7 @@ async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verb
     #     s = re.sub(r'([\d\]]) ', r'\1, ', s.replace('\n ', ', ')).replace(']]', ']],')
     #     print(s)
 
-    text_regions = []
+    text_regions: List[TextBlock] = []
     for (txtlns, fg_color, bg_color) in merge_bboxes_text_region(textlines, width, height):
         total_logprobs = 0
         for txtln in txtlns:

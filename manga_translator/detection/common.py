@@ -28,6 +28,7 @@ class CommonDetector(InfererModule):
             image = new_image
 
         text_regions, raw_mask, mask = await self._detect(image, detect_size, text_threshold, box_threshold, unclip_ratio, det_rearrange_max_batches, verbose)
+        text_regions = self._sort_regions(text_regions, image.shape[1], image.shape[0])
 
         # Remove border
         if new_w > img_w or new_h > img_h:
@@ -57,6 +58,10 @@ class CommonDetector(InfererModule):
     async def _detect(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
                       unclip_ratio: float, det_rearrange_max_batches:int, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
         pass
+
+    def _sort_regions(self, text_regions: List[TextBlock], width: int, height: int) -> List[TextBlock]:
+        # Sort regions from right to left, top to bottom
+        return sorted(text_regions, key=lambda region: (width - region.center[0]) + (region.center[1]) * width)
 
 class OfflineDetector(CommonDetector, ModelWrapper):
     _MODEL_SUB_DIR = 'detection'

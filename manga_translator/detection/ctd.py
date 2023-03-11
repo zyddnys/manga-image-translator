@@ -184,3 +184,7 @@ class ComicTextDetector(OfflineDetector):
         #     mask_refined = refine_undetected_mask(image, mask, mask_refined, blk_list, refine_mode=refine_mode)
 
         # return blk_list, mask, mask_refined
+
+    def _sort_regions(self, text_regions: List[TextBlock], width: int, height: int) -> List[TextBlock]:
+        # Sort regions from left to right, top to bottom
+        return sorted(text_regions, key=lambda region: region.center[0] + (region.center[1]) * width)
