@@ -287,7 +287,8 @@ async def dispatch(
         dst_points_list.append(dst_points)
 
     # Remove intersections
-    remove_intersections([pts[0] for pts in dst_points_list])
+    # TODO: Fix
+    # remove_intersections([pts[0] for pts in dst_points_list])
 
     # Render text
     for region, dst_points in zip(text_regions, dst_points_list):
