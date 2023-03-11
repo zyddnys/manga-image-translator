@@ -96,7 +96,7 @@ def filter_masks(mask_img: np.ndarray, textlines: List[Tuple[int, int, int, int]
 from pydensecrf.utils import compute_unary, unary_from_softmax
 import pydensecrf.densecrf as dcrf
 
-def refine_mask(rgbim, rawmask):
+def refine_mask(rgbimg, rawmask):
     if len(rawmask.shape) == 2:
         rawmask = rawmask[:, :, None]
     mask_softmax = np.concatenate([cv2.bitwise_not(rawmask)[:, :, None], rawmask], axis=2)
@@ -106,18 +106,18 @@ def refine_mask(rgbim, rawmask):
     unary = unary_from_softmax(feat_first)
     unary = np.ascontiguousarray(unary)
 
-    d = dcrf.DenseCRF2D(rgbim.shape[1], rgbim.shape[0], n_classes)
+    d = dcrf.DenseCRF2D(rgbimg.shape[1], rgbimg.shape[0], n_classes)
 
     d.setUnaryEnergy(unary)
     d.addPairwiseGaussian(sxy=1, compat=3, kernel=dcrf.DIAG_KERNEL,
                             normalization=dcrf.NO_NORMALIZATION)
 
-    d.addPairwiseBilateral(sxy=23, srgb=7, rgbim=rgbim,
+    d.addPairwiseBilateral(sxy=23, srgb=7, rgbim=rgbimg,
                         compat=20,
                         kernel=dcrf.DIAG_KERNEL,
                         normalization=dcrf.NO_NORMALIZATION)
     Q = d.inference(5)
-    res = np.argmax(Q, axis=0).reshape((rgbim.shape[0], rgbim.shape[1]))
+    res = np.argmax(Q, axis=0).reshape((rgbimg.shape[0], rgbimg.shape[1]))
     crf_mask = np.array(res * 255, dtype=np.uint8)
     return crf_mask
 
@@ -128,10 +128,10 @@ def complete_mask_fill(img_np: np.ndarray, ccs: List[np.ndarray], text_lines: Li
         final_mask = cv2.rectangle(final_mask, (x, y), (x + w, y + h), (255), -1)
     return final_mask
 
-def complete_mask(img_np: np.ndarray, ccs: List[np.ndarray], text_lines: List[Tuple[int, int, int, int]], cc2textline_assignment):
+def complete_mask(img_np: np.ndarray, ccs: List[np.ndarray], textlines: List[Tuple[int, int, int, int]], cc2textline_assignment):
     if len(ccs) == 0:
         return
-    textline_ccs = [np.zeros_like(ccs[0]) for _ in range(len(text_lines))]
+    textline_ccs = [np.zeros_like(ccs[0]) for _ in range(len(textlines))]
     for i, cc in enumerate(ccs):
         txtline = cc2textline_assignment[i]
         textline_ccs[txtline] = cv2.bitwise_or(textline_ccs[txtline], cc)

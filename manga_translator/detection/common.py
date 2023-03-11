@@ -2,8 +2,6 @@ from abc import abstractmethod
 from typing import List, Tuple
 import numpy as np
 import cv2
-import networkx as nx
-import itertools
 
 from .textline_merge import dispatch as dispatch_textline_merge
 from ..utils import InfererModule, ModelWrapper, TextBlock, Quadrilateral

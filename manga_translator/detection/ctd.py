@@ -10,7 +10,7 @@ from .ctd_utils.basemodel import TextDetBase, TextDetBaseDNN
 from .ctd_utils.utils.yolov5_utils import non_max_suppression
 from .ctd_utils.utils.db_utils import SegDetectorRepresenter
 from .ctd_utils.utils.imgproc_utils import letterbox
-# from .ctd_utils.textmask import REFINEMASK_INPAINT
+from .ctd_utils.textmask import REFINEMASK_INPAINT, refine_mask
 from .common import OfflineDetector
 from ..utils import TextBlock, Quadrilateral, det_rearrange_forward
 
@@ -131,7 +131,7 @@ class ComicTextDetector(OfflineDetector):
                        unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
 
         # keep_undetected_mask = False
-        # refine_mode = REFINEMASK_INPAINT
+        refine_mode = REFINEMASK_INPAINT
 
         im_h, im_w = image.shape[:2]
         lines_map, mask = det_rearrange_forward(image, self.det_batch_forward_ctd, self.input_size[0], det_rearrange_max_batches, self.device, verbose)
@@ -175,8 +175,9 @@ class ComicTextDetector(OfflineDetector):
 
         textlines = [Quadrilateral(pts.astype(int), '', score) for pts, score in zip(lines, scores)]
         text_regions = await self._merge_textlines(textlines, image.shape[1], image.shape[0], verbose=verbose)
+        mask_refined = refine_mask(image, mask, text_regions, refine_mode=refine_mode)
 
-        return text_regions, mask, None
+        return text_regions, mask, mask_refined
 
         # blk_list = group_output(blks, lines, im_w, im_h, mask)
         # mask_refined = refine_mask(image, mask, blk_list, refine_mode=refine_mode)
