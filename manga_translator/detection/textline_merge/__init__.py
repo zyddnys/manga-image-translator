@@ -1,7 +1,7 @@
 import itertools
-from collections import Counter
-from typing import List, Set
 import numpy as np
+from typing import List, Set
+from collections import Counter
 import networkx as nx
 
 from ...utils import TextBlock, Quadrilateral, quadrilateral_can_merge_region

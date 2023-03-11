@@ -185,6 +185,21 @@ class ComicTextDetector(OfflineDetector):
 
         # return blk_list, mask, mask_refined
 
-    def _sort_regions(self, text_regions: List[TextBlock], width: int, height: int) -> List[TextBlock]:
+    def _sort_regions(self, regions: List[TextBlock], width: int, height: int) -> List[TextBlock]:
         # Sort regions from left to right, top to bottom
-        return sorted(text_regions, key=lambda region: region.center[0] + (region.center[1]) * width)
+        sorted_regions = []
+        for region in sorted(regions, key=lambda region: region.center[1]):
+            for i, sorted_region in enumerate(sorted_regions):
+                if region.center[1] > sorted_region.xyxy[3]:
+                    continue
+                if region.center[1] < sorted_region.xyxy[1]:
+                    sorted_regions.insert(i + 1, region)
+                    break
+                # y center of region inside sorted_region so sort by x instead
+                if region.center[0] < sorted_region.center[0]:
+                    sorted_regions.insert(i, region)
+                    break
+            else:
+                sorted_regions.append(region)
+            print([r.xyxy[:2] for r in sorted_regions])
+        return sorted_regions

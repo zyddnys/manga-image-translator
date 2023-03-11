@@ -2,7 +2,8 @@ from abc import abstractmethod
 from typing import List, Tuple
 import numpy as np
 import cv2
-import os
+import networkx as nx
+import itertools
 
 from .textline_merge import dispatch as dispatch_textline_merge
 from ..utils import InfererModule, ModelWrapper, TextBlock, Quadrilateral
@@ -59,9 +60,24 @@ class CommonDetector(InfererModule):
                       unclip_ratio: float, det_rearrange_max_batches:int, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
         pass
 
-    def _sort_regions(self, text_regions: List[TextBlock], width: int, height: int) -> List[TextBlock]:
+    def _sort_regions(self, regions: List[TextBlock], width: int, height: int) -> List[TextBlock]:
         # Sort regions from right to left, top to bottom
-        return sorted(text_regions, key=lambda region: (width - region.center[0]) + (region.center[1]) * width)
+        sorted_regions = []
+        for region in sorted(regions, key=lambda region: region.center[1]):
+            for i, sorted_region in enumerate(sorted_regions):
+                if region.center[1] > sorted_region.xyxy[3]:
+                    continue
+                if region.center[1] < sorted_region.xyxy[1]:
+                    sorted_regions.insert(i + 1, region)
+                    break
+                # y center of region inside sorted_region so sort by x instead
+                if region.center[0] > sorted_region.center[0]:
+                    sorted_regions.insert(i, region)
+                    break
+            else:
+                sorted_regions.append(region)
+            print([r.xyxy[:2] for r in sorted_regions])
+        return sorted_regions
 
 class OfflineDetector(CommonDetector, ModelWrapper):
     _MODEL_SUB_DIR = 'detection'
