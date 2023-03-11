@@ -42,7 +42,7 @@ file_handlers = {}
 def add_file_logger(path: str):
     if path in file_handlers:
         return
-    file_handlers[path] = logging.FileHandler(path)
+    file_handlers[path] = logging.FileHandler(path, encoding='utf8')
     logging.root.addHandler(file_handlers[path])
 
 def remove_file_logger(path: str):
