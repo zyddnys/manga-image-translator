@@ -68,6 +68,7 @@ async def prepare(chain: TranslatorChain):
         if isinstance(translator, OfflineTranslator):
             await translator.download()
 
+# TODO: Optionally take in strings instead of TranslatorChain for simplicity
 async def dispatch(chain: TranslatorChain, queries: List[str], use_mtpe: bool = False, device: str = 'cpu') -> List[str]:
     if not queries:
         return queries
