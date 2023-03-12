@@ -4,7 +4,7 @@ import os
 from .detection import DETECTORS
 from .ocr import OCRS
 from .inpainting import INPAINTERS
-from .translators import VALID_LANGUAGES, TRANSLATORS
+from .translators import VALID_LANGUAGES, TRANSLATORS, TranslatorChain
 from .upscaling import UPSCALERS
 
 # Additional argparse types
@@ -32,6 +32,24 @@ def dir_path(string):
         raise argparse.ArgumentTypeError(f'No such directory: "{string}"')
     return s
 
+# def choice_chain(choices):
+#     """Argument type for string chains from choices seperated by ':'. Example: 'choice1:choice2:choice3'"""
+#     def _func(string):
+#         if choices is not None:
+#             for s in string.split(':') or ['']:
+#                 if s not in choices:
+#                     raise argparse.ArgumentTypeError(f'Invalid choice: %s (choose from %s)' % (s, ', '.join(map(repr, choices))))
+#         return string
+#     return _func
+
+def translator_chain(string):
+    try:
+        return TranslatorChain(string)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(e)
+    except Exception:
+        raise argparse.ArgumentTypeError(f'Invalid translator_chain value: "{string}". Example usage: --translator "google:sugoi" -l "JPN:ENG"')
+
 parser = argparse.ArgumentParser(prog='manga_translator', description='Seamlessly translate mangas into a chosen language')
 parser.add_argument('-m', '--mode', default='demo', type=str, choices=['demo', 'batch', 'web', 'web2', 'ws'], help='Run demo in either single image demo mode (demo), web service mode (web) or batch translation mode (batch)')
 parser.add_argument('-i', '--input', default='', type=path, help='Path to an image file if using demo mode, or path to an image folder if using batch mode')
@@ -41,13 +59,15 @@ parser.add_argument('-v', '--verbose', action='store_true', help='Print debug in
 parser.add_argument('--detector', default='default', type=str, choices=DETECTORS, help='Text detector used for creating a text mask from an image')
 parser.add_argument('--ocr', default='48px_ctc', type=str, choices=OCRS, help='Optical character recognition (OCR) model to use')
 parser.add_argument('--inpainter', default='lama_mpe', type=str, choices=INPAINTERS, help='Inpainting model to use')
-parser.add_argument('--translator', default='google', type=str, choices=TRANSLATORS, help='Language translator to use')
 parser.add_argument('--upscaler', default='esrgan', type=str, choices=UPSCALERS, help='Upscaler to use. --upscale-ratio has to be set for it to take effect')
+
+g = parser.add_mutually_exclusive_group()
+g.add_argument('--translator', default='google', type=str, choices=TRANSLATORS, help='Language translator to use')
+g.add_argument('--translator-chain', default=None, type=translator_chain, help='Language translators chained together. Example: --translator-chain "google:JPN;sugoi:ENG".')
 
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--use-cuda', action='store_true', help='Turn on/off cuda')
 g.add_argument('--use-cuda-limited', action='store_true', help='Turn on/off cuda (excluding offline translator)')
-parser.add_argument_group(g)
 
 parser.add_argument('--model-dir', default=None, type=str, help='Model directory (by default ./models in project root)')
 parser.add_argument('--detection-size', default=1536, type=int, help='Size of image used for detection')
@@ -63,13 +83,11 @@ parser.add_argument('--font-size-minimum', default=10, type=int, help='Minimum o
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--force-horizontal', action='store_true', help='Force text to be rendered horizontally')
 g.add_argument('--force-vertical', action='store_true', help='Force text to be rendered vertically')
-parser.add_argument_group(g)
 
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--align-left', action='store_true', help='Align rendered text left')
 g.add_argument('--align-center', action='store_true', help='Align rendered text centered')
 g.add_argument('--align-right', action='store_true', help='Align rendered text right')
-parser.add_argument_group(g)
 
 parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 4, 8, 16, 32], help='Image upscale ratio applied before detection. Can improve text detection.')
 parser.add_argument('--downscale', action='store_true', help='Downscales resulting image to original image size (Use with --upscale-ratio).')

@@ -12,28 +12,6 @@ from .selective import SelectiveOfflineTranslator, prepare as prepare_selective_
 from .none import NoneTranslator
 from .original import OriginalTranslator
 
-VALID_LANGUAGES = {
-    'CHS': 'Chinese (Simplified)',
-    'CHT': 'Chinese (Traditional)',
-    'CSY': 'Czech',
-    'NLD': 'Dutch',
-    'ENG': 'English',
-    'FRA': 'French',
-    'DEU': 'German',
-    'HUN': 'Hungarian',
-    'ITA': 'Italian',
-    'JPN': 'Japanese',
-    'KOR': 'Korean',
-    'PLK': 'Polish',
-    'PTB': 'Portuguese (Brazil)',
-    'ROM': 'Romanian',
-    'RUS': 'Russian',
-    'ESP': 'Spanish',
-    'TRK': 'Turkish',
-    'UKR': 'Ukrainian',
-    'VIN': 'Vietnamese',
-}
-
 OFFLINE_TRANSLATORS = {
     'offline': SelectiveOfflineTranslator,
     'nllb': NLLBTranslator,
@@ -65,29 +43,38 @@ def get_translator(key: str, *args, **kwargs) -> CommonTranslator:
 
 prepare_selective_translator(get_translator)
 
-async def prepare(translator_key: str, src_lang: str, tgt_lang: str):
-    translator = get_translator(translator_key)
-    translator.supports_languages(src_lang, tgt_lang, fatal=True)
-    if isinstance(translator, OfflineTranslator):
-        await translator.download()
+class TranslatorChain():
+    def __init__(self, string: str):
+        """
+        Parses string in form 'trans1:lang1;trans2:lang2' into chains,
+        which will be executed one after another when passed to the dispatch function.
+        """
+        if not string:
+            raise Exception('Invalid translator chain')
+        self.chain = []
+        for g in string.split(';'):
+            trans, lang = g.split(':')
+            if trans not in TRANSLATORS:
+                raise ValueError(f'Invalid choice: %s (choose from %s)' % (trans, ', '.join(map(repr, TRANSLATORS))))
+            if lang not in VALID_LANGUAGES:
+                raise ValueError(f'Invalid choice: %s (choose from %s)' % (lang, ', '.join(map(repr, VALID_LANGUAGES))))
+            self.chain.append((trans, lang))
+        self.translators, self.langs = list(zip(*self.chain))
 
-async def dispatch(translator_key: str, src_lang: str, tgt_lang: str, queries: List[str], use_mtpe: bool = False, device: str = 'cpu') -> List[str]:
+async def prepare(chain: TranslatorChain):
+    for key, tgt_lang in chain.chain:
+        translator = get_translator(key)
+        translator.supports_languages('auto', tgt_lang, fatal=True)
+        if isinstance(translator, OfflineTranslator):
+            await translator.download()
+
+async def dispatch(chain: TranslatorChain, queries: List[str], use_mtpe: bool = False, device: str = 'cpu') -> List[str]:
     if not queries:
         return queries
 
-    if tgt_lang not in VALID_LANGUAGES:
-        raise ValueError('Invalid language code: "%s". Choose from the following: %s' % (tgt_lang, ', '.join(VALID_LANGUAGES)))
-    if src_lang not in VALID_LANGUAGES and src_lang != 'auto':
-        raise ValueError('Invalid language code: "%s". Choose from the following: auto, %s' % (src_lang, ', '.join(VALID_LANGUAGES)))
-
-    translator = get_translator(translator_key)
-    if isinstance(translator, OfflineTranslator):
-        await translator.load(src_lang, tgt_lang, device)
-    return await translator.translate(src_lang, tgt_lang, queries, use_mtpe)
-
-async def test():
-    # queries = ['僕はアイネと共に一度、宿の方に戻った', '改めて直面するのは部屋の問題――部屋のベッドが一つでは、さすがに狭すぎるだろう。']
-    queries = ['咲夜ッ‼', '違うから‼ マジでコレ', '普通のお肉だから‼あの娘の悪い冗談っ‼そうでしょ？ 咲夜⁉', '朝は４本足 昼は２本足 夜は３本足で歩むモノ なーんだ♡', 'ヒントを…では私から', '何の肉かしら…ウママッ‼', 'ウマっ‼すご…これ', '紅魔のディナーへようこそ 今夜とびっきりの メニューが…', '当ててごらんなさい ククク…何かしらねぇ', 'ユーモアを添えて', 'ぎるるる互', '…すぐに用意なさい 咲夜']
-    translator = 'sugoi_big'
-    await prepare(translator, 'auto', 'ENG')
-    print(await dispatch(translator, 'auto', 'ENG', queries))
+    for key, tgt_lang in chain.chain:
+        translator = get_translator(key)
+        if isinstance(translator, OfflineTranslator):
+            await translator.load('auto', tgt_lang, device)
+        queries = await translator.translate('auto', tgt_lang, queries, use_mtpe)
+    return queries

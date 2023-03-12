@@ -34,7 +34,12 @@ from .upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscal
 from .ocr import dispatch as dispatch_ocr, prepare as prepare_ocr
 from .mask_refinement import dispatch as dispatch_mask_refinement
 from .inpainting import dispatch as dispatch_inpainting, prepare as prepare_inpainting
-from .translators import LanguageUnsupportedException, dispatch as dispatch_translation, prepare as prepare_translation
+from .translators import (
+    LanguageUnsupportedException,
+    TranslatorChain,
+    dispatch as dispatch_translation,
+    prepare as prepare_translation,
+)
 from .text_rendering import dispatch as dispatch_rendering, dispatch_eng_render
 from .text_rendering.text_render import count_valuable_text
 
@@ -164,6 +169,11 @@ class MangaTranslator():
             else:
                 params.alignment = 'auto'
         params.setdefault('renderer', 'manga2eng' if params['manga2eng'] else 'default')
+        if params.translator_chain is not None:
+            params.target_lang = params.translator_chain.langs[-1]
+            params.translator = params.translator_chain
+        else:
+            params.translator = TranslatorChain(f'{params.translator}:{params.target_lang}')
 
         try:
             # preload and download models (not necessary, remove to lazy load)
@@ -175,7 +185,7 @@ class MangaTranslator():
             await prepare_detection(params.detector)
             await prepare_ocr(params.ocr, self.device)
             await prepare_inpainting(params.inpainter, self.device)
-            await prepare_translation(params.translator, 'auto', params.target_lang)
+            await prepare_translation(params.translator)
 
             # translate
             return await self._translate(image, params)
@@ -240,8 +250,7 @@ class MangaTranslator():
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
 
         await self._report_progress('translating')
-        translated_sentences = await self._run_text_translation(params.translator, 'auto', params.target_lang,
-                                                                text_regions, params.mtpe)
+        translated_sentences = await self._run_text_translation(params.translator, text_regions, params.mtpe)
 
         if not translated_sentences:
             await self._report_progress('error-translating', True)
@@ -335,9 +344,9 @@ class MangaTranslator():
     async def _run_inpainting(self, key: str, img: np.ndarray, mask: np.ndarray, inpainting_size: int = 1024):
         return await dispatch_inpainting(key, img, mask, inpainting_size, self.using_cuda, self.verbose)
 
-    async def _run_text_translation(self, key: str, src_lang: str, tgt_lang: str, text_regions: List[TextBlock], use_mtpe: bool = False):
-        return await dispatch_translation(key, src_lang, tgt_lang, [r.get_text() for r in text_regions], use_mtpe,
-                                                'cpu' if self._cuda_limited_memory else self.device)
+    async def _run_text_translation(self, chain: TranslatorChain, text_regions: List[TextBlock], use_mtpe: bool = False):
+        return await dispatch_translation(chain, [r.get_text() for r in text_regions], use_mtpe,
+                                          'cpu' if self._cuda_limited_memory else self.device)
 
     async def _run_text_rendering(self, key: str, img: np.ndarray, text_regions: List[TextBlock], text_mag_ratio: np.integer,
                                   text_direction: str = 'auto', font_path: str = '', font_size_offset: int = 0, font_size_minimum: int = 0,
@@ -448,7 +457,7 @@ class MangaTranslatorWeb(MangaTranslator):
             }, timeout=20)
         return regions
 
-    async def _run_text_translation(self, key: str, src_lang: str, tgt_lang: str, text_regions: List[TextBlock], use_mtpe: bool = False):
+    async def _run_text_translation(self, chain: TranslatorChain, text_regions: List[TextBlock], use_mtpe: bool = False):
         if self._params.get('manual', False):
             requests.post(f'http://{self.host}:{self.port}/request-translation-internal', json={
                 'task_id': self._task_id,
@@ -470,11 +479,11 @@ class MangaTranslatorWeb(MangaTranslator):
                             return None
                     for blk, tr in zip(text_regions, translated):
                         blk.translation = tr
-                        blk.target_lang = tgt_lang
+                        blk.target_lang = chain.langs[-1]
                     return translated
                 await asyncio.sleep(0.1)
         else:
-            return await super()._run_text_translation(key, src_lang, tgt_lang, text_regions, use_mtpe)
+            return await super()._run_text_translation(chain, text_regions, use_mtpe)
 
 
 class MangaTranslatorWS(MangaTranslator):

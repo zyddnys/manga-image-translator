@@ -9,6 +9,28 @@ try:
 except Exception:
     readline = None
 
+VALID_LANGUAGES = {
+    'CHS': 'Chinese (Simplified)',
+    'CHT': 'Chinese (Traditional)',
+    'CSY': 'Czech',
+    'NLD': 'Dutch',
+    'ENG': 'English',
+    'FRA': 'French',
+    'DEU': 'German',
+    'HUN': 'Hungarian',
+    'ITA': 'Italian',
+    'JPN': 'Japanese',
+    'KOR': 'Korean',
+    'PLK': 'Polish',
+    'PTB': 'Portuguese (Brazil)',
+    'ROM': 'Romanian',
+    'RUS': 'Russian',
+    'ESP': 'Spanish',
+    'TRK': 'Turkish',
+    'UKR': 'Ukrainian',
+    'VIN': 'Vietnamese',
+}
+
 class InvalidServerResponse(Exception):
     pass
 
@@ -75,6 +97,12 @@ class CommonTranslator(InfererModule):
         '''
         Translates list of queries of one language into another.
         '''
+        if to_lang not in VALID_LANGUAGES:
+            raise ValueError('Invalid language code: "%s". Choose from the following: %s' % (to_lang, ', '.join(VALID_LANGUAGES)))
+        if from_lang not in VALID_LANGUAGES and from_lang != 'auto':
+            raise ValueError('Invalid language code: "%s". Choose from the following: auto, %s' % (from_lang, ', '.join(VALID_LANGUAGES)))
+        self.logger.info(f'Translating into {VALID_LANGUAGES[to_lang]} [{to_lang}]')
+
         if from_lang == to_lang:
             result = []
         else:
