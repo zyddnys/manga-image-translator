@@ -4,6 +4,7 @@ from typing import List
 import re
 
 from .common import OfflineTranslator
+from ..utils import chunks
 
 class JparacrawlTranslator(OfflineTranslator):
     _LANGUAGE_CODE_MAP = {
@@ -105,7 +106,7 @@ class JparacrawlTranslator(OfflineTranslator):
             replace_unknowns=False,
             repetition_penalty=3,
         )
-        translated = self.detokenize(list(map(lambda t: t[0]["tokens"], translated_tokenized)), to_lang)
+        translated = self.detokenize(list(map(lambda t: t[0]['tokens'], translated_tokenized)), to_lang)
         return translated
 
     def tokenize(self, queries, lang):
@@ -177,13 +178,12 @@ class SugoiTranslator(JparacrawlBigTranslator):
                 # Split sentences into their own queries to prevent abbreviations
                 q = q.replace('.', '@')
                 sentences = list(filter(lambda x: x, re.sub(r'。+', r'。', q).split('。')))
-                if len(sentences) < 3:
+                chunk_queries = []
+                for chunk in chunks(sentences, 3):
                     # Would reduce quality due to decreased context information?
-                    sentences = [q]
-                else:
-                    sentences = [s + '。' for s in sentences]
-                self.query_split_sizes.append(len(sentences))
-                new_queries.extend(sentences)
+                    chunk_queries.append(''.join([sentence + '。' for sentence in chunk]))
+                self.query_split_sizes.append(len(chunk_queries))
+                new_queries.extend(chunk_queries)
             queries = new_queries
         return super().tokenize(queries, lang)
 

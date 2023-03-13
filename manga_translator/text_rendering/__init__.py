@@ -229,7 +229,6 @@ async def dispatch(
     if font_size_minimum == -1:
         # Automatically determine font_size by image size
         font_size_minimum = min(img.shape[0], img.shape[1]) / 150
-    print(font_size_minimum)
     dst_points_list = []
 
     # if rearrange_regions:
