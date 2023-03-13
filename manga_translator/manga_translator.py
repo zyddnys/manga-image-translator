@@ -216,7 +216,8 @@ class MangaTranslator():
 
         await self._report_progress('detection')
         text_regions, mask_raw, mask = await self._run_detection(params.detector, img_rgb, params.detection_size, params.text_threshold,
-                                                                 params.box_threshold, params.unclip_ratio, params.det_rearrange_max_batches)
+                                                                 params.box_threshold, params.unclip_ratio, params.det_rearrange_max_batches,
+                                                                 params.detection_auto_orient)
         if self.verbose:
             cv2.imwrite(self._result_path('mask_raw.png'), mask_raw)
             bboxes = visualize_textblocks(cv2.cvtColor(img_rgb, cv2.COLOR_BGR2RGB), text_regions)
@@ -327,9 +328,9 @@ class MangaTranslator():
         return await dispatch_upscaling(key, image_batch, upscale_ratio, self.device)
 
     async def _run_detection(self, key: str, img: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
-                             unclip_ratio: float, det_rearrange_max_batches: int):
+                             unclip_ratio: float, det_rearrange_max_batches: int, auto_orient: bool):
         return await dispatch_detection(key, img, detect_size, text_threshold, box_threshold, unclip_ratio, det_rearrange_max_batches,
-                                        self.device, self.verbose)
+                                        auto_orient, self.device, self.verbose)
 
     async def _run_ocr(self, key: str, img: np.ndarray, text_regions: List[TextBlock]):
         text_regions = await dispatch_ocr(key, img, text_regions, self.device, self.verbose)

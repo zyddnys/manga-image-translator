@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from typing import List, Tuple
+from collections import Counter
 import numpy as np
 import cv2
 
@@ -11,7 +12,8 @@ class CommonDetector(InfererModule):
         return await dispatch_textline_merge(textlines, img_width, img_height, verbose)
 
     async def detect(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
-                     unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
+                     unclip_ratio: float, det_rearrange_max_batches: int, auto_orient: bool = False,
+                     verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
         '''
         Returns textblock list and text mask.
         '''
@@ -28,6 +30,27 @@ class CommonDetector(InfererModule):
 
         text_regions, raw_mask, mask = await self._detect(image, detect_size, text_threshold, box_threshold, unclip_ratio, det_rearrange_max_batches, verbose)
         text_regions = self._sort_regions(text_regions, image.shape[1], image.shape[0])
+
+        # Rotate if horizontal aspect ratios are prevalent to potentially improve detection
+        if auto_orient and len(text_regions) > 0:
+            orientations = ['h' if region.polygon_aspect_ratio < 90 else 'v' for region in text_regions]
+            majority_orientation = Counter(orientations).most_common(1)[0][0]
+            if majority_orientation == 'h':
+                self.logger.info('Rerunning detection with 90° rotation')
+                rot_image = np.rot90(image, k=-1)
+                text_regions, raw_mask, mask = await self.detect(rot_image, detect_size, text_threshold, box_threshold, unclip_ratio, det_rearrange_max_batches, auto_orient=False)
+                for i, region in enumerate(text_regions):
+                    rot_lines = region.lines[:,:,[1,0]]
+                    rot_lines[:,:,1] = -rot_lines[:,:,1] + image.shape[0]
+                    # TODO: Copy over all values
+                    new_region = TextBlock(rot_lines, font_size=region.font_size, angle=region.angle, prob=region.prob,
+                                           fg_color=region.fg_colors, bg_color=region.bg_colors)
+                    text_regions[i] = new_region
+                if raw_mask is not None:
+                    raw_mask = np.ascontiguousarray(np.rot90(raw_mask))
+                if mask is not None:
+                    mask = np.ascontiguousarray(np.rot90(mask).astype(np.uint8))
+                return text_regions, raw_mask, mask
 
         # Remove border
         if new_w > img_w or new_h > img_h:
