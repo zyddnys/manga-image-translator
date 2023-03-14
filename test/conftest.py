@@ -4,6 +4,7 @@ import pytest
 def pytest_addoption(parser):
     parser.addoption('--translator', action='store', default=None, help='Chosen translator for test run')
     parser.addoption('--target-lang', action='store', default='ENG', help='Target language for translator test run')
+    parser.addoption('--text', action='store', default=None, help='Text to be used for translation test run')
 
 @pytest.fixture
 def translator(request):
@@ -12,3 +13,7 @@ def translator(request):
 @pytest.fixture
 def tgt_lang(request):
     return request.config.getoption('--target-lang')
+    
+@pytest.fixture
+def text(request):
+    return request.config.getoption('--text')
