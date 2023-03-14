@@ -49,7 +49,8 @@ if __name__ == '__main__':
         asyncio.set_event_loop(loop)
         loop.run_until_complete(dispatch(args))
     except KeyboardInterrupt:
-        print()
+        if not args or args.mode != 'web':
+            print()
     except Exception as e:
         logger.error(f'{e.__class__.__name__}: {e}',
                      exc_info=e if args and args.verbose else None)

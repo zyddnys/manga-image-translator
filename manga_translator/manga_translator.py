@@ -4,19 +4,14 @@ import cv2
 import numpy as np
 import requests
 import os
-from oscrypto import util as crypto_utils
 import torch
 from typing import List
-import subprocess
-import sys
 import time
-import atexit
 import logging
 
 from .args import DEFAULT_ARGS
 from .utils import (
     BASE_PATH,
-    MODULE_PATH,
     LANGAUGE_ORIENTATION_PRESETS,
     ModelWrapper,
     TextBlock,
