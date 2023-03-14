@@ -3,7 +3,7 @@ import os
 import sys
 import time
 import asyncio
-import threading
+import subprocess
 from PIL import Image
 from oscrypto import util as crypto_utils
 from aiohttp import web
@@ -51,6 +51,7 @@ NONCE = ''
 QUEUE = deque()
 TASK_DATA = {}
 TASK_STATES = {}
+DEFAULT_TRANSLATION_PARAMS = {}
 
 app = web.Application(client_max_size = 1024 * 1024 * 50)
 routes = web.RouteTableDef()
@@ -196,12 +197,15 @@ async def get_task_async(request):
     """
     Called by the translator to get a translation task.
     """
-    global NONCE, NUM_ONGOING_TASKS
+    global NONCE, NUM_ONGOING_TASKS, DEFAULT_TRANSLATION_PARAMS
     if constant_compare(request.rel_url.query.get('nonce'), NONCE):
         if len(QUEUE) > 0 and NUM_ONGOING_TASKS < MAX_ONGOING_TASKS:
             task_id = QUEUE.popleft()
             if task_id in TASK_DATA:
                 data = TASK_DATA[task_id]
+                for p, default_value in DEFAULT_TRANSLATION_PARAMS.items():
+                    current_value = data.get(p)
+                    data[p] = current_value if current_value is not None else default_value
                 if not TASK_DATA[task_id].get('manual', False):
                     NUM_ONGOING_TASKS += 1
                 return web.json_response({'task_id': task_id, 'data': data})
@@ -425,28 +429,32 @@ app.add_routes(routes)
 def generate_nonce():
     return crypto_utils.rand_bytes(16).hex()
 
-class TranslatorClientThread(threading.Thread):
+def start_translator_client_proc(host: str, port: int, nonce: str, params: dict):
+    cmds = [
+        sys.executable,
+        '-m', 'manga_translator',
+        '--mode', 'web_client',
+        '--host', host,
+        '--port', str(port),
+        '--nonce', nonce,
+    ]
+    if params.get('use_cuda', False):
+        cmds.append('--use-cuda')
+    if params.get('use_cuda_limited', False):
+        cmds.append('--use-cuda-limited')
+    if params.get('ignore_errors', False):
+        cmds.append('--ignore-errors')
+    if params.get('verbose', False):
+        cmds.append('--verbose')
 
-    def __init__(self, host: str, port: int, nonce: str, translation_params: dict = None):
-        threading.Thread.__init__(self)
-        self.params = translation_params or {}
-        self.params['host'] = host
-        self.params['port'] = port
-        self.params['nonce'] = nonce
-        self.daemon = True
-
-    def run(self):
-        from ..manga_translator import MangaTranslatorWeb
-
-        translator = MangaTranslatorWeb(self.params)
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(translator.listen(self.params))
+    proc = subprocess.Popen(cmds, cwd=BASE_PATH)
+    return proc
 
 async def start_async_app(host: str, port: int, nonce: str, translation_params: dict = None):
-    global NONCE
+    global NONCE, DEFAULT_TRANSLATION_PARAMS
     # Secret to secure communication between webserver and translator clients
     NONCE = nonce
+    DEFAULT_TRANSLATION_PARAMS = translation_params or {}
     
     # Schedule web server to run
     runner = web.AppRunner(app)
@@ -463,19 +471,21 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
 
     runner, site = await start_async_app(host, port, nonce, translation_params)
 
-    # Create thread with client that will execute translation tasks
-    client = TranslatorClientThread(host, port, nonce, translation_params)
-    client.start()
+    # Create client process that will execute translation tasks
+    client_process = start_translator_client_proc(host, port, nonce, translation_params)
 
     try:
         while True:
             await asyncio.sleep(1)
 
             # Restart client if OOM or similar errors occured
-            if not client.is_alive():
-                client = TranslatorClientThread(host, port, nonce, translation_params)
-                client.start()
+            if client_process.poll() is not None:
+                print('Restarting translator process')
+                client_process = start_translator_client_proc(host, port, nonce, translation_params)
     except KeyboardInterrupt:
+        if client_process.returncode is None:
+            # client_process.terminate()
+            client_process.kill()
         await runner.cleanup()
         raise
 

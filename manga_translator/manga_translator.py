@@ -369,7 +369,6 @@ class MangaTranslatorWeb(MangaTranslator):
         self.host = params.get('host', '127.0.0.1')
         self.port = str(params.get('port', 5003))
         self.nonce = params.get('nonce', '')
-        self.log_web = params.get('log_web', False)
         self.ignore_errors = params.get('ignore_errors', True)
         self._task_id = None
         self._params = None
