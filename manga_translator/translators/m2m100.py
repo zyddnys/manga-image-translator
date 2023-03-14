@@ -33,7 +33,8 @@ class M2M100Translator(OfflineTranslator):
         'UKR': '__uk__',
         'VIN': '__vi__',
     }
-    _MODEL_SUB_DIR = os.path.join(OfflineTranslator._MODEL_SUB_DIR, 'm2m_100/m2m100_418m')
+    _MODEL_SUB_DIR = os.path.join(OfflineTranslator._MODEL_SUB_DIR, 'm2m_100')
+    _CT2_MODEL_DIR = 'm2m100_418m'
     _MODEL_MAPPING = {
         'models': {
             'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/m2m100_418m_ct2.zip',
@@ -52,12 +53,12 @@ class M2M100Translator(OfflineTranslator):
         }
         print(self.model_dir)
         self.model = ctranslate2.Translator(
-            model_path=self.model_dir,
+            model_path=self._get_file_path(self._CT2_MODEL_DIR),
             device=device,
             device_index=0,
         )
         self.model.load_model()
-        self.sentence_piece_processor = spm.SentencePieceProcessor(model_file=self._get_file_path('sentencepiece.model'))
+        self.sentence_piece_processor = spm.SentencePieceProcessor(model_file=self._get_file_path(self._CT2_MODEL_DIR, 'sentencepiece.model'))
 
     async def _unload(self):
         self.model.unload_model()
@@ -94,7 +95,8 @@ class M2M100Translator(OfflineTranslator):
         return translation
 
 class M2M100BigTranslator(M2M100Translator):
-    _MODEL_SUB_DIR = os.path.join(OfflineTranslator._MODEL_SUB_DIR, 'm2m_100/m2m100_12b')
+    _MODEL_SUB_DIR = os.path.join(OfflineTranslator._MODEL_SUB_DIR, 'm2m_100')
+    _CT2_MODEL_DIR = 'm2m100_12b'
     _MODEL_MAPPING = {
         'models': {
             'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/m2m100_12b_ct2.zip',
