@@ -176,7 +176,8 @@ class SugoiTranslator(JparacrawlBigTranslator):
             self.query_split_sizes = []
             for q in queries:
                 # Split sentences into their own queries to prevent abbreviations
-                sentences = re.split(r'(\w[.‥…!?。・\s]+)', q)
+                # Add \s to make current sentence include whitespace after it...
+                sentences = re.split(r'(\w[.‥…!?。・]+)', q)
                 chunk_queries = []
                 # Two sentences per query
                 for chunk in chunks(sentences, 4):
