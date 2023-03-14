@@ -483,7 +483,7 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
                 print('Restarting translator process')
                 client_process = start_translator_client_proc(host, port, nonce, translation_params)
     except KeyboardInterrupt:
-        if client_process.returncode is None:
+        if client_process.poll() is None:
             # client_process.terminate()
             client_process.kill()
         await runner.cleanup()
