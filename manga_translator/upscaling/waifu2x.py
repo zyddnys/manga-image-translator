@@ -65,7 +65,7 @@ class Waifu2xUpscaler(OfflineUpscaler): # ~2GB of vram
     async def _unload(self):
         pass
 
-    async def _forward(self, image_batch: List[Image.Image], upscale_ratio: float) -> List[Image.Image]:
+    async def _infer(self, image_batch: List[Image.Image], upscale_ratio: float) -> List[Image.Image]:
         # Has to cache images because chosen upscaler doesn't support piping
         in_dir = tempfile.mkdtemp()
         out_dir = tempfile.mkdtemp()

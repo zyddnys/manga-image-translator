@@ -127,7 +127,7 @@ class ComicTextDetector(OfflineDetector):
         return lines, mask
 
     @torch.no_grad()
-    async def _forward(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
+    async def _infer(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
                        unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
 
         # keep_undetected_mask = False

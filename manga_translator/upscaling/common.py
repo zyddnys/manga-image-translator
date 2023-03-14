@@ -25,8 +25,8 @@ class OfflineUpscaler(CommonUpscaler, ModelWrapper):
     _MODEL_SUB_DIR = 'upscaling'
 
     async def _upscale(self, *args, **kwargs):
-        return await self.forward(*args, **kwargs)
+        return await self.infer(*args, **kwargs)
 
     @abstractmethod
-    async def _forward(self, image_batch: List[Image.Image], upscale_ratio: float) -> List[Image.Image]:
+    async def _infer(self, image_batch: List[Image.Image], upscale_ratio: float) -> List[Image.Image]:
         pass

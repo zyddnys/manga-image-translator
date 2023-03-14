@@ -84,7 +84,7 @@ class JparacrawlTranslator(OfflineTranslator):
         del self.model
         del self.sentence_piece_processors
 
-    async def forward(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+    async def infer(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         if from_lang == 'auto':
             if to_lang == 'en':
                 from_lang = 'ja'
@@ -93,9 +93,9 @@ class JparacrawlTranslator(OfflineTranslator):
         if self.is_loaded() and to_lang != self.load_params['to_lang']:
             await self.reload(self.load_params['device'], from_lang, to_lang)
 
-        return await super().forward(from_lang, to_lang, queries)
+        return await super().infer(from_lang, to_lang, queries)
 
-    async def _forward(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+    async def _infer(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         queries_tokenized = self.tokenize(queries, from_lang)
         translated_tokenized = self.model.translate_batch(
             source=queries_tokenized,

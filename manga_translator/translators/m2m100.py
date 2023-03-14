@@ -51,7 +51,6 @@ class M2M100Translator(OfflineTranslator):
             'to_lang': to_lang,
             'device': device,
         }
-        print(self.model_dir)
         self.model = ctranslate2.Translator(
             model_path=self._get_file_path(self._CT2_MODEL_DIR),
             device=device,
@@ -65,7 +64,7 @@ class M2M100Translator(OfflineTranslator):
         del self.model
         del self.sentence_piece_processor
 
-    async def _forward(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+    async def _infer(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         queries_tokenized = self.tokenize(queries, from_lang)
         translated_tokenized = self.model.translate_batch(
             source=queries_tokenized,

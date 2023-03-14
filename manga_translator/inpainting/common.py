@@ -17,8 +17,8 @@ class OfflineInpainter(CommonInpainter, ModelWrapper):
     _MODEL_SUB_DIR = 'inpainting'
 
     async def _inpaint(self, *args, **kwargs):
-        return await self.forward(*args, **kwargs)
+        return await self.infer(*args, **kwargs)
 
     @abstractmethod
-    async def _forward(self, image: np.ndarray, mask: np.ndarray, inpainting_size: int = 1024, verbose: bool = False) -> np.ndarray:
+    async def _infer(self, image: np.ndarray, mask: np.ndarray, inpainting_size: int = 1024, verbose: bool = False) -> np.ndarray:
         pass

@@ -167,10 +167,10 @@ class OfflineTranslator(CommonTranslator, ModelWrapper):
     _MODEL_SUB_DIR = 'translators'
 
     async def _translate(self, *args, **kwargs):
-        return await self.forward(*args, **kwargs)
+        return await self.infer(*args, **kwargs)
 
     @abstractmethod
-    async def _forward(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+    async def _infer(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         pass
 
     async def load(self, from_lang: str, to_lang: str, device: str):

@@ -39,7 +39,7 @@ class LamaMPEInpainter(OfflineInpainter):
     async def _unload(self):
         del self.model
 
-    async def _forward(self, image: np.ndarray, mask: np.ndarray, inpainting_size: int = 1024, verbose: bool = False) -> np.ndarray:
+    async def _infer(self, image: np.ndarray, mask: np.ndarray, inpainting_size: int = 1024, verbose: bool = False) -> np.ndarray:
         img_original = np.copy(image)
         mask_original = np.copy(mask)
         mask_original[mask_original < 127] = 0

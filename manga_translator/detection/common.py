@@ -103,9 +103,9 @@ class OfflineDetector(CommonDetector, ModelWrapper):
     _MODEL_SUB_DIR = 'detection'
 
     async def _detect(self, *args, **kwargs):
-        return await self.forward(*args, **kwargs)
+        return await self.infer(*args, **kwargs)
 
     @abstractmethod
-    async def _forward(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
+    async def _infer(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
                        unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
         pass

@@ -85,7 +85,7 @@ class SelectiveOfflineTranslator(OfflineTranslator):
     async def _unload(self):
         pass
 
-    async def _forward(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+    async def _infer(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         pass
 
 # class SelectiveBigOfflineTranslator(SelectiveOfflineTranslator):

@@ -280,7 +280,6 @@ class ModelWrapper(ABC):
             for orig, dest in mapping['archive'].items():
                 if os.path.basename(dest) in ('', '.'):
                     dest = os.path.join(dest, os.path.basename(orig[:-1] if orig.endswith('/') else orig))
-                print('Checking', self._get_file_path(dest))
                 if not os.path.exists(self._get_file_path(dest)):
                     return False
 
@@ -321,13 +320,13 @@ class ModelWrapper(ABC):
             await self._unload()
             self._loaded = False
 
-    async def forward(self, *args, **kwargs):
+    async def infer(self, *args, **kwargs):
         '''
         Makes a forward pass through the network.
         '''
         if not self.is_loaded():
             raise Exception(f'{self._key}: Tried to forward pass without having loaded the model.')
-        return await self._forward(*args, **kwargs)
+        return await self._infer(*args, **kwargs)
 
     @abstractmethod
     async def _load(self, device: str, *args, **kwargs):
@@ -338,5 +337,5 @@ class ModelWrapper(ABC):
         pass
 
     @abstractmethod
-    async def _forward(self, *args, **kwargs):
+    async def _infer(self, *args, **kwargs):
         pass
