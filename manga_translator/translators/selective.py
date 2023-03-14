@@ -61,7 +61,7 @@ class SelectiveOfflineTranslator(OfflineTranslator):
             sugoi_translator = get_translator('sugoi')
             if sugoi_translator.supports_languages(from_lang, to_lang):
                 return sugoi_translator
-        return get_translator('nllb')
+        return get_translator('m2m100_big')
 
     async def translate(self, from_lang: str, to_lang: str, queries: List[str], use_mtpe: bool) -> List[str]:
         self._real_translator = self.select_translator(from_lang, to_lang, queries)
@@ -94,4 +94,4 @@ class SelectiveOfflineTranslator(OfflineTranslator):
 #             sugoi_translator = get_translator('sugoi')
 #             if sugoi_translator.supports_languages(from_lang, to_lang):
 #                 return sugoi_translator
-#         return get_translator('nllb_big')
+#         return get_translator('m2m100_big')
