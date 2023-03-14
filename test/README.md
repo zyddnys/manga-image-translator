@@ -13,7 +13,7 @@ Run all tests
 pytest test/
 ```
 
-Run specific translator
+Run specific translator test
 ```bash
 pytest test/test_translation_manual.py --translator sugoi --target-lang ENG
 ```
