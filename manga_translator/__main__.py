@@ -25,14 +25,8 @@ async def dispatch(args: Namespace):
         await translator.translate_path(args.input, dest, args_dict)
 
     elif args.mode == 'web':
-        from .server.web_main import start_async_app
-        runner, site = await start_async_app(args.host, args.port, translation_params=args_dict)
-        try:
-            while True:
-                await asyncio.sleep(1)
-        except KeyboardInterrupt:
-            await runner.cleanup()
-            raise
+        from .server.web_main import dispatch
+        await dispatch(args.host, args.port, translation_params=args_dict)
 
     elif args.mode == 'web_client':
         translator = MangaTranslatorWeb(args_dict)

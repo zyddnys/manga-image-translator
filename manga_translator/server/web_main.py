@@ -42,9 +42,6 @@ VALID_TRANSLATORS = set(['youdao', 'baidu', 'google', 'deepl', 'papago', 'offlin
 MAX_ONGOING_TASKS = 1
 MAX_IMAGE_SIZE_PX = 8000**2
 
-# Time to wait for translator client before automatically shutting down
-TRANSLATOR_CLIENT_TIMEOUT = 20
-
 # Time to wait for webclient to send a request to /task-state request
 # before that web clients task gets removed from the queue
 WEB_CLIENT_TIMEOUT = 10
@@ -446,11 +443,9 @@ class TranslatorClientThread(threading.Thread):
         asyncio.set_event_loop(loop)
         loop.run_until_complete(translator.listen(self.params))
 
-async def start_async_app(host: str, port: int, nonce: str = None, translation_params: dict = None):
+async def start_async_app(host: str, port: int, nonce: str, translation_params: dict = None):
     global NONCE
     # Secret to secure communication between webserver and translator clients
-    if nonce is None:
-        nonce = os.getenv('MT_WEB_NONCE', generate_nonce())
     NONCE = nonce
     
     # Schedule web server to run
@@ -460,11 +455,29 @@ async def start_async_app(host: str, port: int, nonce: str = None, translation_p
     await site.start()
     print(f'Serving up app on http://{host}:{port}')
 
+    return runner, site
+
+async def dispatch(host: str, port: int, nonce: str = None, translation_params: dict = None):
+    if nonce is None:
+        nonce = os.getenv('MT_WEB_NONCE', generate_nonce())
+
+    runner, site = await start_async_app(host, port, nonce, translation_params)
+
     # Create thread with client that will execute translation tasks
     client = TranslatorClientThread(host, port, nonce, translation_params)
     client.start()
 
-    return runner, site
+    try:
+        while True:
+            await asyncio.sleep(1)
+
+            # Restart client if OOM or similar errors occured
+            if not client.is_alive():
+                client = TranslatorClientThread(host, port, nonce, translation_params)
+                client.start()
+    except KeyboardInterrupt:
+        await runner.cleanup()
+        raise
 
 if __name__ == '__main__':
     from ..args import parser
