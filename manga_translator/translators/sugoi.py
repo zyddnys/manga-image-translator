@@ -102,8 +102,8 @@ class JparacrawlTranslator(OfflineTranslator):
             beam_size=5,
             num_hypotheses=1,
             return_alternatives=False,
-            disable_unk=False,
-            replace_unknowns=False,
+            disable_unk=True,
+            replace_unknowns=True,
             repetition_penalty=3,
         )
         translated = self.detokenize(list(map(lambda t: t[0]['tokens'], translated_tokenized)), to_lang)
@@ -179,8 +179,8 @@ class SugoiTranslator(JparacrawlBigTranslator):
                 q = q.replace('.', '@')
                 sentences = list(filter(lambda x: x, re.sub(r'。+', r'。', q).split('。')))
                 chunk_queries = []
+                # Split into chunks of three to keep some context information
                 for chunk in chunks(sentences, 3):
-                    # Would reduce quality due to decreased context information?
                     chunk_queries.append(''.join([sentence + '。' for sentence in chunk]))
                 self.query_split_sizes.append(len(chunk_queries))
                 new_queries.extend(chunk_queries)
