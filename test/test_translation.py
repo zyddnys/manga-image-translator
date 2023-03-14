@@ -17,7 +17,7 @@ from manga_translator.translators import (
 @pytest.mark.asyncio
 async def test_mixed_languages():
     queries = ['How to be dead everyday', '', 'Ich bin ein deutscher', '我想每天学习如何变得更同性恋', 'HELLO THERE I WANT an audition!', '目标意识']
-    chain = TranslatorChain(f'google:ENG')
+    chain = TranslatorChain('google:ENG')
     print(await dispatch(chain, queries))
     
 @pytest.mark.asyncio
@@ -47,7 +47,7 @@ async def test_online_translators():
 @pytest.mark.asyncio
 async def test_offline_translators():
     queries = ['僕はアイネと共に一度、宿の方に戻った', '改めて直面するのは部屋の問題――部屋のベッドが一つでは、さすがに狭すぎるだろう。']
-    for key in ('offline', 'sugoi', 'nllb'):
+    for key in ('offline', 'sugoi', 'nllb', 'm2m100'):
         if not issubclass(TRANSLATORS[key], OfflineTranslator):
             continue
         chain = TranslatorChain(f'{key}:ENG')
