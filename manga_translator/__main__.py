@@ -1,5 +1,5 @@
-import asyncio
 import os
+import asyncio
 import logging
 from argparse import Namespace
 
@@ -24,10 +24,18 @@ async def dispatch(args: Namespace):
         translator = MangaTranslator(args_dict)
         await translator.translate_path(args.input, dest, args_dict)
 
-    elif args.mode in ('web', 'web2'):
+    elif args.mode == 'web':
+        from .server.web_main import start_async_app
+        runner, site = await start_async_app(args.host, args.port, translation_params=args_dict)
+        try:
+            while True:
+                await asyncio.sleep(1)
+        except KeyboardInterrupt:
+            await runner.cleanup()
+            raise
+
+    elif args.mode == 'web_client':
         translator = MangaTranslatorWeb(args_dict)
-        if args.mode == 'web':
-            translator.instantiate_webserver()
         await translator.listen(args_dict)
 
     elif args.mode == 'ws':

@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import asyncio
+import threading
 from PIL import Image
 from oscrypto import util as crypto_utils
 from aiohttp import web
@@ -10,7 +11,8 @@ from io import BytesIO
 from imagehash import phash
 from collections import deque
 
-BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+SERVER_DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+BASE_PATH = os.path.dirname(os.path.dirname(SERVER_DIR_PATH))
 
 VALID_LANGUAGES = {
     'CHS': 'Chinese (Simplified)',
@@ -37,8 +39,15 @@ VALID_DETECTORS = set(['default', 'ctd'])
 VALID_DIRECTIONS = set(['auto', 'h', 'v'])
 VALID_TRANSLATORS = set(['youdao', 'baidu', 'google', 'deepl', 'papago', 'offline', 'none', 'original'])
 
-MAX_NUM_TASKS = 1
+MAX_ONGOING_TASKS = 1
 MAX_IMAGE_SIZE_PX = 8000**2
+
+# Time to wait for translator client before automatically shutting down
+TRANSLATOR_CLIENT_TIMEOUT = 20
+
+# Time to wait for webclient to send a request to /task-state request
+# before that web clients task gets removed from the queue
+WEB_CLIENT_TIMEOUT = 10
 
 NUM_ONGOING_TASKS = 0
 NONCE = ''
@@ -67,12 +76,12 @@ def constant_compare(a, b):
 
 @routes.get("/")
 async def index_async(request):
-    with open(os.path.join(BASE_DIR, 'ui.html'), 'r', encoding='utf8') as fp:
+    with open(os.path.join(SERVER_DIR_PATH, 'ui.html'), 'r', encoding='utf8') as fp:
         return web.Response(text=fp.read(), content_type='text/html')
 
 @routes.get("/manual")
 async def index_async(request):
-    with open(os.path.join(BASE_DIR, 'manual.html'), 'r', encoding='utf8') as fp:
+    with open(os.path.join(SERVER_DIR_PATH, 'manual.html'), 'r', encoding='utf8') as fp:
         return web.Response(text=fp.read(), content_type='text/html')
 
 @routes.get("/result/{taskid}")
@@ -192,7 +201,7 @@ async def get_task_async(request):
     """
     global NONCE, NUM_ONGOING_TASKS
     if constant_compare(request.rel_url.query.get('nonce'), NONCE):
-        if len(QUEUE) > 0 and NUM_ONGOING_TASKS < MAX_NUM_TASKS:
+        if len(QUEUE) > 0 and NUM_ONGOING_TASKS < MAX_ONGOING_TASKS:
             task_id = QUEUE.popleft()
             if task_id in TASK_DATA:
                 data = TASK_DATA[task_id]
@@ -302,7 +311,7 @@ async def get_task_state_async(request):
             res_dict['waiting'] = 0
         res = web.json_response(res_dict)
 
-        # remove old tasks
+        # remove old tasks that are 30 minutes old
         now = time.time()
         to_del_task_ids = set()
         for tid, s in TASK_STATES.items():
@@ -415,27 +424,56 @@ async def manual_translate_async(request):
 
 app.add_routes(routes)
 
-async def start_async_app(host, port, nonce):
+
+def generate_nonce():
+    return crypto_utils.rand_bytes(16).hex()
+
+class TranslatorClientThread(threading.Thread):
+
+    def __init__(self, host: str, port: int, nonce: str, translation_params: dict = None):
+        threading.Thread.__init__(self)
+        self.params = translation_params or {}
+        self.params['host'] = host
+        self.params['port'] = port
+        self.params['nonce'] = nonce
+        self.daemon = True
+
+    def run(self):
+        from ..manga_translator import MangaTranslatorWeb
+
+        translator = MangaTranslatorWeb(self.params)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(translator.listen(self.params))
+
+async def start_async_app(host: str, port: int, nonce: str = None, translation_params: dict = None):
     global NONCE
+    # Secret to secure communication between webserver and translator clients
+    if nonce is None:
+        nonce = os.getenv('MT_WEB_NONCE', generate_nonce())
     NONCE = nonce
-    port = str(port)
-    # schedule web server to run
+    
+    # Schedule web server to run
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, host, port)
     await site.start()
-    print(f"Serving up app on http://{host}:{port}")
+    print(f'Serving up app on http://{host}:{port}')
+
+    # Create thread with client that will execute translation tasks
+    client = TranslatorClientThread(host, port, nonce, translation_params)
+    client.start()
+
     return runner, site
 
 if __name__ == '__main__':
+    from ..args import parser
+
+    args = parser.parse_args()
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-
-    nonce = sys.argv[1]
-    host = sys.argv[2]
-    port = int(sys.argv[3])
-
-    runner, site = loop.run_until_complete(start_async_app(host, port, nonce))
+    runner, site = loop.run_until_complete(start_async_app(args.host, args.port, vars(args)))
 
     try:
         loop.run_forever()
