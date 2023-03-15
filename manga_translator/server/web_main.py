@@ -507,7 +507,10 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
                 elif tid not in ONGOING_TASKS and not s['finished'] and now - d['requested_at'] > WEB_CLIENT_TIMEOUT:
                     print('REMOVING TASK', tid)
                     to_del_task_ids.add(tid)
-                    QUEUE.remove(tid)
+                    try:
+                        QUEUE.remove(tid)
+                    except ValueError:
+                        pass
 
             for tid in to_del_task_ids:
                 del TASK_STATES[tid]
