@@ -7,6 +7,8 @@ from .manga_translator import MangaTranslator, MangaTranslatorWeb, MangaTranslat
 from .args import parser
 from .utils import BASE_PATH, get_logger, set_log_level
 
+# TODO: Dynamic imports to reduce ram usage in web(-server) mode. Will require dealing with args.py imports.
+
 async def dispatch(args: Namespace):
     args_dict = vars(args)
 

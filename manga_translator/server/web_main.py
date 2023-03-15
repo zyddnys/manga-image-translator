@@ -42,10 +42,14 @@ VALID_TRANSLATORS = set(['youdao', 'baidu', 'google', 'deepl', 'papago', 'offlin
 MAX_ONGOING_TASKS = 1
 MAX_IMAGE_SIZE_PX = 8000**2
 
-# Time to wait for webclient to send a request to /task-state request
+# Time to wait for web client to send a request to /task-state request
 # before that web clients task gets removed from the queue
 WEB_CLIENT_TIMEOUT = 10
 
+# Time before finished tasks get removed from memory
+FINISHED_TASK_REMOVE_TIMEOUT = 1800
+
+# TODO: Make to dict with translator client id as key for support of multiple translator clients
 ONGOING_TASKS = []
 NONCE = ''
 QUEUE = deque()
@@ -162,7 +166,7 @@ async def run_async(request):
     if os.path.exists(f'result/{task_id}/final.png'):
         return web.json_response({'task_id' : task_id, 'status': 'successful'})
     # elif os.path.exists(f'result/{task_id}'):
-    #     # either image is being processed or error occurred 
+    #     # either image is being processed or error occurred
     #     if task_id not in TASK_STATES:
     #         # error occurred
     #         return web.json_response({'state': 'error'})
@@ -170,13 +174,15 @@ async def run_async(request):
         os.makedirs(f'result/{task_id}/', exist_ok=True)
         img.save(f'result/{task_id}/input.png')
         QUEUE.append(task_id)
+        now = time.time()
         TASK_DATA[task_id] = {
             'detection_size': size,
             'translator': selected_translator,
             'target_lang': target_language,
             'detector': detector,
             'direction': direction,
-            'created_at': time.time(),
+            'created_at': now,
+            'requested_at': now,
         }
         TASK_STATES[task_id] = {
             'info': 'pending',
@@ -302,25 +308,17 @@ async def get_task_state_async(request):
     task_id = request.query.get('taskid')
     if task_id and task_id in TASK_STATES and task_id in TASK_DATA:
         state = TASK_STATES[task_id]
+        data = TASK_DATA[task_id]
         res_dict = {
             'state': state['info'],
             'finished': state['finished'],
         }
+        data['requested_at'] = time.time()
         try:
             res_dict['waiting'] = QUEUE.index(task_id) + 1
         except Exception:
             res_dict['waiting'] = 0
         res = web.json_response(res_dict)
-
-        # remove old tasks that are 30 minutes old
-        now = time.time()
-        to_del_task_ids = set()
-        for tid, s in TASK_STATES.items():
-            if s['finished'] and now - TASK_DATA[tid]['created_at'] > 1800:
-                to_del_task_ids.add(tid)
-        for tid in to_del_task_ids:
-            del TASK_STATES[tid]
-            del TASK_DATA[tid]
 
         return res
     return web.json_response({'state': 'error'})
@@ -350,12 +348,14 @@ async def post_task_update_async(request):
 
 @routes.post("/submit")
 async def submit_async(request):
+    """Adds new task to the queue. Called by web client in ui.html when submitting an image."""
     x = await handle_post(request)
     if isinstance(x, tuple):
         img, size, selected_translator, target_language, detector, direction = x
     else:
         return x
     task_id = f'{phash(img, hash_size = 16)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
+    now = time.time()
     print(f'New `submit` task {task_id}')
     if os.path.exists(f'result/{task_id}/final.png'):
         TASK_STATES[task_id] = {
@@ -368,7 +368,8 @@ async def submit_async(request):
             'target_lang': target_language,
             'detector': detector,
             'direction': direction,
-            'created_at': time.time(),
+            'created_at': now,
+            'requested_at': now,
         }
     # elif os.path.exists(f'result/{task_id}'):
     #     # either image is being processed or error occurred
@@ -389,7 +390,8 @@ async def submit_async(request):
             'target_lang': target_language,
             'detector': detector,
             'direction': direction,
-            'created_at': time.time(),
+            'created_at': now,
+            'requested_at': now,
         }
     return web.json_response({'task_id': task_id, 'status': 'successful'})
 
@@ -404,13 +406,15 @@ async def manual_translate_async(request):
     print(f'New `manual-translate` task {task_id}')
     os.makedirs(f'result/{task_id}/', exist_ok=True)
     img.save(f'result/{task_id}/input.png')
+    now = time.time()
     QUEUE.append(task_id)
     TASK_DATA[task_id] = {
         'detection_size': size,
         'manual': True,
         'detector': detector,
         'direction': direction,
-        'created_at': time.time()
+        'created_at': now,
+        'requested_at': now,
     }
     TASK_STATES[task_id] = {
         'info': 'pending',
@@ -440,7 +444,7 @@ def start_translator_client_proc(host: str, port: int, nonce: str, params: dict)
         '--mode', 'web_client',
         '--host', host,
         '--port', str(port),
-        '--nonce', nonce,
+        '--nonce', nonce, # Might be insecure
     ]
     if params.get('use_cuda', False):
         cmds.append('--use-cuda')
@@ -478,6 +482,7 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
     runner, site = await start_async_app(host, port, nonce, translation_params)
 
     # Create client process that will execute translation tasks
+    print()
     client_process = start_translator_client_proc(host, port, nonce, translation_params)
 
     try:
@@ -493,6 +498,26 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
                     state['info'] = 'error'
                     state['finished'] = True
                 client_process = start_translator_client_proc(host, port, nonce, translation_params)
+
+            # Filter queued and finished tasks
+            now = time.time()
+            to_del_task_ids = set()
+            for tid, s in TASK_STATES.items():
+                d = TASK_DATA[tid]
+                # Remove finished tasks after 30 minutes
+                if s['finished'] and now - d['created_at'] > FINISHED_TASK_REMOVE_TIMEOUT:
+                    to_del_task_ids.add(tid)
+
+                # Remove queued tasks without web client
+                elif tid not in ONGOING_TASKS and now - d['requested_at'] > WEB_CLIENT_TIMEOUT:
+                    print('REMOVING TASK', tid)
+                    to_del_task_ids.add(tid)
+                    QUEUE.remove(tid)
+
+            for tid in to_del_task_ids:
+                del TASK_STATES[tid]
+                del TASK_DATA[tid]
+
     except KeyboardInterrupt:
         if client_process.poll() is None:
             # client_process.terminate()
@@ -507,9 +532,8 @@ if __name__ == '__main__':
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    runner, site = loop.run_until_complete(start_async_app(args.host, args.port, vars(args)))
 
     try:
-        loop.run_forever()
+        runner, site = loop.run_until_complete(dispatch(args.host, args.port, translation_params=vars(args)))
     except KeyboardInterrupt:
-        loop.run_until_complete(runner.cleanup())
+        pass
