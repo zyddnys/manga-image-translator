@@ -504,7 +504,7 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
                     to_del_task_ids.add(tid)
 
                 # Remove queued tasks without web client
-                elif tid not in ONGOING_TASKS and now - d['requested_at'] > WEB_CLIENT_TIMEOUT:
+                elif tid not in ONGOING_TASKS and not s['finished'] and now - d['requested_at'] > WEB_CLIENT_TIMEOUT:
                     print('REMOVING TASK', tid)
                     to_del_task_ids.add(tid)
                     QUEUE.remove(tid)
@@ -513,7 +513,7 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
                 del TASK_STATES[tid]
                 del TASK_DATA[tid]
 
-    except KeyboardInterrupt:
+    except:
         if client_process.poll() is None:
             # client_process.terminate()
             client_process.kill()
