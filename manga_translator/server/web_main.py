@@ -46,7 +46,7 @@ MAX_IMAGE_SIZE_PX = 8000**2
 # before that web clients task gets removed from the queue
 WEB_CLIENT_TIMEOUT = 10
 
-NUM_ONGOING_TASKS = 0
+ONGOING_TASKS = []
 NONCE = ''
 QUEUE = deque()
 TASK_DATA = {}
@@ -197,9 +197,9 @@ async def get_task_async(request):
     """
     Called by the translator to get a translation task.
     """
-    global NONCE, NUM_ONGOING_TASKS, DEFAULT_TRANSLATION_PARAMS
+    global NONCE, ONGOING_TASKS, DEFAULT_TRANSLATION_PARAMS
     if constant_compare(request.rel_url.query.get('nonce'), NONCE):
-        if len(QUEUE) > 0 and NUM_ONGOING_TASKS < MAX_ONGOING_TASKS:
+        if len(QUEUE) > 0 and len(ONGOING_TASKS) < MAX_ONGOING_TASKS:
             task_id = QUEUE.popleft()
             if task_id in TASK_DATA:
                 data = TASK_DATA[task_id]
@@ -207,7 +207,7 @@ async def get_task_async(request):
                     current_value = data.get(p)
                     data[p] = current_value if current_value is not None else default_value
                 if not TASK_DATA[task_id].get('manual', False):
-                    NUM_ONGOING_TASKS += 1
+                    ONGOING_TASKS.append(task_id)
                 return web.json_response({'task_id': task_id, 'data': data})
             else:
                 return web.json_response({})
@@ -330,7 +330,7 @@ async def post_task_update_async(request):
     """
     Lets the translator update the task state it is working on.
     """
-    global NONCE, NUM_ONGOING_TASKS
+    global NONCE, ONGOING_TASKS
     rqjson = (await request.json())
     if constant_compare(rqjson.get('nonce'), NONCE):
         task_id = rqjson['task_id']
@@ -340,7 +340,11 @@ async def post_task_update_async(request):
                 'finished': rqjson['finished'],
             }
             if rqjson['finished'] and not TASK_DATA[task_id].get('manual', False):
-                NUM_ONGOING_TASKS -= 1
+                try:
+                    i = ONGOING_TASKS.index(task_id)
+                    ONGOING_TASKS.pop(i)
+                except ValueError:
+                    pass
             print(f'Task state {task_id} to {TASK_STATES[task_id]}')
     return web.json_response({})
 
@@ -466,6 +470,8 @@ async def start_async_app(host: str, port: int, nonce: str, translation_params: 
     return runner, site
 
 async def dispatch(host: str, port: int, nonce: str = None, translation_params: dict = None):
+    global ONGOING_TASKS
+
     if nonce is None:
         nonce = os.getenv('MT_WEB_NONCE', generate_nonce())
 
@@ -481,6 +487,11 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
             # Restart client if OOM or similar errors occured
             if client_process.poll() is not None:
                 print('Restarting translator process')
+                if len(ONGOING_TASKS) > 0:
+                    task_id = ONGOING_TASKS.pop(0)
+                    state = TASK_STATES[task_id]
+                    state['info'] = 'error'
+                    state['finished'] = True
                 client_process = start_translator_client_proc(host, port, nonce, translation_params)
     except KeyboardInterrupt:
         if client_process.poll() is None:
