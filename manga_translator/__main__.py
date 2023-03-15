@@ -43,7 +43,8 @@ if __name__ == '__main__':
         set_log_level(level=logging.DEBUG if args.verbose else logging.INFO)
         logger = get_logger(args.mode)
         set_main_logger(logger)
-        logger.debug(args)
+        if args.mode != 'web':
+            logger.debug(args)
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
