@@ -371,12 +371,7 @@ async def submit_async(request):
             'created_at': now,
             'requested_at': now,
         }
-    # elif os.path.exists(f'result/{task_id}'):
-    #     # either image is being processed or error occurred
-    #     if task_id not in TASK_STATES:
-    #         # error occurred
-    #         return web.json_response({'state': 'error'})
-    else:
+    elif task_id not in TASK_DATA or task_id not in TASK_STATES:
         os.makedirs(f'result/{task_id}/', exist_ok=True)
         img.save(f'result/{task_id}/input.png')
         QUEUE.append(task_id)
