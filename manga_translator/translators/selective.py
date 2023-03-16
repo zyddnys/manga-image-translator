@@ -2,7 +2,7 @@ from typing import Callable, List
 import langid
 
 from .common import OfflineTranslator
-from .nllb import NLLBTranslator
+from .m2m100 import M2M100Translator
 from .sugoi import SugoiTranslator
 
 ISO_639_1_TO_VALID_LANGUAGES = {
@@ -40,7 +40,7 @@ class SelectiveOfflineTranslator(OfflineTranslator):
     '''
 
     _LANGUAGE_CODE_MAP = {
-        **NLLBTranslator._LANGUAGE_CODE_MAP,
+        **M2M100Translator._LANGUAGE_CODE_MAP,
         **SugoiTranslator._LANGUAGE_CODE_MAP,
     }
 
