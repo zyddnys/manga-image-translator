@@ -111,6 +111,7 @@ class MangaTranslator():
                 raise FileExistsError(dest)
 
             for root, subdirs, files in os.walk(path):
+                files.sort()
                 dest_root = replace_prefix(root, path, dest)
                 os.makedirs(dest_root, exist_ok=True)
                 for f in files:
