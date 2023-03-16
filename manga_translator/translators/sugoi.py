@@ -198,7 +198,7 @@ class SugoiTranslator(JparacrawlBigTranslator):
                 sentences = ''
                 for sentence in translations[i:i+query_count]:
                     sentences += sentence + ('. ' if not sentence.endswith('.') else ' ')
-                sentences = sentences.replace('@', '.').replace('▁', ' ')#.replace('<unk>', '')
+                sentences = sentences.replace('@', '.').replace('▁', ' ').replace('<unk>', '')
                 i += query_count
                 new_translations.append(sentences)
             translations = new_translations
