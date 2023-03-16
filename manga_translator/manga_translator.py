@@ -86,14 +86,14 @@ class MangaTranslator():
             if not dest:
                 # Use the same folder as the source
                 p, ext = os.path.splitext(path)
-                dest = f'{p}-translated{ext}'
+                dest = f'{p}-translated.png'
             elif not os.path.basename(dest):
+                p, ext = os.path.splitext(os.path.basename(path))
                 # If the folders differ use the original filename from the source
                 if os.path.dirname(path) != dest:
-                    dest = os.path.join(dest, os.path.basename(path))
+                    dest = os.path.join(dest, f'{p}.png')
                 else:
-                    p, ext = os.path.splitext(os.path.basename(path))
-                    dest = os.path.join(dest, f'{p}-translated{ext}')
+                    dest = os.path.join(dest, f'{p}-translated.png')
             dest_root = os.path.dirname(dest)
 
             output = await self.translate(Image.open(path), params)
