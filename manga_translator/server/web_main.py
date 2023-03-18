@@ -510,7 +510,7 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
                         to_del_task_ids.add(tid)
                         try:
                             QUEUE.remove(tid)
-                        except ValueError:
+                        except Exception:
                             pass
 
             for tid in to_del_task_ids:

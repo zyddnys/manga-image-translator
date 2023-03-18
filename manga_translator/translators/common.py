@@ -150,6 +150,9 @@ class CommonTranslator(InfererModule):
                 nTrans += trans[i].upper() if query[i].isupper() else trans[i]
             trans = nTrans
 
+        # ' ! ! . . ' -> ' !!.. '
+        trans = re.sub(r'([.!?])\s+(?=[.!?]|$)', r'\1', trans)
+
         # words = text.split()
         # elements = list(set(words))
         # if len(elements) / len(words) < 0.1:
