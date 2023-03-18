@@ -44,7 +44,7 @@ MAX_IMAGE_SIZE_PX = 8000**2
 
 # Time to wait for web client to send a request to /task-state request
 # before that web clients task gets removed from the queue
-WEB_CLIENT_TIMEOUT = 10
+WEB_CLIENT_TIMEOUT = -1
 
 # Time before finished tasks get removed from memory
 FINISHED_TASK_REMOVE_TIMEOUT = 1800
@@ -504,13 +504,14 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
                     to_del_task_ids.add(tid)
 
                 # Remove queued tasks without web client
-                elif tid not in ONGOING_TASKS and not s['finished'] and now - d['requested_at'] > WEB_CLIENT_TIMEOUT:
-                    print('REMOVING TASK', tid)
-                    to_del_task_ids.add(tid)
-                    try:
-                        QUEUE.remove(tid)
-                    except ValueError:
-                        pass
+                elif WEB_CLIENT_TIMEOUT >= 0:
+                    if tid not in ONGOING_TASKS and not s['finished'] and now - d['requested_at'] > WEB_CLIENT_TIMEOUT:
+                        print('REMOVING TASK', tid)
+                        to_del_task_ids.add(tid)
+                        try:
+                            QUEUE.remove(tid)
+                        except ValueError:
+                            pass
 
             for tid in to_del_task_ids:
                 del TASK_STATES[tid]
