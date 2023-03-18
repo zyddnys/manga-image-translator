@@ -16,7 +16,7 @@ from manga_translator.translators import (
 
 @pytest.mark.asyncio
 async def test_mixed_languages():
-    queries = ['How to be dead everyday', '', 'Ich bin ein deutscher', 'this is so fckin cringe sorry. HELLO THERE I WANT an audition! YOYOYOYO', '目标意识']
+    queries = ['How to be dead everyday', '', 'Ich bin ein deutscher', 'Test case m. HELLO THERE I WANT an audition! YOYOYOYO', '目标意识']
     chain = TranslatorChain('google:ENG')
     print(await dispatch(chain, queries))
     

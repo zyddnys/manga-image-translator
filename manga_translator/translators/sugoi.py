@@ -181,8 +181,10 @@ class SugoiTranslator(JparacrawlBigTranslator):
                 chunk_queries = []
                 # Two sentences per query
                 for chunk in chunks(sentences, 4):
-                    chunk_queries.append(''.join(chunk).replace('.', '@'))
+                    s = ''.join(chunk)
+                    chunk_queries.append(re.sub(r'[.。]', '@', s))
                 self.query_split_sizes.append(len(chunk_queries))
+                print(chunk_queries)
                 new_queries.extend(chunk_queries)
             queries = new_queries
         return super().tokenize(queries, lang)
@@ -195,9 +197,9 @@ class SugoiTranslator(JparacrawlBigTranslator):
             new_translations = []
             i = 0
             for query_count in self.query_split_sizes:
-                sentences = ''
-                for sentence in translations[i:i+query_count]:
-                    sentences += sentence + ('. ' if not sentence.endswith('.') else ' ')
+                sentences = ' '.join(translations[i:i+query_count])
+                # for sentence in translations[i:i+query_count]:
+                #     sentences += sentence + ('. ' if not sentence.endswith('.') else ' ')
                 sentences = sentences.replace('@', '.').replace('▁', ' ').replace('<unk>', '')
                 i += query_count
                 new_translations.append(sentences)
