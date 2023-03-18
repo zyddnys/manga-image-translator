@@ -74,7 +74,7 @@ class M2M100Translator(OfflineTranslator):
             return_alternatives=False,
             disable_unk=True,
             replace_unknowns=True,
-            repetition_penalty=1.2,
+            repetition_penalty=3,
         )
         translated = self.detokenize(list(map(lambda t: t[0]['tokens'], translated_tokenized)), to_lang)
         return translated
