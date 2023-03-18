@@ -16,9 +16,9 @@ async def test_specified_translator(translator, tgt_lang, text):
     if translator is None:
         pytest.skip()
 
-    if text is not None:
+    if text is None:
         queries_list = [
-            ['How to be dead everyday', '', 'Ich bin ein deutscher', '我想每天学习如何变得更同性恋', 'HELLO THERE I WANT an audition!', '目标意识'],
+            ['How to be dead everyday', '', 'Ich bin ein deutscher', 'this is so fckin cringe sorry. HELLO THERE I WANT an audition! YOYOYOYO', '目标意识'],
             ['僕はアイネと共に一度、宿の方に戻った', '改めて直面するのは部屋の問題――部屋のベッドが一つでは、さすがに狭すぎるだろう。'],
         ]
     else:
