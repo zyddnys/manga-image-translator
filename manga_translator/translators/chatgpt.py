@@ -3,6 +3,26 @@ import openai
 
 from .common import CommonTranslator, MissingAPIKeyException
 
+# Example query:
+"""Please help me to translate the following queries to english:
+Query 1:
+ちょっと悪いんだけど
+
+Query 2:
+そこの魔法陣に入って頂戴
+
+Query 3:
+いやいや何も起きないから(嘘)
+是否离线可用
+
+Query 4:
+いやいや何も起きないから(嘘)
+是否离线可用
+
+Translation 1:
+
+"""
+
 class GPT3Translator(CommonTranslator):
     _LANGUAGE_CODE_MAP = {
         'CHS': 'Simplified Chinese',
@@ -31,13 +51,11 @@ class GPT3Translator(CommonTranslator):
         if not openai.api_key:
             raise MissingAPIKeyException('Please set the OPENAI_API_KEY environment variable before using the chatgpt translator.')
 
-        self.prompt_template = 'Please help me to translate the following queries to {language}:{text}'
-
     async def _translate(self, from_lang, to_lang, queries):
-        text = ''
+        prompt = f'Please help me to translate the following queries from a manga to {to_lang}:\n'
         for i, query in enumerate(queries):
-            text += f'\n\nQuery {i+1}:\n---------------\n{query}'
-        prompt = self.prompt_template.format(text=text, language=to_lang)
+            prompt += f'\nQuery {i+1}:\n{query}\n'
+        prompt += '\nTranslation 1:\n'
         print(prompt)
 
         completion = openai.Completion.create(
@@ -46,10 +64,9 @@ class GPT3Translator(CommonTranslator):
             max_tokens=1024,
             temperature=1,
         )
-        text = completion.choices[0].text
-        print(text)
-        print()
-        translations = re.findall(r'\n*(?:Query|Answer) \d+:(?:\n-+\n)?(.*)', text)
+        response = completion.choices[0].text
+        print(response)
+        translations = re.split(r'Translation \d+:\n', response)
         translations = [t.strip() for t in translations]
         print(translations)
         return translations
