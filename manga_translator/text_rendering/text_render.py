@@ -1,53 +1,11 @@
 import os
 import cv2
 import numpy as np
-import unicodedata
 import freetype
 import functools
 from typing import Tuple, Optional, List
 
-from ..utils import BASE_PATH
-
-def _is_whitespace(ch):
-    """Checks whether `chars` is a whitespace character."""
-    # \t, \n, and \r are technically contorl characters but we treat them
-    # as whitespace since they are generally considered as such.
-    if ch == " " or ch == "\t" or ch == "\n" or ch == "\r" or ord(ch) == 0:
-        return True
-    cat = unicodedata.category(ch)
-    if cat == "Zs":
-        return True
-    return False
-
-def _is_control(ch):
-    """Checks whether `chars` is a control character."""
-    # These are technically control characters but we count them as whitespace
-    # characters.
-    if ch == "\t" or ch == "\n" or ch == "\r":
-        return False
-    cat = unicodedata.category(ch)
-    if cat in ("Cc", "Cf"):
-        return True
-    return False
-
-def _is_punctuation(ch):
-    """Checks whether `chars` is a punctuation character."""
-    cp = ord(ch)
-    # We treat all non-letter/number ASCII as punctuation.
-    # Characters such as "^", "$", and "`" are not in the Unicode
-    # Punctuation class but we treat them as punctuation anyways, for
-    # consistency.
-    if ((cp >= 33 and cp <= 47) or (cp >= 58 and cp <= 64) or
-        (cp >= 91 and cp <= 96) or (cp >= 123 and cp <= 126)):
-        return True
-    cat = unicodedata.category(ch)
-    if cat.startswith("P"):
-        return True
-    return False
-
-def count_valuable_text(text) -> int:
-    return sum([1 for ch in text if not _is_punctuation(ch) and not _is_control(ch) and not _is_whitespace(ch)])
-
+from ..utils import BASE_PATH, is_punctuation, is_whitespace
 
 CJK_H2V = {
     "‥": "︰",
@@ -281,7 +239,7 @@ def calc_vertical(font_size: int, text: str, max_height: int):
 def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_text: np.ndarray, canvas_border: np.ndarray, border_size: int):
     pen = pen_l.copy()
 
-    is_pun = _is_punctuation(cdpt)
+    is_pun = is_punctuation(cdpt)
     cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 1)
     slot = get_char_glyph(cdpt, font_size, 1)
     bitmap = slot.bitmap
@@ -359,7 +317,7 @@ def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str
         cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 0)
         glyph = get_char_glyph(cdpt, font_size, 0)
         bitmap = glyph.bitmap
-        next_is_space = _is_whitespace(text[min(i+1, len(text)-1)]) or _is_punctuation(text[min(i+1, len(text)-1)])
+        next_is_space = is_whitespace(text[min(i+1, len(text)-1)]) or is_punctuation(text[min(i+1, len(text)-1)])
         # spaces, etc
         if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width:
             char_offset_x = glyph.advance.x >> 6
@@ -414,7 +372,6 @@ def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str
 def put_char_horizontal(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_text: np.ndarray, canvas_border: np.ndarray, border_size: int):
     pen = pen_l.copy()
 
-    # is_pun = _is_punctuation(cdpt)
     cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 0)
     slot = get_char_glyph(cdpt, font_size, 0)
     bitmap = slot.bitmap

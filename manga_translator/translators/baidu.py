@@ -34,6 +34,7 @@ class BaiduTranslator(CommonTranslator):
         'RUS': 'ru',
         'ESP': 'spa',
     }
+    _INVALID_REPEAT_COUNT = 1
 
     def __init__(self) -> None:
         super().__init__()
