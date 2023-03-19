@@ -1,8 +1,7 @@
-from book_maker.translator.gpt3_translator import GPT3
-# from book_maker.translator.chatgptapi_translator import ChatGPTAPI
+import re
+import openai
 
 from .common import CommonTranslator, MissingAPIKeyException
-from .keys import GPT3_AUTH_KEY
 
 class GPT3Translator(CommonTranslator):
     _LANGUAGE_CODE_MAP = {
@@ -29,9 +28,28 @@ class GPT3Translator(CommonTranslator):
 
     def __init__(self):
         super().__init__()
-        if not GPT3_AUTH_KEY:
-            raise MissingAPIKeyException('Please set the GPT3_AUTH_KEY environment variable before using the gpt3 translator.')
+        if not openai.api_key:
+            raise MissingAPIKeyException('Please set the OPENAI_API_KEY environment variable before using the chatgpt translator.')
+
+        self.prompt_template = 'Please help me to translate the following queries to {language}:{text}'
 
     async def _translate(self, from_lang, to_lang, queries):
-        self.translator = GPT3(GPT3_AUTH_KEY, to_lang)
-        return self.translator.translate('\n'.join(queries), target_lang = to_lang).text.split('\n')
+        text = ''
+        for i, query in enumerate(queries):
+            text += f'\n\nQuery {i+1}:\n---------------\n{query}'
+        prompt = self.prompt_template.format(text=text, language=to_lang)
+        print(prompt)
+
+        completion = openai.Completion.create(
+            model='text-davinci-003',
+            prompt=prompt,
+            max_tokens=1024,
+            temperature=1,
+        )
+        text = completion.choices[0].text
+        print(text)
+        print()
+        translations = re.findall(r'\n*(?:Query|Answer) \d+:(?:\n-+\n)?(.*)', text)
+        translations = [t.strip() for t in translations]
+        print(translations)
+        return translations

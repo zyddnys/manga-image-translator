@@ -7,5 +7,3 @@ YOUDAO_APP_KEY = os.getenv('YOUDAO_APP_KEY', '') # 应用ID
 YOUDAO_SECRET_KEY = os.getenv('YOUDAO_SECRET_KEY', '') # 应用秘钥
 # deepl
 DEEPL_AUTH_KEY = os.getenv('DEEPL_AUTH_KEY', '') #YOUR_AUTH_KEY
-# gtp3
-GPT3_AUTH_KEY = os.getenv('GPT3_AUTH_KEY', '')
