@@ -29,3 +29,4 @@ protobuf
 ctranslate2
 colorama
 pytest
+openai

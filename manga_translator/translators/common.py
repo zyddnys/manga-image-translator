@@ -2,7 +2,7 @@ import re
 from typing import List, Tuple
 from abc import abstractmethod
 
-from ..utils import InfererModule, ModelWrapper, repeating_sequence
+from ..utils import InfererModule, ModelWrapper, repeating_sequence, count_valuable_text
 
 try:
     import readline
@@ -66,6 +66,7 @@ class MTPEAdapter():
 
 class CommonTranslator(InfererModule):
     _LANGUAGE_CODE_MAP = {}
+    _INVALID_REPEAT_COUNT = 2
 
     def __init__(self):
         super().__init__()
@@ -94,42 +95,79 @@ class CommonTranslator(InfererModule):
         return _from_lang, _to_lang
 
     async def translate(self, from_lang: str, to_lang: str, queries: List[str], use_mtpe: bool = False) -> List[str]:
-        '''
+        """
         Translates list of queries of one language into another.
-        '''
+        """
         if to_lang not in VALID_LANGUAGES:
             raise ValueError('Invalid language code: "%s". Choose from the following: %s' % (to_lang, ', '.join(VALID_LANGUAGES)))
         if from_lang not in VALID_LANGUAGES and from_lang != 'auto':
             raise ValueError('Invalid language code: "%s". Choose from the following: auto, %s' % (from_lang, ', '.join(VALID_LANGUAGES)))
-        self.logger.info(f'Translating into {VALID_LANGUAGES[to_lang]} [{to_lang}]')
+        self.logger.info(f'Translating into {VALID_LANGUAGES[to_lang]}')
+
+        translations = [''] * len(queries)
 
         if from_lang == to_lang:
-            result = []
-        else:
-            result = await self._translate(*self.parse_language_codes(from_lang, to_lang, fatal=True), queries)
+            return translations
 
-        translated_sentences = []
-        if len(result) < len(queries):
-            translated_sentences.extend(result)
-            translated_sentences.extend([''] * (len(queries) - len(result)))
-        elif len(result) > len(queries):
-            translated_sentences.extend(result[:len(queries)])
-        else:
-            translated_sentences.extend(result)
+        unchecked_indices = list(range(len(queries))) # unchecked for invalid translations
+        for i in range(1 + self._INVALID_REPEAT_COUNT):
+            _translations = await self._translate(*self.parse_language_codes(from_lang, to_lang, fatal=True), queries)
 
-        translated_sentences = [self._clean_translation_output(q, r) for q, r in zip(queries, translated_sentences)]
+            # Only overwrite invalid translations
+            if len(unchecked_indices) > 0:
+                for j in unchecked_indices:
+                    translations[j] = _translations[j]
+            else:
+                translations = _translations
+
+            # Extend returned translations to have the same size as queries
+            if len(translations) < len(queries):
+                translations.extend([''] * (len(queries) - len(translations)))
+            elif len(translations) > len(queries):
+                translations = translations[:len(queries)]
+
+            if self._INVALID_REPEAT_COUNT <= 0:
+                break
+
+            # Repeat invalid translations with slightly modified queries
+            n_unchecked_indices = []
+            for j in unchecked_indices:
+                q, t = queries[j], translations[j]
+                if self._is_translation_invalid(q, t):
+                    n_unchecked_indices.append(j)
+                    queries[j] = self._modify_invalid_translation_query(q)
+            if not n_unchecked_indices:
+                break
+            unchecked_indices = n_unchecked_indices
+            self.logger.info('Repeating because of invalid translation')
+            # print([translations[j] for j in unchecked_indices])
+
+        translations = [self._clean_translation_output(q, r) for q, r in zip(queries, translations)]
         if use_mtpe:
-            translated_sentences = await self.mtpe_adapter.dispatch(queries, translated_sentences)
-        return translated_sentences
+            translations = await self.mtpe_adapter.dispatch(queries, translations)
+        return translations
 
     @abstractmethod
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         pass
 
+    def _is_translation_invalid(self, query: str, trans: str) -> bool:
+        if not query or not trans:
+            return False
+
+        query_symbols_count = count_valuable_text(query)
+        trans_symbols_count = count_valuable_text(trans)
+        if query_symbols_count > 6 and trans_symbols_count < 0.3 * query_symbols_count:
+            return True
+        return False
+
+    def _modify_invalid_translation_query(self, query: str) -> str:
+        return f' {query}'
+
     def _clean_translation_output(self, query: str, trans: str) -> str:
-        '''
+        """
         Tries to spot and skim down invalid translations.
-        '''
+        """
         if not query or not trans:
             return ''
 
@@ -141,8 +179,8 @@ class CommonTranslator(InfererModule):
         seq = repeating_sequence(trans.lower())
 
         # 'aaaaaaaaaaaaa' -> 'aaaaaa'
-        if len(query) < 0.6 * len(trans) and len(seq) < 0.5 * len(trans):
-            # Extend sequence to length of original query
+        if len(trans) < len(query) and len(seq) < 0.5 * len(trans):
+            # Shrink sequence to length of original query
             trans = seq * max(len(query) // len(seq), 1)
             # Transfer capitalization of query to translation
             nTrans = ''

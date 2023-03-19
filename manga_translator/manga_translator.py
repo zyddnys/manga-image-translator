@@ -22,6 +22,7 @@ from .utils import (
     visualize_textblocks,
     add_file_logger,
     remove_file_logger,
+    count_valuable_text,
 )
 
 from .detection import dispatch as dispatch_detection, prepare as prepare_detection
@@ -36,7 +37,6 @@ from .translators import (
     prepare as prepare_translation,
 )
 from .text_rendering import dispatch as dispatch_rendering, dispatch_eng_render
-from .text_rendering.text_render import count_valuable_text
 
 # Will be overwritten by __main__.py if module is being run directly (with python -m)
 logger = logging.getLogger('manga_translator')

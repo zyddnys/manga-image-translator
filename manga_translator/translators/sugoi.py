@@ -176,7 +176,6 @@ class SugoiTranslator(JparacrawlBigTranslator):
             self.query_split_sizes = []
             for q in queries:
                 # Split sentences into their own queries to prevent abbreviations
-                # Add \s to make current sentence include whitespace after it...
                 sentences = re.split(r'(\w[.‥…!?。・]+)', q)
                 chunk_queries = []
                 # Two sentences per query
@@ -184,7 +183,6 @@ class SugoiTranslator(JparacrawlBigTranslator):
                     s = ''.join(chunk)
                     chunk_queries.append(re.sub(r'[.。]', '@', s))
                 self.query_split_sizes.append(len(chunk_queries))
-                print(chunk_queries)
                 new_queries.extend(chunk_queries)
             queries = new_queries
         return super().tokenize(queries, lang)
@@ -198,10 +196,8 @@ class SugoiTranslator(JparacrawlBigTranslator):
             i = 0
             for query_count in self.query_split_sizes:
                 sentences = ' '.join(translations[i:i+query_count])
-                # for sentence in translations[i:i+query_count]:
-                #     sentences += sentence + ('. ' if not sentence.endswith('.') else ' ')
-                sentences = sentences.replace('@', '.').replace('▁', ' ').replace('<unk>', '')
                 i += query_count
+                sentences = sentences.replace('@', '.').replace('▁', ' ').replace('<unk>', '')
                 new_translations.append(sentences)
             translations = new_translations
         return translations
