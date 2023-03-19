@@ -56,21 +56,20 @@ $ pip install -r requirements.txt
 
 ### 翻译器列表
 
-| 名称            | 是否需要 API Key | 是否离线可用 | 其他说明       |
-| -------------- | ------- | ------ | ----------------------------------------------------- |
-| google         |         | ✔️      |                                                       |
-| youdao         | ✔️       | ✔️      |                                                       |
-| baidu          | ✔️       | ✔️      |                                                       |
-| deepl          | ✔️       | ✔️      |                                                       |
-| papago         |         | ✔️      |                                                       | 
+| 名称            | 是否需要 API Key | 是否离线可用 | 其他说明                                    |
+| -------------- | ------- | ------- | ----------------------------------------------------- |
+| google         |         |         |                                                       |
+| youdao         | ✔️      |         | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`     |
+| baidu          | ✔️      |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`        |
+| deepl          | ✔️      |         | Requires `DEEPL_AUTH_KEY`                             |
+| gpt3           | ✔️      |         | Requires `OPENAI_API_KEY`                             |
+| papago         |         |         |                                                       |
 | offline        |         | ✔️      |                                                       |
 | sugoi          |         | ✔️      |                                                       |
-| jparacrawl     |         |        |                                                       | 
-| jparacrawl_big |         | ✔️      |                                                       |
 | m2m100         |         | ✔️      |                                                       |
-| m2m100_big     |         |        |                                                       |
-| none           |         | ✔️      | 翻译成空白文本  |
-| original       |         | ✔️      | 翻译成源文本    |
+| m2m100_big     |         | ✔️      |                                                       |
+| none           |         | ✔️      | 翻译成空白文本                                          |
+| original       |         | ✔️      | 翻译成源文本                                            |
 
 ### 语言代码列表
 
