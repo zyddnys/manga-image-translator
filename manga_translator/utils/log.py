@@ -12,7 +12,7 @@ class Formatter(logging.Formatter):
         elif record.levelno >= logging.WARN:
             self._style._fmt = f'{colorama.Fore.YELLOW}%(levelname)s:{colorama.Fore.RESET} [%(name)s] %(message)s'
         elif record.levelno == logging.DEBUG:
-            self._style._fmt = '[%(name)s]\n%(message)s'
+            self._style._fmt = '[%(name)s] %(message)s'
         else:
             self._style._fmt = '[%(name)s] %(message)s'
         return super().formatMessage(record)
