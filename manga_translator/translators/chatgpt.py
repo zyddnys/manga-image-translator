@@ -1,5 +1,7 @@
 import re
 import openai
+import asyncio
+import time
 
 from .common import CommonTranslator, MissingAPIKeyException
 
@@ -52,12 +54,34 @@ class GPT3Translator(CommonTranslator):
             raise MissingAPIKeyException('Please set the OPENAI_API_KEY environment variable before using the chatgpt translator.')
 
     async def _translate(self, from_lang, to_lang, queries):
-        prompt = f'Please help me to translate the following queries from a manga to {to_lang}:\n'
+        prompt = f'Please help me to translate the following text from a manga to {to_lang}:\n'
         for i, query in enumerate(queries):
-            prompt += f'\nQuery {i+1}:\n{query}\n'
+            prompt += f'\nText {i+1}:\n{query}\n'
         prompt += '\nTranslation 1:\n'
-        print(prompt)
+        self.logger.debug(prompt)
 
+        request_task = asyncio.create_task(self._request_translation(prompt))
+        started = time.time()
+        attempts = 0
+        while not request_task.done():
+            await asyncio.sleep(0.1)
+            if time.time() - started > 15:
+                if attempts >= 2:
+                    raise Exception('API servers did not respond quickly enough.')
+                self.logger.info(f'Restarting request due to timeout. Attempt: {attempts+1}')
+                request_task.cancel()
+                request_task = asyncio.create_task(self._request_translation(prompt))
+                started = time.time()
+                attempts += 1
+        response = await request_task
+
+        self.logger.debug(response)
+        translations = re.split(r'Translation \d+:\n', response)
+        translations = [t.strip() for t in translations]
+        self.logger.debug(translations)
+        return translations
+
+    async def _request_translation(self, prompt: str) -> str:
         completion = openai.Completion.create(
             model='text-davinci-003',
             prompt=prompt,
@@ -65,8 +89,4 @@ class GPT3Translator(CommonTranslator):
             temperature=1,
         )
         response = completion.choices[0].text
-        print(response)
-        translations = re.split(r'Translation \d+:\n', response)
-        translations = [t.strip() for t in translations]
-        print(translations)
-        return translations
+        return response
