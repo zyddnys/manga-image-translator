@@ -104,23 +104,19 @@ class CommonTranslator(InfererModule):
         self.logger.info(f'Translating into {VALID_LANGUAGES[to_lang]} [{to_lang}]')
 
         if from_lang == to_lang:
-            result = []
+            translation = []
         else:
-            result = await self._translate(*self.parse_language_codes(from_lang, to_lang, fatal=True), queries)
+            translation = await self._translate(*self.parse_language_codes(from_lang, to_lang, fatal=True), queries)
 
-        translated_sentences = []
-        if len(result) < len(queries):
-            translated_sentences.extend(result)
-            translated_sentences.extend([''] * (len(queries) - len(result)))
-        elif len(result) > len(queries):
-            translated_sentences.extend(result[:len(queries)])
-        else:
-            translated_sentences.extend(result)
+        if len(translation) < len(queries):
+            translation.extend([''] * (len(queries) - len(translation)))
+        elif len(translation) > len(queries):
+            translation = translation[:len(queries)]
 
-        translated_sentences = [self._clean_translation_output(q, r) for q, r in zip(queries, translated_sentences)]
+        translation = [self._clean_translation_output(q, r) for q, r in zip(queries, translation)]
         if use_mtpe:
-            translated_sentences = await self.mtpe_adapter.dispatch(queries, translated_sentences)
-        return translated_sentences
+            translation = await self.mtpe_adapter.dispatch(queries, translation)
+        return translation
 
     @abstractmethod
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
@@ -141,7 +137,7 @@ class CommonTranslator(InfererModule):
         seq = repeating_sequence(trans.lower())
 
         # 'aaaaaaaaaaaaa' -> 'aaaaaa'
-        if len(query) < 0.6 * len(trans) and len(seq) < 0.5 * len(trans):
+        if len(trans) < 0.6 * len(query) and len(seq) < 0.5 * len(trans):
             # Extend sequence to length of original query
             trans = seq * max(len(query) // len(seq), 1)
             # Transfer capitalization of query to translation

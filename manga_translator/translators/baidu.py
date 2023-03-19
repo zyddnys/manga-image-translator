@@ -65,4 +65,3 @@ class BaiduTranslator(CommonTranslator):
         # 拼接URL
         url = API_URL +'?appid=' + BAIDU_APP_ID + '&q=' + urllib.parse.quote(query_text) + '&from=' + from_lang + '&to=' + to_lang + '&salt=' + str(salt) + '&sign=' + sign
         return url
-
