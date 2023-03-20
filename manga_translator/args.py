@@ -50,6 +50,7 @@ def translator_chain(string):
     except Exception:
         raise argparse.ArgumentTypeError(f'Invalid translator_chain value: "{string}". Example usage: --translator "google:sugoi" -l "JPN:ENG"')
 
+
 parser = argparse.ArgumentParser(prog='manga_translator', description='Seamlessly translate mangas into a chosen language')
 parser.add_argument('-m', '--mode', default='demo', type=str, choices=['demo', 'batch', 'web', 'web_client', 'ws'], help='Run demo in either single image demo mode (demo), web service mode (web), web client which executes translation tasks for a webserver (web_client) or batch translation mode (batch)')
 parser.add_argument('-i', '--input', default='', type=path, help='Path to an image file if using demo mode, or path to an image folder if using batch mode')
