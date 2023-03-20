@@ -28,5 +28,9 @@ websockets
 protobuf
 ctranslate2
 colorama
-pytest
 openai
+open_clip_torch
+safetensors
+pandas
+onnxruntime
+omegaconf
