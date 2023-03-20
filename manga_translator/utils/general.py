@@ -139,7 +139,6 @@ def get_filename_from_url(url: str, default: str = '') -> str:
     return default
 
 def download_url_with_progressbar(url: str, path: str):
-    # TODO: Fix partial downloads
     if os.path.basename(path) in ('.', '') or os.path.isdir(path):
         new_filename = get_filename_from_url(url)
         if not new_filename:
@@ -151,10 +150,11 @@ def download_url_with_progressbar(url: str, path: str):
     if os.path.isfile(path):
         downloaded_size = os.path.getsize(path)
         headers['Range'] = 'bytes=%d-' % downloaded_size
+        headers['Accept-Encoding'] = 'deflate'
 
     r = requests.get(url, stream=True, allow_redirects=True, headers=headers)
     if downloaded_size and r.headers.get('Accept-Ranges') != 'bytes':
-        print('Error: Webserver does not support partial downloads. Restarting from the beginning!')
+        print('Error: Webserver does not support partial downloads. Restarting from the beginning.')
         r = requests.get(url, stream=True, allow_redirects=True)
         downloaded_size = 0
     total = int(r.headers.get('content-length', 0))
@@ -164,7 +164,7 @@ def download_url_with_progressbar(url: str, path: str):
         with tqdm.tqdm(
             desc=os.path.basename(path),
             initial=downloaded_size,
-            total=total,
+            total=total+downloaded_size,
             unit='iB',
             unit_scale=True,
             unit_divisor=chunk_size,
