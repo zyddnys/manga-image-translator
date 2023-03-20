@@ -1,28 +1,19 @@
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import numpy as np
 import cv2
 import os
-import shutil
 import einops
 import safetensors
 import safetensors.torch
-from torch import Tensor
 from PIL import Image
-
-
-import sys
-sys.path.append('manga_translator/inpainting')
+from omegaconf import OmegaConf
 
 from .common import OfflineInpainter
 from ..utils import resize_keep_aspect
 
 from .booru_tagger import Tagger
 from .sd_hack import hack_everything
-
-from omegaconf import OmegaConf
-from ldm.util import instantiate_from_config
+from .ldm.util import instantiate_from_config
 
 
 def get_state_dict(d):
