@@ -7,7 +7,7 @@ __pycache__
 ocrs
 Manga
 Manga-translated
-/models/
+/models
 .env
 .env.local
 test/testdata/bboxes
