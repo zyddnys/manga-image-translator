@@ -5,7 +5,6 @@ import numpy as np
 import requests
 import os
 import torch
-from typing import List
 import time
 import logging
 
@@ -14,7 +13,6 @@ from .utils import (
     BASE_PATH,
     LANGAUGE_ORIENTATION_PRESETS,
     ModelWrapper,
-    TextBlock,
     Context,
     load_image,
     dump_image,
@@ -103,6 +101,10 @@ class MangaTranslator():
                 result.save(dest)
                 await self._report_progress('saved', True)
 
+            # TODO: Add support for reading in such a file
+            if translation_dict.text_output_file and translation_dict.text_regions:
+                self.save_text_to_file(translation_dict, dest)
+
         elif os.path.isdir(path):
             # Determine destination folder path
             if path[-1] == '\\' or path[-1] == '/':
@@ -135,6 +137,8 @@ class MangaTranslator():
                         if result:
                             result.save(output_dest)
                             await self._report_progress('saved', True)
+                        if translation_dict.text_output_file and translation_dict.text_regions:
+                            self.save_text_to_file(translation_dict, output_dest)
 
     async def translate(self, image: Image.Image, params: dict = None) -> Context:
         """
@@ -320,6 +324,16 @@ class MangaTranslator():
                 logger.error(LOG_MESSAGES_ERROR[state])
 
         self.add_progress_hook(ph)
+
+    def save_text_to_file(self, ctx: Context, image_name: str):
+        s = f'\n[{image_name}]\n'
+        for i, region in enumerate(ctx.text_regions):
+            s += f'\n-- {i+1} --:\n'
+            s += f'text: {region.get_text()}\n trans: {region.translation}'
+        s += '\n\n'
+
+        with open(ctx.text_output_file, 'a') as f:
+            f.write(s)
 
     async def _run_upscaling(self, ctx: Context):
         return (await dispatch_upscaling(ctx.upscaler, [ctx.input], ctx.upscale_ratio, self.device))[0]
