@@ -65,7 +65,7 @@ class BaiduTranslator(CommonTranslator):
         translations = []
         i = 0
         for size in query_split_sizes:
-            translations.append(result_list[i:i+size])
+            translations.append('\n'.join(result_list[i:i+size]))
             i += size
 
         return translations
