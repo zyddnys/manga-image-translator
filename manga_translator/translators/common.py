@@ -66,7 +66,7 @@ class MTPEAdapter():
 
 class CommonTranslator(InfererModule):
     _LANGUAGE_CODE_MAP = {}
-    _INVALID_REPEAT_COUNT = 2
+    _INVALID_REPEAT_COUNT = 0
 
     def __init__(self):
         super().__init__()
@@ -135,12 +135,11 @@ class CommonTranslator(InfererModule):
                 q, t = queries[j], translations[j]
                 if self._is_translation_invalid(q, t):
                     n_unchecked_indices.append(j)
-                    queries[j] = self._modify_invalid_translation_query(q)
+                    queries[j] = self._modify_invalid_translation_query(q, t)
             if not n_unchecked_indices:
                 break
             unchecked_indices = n_unchecked_indices
             self.logger.info('Repeating because of invalid translation')
-            # print([translations[j] for j in unchecked_indices])
 
         translations = [self._clean_translation_output(q, r) for q, r in zip(queries, translations)]
         if use_mtpe:
@@ -161,8 +160,12 @@ class CommonTranslator(InfererModule):
             return True
         return False
 
-    def _modify_invalid_translation_query(self, query: str) -> str:
-        return f' {query}'
+    def _modify_invalid_translation_query(self, query: str, trans: str) -> str:
+        """
+        Should be overwritten if _INVALID_REPEAT_COUNT was set. It modifies the query
+        for the next translation attempt.
+        """
+        raise NotImplementedError()
 
     def _clean_translation_output(self, query: str, trans: str) -> str:
         """
