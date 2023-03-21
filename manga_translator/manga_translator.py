@@ -96,10 +96,11 @@ class MangaTranslator():
                     dest = os.path.join(dest, f'{p}-translated.png')
             dest_root = os.path.dirname(dest)
 
-            output = await self.translate(Image.open(path), params)
-            if output:
+            translation_dict = await self.translate(Image.open(path), params)
+            result = translation_dict.result
+            if result:
                 os.makedirs(dest_root, exist_ok=True)
-                output.save(dest)
+                result.save(dest)
                 await self._report_progress('saved', True)
 
         elif os.path.isdir(path):
@@ -129,62 +130,71 @@ class MangaTranslator():
                     if img:
                         print()
                         logger.info(f'Processing {file_path} -> {output_dest}')
-                        output = await self.translate(img, params)
-                        if output:
-                            output.save(output_dest)
+                        translation_dict = await self.translate(img, params)
+                        result = translation_dict.result
+                        if result:
+                            result.save(output_dest)
                             await self._report_progress('saved', True)
 
-    async def translate(self, image: Image.Image, params: dict = None) -> Image.Image:
+    async def translate(self, image: Image.Image, params: dict = None) -> Context:
         """
-        Translates a PIL image preferably from a manga.
-        Returns `None` if an error occured and `image` if no text was found.
+        Translates a PIL image from a manga. Returns dict with result and intermediates of translation.
+
+        ```py
+        translation_dict = await translator.translate(image)
+        result = translation_dict.result
+        ```
         """
         # TODO: Take list of images to speed up batch processing
 
-        # Turn dict to context to make values accessible through params.<property>
+        # Turn dict to context to make values also accessible through params.<property>
         params = params or {}
-        params = Context(**params)
+        ctx = Context(**params)
 
         # params auto completion
         for arg in DEFAULT_ARGS:
-            params.setdefault(arg, DEFAULT_ARGS[arg])
-        if 'direction' not in params:
-            if params.force_horizontal:
-                params.direction = 'h'
-            elif params.force_vertical:
-                params.direction = 'v'
+            ctx.setdefault(arg, DEFAULT_ARGS[arg])
+        if 'direction' not in ctx:
+            if ctx.force_horizontal:
+                ctx.direction = 'h'
+            elif ctx.force_vertical:
+                ctx.direction = 'v'
             else:
-                params.direction = 'auto'
-        if 'alignment' not in params:
-            if params.align_left:
-                params.alignment = 'left'
-            elif params.align_center:
-                params.alignment = 'center'
-            elif params.align_right:
-                params.alignment = 'right'
+                ctx.direction = 'auto'
+        if 'alignment' not in ctx:
+            if ctx.align_left:
+                ctx.alignment = 'left'
+            elif ctx.align_center:
+                ctx.alignment = 'center'
+            elif ctx.align_right:
+                ctx.alignment = 'right'
             else:
-                params.alignment = 'auto'
-        params.setdefault('renderer', 'manga2eng' if params['manga2eng'] else 'default')
-        if params.translator_chain is not None:
-            params.target_lang = params.translator_chain.langs[-1]
-            params.translator = params.translator_chain
+                ctx.alignment = 'auto'
+        ctx.setdefault('renderer', 'manga2eng' if ctx['manga2eng'] else 'default')
+        if ctx.translator_chain is not None:
+            ctx.target_lang = ctx.translator_chain.langs[-1]
+            ctx.translator = ctx.translator_chain
         else:
-            params.translator = TranslatorChain(f'{params.translator}:{params.target_lang}')
+            ctx.translator = TranslatorChain(f'{ctx.translator}:{ctx.target_lang}')
+
+        if ctx.model_dir:
+            ModelWrapper._MODEL_DIR = ctx.model_dir
+
+        ctx.input = image
+        ctx.result = None
 
         try:
-            # preload and download models (not necessary, remove to lazy load)
+            # preload and download models (not strictly necessary, remove to lazy load)
             logger.info('Loading models')
-            if params.model_dir:
-                ModelWrapper._MODEL_DIR = params.model_dir
-            if params.upscale_ratio:
-                await prepare_upscaling(params.upscaler)
-            await prepare_detection(params.detector)
-            await prepare_ocr(params.ocr, self.device)
-            await prepare_inpainting(params.inpainter, self.device)
-            await prepare_translation(params.translator)
+            if ctx.upscale_ratio:
+                await prepare_upscaling(ctx.upscaler)
+            await prepare_detection(ctx.detector)
+            await prepare_ocr(ctx.ocr, self.device)
+            await prepare_inpainting(ctx.inpainter, self.device)
+            await prepare_translation(ctx.translator)
 
             # translate
-            return await self._translate(image, params)
+            return await self._translate(ctx)
         except Exception as e:
             if isinstance(e, LanguageUnsupportedException):
                 await self._report_progress('error-lang', True)
@@ -195,84 +205,81 @@ class MangaTranslator():
             else:
                 logger.error(f'{e.__class__.__name__}: {e}',
                              exc_info=e if self.verbose else None)
-            return None
+            return ctx
 
-    async def _translate(self, image: Image.Image, params: Context) -> Image.Image:
-        # TODO: Split up into self sufficient functions that call what they need automatically
+    async def _translate(self, ctx: Context) -> Context:
 
         # The default text detector doesn't work very well on smaller images, might want to
         # consider adding automatic upscaling on certain kinds of small images.
-        if params.upscale_ratio:
+        if ctx.upscale_ratio:
             await self._report_progress('upscaling')
-            image_upscaled = (await self._run_upscaling([image], params))[0]
-        else:
-            image_upscaled = image
+            ctx.input = await self._run_upscaling(ctx)
 
-        img_rgb, img_alpha = load_image(image_upscaled)
+        ctx.img_rgb, ctx.img_alpha = load_image(ctx.input)
 
         await self._report_progress('detection')
-        text_regions, mask_raw, mask = await self._run_detection(img_rgb, params)
+        ctx.text_regions, ctx.mask_raw, ctx.mask = await self._run_detection(ctx)
         if self.verbose:
-            cv2.imwrite(self._result_path('mask_raw.png'), mask_raw)
-            bboxes = visualize_textblocks(cv2.cvtColor(img_rgb, cv2.COLOR_BGR2RGB), text_regions)
+            cv2.imwrite(self._result_path('mask_raw.png'), ctx.mask_raw)
+            bboxes = visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions)
             cv2.imwrite(self._result_path('bboxes.png'), bboxes)
 
-        if not text_regions:
+        if not ctx.text_regions:
             await self._report_progress('skip-no-regions', True)
-            return image
+            return ctx
 
         await self._report_progress('ocr')
-        text_regions = await self._run_ocr(img_rgb, text_regions, params)
+        ctx.text_regions = await self._run_ocr(ctx)
 
-        if not text_regions:
+        if not ctx.text_regions:
             await self._report_progress('skip-no-text', True)
-            return image
+            return ctx
 
         # Delayed mask refinement to take advantage of the region filtering done by ocr
-        if mask is None:
+        if ctx.mask is None:
             await self._report_progress('mask-generation')
-            mask = await self._run_mask_refinement(text_regions, img_rgb, mask_raw, params)
+            ctx.mask = await self._run_mask_refinement(ctx)
 
         if self.verbose:
-            inpaint_input_img = await self._run_inpainting('none', img_rgb, mask)
+            inpaint_input_img = await dispatch_inpainting('none', ctx.img_rgb, ctx.mask, ctx.inpainting_size, self.using_cuda, self.verbose)
             cv2.imwrite(self._result_path('inpaint_input.png'), cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
-            cv2.imwrite(self._result_path('mask_final.png'), mask)
+            cv2.imwrite(self._result_path('mask_final.png'), ctx.mask)
 
         await self._report_progress('inpainting')
-        img_inpainted = await self._run_inpainting(img_rgb, mask, params)
+        ctx.img_inpainted = await self._run_inpainting(ctx)
 
         if self.verbose:
-            cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(img_inpainted, cv2.COLOR_RGB2BGR))
+            cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR))
 
         await self._report_progress('translating')
-        translated_sentences = await self._run_text_translation(text_regions, params)
+        translated_sentences = await self._run_text_translation(ctx)
 
         if not translated_sentences:
             await self._report_progress('error-translating', True)
             return None
 
         await self._report_progress('rendering')
-        for region, translation in zip(text_regions, translated_sentences):
-            if params.capitalize:
+        for region, translation in zip(ctx.text_regions, translated_sentences):
+            if ctx.capitalize:
                 translation = translation.upper()
             region.translation = translation
-            region.target_lang = params.target_lang
-            region._alignment = params.alignment
-            region._direction = params.direction
+            region.target_lang = ctx.target_lang
+            region._alignment = ctx.alignment
+            region._direction = ctx.direction
 
-        output = await self._run_text_rendering(img_inpainted, text_regions, params, img_rgb, mask)
+        ctx.img_rendered = await self._run_text_rendering(ctx)
 
-        if params.downscale:
+        if ctx.downscale:
             await self._report_progress('downscaling')
-            if img_alpha:
+            if ctx.img_alpha:
                 # Add alpha channel to rgb
-                output = np.concatenate([output.astype(np.uint8), np.array(img_alpha).astype(np.uint8)[..., None]], axis=2)
-            output = cv2.resize(output, image.size, interpolation=cv2.INTER_LINEAR)
+                ctx.img_rendered = np.concatenate([ctx.img_rendered.astype(np.uint8), np.array(ctx.img_alpha).astype(np.uint8)[..., None]], axis=2)
+            ctx.img_rendered = cv2.resize(ctx.img_rendered, ctx.input.size, interpolation=cv2.INTER_LINEAR)
 
         await self._report_progress('finished', True)
-        output_image = dump_image(output, img_alpha)
+        ctx.result = dump_image(ctx.img_rendered, ctx.img_alpha)
 
-        return output_image
+        return ctx
 
     def _result_path(self, path: str) -> str:
         return os.path.join(BASE_PATH, 'result', self.result_sub_folder, path)
@@ -314,40 +321,38 @@ class MangaTranslator():
 
         self.add_progress_hook(ph)
 
-    # TODO: Maybe find a better way to wrap the dispatch functions to reduce redundancy (decorators? dicts?)
+    async def _run_upscaling(self, ctx: Context):
+        return (await dispatch_upscaling(ctx.upscaler, [ctx.input], ctx.upscale_ratio, self.device))[0]
 
-    async def _run_upscaling(self, img_batch: List[Image.Image], params: Context):
-        return await dispatch_upscaling(params.upscaler, img_batch, params.upscale_ratio, self.device)
-
-    async def _run_detection(self, img: np.ndarray, params: Context):
-        return await dispatch_detection(params.detector, img, params.detection_size, params.text_threshold, params.box_threshold,
-                                        params.unclip_ratio, params.det_rearrange_max_batches, params.detection_auto_orient,
+    async def _run_detection(self, ctx: Context):
+        return await dispatch_detection(ctx.detector, ctx.img_rgb, ctx.detection_size, ctx.text_threshold, ctx.box_threshold,
+                                        ctx.unclip_ratio, ctx.det_rearrange_max_batches, ctx.detection_auto_orient,
                                         self.device, self.verbose)
 
-    async def _run_ocr(self, img: np.ndarray, text_regions: List[TextBlock], params: Context):
-        text_regions = await dispatch_ocr(params.ocr, img, text_regions, self.device, self.verbose)
+    async def _run_ocr(self, ctx: Context):
+        text_regions = await dispatch_ocr(ctx.ocr, ctx.img_rgb, ctx.text_regions, self.device, self.verbose)
 
         # Filter regions by their text
         text_regions = list(filter(lambda r: count_valuable_text(r.get_text()) > 1 and not r.get_text().isnumeric(), text_regions))
         return text_regions
 
-    async def _run_mask_refinement(self, text_regions: List[TextBlock], raw_image: np.ndarray, raw_mask: np.ndarray, params: Context):
-        return await dispatch_mask_refinement(text_regions, raw_image, raw_mask, 'fit_text', self.verbose)
+    async def _run_mask_refinement(self, ctx: Context):
+        return await dispatch_mask_refinement(ctx.text_regions, ctx.img_rgb, ctx.mask_raw, 'fit_text', self.verbose)
 
-    async def _run_inpainting(self, img: np.ndarray, mask: np.ndarray, params: Context):
-        return await dispatch_inpainting(params.inpainter, img, mask, params.inpainting_size, self.using_cuda, self.verbose)
+    async def _run_inpainting(self, ctx: Context):
+        return await dispatch_inpainting(ctx.inpainter, ctx.img_rgb, ctx.mask, ctx.inpainting_size, self.using_cuda, self.verbose)
 
-    async def _run_text_translation(self, text_regions: List[TextBlock], params: Context):
-        return await dispatch_translation(params.translator, [r.get_text() for r in text_regions], params.use_mtpe,
+    async def _run_text_translation(self, ctx: Context):
+        return await dispatch_translation(ctx.translator, [region.get_text() for region in ctx.text_regions], ctx.use_mtpe,
                                           'cpu' if self._cuda_limited_memory else self.device)
 
-    async def _run_text_rendering(self, img: np.ndarray, text_regions: List[TextBlock], params: Context, original_img: np.ndarray = None, mask: np.ndarray = None):
+    async def _run_text_rendering(self, ctx: Context):
         # manga2eng currently only supports horizontal rendering
-        if params.translator == 'manga2eng' and text_regions and LANGAUGE_ORIENTATION_PRESETS.get(text_regions[0].target_lang) == 'h':
-            output = await dispatch_eng_render(img, original_img, text_regions, params.font_path)
+        if ctx.translator == 'manga2eng' and ctx.text_regions and LANGAUGE_ORIENTATION_PRESETS.get(ctx.text_regions[0].target_lang) == 'h':
+            output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, ctx.font_path)
         else:
-            output = await dispatch_rendering(img, text_regions, params.text_mag_ratio, params.font_path, params.font_size_offset,
-                                              params.font_size_minimum, rearrange_regions=(params.inpainter != 'none'), render_mask=mask)
+            output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, ctx.text_mag_ratio, ctx.font_path, ctx.font_size_offset,
+                                              ctx.font_size_minimum, rearrange_regions=(ctx.inpainter != 'none'), render_mask=ctx.render_mask)
         return output
 
 
@@ -426,9 +431,9 @@ class MangaTranslatorWeb(MangaTranslator):
         except Exception:
             return None, None
 
-    async def _run_ocr(self, img: np.ndarray, regions: List[TextBlock], params: Context):
-        regions = await super()._run_ocr(img, regions, params)
-        if params.get('manual', False):
+    async def _run_ocr(self, ctx: Context):
+        regions = await super()._run_ocr(ctx)
+        if ctx.get('manual', False):
             requests.post(f'http://{self.host}:{self.port}/request-translation-internal', json={
                 'task_id': self._task_id,
                 'nonce': self.nonce,
@@ -436,12 +441,12 @@ class MangaTranslatorWeb(MangaTranslator):
             }, timeout=20)
         return regions
 
-    async def _run_text_translation(self, text_regions: List[TextBlock], params: Context):
-        if params.get('manual', False):
+    async def _run_text_translation(self, ctx: Context):
+        if ctx.get('manual', False):
             requests.post(f'http://{self.host}:{self.port}/request-translation-internal', json={
                 'task_id': self._task_id,
                 'nonce': self.nonce,
-                'texts': [r.get_text() for r in text_regions]
+                'texts': [r.get_text() for r in ctx.text_regions]
             }, timeout=20)
 
             # wait for at most 1 hour for manual translation
@@ -456,13 +461,13 @@ class MangaTranslatorWeb(MangaTranslator):
                     if isinstance(translated, str):
                         if translated == 'error':
                             return None
-                    for blk, tr in zip(text_regions, translated):
+                    for blk, tr in zip(ctx.text_regions, translated):
                         blk.translation = tr
-                        blk.target_lang = params.translator.langs[-1]
+                        blk.target_lang = ctx.translator.langs[-1]
                     return translated
                 await asyncio.sleep(0.1)
         else:
-            return await super()._run_text_translation(text_regions, params)
+            return await super()._run_text_translation(ctx)
 
 
 class MangaTranslatorWS(MangaTranslator):
@@ -518,21 +523,22 @@ class MangaTranslatorWS(MangaTranslator):
                                 current_value = params.get(p)
                                 params[p] = current_value if current_value is not None else default_value
                         image = Image.open(io.BytesIO(task.source_image))
-                        output = await self.translate(image, params)
-                        if output:
-                            img = io.BytesIO()
-                            if output == image:
-                                output = Image.fromarray(np.zeros((output.height, output.width, 4), dtype=np.uint8))
-                            output.save(img, format='PNG')
-                            if self.verbose:
-                                output.save(self._result_path('ws_final.png'))
+                        translation_dict = await self.translate(image, params)
+                        output = translation_dict.result
+                        if output is None:
+                            output = Image.fromarray(np.zeros((output.height, output.width, 4), dtype=np.uint8))
 
-                            img_bytes = img.getvalue()
+                        img = io.BytesIO()
+                        output.save(img, format='PNG')
+                        if self.verbose:
+                            output.save(self._result_path('ws_final.png'))
 
-                            result = ws_pb2.WebSocketMessage()
-                            result.finish_task.id = self._task_id
-                            result.finish_task.translation_mask = img_bytes
-                            await websocket.send(result.SerializeToString())
+                        img_bytes = img.getvalue()
+
+                        result = ws_pb2.WebSocketMessage()
+                        result.finish_task.id = self._task_id
+                        result.finish_task.translation_mask = img_bytes
+                        await websocket.send(result.SerializeToString())
 
                         logger.info('Waiting for translation tasks')
                         self._task_id = None
@@ -540,22 +546,23 @@ class MangaTranslatorWS(MangaTranslator):
             except Exception as e:
                 logger.error(f'{e.__class__.__name__}: {e}', exc_info=e if self.verbose else None)
 
-    async def _run_text_rendering(self, img: np.ndarray, text_regions: List[TextBlock], params: Context, original_img: np.ndarray = None, mask: np.ndarray = None):
-        render_mask = np.copy(mask)
+    async def _run_text_rendering(self, ctx: Context):
+        render_mask = np.copy(ctx.mask)
         render_mask[render_mask < 127] = 0
         render_mask[render_mask >= 127] = 1
         render_mask = render_mask[:, :, None]
 
-        output = await super()._run_text_rendering(img, text_regions, params, original_img, render_mask)
-        render_mask[np.sum(img != output, axis=2) > 0] = 1
+        output = await super()._run_text_rendering(ctx)
+        render_mask[np.sum(ctx.img_rgb != output, axis=2) > 0] = 1
+        ctx.render_mask = render_mask
         if self.verbose:
-            cv2.imwrite(self._result_path('ws_render_in.png'), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+            cv2.imwrite(self._result_path('ws_render_in.png'), cv2.cvtColor(ctx.img_rgb, cv2.COLOR_RGB2BGR))
             cv2.imwrite(self._result_path('ws_render_out.png'), cv2.cvtColor(output, cv2.COLOR_RGB2BGR))
             cv2.imwrite(self._result_path('ws_mask.png'), render_mask * 255)
 
         # only keep sections in mask
         if self.verbose:
-            cv2.imwrite(self._result_path('ws_inmask.png'), cv2.cvtColor(img, cv2.COLOR_RGB2BGRA) * render_mask)
+            cv2.imwrite(self._result_path('ws_inmask.png'), cv2.cvtColor(ctx.img_rgb, cv2.COLOR_RGB2BGRA) * render_mask)
         output = cv2.cvtColor(output, cv2.COLOR_RGB2RGBA) * render_mask
         if self.verbose:
             cv2.imwrite(self._result_path('ws_output.png'), cv2.cvtColor(output, cv2.COLOR_RGBA2BGRA) * render_mask)
