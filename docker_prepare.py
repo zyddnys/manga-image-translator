@@ -21,7 +21,10 @@ async def main():
   })
   await download(DETECTORS)
   await download(OCRS)
-  await download(INPAINTERS)
+  await download({
+    k: v for k, v in INPAINTERS.items() 
+      if k not in ['sd']
+  })
   await download(UPSCALERS)
 
 if __name__ == '__main__':
