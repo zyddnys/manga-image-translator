@@ -335,7 +335,7 @@ class MangaTranslator():
             s += f'text: {region.get_text()}\n trans: {region.translation}'
         s += '\n\n'
 
-        with open(ctx.text_output_file, 'a') as f:
+        with open(ctx.text_output_file, 'a', encoding='utf-8') as f:
             f.write(s)
 
     async def _run_upscaling(self, ctx: Context):
