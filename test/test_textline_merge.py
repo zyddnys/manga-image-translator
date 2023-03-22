@@ -267,7 +267,7 @@ async def test_merge_image6():
         [[538, 154], [660, 154], [660, 182], [538, 182]],
     ]
     expected_combinations = [[0, 1, 2, 3, 4, 5], [6, 7, 8, 10], [9, 11, 12, 13, 14, 15], [16, 17, 19], [18, 20, 21, 22, 24], [23, 25, 27, 29, 31], [26, 28, 30]]
-    await run_test(lines, expected_combinations, width, height, '5.png')
+    await run_test(lines, expected_combinations, width, height, '6.png')
 
 @pytest.mark.asyncio
 async def test_merge_image7():
@@ -301,4 +301,4 @@ async def test_merge_image7():
     ]
     # print((await generate_combinations(lines, width, height))[0])
     expected_combinations = [[0, 1], [2, 3, 4], [5, 6], [7, 8], [9, 10, 11], [12, 13], [14], [15, 16, 17], [21, 22, 23, 24], [18, 19, 20]]
-    await run_test(lines, expected_combinations, width, height, '5.png')
+    await run_test(lines, expected_combinations, width, height, '7.png')
