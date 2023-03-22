@@ -4,6 +4,7 @@ import asyncio
 import time
 
 from .common import CommonTranslator, MissingAPIKeyException
+from .keys import OPENAI_API_KEY
 
 # Example query:
 """Please help me to translate the following queries to english:
@@ -50,6 +51,7 @@ class GPT3Translator(CommonTranslator):
 
     def __init__(self):
         super().__init__()
+        openai.api_key = openai.api_key or OPENAI_API_KEY
         if not openai.api_key:
             raise MissingAPIKeyException('Please set the OPENAI_API_KEY environment variable before using the chatgpt translator.')
 

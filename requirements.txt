@@ -34,3 +34,4 @@ safetensors
 pandas
 onnxruntime
 omegaconf
+python-dotenv
