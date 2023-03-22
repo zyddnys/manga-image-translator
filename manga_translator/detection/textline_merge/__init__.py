@@ -50,7 +50,7 @@ def split_text_region(
     fontsize = np.mean([bboxes[idx].font_size for idx in connected_region_indices])
     distances_std = np.std(distances_sorted)
     distances_mean = np.mean(distances_sorted)
-    std_threshold = max(0.5 * fontsize + 5, 5)
+    std_threshold = max(0.3 * fontsize + 5, 5)
 
     # print(edges)
     # print(f'std: {distances_std} < thrshold: {std_threshold}, mean: {distances_mean}')
