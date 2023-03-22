@@ -371,7 +371,7 @@ class MangaTranslator():
 
     async def _run_text_rendering(self, ctx: Context):
         # manga2eng currently only supports horizontal rendering
-        if ctx.translator == 'manga2eng' and ctx.text_regions and LANGAUGE_ORIENTATION_PRESETS.get(ctx.text_regions[0].target_lang) == 'h':
+        if ctx.renderer == 'manga2eng' and ctx.text_regions and LANGAUGE_ORIENTATION_PRESETS.get(ctx.text_regions[0].target_lang) == 'h':
             output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, ctx.font_path)
         else:
             output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, ctx.text_mag_ratio, ctx.font_path, ctx.font_size_offset,
