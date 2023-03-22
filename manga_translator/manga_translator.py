@@ -113,6 +113,7 @@ class MangaTranslator():
             if os.path.exists(dest) and not os.path.isdir(dest):
                 raise FileExistsError(dest)
 
+            translated_count = 0
             for root, subdirs, files in os.walk(path):
                 files.sort()
                 dest_root = replace_prefix(root, path, dest)
@@ -142,6 +143,11 @@ class MangaTranslator():
                             await self._report_progress('saved', True)
                         if translation_dict.text_output_file and translation_dict.text_regions:
                             self.save_text_to_file(translation_dict, output_dest)
+                        translated_count += 1
+            if translated_count == 0:
+                logger.info(f'No untranslated files found')
+            else:
+                logger.info(f'Done. Translated {translated_count} image(/s)')
 
     async def translate(self, image: Image.Image, params: dict = None) -> Context:
         """
