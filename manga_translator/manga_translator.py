@@ -196,29 +196,35 @@ class MangaTranslator():
         ctx.input = image
         ctx.result = None
 
-        try:
-            # preload and download models (not strictly necessary, remove to lazy load)
-            logger.info('Loading models')
-            if ctx.upscale_ratio:
-                await prepare_upscaling(ctx.upscaler)
-            await prepare_detection(ctx.detector)
-            await prepare_ocr(ctx.ocr, self.device)
-            await prepare_inpainting(ctx.inpainter, self.device)
-            await prepare_translation(ctx.translator)
+        attempts = 0
+        while ctx.retries == -1 or attempts < ctx.retries + 1:
+            if attempts > 0:
+                logger.info(f'Retrying translation! Attempt {attempts}'
+                            + (f' of {ctx.retries}' if ctx.retries != -1 else ''))
+            try:
+                # preload and download models (not strictly necessary, remove to lazy load)
+                logger.info('Loading models')
+                if ctx.upscale_ratio:
+                    await prepare_upscaling(ctx.upscaler)
+                await prepare_detection(ctx.detector)
+                await prepare_ocr(ctx.ocr, self.device)
+                await prepare_inpainting(ctx.inpainter, self.device)
+                await prepare_translation(ctx.translator)
 
-            # translate
-            return await self._translate(ctx)
-        except Exception as e:
-            if isinstance(e, LanguageUnsupportedException):
-                await self._report_progress('error-lang', True)
-            else:
-                await self._report_progress('error', True)
-            if not self.ignore_errors:
-                raise
-            else:
-                logger.error(f'{e.__class__.__name__}: {e}',
-                             exc_info=e if self.verbose else None)
-            return ctx
+                # translate
+                return await self._translate(ctx)
+            except Exception as e:
+                if isinstance(e, LanguageUnsupportedException):
+                    await self._report_progress('error-lang', True)
+                else:
+                    await self._report_progress('error', True)
+                if not self.ignore_errors and not (ctx.retries == -1 or attempts < ctx.retries + 1):
+                    raise
+                else:
+                    logger.error(f'{e.__class__.__name__}: {e}',
+                                exc_info=e if self.verbose else None)
+            attempts += 1
+        return ctx
 
     async def _translate(self, ctx: Context) -> Context:
 

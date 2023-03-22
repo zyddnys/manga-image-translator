@@ -71,6 +71,7 @@ g.add_argument('--use-cuda', action='store_true', help='Turn on/off cuda')
 g.add_argument('--use-cuda-limited', action='store_true', help='Turn on/off cuda (excluding offline translator)')
 
 parser.add_argument('--model-dir', default=None, type=str, help='Model directory (by default ./models in project root)')
+parser.add_argument('--retries', default=0, type=int, help='Retry attempts on encountered error. -1 means infinite times.')
 parser.add_argument('--detection-size', default=1536, type=int, help='Size of image used for detection')
 parser.add_argument('--detection-auto-orient', action='store_true', help='Rotate the image for detection to make the textlines vertical. Might improve detection.')
 parser.add_argument('--det-rearrange-max-batches', default=4, type=int, help='Max batch size produced by the rearrangement of image with extreme aspectio, reduce it if cuda OOM')
