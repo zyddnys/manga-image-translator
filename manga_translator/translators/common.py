@@ -2,7 +2,7 @@ import re
 from typing import List, Tuple
 from abc import abstractmethod
 
-from ..utils import InfererModule, ModelWrapper, repeating_sequence, count_valuable_text
+from ..utils import InfererModule, ModelWrapper, repeating_sequence
 
 try:
     import readline
@@ -157,8 +157,8 @@ class CommonTranslator(InfererModule):
         if not query or not trans:
             return False
 
-        query_symbols_count = count_valuable_text(query)
-        trans_symbols_count = count_valuable_text(trans)
+        query_symbols_count = len(set(query))
+        trans_symbols_count = len(set(trans))
         if query_symbols_count > 6 and trans_symbols_count < 0.3 * query_symbols_count:
             return True
         return False
