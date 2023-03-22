@@ -4,7 +4,7 @@ import asyncio
 import time
 
 from .common import CommonTranslator, MissingAPIKeyException
-from .keys import OPENAI_API_KEY
+from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY
 
 # Example query:
 """Please help me to translate the following queries to english:
@@ -54,6 +54,12 @@ class GPT3Translator(CommonTranslator):
         openai.api_key = openai.api_key or OPENAI_API_KEY
         if not openai.api_key:
             raise MissingAPIKeyException('Please set the OPENAI_API_KEY environment variable before using the chatgpt translator.')
+        if OPENAI_HTTP_PROXY:
+            proxies = {
+                "http": "http://%s" % OPENAI_HTTP_PROXY,
+                "https": "http://%s" % OPENAI_HTTP_PROXY
+            }
+            openai.proxy = proxies
 
     async def _translate(self, from_lang, to_lang, queries):
         prompt = f'Please help me to translate the following text from a manga to {to_lang}:\n'

@@ -12,3 +12,4 @@ YOUDAO_SECRET_KEY = os.getenv('YOUDAO_SECRET_KEY', '') # 应用秘钥
 DEEPL_AUTH_KEY = os.getenv('DEEPL_AUTH_KEY', '') #YOUR_AUTH_KEY
 # openai
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OPENAI_HTTP_PROXY = os.getenv('OPENAI_HTTP_PROXY')
