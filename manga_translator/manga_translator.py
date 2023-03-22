@@ -133,7 +133,10 @@ class MangaTranslator():
                         print()
                         logger.info(f'Processing {file_path} -> {output_dest}')
                         translation_dict = await self.translate(img, params)
-                        result = translation_dict.result
+                        if not translation_dict.text_regions:
+                            result = img
+                        else:
+                            result = translation_dict.result
                         if result:
                             result.save(output_dest)
                             await self._report_progress('saved', True)
