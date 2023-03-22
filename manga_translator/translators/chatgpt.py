@@ -65,8 +65,8 @@ class GPT3Translator(CommonTranslator):
         attempts = 0
         while not request_task.done():
             await asyncio.sleep(0.1)
-            if time.time() - started > 15:
-                if attempts >= 2:
+            if time.time() - started > 20:
+                if attempts >= 3:
                     raise Exception('API servers did not respond quickly enough.')
                 self.logger.info(f'Restarting request due to timeout. Attempt: {attempts+1}')
                 request_task.cancel()

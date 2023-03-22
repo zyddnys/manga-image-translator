@@ -109,6 +109,8 @@ class CommonTranslator(InfererModule):
         if from_lang == to_lang:
             return translations
 
+        # TODO: simplify handling of _INVALID_REPEAT_COUNT because too messy
+
         unchecked_indices = list(range(len(queries))) # unchecked for invalid translations
         for i in range(1 + self._INVALID_REPEAT_COUNT):
             _translations = await self._translate(*self.parse_language_codes(from_lang, to_lang, fatal=True), queries)
@@ -116,7 +118,8 @@ class CommonTranslator(InfererModule):
             # Only overwrite invalid translations
             if len(unchecked_indices) > 0:
                 for j in unchecked_indices:
-                    translations[j] = _translations[j]
+                    if j < len(_translations):
+                        translations[j] = _translations[j]
             else:
                 translations = _translations
 
