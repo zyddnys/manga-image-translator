@@ -15,9 +15,6 @@ from ..utils import (
     findNextPowerOf2,
     color_difference,
     get_logger,
-    LANGAUGE_ORIENTATION_PRESETS,
-    load_image,
-    dump_image,
 )
 
 logger = get_logger('rendering')
@@ -32,7 +29,7 @@ def parse_font_paths(path: str, default: List[str] = None) -> List[str]:
 
 def fg_bg_compare(fg, bg):
     fg_avg = np.mean(fg)
-    if color_difference(fg, bg) < 15:
+    if color_difference(fg, bg) < 30:
         bg = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
     return fg, bg
 
@@ -296,13 +293,9 @@ async def dispatch(
 
     # Render text
     for region, dst_points in zip(text_regions, dst_points_list):
-        logger.info(f'text: {region.get_text()}')
-        logger.info(f' trans: {region.translation}')
-
         if render_mask is not None:
             # set render_mask to 1 for the region that is inside dst_points
             cv2.fillConvexPoly(render_mask, dst_points.astype(np.int32), 1)
-
         img = render(img, region, dst_points, region.alignment, text_mag_ratio, font_size_offset)
     return img
 
@@ -314,6 +307,8 @@ def render(
     text_mag_ratio: int = 1,
     font_size_offset: int = 0,
 ):
+    logger.info(f'text: {region.get_text()}')
+    logger.info(f' trans: {region.translation}')
 
     # Round font_size to fixed powers of 2, to take advantage of the font cache.
     # Generated image snippet with text will be downscaled to dst_points after rendering.
