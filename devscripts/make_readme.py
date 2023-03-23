@@ -13,12 +13,20 @@ import re
 from devscripts.utils import read_file, write_file
 from manga_translator.args import HelpFormatter, parser
 
-README_FILE = 'README.md'
+READMES = (
+    [
+        'README.md',
+        '## Options:',
+        '<!-- Auto generated end -->',
+    ],
+    [
+        'README_CN.md',
+        '## 选项',
+        '<!-- Auto generated end -->',
+    ],
+)
 
-OPTIONS_START = '## Options:'
-OPTIONS_END = '<!-- Auto generated end -->'
 ALLOWED_OVERSHOOT = 2
-
 DISABLE_PATCH = object()
 
 HelpFormatter.INDENT_INCREMENT = 4
@@ -78,10 +86,11 @@ PATCHES = (
     # ),
 )
 
-readme = read_file(README_FILE)
+for file, options_start, options_end in READMES:
+    readme = read_file(file)
 
-write_file(README_FILE, ''.join((
-    take_section(readme, end=OPTIONS_START, shift=len(OPTIONS_START)),
-    functools.reduce(apply_patch, PATCHES, options),
-    take_section(readme, OPTIONS_END),
-)))
+    write_file(file, ''.join((
+        take_section(readme, end=options_start, shift=len(options_start)),
+        functools.reduce(apply_patch, PATCHES, options),
+        take_section(readme, options_end),
+    )))
