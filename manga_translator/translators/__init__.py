@@ -13,6 +13,7 @@ from .m2m100 import M2M100Translator, M2M100BigTranslator
 from .selective import SelectiveOfflineTranslator, prepare as prepare_selective_translator
 from .none import NoneTranslator
 from .original import OriginalTranslator
+import langid
 
 OFFLINE_TRANSLATORS = {
     'offline': SelectiveOfflineTranslator,
