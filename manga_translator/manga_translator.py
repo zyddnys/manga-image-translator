@@ -197,7 +197,7 @@ class MangaTranslator():
         ctx.setdefault('renderer', 'manga2eng' if ctx['manga2eng'] else 'default')
         if ctx.selective_translation is not None:
             ctx.selective_translation.target = ctx.target_lang
-            ctx.selective_translation.defaultTranslator = "none"
+            ctx.selective_translation.defaultTranslator = ctx.selective_translation.langs[0]
             ctx.translator = ctx.selective_translation
         elif ctx.translator_chain is not None:
             ctx.target_lang = ctx.translator_chain.langs[-1]
