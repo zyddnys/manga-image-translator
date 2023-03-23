@@ -21,7 +21,7 @@ class CommonDetector(InfererModule):
         # Apply filters
         img_h, img_w = image.shape[:2]
         orig_image = image
-        minimum_image_size = 400
+        minimum_image_size = 500
         add_border = min(img_w, img_h) < minimum_image_size
         # Add border if image too small (instead of simply resizing due to them likely containing large fonts)
         if rotate:
@@ -34,7 +34,11 @@ class CommonDetector(InfererModule):
             self.logger.debug('Adding invertion')
             image = self._add_invertion(image)
         if gamma_correct:
+            self.logger.debug('Adding gamma correction')
             image = self._add_gamma_correction(image)
+
+        # cv2.imshow('', image)
+        # cv2.waitKey(0)
 
         # Run detection
         text_regions, raw_mask, mask = await self._detect(image, detect_size, text_threshold, box_threshold, unclip_ratio, verbose)
@@ -54,7 +58,7 @@ class CommonDetector(InfererModule):
                 majority_orientation = 'h'
             if majority_orientation == 'h':
                 self.logger.info('Rerunning detection with 90° rotation')
-                return await self.detect(orig_image, detect_size, text_threshold, box_threshold, unclip_ratio, invert, rotate=(not rotate), auto_rotate=False, verbose=verbose)
+                return await self.detect(orig_image, detect_size, text_threshold, box_threshold, unclip_ratio, invert, gamma_correct, rotate=(not rotate), auto_rotate=False, verbose=verbose)
             
         return text_regions, raw_mask, mask
 
