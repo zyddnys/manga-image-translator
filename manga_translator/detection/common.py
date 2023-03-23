@@ -13,7 +13,7 @@ class CommonDetector(InfererModule):
         return await dispatch_textline_merge(textlines, img_width, img_height, verbose)
 
     async def detect(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float, unclip_ratio: float,
-                     invert: bool, rotate: bool, auto_rotate: bool = False, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
+                     invert: bool, gamma_correct: bool, rotate: bool, auto_rotate: bool = False, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
         '''
         Returns textblock list and text mask.
         '''
@@ -21,27 +21,28 @@ class CommonDetector(InfererModule):
         # Apply filters
         img_h, img_w = image.shape[:2]
         orig_image = image
-        minimum_image_size = 800
+        minimum_image_size = 400
         add_border = min(img_w, img_h) < minimum_image_size
         # Add border if image too small (instead of simply resizing due to them likely containing large fonts)
+        if rotate:
+            self.logger.debug('Adding rotation')
+            image = self._add_rotation(image)
         if add_border:
             self.logger.debug('Adding border')
             image = self._add_border(image, minimum_image_size)
         if invert:
             self.logger.debug('Adding invertion')
             image = self._add_invertion(image)
-        if rotate:
-            self.logger.debug('Adding rotation')
-            image = self._add_rotation(image)
-
-        cv2.imshow('', image)
-        cv2.waitKey(0)
+        if gamma_correct:
+            image = self._add_gamma_correction(image)
 
         # Run detection
         text_regions, raw_mask, mask = await self._detect(image, detect_size, text_threshold, box_threshold, unclip_ratio, verbose)
         text_regions = self._sort_regions(text_regions, image.shape[1], image.shape[0])
 
         # Remove filters
+        if add_border:
+            text_regions, raw_mask, mask = self._remove_border(image, img_w, img_h, text_regions, raw_mask, mask)
         if rotate:
             text_regions, raw_mask, mask = self._remove_rotation(text_regions, raw_mask, mask)
         if auto_rotate:
@@ -54,10 +55,6 @@ class CommonDetector(InfererModule):
             if majority_orientation == 'h':
                 self.logger.info('Rerunning detection with 90° rotation')
                 return await self.detect(orig_image, detect_size, text_threshold, box_threshold, unclip_ratio, invert, rotate=(not rotate), auto_rotate=False, verbose=verbose)
-        # if invert:
-        #     text_regions, raw_mask, mask = self._remove_invertion(text_regions, raw_mask, mask)
-        if add_border:
-            text_regions, raw_mask, mask = self._remove_border(image, img_w, img_h, text_regions, raw_mask, mask)
             
         return text_regions, raw_mask, mask
 
@@ -116,8 +113,13 @@ class CommonDetector(InfererModule):
     def _add_invertion(self, image: np.ndarray):
         return cv2.bitwise_not(image)
 
-    # def _remove_invertion(self, text_regions, raw_mask, mask):
-    #     pass
+    def _add_gamma_correction(self, image: np.ndarray):
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        mid = 0.5
+        mean = np.mean(gray)
+        gamma = np.log(mid * 255) / np.log(mean)
+        img_gamma = np.power(image, gamma).clip(0,255).astype(np.uint8)
+        return img_gamma
 
     def _sort_regions(self, regions: List[TextBlock], width: int, height: int) -> List[TextBlock]:
         # Sort regions from right to left, top to bottom

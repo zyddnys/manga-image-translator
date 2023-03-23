@@ -255,6 +255,8 @@ VIN: Vietnames
                                              textlines. Might improve detection.
     --det-invert                             Invert the image colors for detection. Might improve
                                              detection.
+    --det-gamma-correct                      Applies gamma correction for detection. Might improve
+                                             detection.
     --inpainting-size INPAINTING_SIZE        Size of image used for inpainting (too large will
                                              result in OOM)
     --unclip-ratio UNCLIP_RATIO              How much to extend text skeleton to form bounding box

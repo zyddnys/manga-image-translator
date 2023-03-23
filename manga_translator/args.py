@@ -104,6 +104,7 @@ parser.add_argument('--detection-size', default=1536, type=int, help='Size of im
 parser.add_argument('--det-rotate', action='store_true', help='Rotate the image for detection. Might improve detection.')
 parser.add_argument('--det-auto-rotate', action='store_true', help='Rotate the image for detection to prefer vertical textlines. Might improve detection.')
 parser.add_argument('--det-invert', action='store_true', help='Invert the image colors for detection. Might improve detection.')
+parser.add_argument('--det-gamma-correct', action='store_true', help='Applies gamma correction for detection. Might improve detection.')
 parser.add_argument('--inpainting-size', default=2048, type=int, help='Size of image used for inpainting (too large will result in OOM)')
 parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to extend text skeleton to form bounding box')
 parser.add_argument('--box-threshold', default=0.7, type=float, help='Threshold for bbox generation')
