@@ -6,7 +6,8 @@ from .google import GoogleTranslator
 from .youdao import YoudaoTranslator
 from .deepl import DeeplTranslator
 from .papago import PapagoTranslator
-from .chatgpt import GPT3Translator
+from .gpt3 import GPT3Translator
+from .chatgpt import ChatGPTTranslator
 from .nllb import NLLBTranslator, NLLBBigTranslator
 from .sugoi import JparacrawlTranslator, JparacrawlBigTranslator, SugoiTranslator
 from .m2m100 import M2M100Translator, M2M100BigTranslator
@@ -32,6 +33,7 @@ TRANSLATORS = {
     'deepl': DeeplTranslator,
     'papago': PapagoTranslator,
     'gpt3': GPT3Translator,
+    'chatgpt': ChatGPTTranslator,
     'none': NoneTranslator,
     'original': OriginalTranslator,
     **OFFLINE_TRANSLATORS,

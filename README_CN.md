@@ -60,6 +60,7 @@ $ pip install -r requirements.txt
 | baidu          | ✔️      |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`        |
 | deepl          | ✔️      |         | Requires `DEEPL_AUTH_KEY`                             |
 | gpt3           | ✔️      |         | Requires `OPENAI_API_KEY`                             |
+| chatgpt           | ✔️      |         | Requires `OPENAI_API_KEY`. model: gpt-3.5-turbo                   |
 | papago         |         |         |                                                       |
 | offline        |         | ✔️      |                                                       |
 | sugoi          |         | ✔️      |                                                       |

@@ -6,7 +6,27 @@ import time
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY
 
-class ChatGPTTranslator(CommonTranslator):
+# Example query:
+"""Please help me to translate the following queries to english:
+Query 1:
+ちょっと悪いんだけど
+
+Query 2:
+そこの魔法陣に入って頂戴
+
+Query 3:
+いやいや何も起きないから(嘘)
+是否离线可用
+
+Query 4:
+いやいや何も起きないから(嘘)
+是否离线可用
+
+Translation 1:
+
+"""
+
+class GPT3Translator(CommonTranslator):
     _LANGUAGE_CODE_MAP = {
         'CHS': 'Simplified Chinese',
         'CHT': 'Traditional Chinese',
@@ -42,45 +62,10 @@ class ChatGPTTranslator(CommonTranslator):
             openai.proxy = proxies
 
     async def _translate(self, from_lang, to_lang, queries):
-        prompt = f"""Please help me translate the following text from a manga into {to_lang}:
-You must follow the format below for your reply.
-
-The content you need to translate will start with "Text" followed by a number. The text to be translated will be on the next line.
-
-For example:
-Text 1:
-あら… サンタさん 見つかったのですね
-
-The reply must correspond to the source. For example, the translation result for Text 1 should start with "Translation 1:", followed by the content on the next line.
-For example:
-Translation 1:
-哦，聖誕老人啊，你被找到了啊
-
-Here is an example:
-
-----------The source I provided to you--------
-Text 1:
-あら… サンタさん 見つかったのですね
-
-Text 2:
-ご心配 おかけしました！
-
-
-----------The source I provided to you ends---------
-
----------Your reply starts----------
-Translation 1:
-哦，聖誕老人啊，你被找到了啊
-
-Translation 2:
-讓你操心了，真不好意思！
-
-----------Your reply ends-----------
-
-The instructions are over. Please translate the following content:
-      """
+        prompt = f'Please help me to translate the following text from a manga to {to_lang}:\n'
         for i, query in enumerate(queries):
             prompt += f'\nText {i+1}:\n{query}\n'
+        prompt += '\nTranslation 1:\n'
         self.logger.debug(prompt)
 
         request_task = asyncio.create_task(self._request_translation(prompt))
@@ -100,21 +85,16 @@ The instructions are over. Please translate the following content:
 
         self.logger.debug(response)
         translations = re.split(r'Translation \d+:\n', response)
-        translations = [t.strip() for t in translations if t.strip()]
+        translations = [t.strip() for t in translations]
         self.logger.debug(translations)
         return translations
 
     async def _request_translation(self, prompt: str) -> str:
-        messages = [{"role": "system", "content": "You are a professional translator who will follow the required format for translation."}]
-        messages.append({"role": "user", "content": prompt})
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",  # The name of the OpenAI chatbot model to use
-            messages=messages,
-            temperature=0.7
+        completion = openai.Completion.create(
+            model='text-davinci-003',
+            prompt=prompt,
+            max_tokens=1024,
+            temperature=1,
         )
-        for choice in response.choices:
-            if "text" in choice:
-                return choice.text
-
-        # If no response with text is found, return the first response's content (which may be empty)
-        return response.choices[0].message.content
+        response = completion.choices[0].text
+        return response
