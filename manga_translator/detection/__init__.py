@@ -26,8 +26,8 @@ async def prepare(detector_key: str):
         await detector.download()
 
 async def dispatch(detector_key: str, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float, unclip_ratio: float,
-                   det_rearrange_max_batches: int, auto_orient: bool, device: str = 'cpu', verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
+                   invert: bool, rotate: bool, auto_rotate: bool = False, device: str = 'cpu', verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
     detector = get_detector(detector_key)
     if isinstance(detector, OfflineDetector):
         await detector.load(device)
-    return await detector.detect(image, detect_size, text_threshold, box_threshold, unclip_ratio, det_rearrange_max_batches, auto_orient, verbose)
+    return await detector.detect(image, detect_size, text_threshold, box_threshold, unclip_ratio, invert, rotate, auto_rotate, verbose)

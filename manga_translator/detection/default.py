@@ -54,10 +54,10 @@ class DefaultDetector(OfflineDetector):
         del self.model
 
     async def _infer(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
-                       unclip_ratio: float, det_rearrange_max_batches: int, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
+                     unclip_ratio: float, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
 
         # TODO: Move det_rearrange_forward to common.py and refactor
-        db, mask = det_rearrange_forward(image, det_batch_forward_default, detect_size, det_rearrange_max_batches, device=self.device, verbose=verbose)
+        db, mask = det_rearrange_forward(image, det_batch_forward_default, detect_size, 4, device=self.device, verbose=verbose)
 
         if db is None:
             # rearrangement is not required, fallback to default forward
