@@ -20,8 +20,8 @@ class CommonDetector(InfererModule):
 
         # Apply filters
         img_h, img_w = image.shape[:2]
-        orig_image = image
-        minimum_image_size = 500
+        orig_image = image.copy()
+        minimum_image_size = 400
         add_border = min(img_w, img_h) < minimum_image_size
         # Add border if image too small (instead of simply resizing due to them likely containing large fonts)
         if rotate:
@@ -36,8 +36,11 @@ class CommonDetector(InfererModule):
         if gamma_correct:
             self.logger.debug('Adding gamma correction')
             image = self._add_gamma_correction(image)
+        # if True:
+        #     self.logger.debug('Adding histogram equalization')
+        #     image = self._add_histogram_equalization(image)
 
-        # cv2.imshow('', image)
+        # cv2.imwrite('histogram.png', image)
         # cv2.waitKey(0)
 
         # Run detection
@@ -47,19 +50,19 @@ class CommonDetector(InfererModule):
         # Remove filters
         if add_border:
             text_regions, raw_mask, mask = self._remove_border(image, img_w, img_h, text_regions, raw_mask, mask)
-        if rotate:
-            text_regions, raw_mask, mask = self._remove_rotation(text_regions, raw_mask, mask)
         if auto_rotate:
             # Rotate if horizontal aspect ratios are prevalent to optentially improve detection
             if len(text_regions) > 0:
-                orientations = ['h' if region.polygon_aspect_ratio < 90 else 'v' for region in text_regions]
+                orientations = ['h' if region.polygon_aspect_ratio > 75 else 'v' for region in text_regions]
                 majority_orientation = Counter(orientations).most_common(1)[0][0]
             else:
                 majority_orientation = 'h'
             if majority_orientation == 'h':
                 self.logger.info('Rerunning detection with 90° rotation')
                 return await self.detect(orig_image, detect_size, text_threshold, box_threshold, unclip_ratio, invert, gamma_correct, rotate=(not rotate), auto_rotate=False, verbose=verbose)
-            
+        if rotate:
+            text_regions, raw_mask, mask = self._remove_rotation(text_regions, raw_mask, mask)
+
         return text_regions, raw_mask, mask
 
     @abstractmethod
@@ -124,6 +127,16 @@ class CommonDetector(InfererModule):
         gamma = np.log(mid * 255) / np.log(mean)
         img_gamma = np.power(image, gamma).clip(0,255).astype(np.uint8)
         return img_gamma
+
+    def _add_histogram_equalization(self, image: np.ndarray):
+        img_yuv = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
+
+        # equalize the histogram of the Y channel
+        img_yuv[:,:,0] = cv2.equalizeHist(img_yuv[:,:,0])
+
+        # convert the YUV image back to RGB format
+        img_output = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
+        return img_output
 
     def _sort_regions(self, regions: List[TextBlock], width: int, height: int) -> List[TextBlock]:
         # Sort regions from right to left, top to bottom
