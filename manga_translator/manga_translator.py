@@ -1,14 +1,23 @@
 import asyncio
+import base64
+import io
+
+import PIL
 from PIL import Image
 import cv2
+import langid
 import numpy as np
 import requests
 import os
 import torch
 import time
 import logging
+import nest_asyncio
+from aiohttp import web
+from marshmallow import Schema, fields, ValidationError
 
 from .args import DEFAULT_ARGS
+from .server.web_main import MAX_IMAGE_SIZE_PX, VALID_TRANSLATORS, VALID_DETECTORS, VALID_LANGUAGES, VALID_DIRECTIONS
 from .utils import (
     BASE_PATH,
     LANGAUGE_ORIENTATION_PRESETS,
@@ -25,9 +34,9 @@ from .utils import (
 
 from .detection import dispatch as dispatch_detection, prepare as prepare_detection
 from .upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
-from .ocr import dispatch as dispatch_ocr, prepare as prepare_ocr
+from .ocr import dispatch as dispatch_ocr, prepare as prepare_ocr, OCRS
 from .mask_refinement import dispatch as dispatch_mask_refinement
-from .inpainting import dispatch as dispatch_inpainting, prepare as prepare_inpainting
+from .inpainting import dispatch as dispatch_inpainting, prepare as prepare_inpainting, INPAINTERS
 from .translators import (
     LanguageUnsupportedException,
     TranslatorChain,
@@ -36,6 +45,8 @@ from .translators import (
 )
 from .text_rendering import dispatch as dispatch_rendering, dispatch_eng_render
 
+
+nest_asyncio.apply()
 # Will be overwritten by __main__.py if module is being run directly (with python -m)
 logger = logging.getLogger('manga_translator')
 
@@ -149,7 +160,7 @@ class MangaTranslator():
             else:
                 logger.info(f'Done. Translated {translated_count} image(/s)')
 
-    async def translate(self, image: Image.Image, params: dict = None) -> Context:
+    async def translate(self, image: Image.Image, params: dict = None, skip=None) -> Context:
         """
         Translates a PIL image from a manga. Returns dict with result and intermediates of translation.
 
@@ -212,7 +223,7 @@ class MangaTranslator():
                 await prepare_translation(ctx.translator)
 
                 # translate
-                return await self._translate(ctx)
+                return await self._translate(ctx, skip=skip)
             except Exception as e:
                 if isinstance(e, LanguageUnsupportedException):
                     await self._report_progress('error-lang', True)
@@ -226,7 +237,7 @@ class MangaTranslator():
             attempts += 1
         return ctx
 
-    async def _translate(self, ctx: Context) -> Context:
+    async def _translate(self, ctx: Context, skip=None) -> Context:
 
         # The default text detector doesn't work very well on smaller images, might want to
         # consider adding automatic upscaling on certain kinds of small images.
@@ -246,14 +257,16 @@ class MangaTranslator():
         if not ctx.text_regions:
             await self._report_progress('skip-no-regions', True)
             return ctx
-
+        if skip == 'detection':
+            return ctx
         await self._report_progress('ocr')
         ctx.text_regions = await self._run_ocr(ctx)
 
         if not ctx.text_regions:
             await self._report_progress('skip-no-text', True)
             return ctx
-
+        if skip == 'ocr':
+            return ctx
         # Delayed mask refinement to take advantage of the region filtering done by ocr
         if ctx.mask is None:
             await self._report_progress('mask-generation')
@@ -269,14 +282,17 @@ class MangaTranslator():
 
         if self.verbose:
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR))
-
+        if skip == 'inpaint':
+            return ctx
         await self._report_progress('translating')
         translated_sentences = await self._run_text_translation(ctx)
+        ctx.translated_sentences = translated_sentences
 
         if not translated_sentences:
             await self._report_progress('error-translating', True)
             return None
-
+        if skip == 'translation':
+            return ctx
         await self._report_progress('rendering')
         for region, translation in zip(ctx.text_regions, translated_sentences):
             if ctx.capitalize:
@@ -597,3 +613,172 @@ class MangaTranslatorWS(MangaTranslator):
             cv2.imwrite(self._result_path('ws_output.png'), cv2.cvtColor(output, cv2.COLOR_RGBA2BGRA) * render_mask)
 
         return output
+
+class MangaTranslatorAPI(MangaTranslator):
+    def __init__(self, params: dict = None):
+        super().__init__(params)
+        self.host = params.get('host', '127.0.0.1')
+        self.port = params.get('port', '5003')
+        self.log_web = params.get('log_web', False)
+        self.ignore_errors = params.get('ignore_errors', True)
+        self._task_id = None
+        self._params = None
+        self.params = params
+
+    async def get_file(self, image, base64Images, url) -> PIL.Image:
+        print("hello world")
+        if image is not None:
+            content = image.file.read()
+        elif base64Images is not None:
+            base64Images = base64Images
+            if base64Images.__contains__('base64,'):
+                base64Images = base64Images.split('base64,')[1]
+            content = base64.b64decode(base64Images)
+            print('heello')
+        elif url is not None:
+            from aiohttp import ClientSession
+            async with ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        content = await resp.read()
+                    else:
+                        return web.json_response({'status': 'error'})
+        else:
+            raise ValidationError("donest exist")
+        img = Image.open(io.BytesIO(content))
+
+        img.verify()
+        img = Image.open(io.BytesIO(content))
+        if img.width * img.height > MAX_IMAGE_SIZE_PX:
+            raise ValidationError("to large")
+        return img
+
+    async def listen(self, translation_params: dict = None):
+        self.params = translation_params
+        app = web.Application(client_max_size=1024 * 1024 * 50)
+        routes = web.RouteTableDef()
+
+        @routes.post("/translate")
+        async def translate_api(req):
+            return await self.err_handling(self.translate_exec, req, self.format_translate)
+
+        @routes.post("/get_text")
+        async def text_api(req):
+            return await self.err_handling(self.texts_exec, req, self.format_translate)
+
+        @routes.post("/inpaint_translate")
+        async def inpaint_translate_api(req):
+            return await self.err_handling(self.inpaint_translate_exec, req, self.format_translate)
+
+        #@routes.post("/file")
+        async def file_api(req):
+            #TODO: return file
+            return await self.err_handling(self.file_exec, req, None)
+
+        app.add_routes(routes)
+        web.run_app(app, host=self.host, port=self.port, )
+
+    async def texts_exec(self, translation_params, img):
+        return await self.translate(img, translation_params, skip='ocr')
+
+    async def translate_exec(self, translation_params, img):
+        return await self.translate(img, translation_params, skip='translate')
+
+    async def inpaint_translate_exec(self, translation_params, img):
+        return await self.translate(img, translation_params, skip='inpaint')
+
+    async def file_exec(self, translation_params, img):
+        return await self.translate(img, translation_params)
+
+    async def err_handling(self, func, req, format):
+        try:
+            if req.content_type == 'application/json' or req.content_type == 'multipart/form-data':
+                if req.content_type == 'application/json':
+                    d = await req.json()
+                else:
+                    d = await req.post()
+                schema = self.PostSchema()
+                data = schema.load(d)
+                if data.get('image') is None and data.get('base64Images') is None and data.get('url') is None:
+                    return web.json_response({'error': "Missing input", 'status': 422})
+                fil = await self.get_file(data.get('image'), data.get('base64Images'), data.get('url'))
+                if 'image' in data:
+                    del data['image']
+                if 'base64Images' in data:
+                    del data['base64Images']
+                if 'url' in data:
+                    del data['url']
+                loaded_data = await func(dict(self.params, **data), fil)
+                return format(loaded_data)
+            else:
+                return web.json_response({'error': "Wrong content type: " + req.content_type, 'status': 415},
+                                         status=415)
+        except ValueError:
+            return web.json_response({'error': "Wrong input type", 'status': 422}, status=422)
+
+        except ValidationError as e:
+            print(e)
+            return web.json_response({'error': "Input invalid", 'status': 422}, status=422)
+
+
+    def format_translate(self, data: Context):
+        text_regions = data.text_regions
+        inpaint = data.img_inpainted
+        translated_sentences = data.translated_sentences
+        results = []
+        for i, blk in enumerate(text_regions):
+            minX, minY, maxX, maxY = blk.xyxy
+            text = str(text_regions[i].get_text())
+            if translated_sentences is None or translated_sentences[i] is None:
+                trans = None
+            else:
+                trans = translated_sentences[i]
+
+            overlay = inpaint[minY:maxY, minX:maxX]
+            retval, buffer = cv2.imencode('.jpg', overlay)
+            jpg_as_text = base64.b64encode(buffer)
+            color1, color2 = text_regions[i].get_font_colors()
+            background = jpg_as_text.decode("utf-8")
+            results.append({
+                'originalText': text,
+                'minX': int(minX),
+                'minY': int(minY),
+                'maxX': int(maxX),
+                'maxY': int(maxY),
+                'language': langid.classify(text)[0],
+                'translatedText': trans,
+                'textColor': {
+                    'fg': color1.tolist(),
+                    'bg': color2.tolist()
+                },
+                'background': "data:image/jpg;base64," + background
+            })
+        return web.json_response({'images': [results]})
+
+    class PostSchema(Schema):
+        size = fields.Str(required=False, validate=lambda a: a.upper() not in ['S', 'M', 'L', 'X'])
+        translator = fields.Str(required=False,
+                                validate=lambda a: a.lower() not in VALID_TRANSLATORS)
+        target_language = fields.Str(required=False,
+                                     validate=lambda a: a.upper() not in VALID_LANGUAGES)
+        detector = fields.Str(required=False, validate=lambda a: a.lower() not in VALID_DETECTORS)
+        direction = fields.Str(required=False,
+                               validate=lambda a: a.lower() not in VALID_DIRECTIONS)
+        inpainter = fields.Str(required=False,
+                               validate=lambda a: a.lower() not in INPAINTERS)
+        ocr = fields.Str(required=False, validate=lambda a: a.lower() not in OCRS)
+        upscale_ratio = fields.Integer(required=False)
+        text_threshold = fields.Float(required=False)
+        box_threshold = fields.Float(required=False)
+        unclip_ratio = fields.Float(required=False)
+        inpainting_size = fields.Integer(required=False)
+        font_size_offset = fields.Integer(required=False)
+        text_mag_ratio = fields.Integer(required=False)
+        det_rearrange_max_batches = fields.Integer(required=False)
+        manga2eng = fields.Boolean(required=False)
+        base64Images = fields.Raw(required=False)
+        image = fields.Raw(required=False)
+        url = fields.Raw(required=False)
+        fingerprint = fields.Raw(required=False)
+        clientUuid = fields.Raw(required=False)
+
