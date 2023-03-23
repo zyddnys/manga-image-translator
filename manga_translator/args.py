@@ -51,8 +51,34 @@ def translator_chain(string):
         raise argparse.ArgumentTypeError(f'Invalid translator_chain value: "{string}". Example usage: --translator "google:sugoi" -l "JPN:ENG"')
 
 
-parser = argparse.ArgumentParser(prog='manga_translator', description='Seamlessly translate mangas into a chosen language')
-parser.add_argument('-m', '--mode', default='demo', type=str, choices=['demo', 'batch', 'web', 'web_client', 'ws'], help='Run demo in either single image demo mode (demo), web service mode (web), web client which executes translation tasks for a webserver (web_client) or batch translation mode (batch)')
+class HelpFormatter(argparse.HelpFormatter):
+    INDENT_INCREMENT = 2
+    MAX_HELP_POSITION = 24
+    WIDTH = None
+
+    def __init__(self, prog: str, indent_increment: int = 2, max_help_position: int = 24, width: int = None):
+        super().__init__(prog, self.INDENT_INCREMENT, self.MAX_HELP_POSITION, self.WIDTH)
+
+    def _format_action_invocation(self, action: argparse.Action) -> str:
+        if action.option_strings:
+
+            # if the Optional doesn't take a value, format is:
+            #    -s, --long
+            if action.nargs == 0:
+                return ', '.join(action.option_strings)
+
+            # if the Optional takes a value, format is:
+            #    -s, --long ARGS
+            else:
+                default = self._get_default_metavar_for_optional(action)
+                args_string = self._format_args(action, default)
+                return ', '.join(action.option_strings) + ' ' + args_string
+        else:
+            return super()._format_action_invocation(action)
+
+
+parser = argparse.ArgumentParser(prog='manga_translator', description='Seamlessly translate mangas into a chosen language', formatter_class=HelpFormatter)
+parser.add_argument('-m', '--mode', default='demo', type=str, choices=['demo', 'batch', 'web', 'web_client', 'ws'], help='Run demo in single image demo mode (demo), batch translation mode (batch), web service mode (web), web client which executes translation tasks for a webserver (web_client)')
 parser.add_argument('-i', '--input', default='', type=path, help='Path to an image file if using demo mode, or path to an image folder if using batch mode')
 parser.add_argument('-o', '--dest', default='', type=str, help='Path to the destination folder for translated images in batch mode')
 parser.add_argument('-l', '--target-lang', default='CHS', type=str, choices=VALID_LANGUAGES, help='Destination language')
