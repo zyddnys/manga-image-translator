@@ -219,9 +219,7 @@ VIN: Vietnames
     -h, --help                               show this help message and exit
     -m, --mode {demo,batch,web,web_client,ws}
                                              Run demo in single image demo mode (demo), batch
-                                             translation mode (batch), web service mode (web), web
-                                             client which executes translation tasks for a webserver
-                                             (web_client)
+                                             translation mode (batch), web service mode (web)
     -i, --input INPUT                        Path to an image file if using demo mode, or path to an
                                              image folder if using batch mode
     -o, --dest DEST                          Path to the destination folder for translated images in
@@ -237,15 +235,19 @@ VIN: Vietnames
                                              Inpainting model to use
     --upscaler {waifu2x,esrgan}              Upscaler to use. --upscale-ratio has to be set for it
                                              to take effect
+    --upscale-ratio {1,2,4,8,16,32}          Image upscale ratio applied before detection. Can
+                                             improve text detection.
     --translator {google,youdao,baidu,deepl,papago,gpt3,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
                                              Language translator to use
-    --translator-chain TRANSLATOR_CHAIN      Language translators chained together. Example:
+    --translator-chain TRANSLATOR_CHAIN      Output of one translator goes in another. Example:
                                              --translator-chain "google:JPN;sugoi:ENG".
     --use-cuda                               Turn on/off cuda
     --use-cuda-limited                       Turn on/off cuda (excluding offline translator)
     --model-dir MODEL_DIR                    Model directory (by default ./models in project root)
     --retries RETRIES                        Retry attempts on encountered error. -1 means infinite
                                              times.
+    --downscale                              Downscales resulting image to original image size (Use
+                                             with --upscale-ratio).
     --detection-size DETECTION_SIZE          Size of image used for detection
     --detection-auto-orient                  Rotate the image for detection to make the textlines
                                              vertical. Might improve detection.
@@ -268,12 +270,9 @@ VIN: Vietnames
     --align-left                             Align rendered text left
     --align-center                           Align rendered text centered
     --align-right                            Align rendered text right
-    --upscale-ratio {1,2,4,8,16,32}          Image upscale ratio applied before detection. Can
-                                             improve text detection.
-    --downscale                              Downscales resulting image to original image size (Use
-                                             with --upscale-ratio).
     --manga2eng                              Render english text translated from manga with some
-                                             typesetting
+                                             additional typesetting. Ignores some other argument
+                                             options.
     --capitalize                             Capitalize rendered text
     --mtpe                                   Turn on/off machine translation post editing (MTPE) on
                                              the command line (works only on linux right now)
@@ -281,8 +280,8 @@ VIN: Vietnames
     --font-path FONT_PATH                    Path to font file
     --host HOST                              Used by web module to decide which host to attach to
     --port PORT                              Used by web module to decide which port to attach to
-    --nonce NONCE                            Used by web module to decide which secret for securing
-                                             internal web server communication
+    --nonce NONCE                            Used by web module as secret for securing internal web
+                                             server communication
     --ws-url WS_URL                          Server URL for WebSocket mode
 <!-- Auto generated end -->
 
