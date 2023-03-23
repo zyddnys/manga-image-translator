@@ -355,8 +355,7 @@ class MangaTranslator():
 
     async def _run_detection(self, ctx: Context):
         return await dispatch_detection(ctx.detector, ctx.img_rgb, ctx.detection_size, ctx.text_threshold, ctx.box_threshold,
-                                        ctx.unclip_ratio, ctx.det_rearrange_max_batches, ctx.detection_auto_orient,
-                                        self.device, self.verbose)
+                                        ctx.unclip_ratio, ctx.det_invert, ctx.det_rotate, ctx.det_auto_rotate, self.device, self.verbose)
 
     async def _run_ocr(self, ctx: Context):
         text_regions = await dispatch_ocr(ctx.ocr, ctx.img_rgb, ctx.text_regions, self.device, self.verbose)
