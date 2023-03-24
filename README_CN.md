@@ -128,11 +128,12 @@ VIN: Vietnames
     --downscale                              Downscales resulting image to original image size (Use
                                              with --upscale-ratio).
     --detection-size DETECTION_SIZE          Size of image used for detection
-    --detection-auto-orient                  Rotate the image for detection to make the textlines
-                                             vertical. Might improve detection.
-    --det-rearrange-max-batches DET_REARRANGE_MAX_BATCHES
-                                             Max batch size produced by the rearrangement of image
-                                             with extreme aspectio, reduce it if cuda OOM
+    --det-rotate                             Rotate the image for detection. Might improve
+                                             detection.
+    --det-auto-rotate                        Rotate the image for detection to prefer vertical
+                                             textlines. Might improve detection.
+    --det-invert                             Invert the image colors for detection. Might improve
+                                             detection.
     --inpainting-size INPAINTING_SIZE        Size of image used for inpainting (too large will
                                              result in OOM)
     --unclip-ratio UNCLIP_RATIO              How much to extend text skeleton to form bounding box
