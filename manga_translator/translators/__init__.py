@@ -59,7 +59,7 @@ class TranslatorChain():
             raise Exception('Invalid translator chain')
         self.chain = []
         self.target = None
-        self.defaultTranslator = None
+        self.default = None
         for g in string.split(';'):
             trans, lang = g.split(':')
             if trans not in TRANSLATORS:
@@ -77,8 +77,7 @@ async def prepare(chain: TranslatorChain):
             await translator.download()
 
 
-def convert_language_type(lang):
-    _LANGUAGE_CODE_MAP = {
+_LANGUAGE_CODE_MAP = {
         'zh': 'CHS',
         'ja': 'JPN',
         'en': 'ENG',
@@ -97,12 +96,7 @@ def convert_language_type(lang):
         'es': 'ESP',
         'tr': 'TRK',
         'uk': 'UKR',
-    }
-
-    if lang not in _LANGUAGE_CODE_MAP:
-        return None
-
-    return _LANGUAGE_CODE_MAP[lang]
+}
 
 
 # TODO: Optionally take in strings instead of TranslatorChain for simplicity
@@ -110,14 +104,14 @@ async def dispatch(chain: TranslatorChain, queries: List[str], use_mtpe: bool = 
     if not queries:
         return queries
     if chain.target is not None:
-        text_lang = convert_language_type(langid.classify('\n'.join(queries))[0])
+        text_lang = _LANGUAGE_CODE_MAP.get(langid.classify('\n'.join(queries))[0])
         translator = None
         for key, lang in chain.chain:
             if text_lang == lang:
                 translator = get_translator(key)
                 break
         if translator is None:
-            translator = get_translator(chain.defaultTranslator)
+            translator = get_translator(chain.default)
         if isinstance(translator, OfflineTranslator):
             await translator.load('auto', chain.target, device)
         queries = await translator.translate('auto', chain.target, queries, use_mtpe)

@@ -174,6 +174,8 @@ class MangaTranslator():
         # Turn dict to context to make values also accessible through params.<property>
         params = params or {}
         ctx = Context(**params)
+        if skip is not None:
+            ctx.skip = skip
 
         # params auto completion
         for arg in DEFAULT_ARGS:
@@ -197,7 +199,7 @@ class MangaTranslator():
         ctx.setdefault('renderer', 'manga2eng' if ctx['manga2eng'] else 'default')
         if ctx.selective_translation is not None:
             ctx.selective_translation.target = ctx.target_lang
-            ctx.selective_translation.defaultTranslator = ctx.selective_translation.langs[0]
+            ctx.selective_translation.default = ctx.selective_translation.langs[0]
             ctx.translator = ctx.selective_translation
         elif ctx.translator_chain is not None:
             ctx.target_lang = ctx.translator_chain.langs[-1]
@@ -227,7 +229,7 @@ class MangaTranslator():
                 await prepare_translation(ctx.translator)
 
                 # translate
-                return await self._translate(ctx, skip=skip)
+                return await self._translate(ctx, skip=ctx.skip)
             except Exception as e:
                 if isinstance(e, LanguageUnsupportedException):
                     await self._report_progress('error-lang', True)
