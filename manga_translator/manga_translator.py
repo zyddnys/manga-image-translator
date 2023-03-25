@@ -1,7 +1,6 @@
 import asyncio
 import base64
 import io
-
 import PIL
 from PIL import Image
 import cv2
@@ -17,7 +16,6 @@ from aiohttp import web
 from marshmallow import Schema, fields, ValidationError
 
 from .args import DEFAULT_ARGS
-from .server.web_main import MAX_IMAGE_SIZE_PX, VALID_TRANSLATORS, VALID_DETECTORS, VALID_LANGUAGES, VALID_DIRECTIONS
 from .utils import (
     BASE_PATH,
     LANGAUGE_ORIENTATION_PRESETS,
@@ -32,7 +30,7 @@ from .utils import (
     count_valuable_text,
 )
 
-from .detection import dispatch as dispatch_detection, prepare as prepare_detection
+from .detection import dispatch as dispatch_detection, prepare as prepare_detection, DETECTORS
 from .upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
 from .ocr import dispatch as dispatch_ocr, prepare as prepare_ocr, OCRS
 from .mask_refinement import dispatch as dispatch_mask_refinement
@@ -41,7 +39,7 @@ from .translators import (
     LanguageUnsupportedException,
     TranslatorChain,
     dispatch as dispatch_translation,
-    prepare as prepare_translation,
+    prepare as prepare_translation, TRANSLATORS, VALID_LANGUAGES
 )
 from .text_rendering import dispatch as dispatch_rendering, dispatch_eng_render
 
@@ -198,8 +196,7 @@ class MangaTranslator():
                 ctx.alignment = 'auto'
         ctx.setdefault('renderer', 'manga2eng' if ctx['manga2eng'] else 'default')
         if ctx.selective_translation is not None:
-            ctx.selective_translation.target = ctx.target_lang
-            ctx.selective_translation.default = ctx.selective_translation.langs[0]
+            ctx.selective_translation.target_lang = ctx.target_lang
             ctx.translator = ctx.selective_translation
         elif ctx.translator_chain is not None:
             ctx.target_lang = ctx.translator_chain.langs[-1]
@@ -229,7 +226,7 @@ class MangaTranslator():
                 await prepare_translation(ctx.translator)
 
                 # translate
-                return await self._translate(ctx, skip=ctx.skip)
+                return await self._translate(ctx)
             except Exception as e:
                 if isinstance(e, LanguageUnsupportedException):
                     await self._report_progress('error-lang', True)
@@ -243,7 +240,7 @@ class MangaTranslator():
             attempts += 1
         return ctx
 
-    async def _translate(self, ctx: Context, skip=None) -> Context:
+    async def _translate(self, ctx: Context) -> Context:
 
         # The default text detector doesn't work very well on smaller images, might want to
         # consider adding automatic upscaling on certain kinds of small images.
@@ -263,7 +260,7 @@ class MangaTranslator():
         if not ctx.text_regions:
             await self._report_progress('skip-no-regions', True)
             return ctx
-        if skip == 'detection':
+        if ctx.skip == 'detection':
             return ctx
         await self._report_progress('ocr')
         ctx.text_regions = await self._run_ocr(ctx)
@@ -271,7 +268,7 @@ class MangaTranslator():
         if not ctx.text_regions:
             await self._report_progress('skip-no-text', True)
             return ctx
-        if skip == 'ocr':
+        if ctx.skip == 'ocr':
             return ctx
         # Delayed mask refinement to take advantage of the region filtering done by ocr
         if ctx.mask is None:
@@ -288,7 +285,7 @@ class MangaTranslator():
 
         if self.verbose:
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR))
-        if skip == 'inpaint':
+        if ctx.skip == 'inpaint':
             return ctx
         await self._report_progress('translating')
         translated_sentences = await self._run_text_translation(ctx)
@@ -297,7 +294,7 @@ class MangaTranslator():
         if not translated_sentences:
             await self._report_progress('error-translating', True)
             return None
-        if skip == 'translation':
+        if ctx.skip == 'translation':
             return ctx
         await self._report_progress('rendering')
         for region, translation in zip(ctx.text_regions, translated_sentences):
@@ -654,7 +651,7 @@ class MangaTranslatorAPI(MangaTranslator):
 
         img.verify()
         img = Image.open(io.BytesIO(content))
-        if img.width * img.height > MAX_IMAGE_SIZE_PX:
+        if img.width * img.height > 8000**2:
             raise ValidationError("to large")
         return img
 
@@ -681,7 +678,7 @@ class MangaTranslatorAPI(MangaTranslator):
             return await self.err_handling(self.file_exec, req, None)
 
         app.add_routes(routes)
-        web.run_app(app, host=self.host, port=self.port, )
+        web.run_app(app, host=self.host, port=self.port)
 
     async def texts_exec(self, translation_params, img):
         return await self.translate(img, translation_params, skip='ocr')
@@ -763,12 +760,12 @@ class MangaTranslatorAPI(MangaTranslator):
     class PostSchema(Schema):
         size = fields.Str(required=False, validate=lambda a: a.upper() not in ['S', 'M', 'L', 'X'])
         translator = fields.Str(required=False,
-                                validate=lambda a: a.lower() not in VALID_TRANSLATORS)
+                                validate=lambda a: a.lower() not in TRANSLATORS)
         target_language = fields.Str(required=False,
                                      validate=lambda a: a.upper() not in VALID_LANGUAGES)
-        detector = fields.Str(required=False, validate=lambda a: a.lower() not in VALID_DETECTORS)
+        detector = fields.Str(required=False, validate=lambda a: a.lower() not in DETECTORS)
         direction = fields.Str(required=False,
-                               validate=lambda a: a.lower() not in VALID_DIRECTIONS)
+                               validate=lambda a: a.lower() not in set(['auto', 'h', 'v']))
         inpainter = fields.Str(required=False,
                                validate=lambda a: a.lower() not in INPAINTERS)
         ocr = fields.Str(required=False, validate=lambda a: a.lower() not in OCRS)

@@ -1,4 +1,4 @@
-from typing import List
+import langid
 
 from .common import *
 from .baidu import BaiduTranslator
@@ -13,7 +13,6 @@ from .m2m100 import M2M100Translator, M2M100BigTranslator
 from .selective import SelectiveOfflineTranslator, prepare as prepare_selective_translator
 from .none import NoneTranslator
 from .original import OriginalTranslator
-import langid
 
 OFFLINE_TRANSLATORS = {
     'offline': SelectiveOfflineTranslator,
@@ -58,8 +57,7 @@ class TranslatorChain():
         if not string:
             raise Exception('Invalid translator chain')
         self.chain = []
-        self.target = None
-        self.default = None
+        self.target_lang = None
         for g in string.split(';'):
             trans, lang = g.split(':')
             if trans not in TRANSLATORS:
@@ -103,7 +101,7 @@ _LANGUAGE_CODE_MAP = {
 async def dispatch(chain: TranslatorChain, queries: List[str], use_mtpe: bool = False, device: str = 'cpu') -> List[str]:
     if not queries:
         return queries
-    if chain.target is not None:
+    if chain.target_lang is not None:
         text_lang = _LANGUAGE_CODE_MAP.get(langid.classify('\n'.join(queries))[0])
         translator = None
         for key, lang in chain.chain:
@@ -111,10 +109,10 @@ async def dispatch(chain: TranslatorChain, queries: List[str], use_mtpe: bool = 
                 translator = get_translator(key)
                 break
         if translator is None:
-            translator = get_translator(chain.default)
+            translator = get_translator(chain.langs[0])
         if isinstance(translator, OfflineTranslator):
-            await translator.load('auto', chain.target, device)
-        queries = await translator.translate('auto', chain.target, queries, use_mtpe)
+            await translator.load('auto', chain.target_lang, device)
+        queries = await translator.translate('auto', chain.target_lang, queries, use_mtpe)
         return queries
 
     for key, tgt_lang in chain.chain:

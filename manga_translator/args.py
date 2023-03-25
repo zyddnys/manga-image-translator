@@ -88,12 +88,12 @@ parser.add_argument('--ocr', default='48px_ctc', type=str, choices=OCRS, help='O
 parser.add_argument('--inpainter', default='lama_mpe', type=str, choices=INPAINTERS, help='Inpainting model to use')
 parser.add_argument('--upscaler', default='esrgan', type=str, choices=UPSCALERS, help='Upscaler to use. --upscale-ratio has to be set for it to take effect')
 parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 4, 8, 16, 32], help='Image upscale ratio applied before detection. Can improve text detection.')
-parser.add_argument('--skip', default=None, type=str, choices=["detection", "ocr", "inpaint", "translation"], help='Stops after selected section')
 
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--translator', default='google', type=str, choices=TRANSLATORS, help='Language translator to use')
 g.add_argument('--translator-chain', default=None, type=translator_chain, help='Output of one translator goes in another. Example: --translator-chain "google:JPN;sugoi:ENG".')
 g.add_argument('--selective-translation', default=None, type=translator_chain, help='Select a translator based on detected language in image. Note the first translation service acts as default if the language isnt defined. Example: --translator-chain "google:JPN;sugoi:ENG".')
+
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--use-cuda', action='store_true', help='Turn on/off cuda')
 g.add_argument('--use-cuda-limited', action='store_true', help='Turn on/off cuda (excluding offline translator)')

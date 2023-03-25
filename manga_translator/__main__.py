@@ -3,8 +3,13 @@ import asyncio
 import logging
 from argparse import Namespace
 
-from .manga_translator import MangaTranslator, MangaTranslatorWeb, MangaTranslatorWS, set_main_logger, \
-    MangaTranslatorAPI
+from .manga_translator import (
+    MangaTranslator,
+    MangaTranslatorAPI,
+    MangaTranslatorWeb,
+    MangaTranslatorWS,
+    set_main_logger,
+)
 from .args import parser
 from .utils import BASE_PATH, get_logger, set_log_level
 
