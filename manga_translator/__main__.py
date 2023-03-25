@@ -3,7 +3,13 @@ import asyncio
 import logging
 from argparse import Namespace
 
-from .manga_translator import MangaTranslator, MangaTranslatorWeb, MangaTranslatorWS, set_main_logger
+from .manga_translator import (
+    MangaTranslator,
+    MangaTranslatorAPI,
+    MangaTranslatorWeb,
+    MangaTranslatorWS,
+    set_main_logger,
+)
 from .args import parser
 from .utils import BASE_PATH, get_logger, set_log_level
 
@@ -25,7 +31,9 @@ async def dispatch(args: Namespace):
             dest = args.dest
         translator = MangaTranslator(args_dict)
         await translator.translate_path(args.input, dest, args_dict)
-
+    elif args.mode == 'api':
+        translator = MangaTranslatorAPI(args_dict)
+        await translator.listen(args_dict)
     elif args.mode == 'web':
         from .server.web_main import dispatch
         await dispatch(args.host, args.port, translation_params=args_dict)

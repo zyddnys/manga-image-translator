@@ -78,7 +78,7 @@ class HelpFormatter(argparse.HelpFormatter):
 
 
 parser = argparse.ArgumentParser(prog='manga_translator', description='Seamlessly translate mangas into a chosen language', formatter_class=HelpFormatter)
-parser.add_argument('-m', '--mode', default='demo', type=str, choices=['demo', 'batch', 'web', 'web_client', 'ws'], help='Run demo in single image demo mode (demo), batch translation mode (batch), web service mode (web)')
+parser.add_argument('-m', '--mode', default='demo', type=str, choices=['demo', 'batch', 'web', 'web_client', 'ws', 'api'], help='Run demo in single image demo mode (demo), batch translation mode (batch), web service mode (web)')
 parser.add_argument('-i', '--input', default='', type=path, help='Path to an image file if using demo mode, or path to an image folder if using batch mode')
 parser.add_argument('-o', '--dest', default='', type=str, help='Path to the destination folder for translated images in batch mode')
 parser.add_argument('-l', '--target-lang', default='CHS', type=str, choices=VALID_LANGUAGES, help='Destination language')
@@ -92,6 +92,7 @@ parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 4,
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--translator', default='google', type=str, choices=TRANSLATORS, help='Language translator to use')
 g.add_argument('--translator-chain', default=None, type=translator_chain, help='Output of one translator goes in another. Example: --translator-chain "google:JPN;sugoi:ENG".')
+g.add_argument('--selective-translation', default=None, type=translator_chain, help='Select a translator based on detected language in image. Note the first translation service acts as default if the language isnt defined. Example: --translator-chain "google:JPN;sugoi:ENG".')
 
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--use-cuda', action='store_true', help='Turn on/off cuda')
