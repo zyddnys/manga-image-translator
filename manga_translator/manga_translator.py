@@ -44,7 +44,6 @@ from .translators import (
 from .text_rendering import dispatch as dispatch_rendering, dispatch_eng_render
 
 
-nest_asyncio.apply()
 # Will be overwritten by __main__.py if module is being run directly (with python -m)
 logger = logging.getLogger('manga_translator')
 
@@ -617,6 +616,7 @@ class MangaTranslatorWS(MangaTranslator):
 
 class MangaTranslatorAPI(MangaTranslator):
     def __init__(self, params: dict = None):
+        nest_asyncio.apply()
         super().__init__(params)
         self.host = params.get('host', '127.0.0.1')
         self.port = params.get('port', '5003')
@@ -627,7 +627,6 @@ class MangaTranslatorAPI(MangaTranslator):
         self.params = params
 
     async def get_file(self, image, base64Images, url) -> PIL.Image:
-        print("hello world")
         if image is not None:
             content = image.file.read()
         elif base64Images is not None:
@@ -635,7 +634,6 @@ class MangaTranslatorAPI(MangaTranslator):
             if base64Images.__contains__('base64,'):
                 base64Images = base64Images.split('base64,')[1]
             content = base64.b64decode(base64Images)
-            print('heello')
         elif url is not None:
             from aiohttp import ClientSession
             async with ClientSession() as session:
@@ -785,4 +783,3 @@ class MangaTranslatorAPI(MangaTranslator):
         url = fields.Raw(required=False)
         fingerprint = fields.Raw(required=False)
         clientUuid = fields.Raw(required=False)
-

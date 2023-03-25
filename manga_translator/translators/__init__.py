@@ -74,35 +74,12 @@ async def prepare(chain: TranslatorChain):
         if isinstance(translator, OfflineTranslator):
             await translator.download()
 
-
-_LANGUAGE_CODE_MAP = {
-        'zh': 'CHS',
-        'ja': 'JPN',
-        'en': 'ENG',
-        'ko': 'KOR',
-        'vi': 'VIN',
-        'cs': 'CSY',
-        'nl': 'NLD',
-        'fr': 'FRA',
-        'de': 'DEU',
-        'hu': 'HUN',
-        'it': 'ITA',
-        'pl': 'PLK',
-        'pt': 'PTB',
-        'ro': 'ROM',
-        'ru': 'RUS',
-        'es': 'ESP',
-        'tr': 'TRK',
-        'uk': 'UKR',
-}
-
-
 # TODO: Optionally take in strings instead of TranslatorChain for simplicity
 async def dispatch(chain: TranslatorChain, queries: List[str], use_mtpe: bool = False, device: str = 'cpu') -> List[str]:
     if not queries:
         return queries
     if chain.target_lang is not None:
-        text_lang = _LANGUAGE_CODE_MAP.get(langid.classify('\n'.join(queries))[0])
+        text_lang = ISO_639_1_TO_VALID_LANGUAGES.get(langid.classify('\n'.join(queries))[0])
         translator = None
         for key, lang in chain.chain:
             if text_lang == lang:

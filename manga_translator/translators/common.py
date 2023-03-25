@@ -31,6 +31,27 @@ VALID_LANGUAGES = {
     'VIN': 'Vietnamese',
 }
 
+ISO_639_1_TO_VALID_LANGUAGES = {
+        'zh': 'CHS',
+        'ja': 'JPN',
+        'en': 'ENG',
+        'ko': 'KOR',
+        'vi': 'VIN',
+        'cs': 'CSY',
+        'nl': 'NLD',
+        'fr': 'FRA',
+        'de': 'DEU',
+        'hu': 'HUN',
+        'it': 'ITA',
+        'pl': 'PLK',
+        'pt': 'PTB',
+        'ro': 'ROM',
+        'ru': 'RUS',
+        'es': 'ESP',
+        'tr': 'TRK',
+        'uk': 'UKR',
+}
+
 class InvalidServerResponse(Exception):
     pass
 

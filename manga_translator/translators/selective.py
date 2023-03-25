@@ -1,30 +1,10 @@
 from typing import Callable, List
 import langid
 
-from .common import OfflineTranslator
+from .common import OfflineTranslator, ISO_639_1_TO_VALID_LANGUAGES
 from .m2m100 import M2M100Translator
 from .sugoi import SugoiTranslator
 
-ISO_639_1_TO_VALID_LANGUAGES = {
-    'zh': 'CHS',
-    'cs': 'CSY',
-    'nl': 'NLD',
-    'en': 'ENG',
-    'fr': 'FRA',
-    'de': 'DEU',
-    'hu': 'HUN',
-    'it': 'ITA',
-    'ja': 'JPN',
-    'kn': 'KOR',
-    'pl': 'PLK',
-    'pt': 'PTB',
-    'ro': 'ROM',
-    'ru': 'RUS',
-    'es': 'ESP',
-    'tr': 'TRK',
-    'uk': 'UKR',
-    'vi': 'VIN',
-}
 
 get_translator: Callable[[str], OfflineTranslator] = None
 
