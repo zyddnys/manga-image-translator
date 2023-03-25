@@ -158,7 +158,7 @@ class MangaTranslator():
             else:
                 logger.info(f'Done. Translated {translated_count} image(/s)')
 
-    async def translate(self, image: Image.Image, params: dict = None, skip=None) -> Context:
+    async def translate(self, image: Image.Image, params: dict = None) -> Context:
         """
         Translates a PIL image from a manga. Returns dict with result and intermediates of translation.
 
@@ -172,8 +172,6 @@ class MangaTranslator():
         # Turn dict to context to make values also accessible through params.<property>
         params = params or {}
         ctx = Context(**params)
-        if skip is not None:
-            ctx.skip = skip
 
         # params auto completion
         for arg in DEFAULT_ARGS:
@@ -681,13 +679,16 @@ class MangaTranslatorAPI(MangaTranslator):
         web.run_app(app, host=self.host, port=self.port)
 
     async def texts_exec(self, translation_params, img):
-        return await self.translate(img, translation_params, skip='ocr')
+        translation_params['skip'] = 'ocr'
+        return await self.translate(img, translation_params)
 
     async def translate_exec(self, translation_params, img):
-        return await self.translate(img, translation_params, skip='translate')
+        translation_params['skip'] = 'translate'
+        return await self.translate(img, translation_params)
 
     async def inpaint_translate_exec(self, translation_params, img):
-        return await self.translate(img, translation_params, skip='inpaint')
+        translation_params['skip'] = 'inpaint'
+        return await self.translate(img, translation_params)
 
     async def file_exec(self, translation_params, img):
         return await self.translate(img, translation_params)
