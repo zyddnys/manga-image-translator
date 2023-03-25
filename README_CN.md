@@ -59,7 +59,8 @@ $ pip install -r requirements.txt
 | youdao         | ✔️      |         | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`     |
 | baidu          | ✔️      |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`        |
 | deepl          | ✔️      |         | Requires `DEEPL_AUTH_KEY`                             |
-| gpt3           | ✔️      |         | Requires `OPENAI_API_KEY`                             |
+| gpt3           | ✔️      |         | Implements text-davinci-003. Requires `OPENAI_API_KEY`|
+| gpt3.5         | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`   |
 | papago         |         |         |                                                       |
 | offline        |         | ✔️      |                                                       |
 | sugoi          |         | ✔️      |                                                       |
@@ -116,7 +117,7 @@ VIN: Vietnames
                                              to take effect
     --upscale-ratio {1,2,4,8,16,32}          Image upscale ratio applied before detection. Can
                                              improve text detection.
-    --translator {google,youdao,baidu,deepl,papago,gpt3,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
+    --translator {google,youdao,baidu,deepl,papago,gpt3,gpt3.5,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
                                              Language translator to use
     --translator-chain TRANSLATOR_CHAIN      Output of one translator goes in another. Example:
                                              --translator-chain "google:JPN;sugoi:ENG".
