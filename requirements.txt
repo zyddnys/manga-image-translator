@@ -35,3 +35,5 @@ pandas
 onnxruntime
 omegaconf
 python-dotenv
+nest-asyncio
+marshmallow
