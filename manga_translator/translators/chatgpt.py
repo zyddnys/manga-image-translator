@@ -94,8 +94,26 @@ class GPT3Translator(CommonTranslator):
         completion = openai.Completion.create(
             model='text-davinci-003',
             prompt=prompt,
-            max_tokens=1024,
+            # max_tokens=1024,
             temperature=1,
         )
         response = completion.choices[0].text
         return response
+
+class GPT35TurboTranslator(GPT3Translator):
+    async def _request_translation(self, prompt: str) -> str:
+        messages = [
+            {'role': 'system', 'content': 'You are a professional translator who will follow the required format for translation.'},
+            {'role': 'user', 'content': prompt},
+        ]
+        response = openai.ChatCompletion.create(
+            model='gpt-3.5-turbo',
+            messages=messages,
+            temperature=1,
+        )
+        for choice in response.choices:
+            if 'text' in choice:
+                return choice.text
+
+        # If no response with text is found, return the first response's content (which may be empty)
+        return response.choices[0].message.content
