@@ -75,7 +75,9 @@ class CommonDetector(InfererModule):
         new_w = new_h = max(old_w, old_h, target_side_length)
         new_image = np.zeros([new_h, new_w, 3]).astype(np.uint8)
         # new_image[:] = np.array([255, 255, 255], np.uint8)
-        new_image[:old_h, :old_w] = image
+        x, y = 0, 0
+        # x, y = (new_h - old_h) // 2, (new_w - old_w) // 2
+        new_image[y:y+old_h, x:x+old_w] = image
         return new_image
 
     def _remove_border(self, image: np.ndarray, old_w: int, old_h: int, text_regions, raw_mask, mask):
@@ -99,10 +101,10 @@ class CommonDetector(InfererModule):
                     pt[1] = min(pt[1], old_h)
             new_text_regions.append(region)
         return new_text_regions, raw_mask, mask
-        
+
     def _add_rotation(self, image: np.ndarray):
         return np.rot90(image, k=-1)
-    
+
     def _remove_rotation(self, text_regions, raw_mask, mask):
         raw_mask = np.ascontiguousarray(np.rot90(raw_mask))
         if mask is not None:
