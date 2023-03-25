@@ -1,8 +1,6 @@
 import asyncio
 import base64
 import io
-import PIL
-from PIL import Image
 import cv2
 import langid
 import numpy as np
@@ -12,6 +10,7 @@ import torch
 import time
 import logging
 import nest_asyncio
+from PIL import Image
 from aiohttp import web
 from marshmallow import Schema, fields, ValidationError
 
@@ -30,16 +29,18 @@ from .utils import (
     count_valuable_text,
 )
 
-from .detection import dispatch as dispatch_detection, prepare as prepare_detection, DETECTORS
+from .detection import DETECTORS, dispatch as dispatch_detection, prepare as prepare_detection
 from .upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
-from .ocr import dispatch as dispatch_ocr, prepare as prepare_ocr, OCRS
+from .ocr import OCRS, dispatch as dispatch_ocr, prepare as prepare_ocr
 from .mask_refinement import dispatch as dispatch_mask_refinement
-from .inpainting import dispatch as dispatch_inpainting, prepare as prepare_inpainting, INPAINTERS
+from .inpainting import INPAINTERS, dispatch as dispatch_inpainting, prepare as prepare_inpainting
 from .translators import (
+    TRANSLATORS,
+    VALID_LANGUAGES,
     LanguageUnsupportedException,
     TranslatorChain,
     dispatch as dispatch_translation,
-    prepare as prepare_translation, TRANSLATORS, VALID_LANGUAGES
+    prepare as prepare_translation,
 )
 from .text_rendering import dispatch as dispatch_rendering, dispatch_eng_render
 
@@ -257,16 +258,17 @@ class MangaTranslator():
         if not ctx.text_regions:
             await self._report_progress('skip-no-regions', True)
             return ctx
-        if ctx.skip == 'detection':
+        if ctx.run_until == 'detection':
             return ctx
+
         await self._report_progress('ocr')
         ctx.text_regions = await self._run_ocr(ctx)
-
         if not ctx.text_regions:
             await self._report_progress('skip-no-text', True)
             return ctx
-        if ctx.skip == 'ocr':
+        if ctx.run_until == 'ocr':
             return ctx
+
         # Delayed mask refinement to take advantage of the region filtering done by ocr
         if ctx.mask is None:
             await self._report_progress('mask-generation')
@@ -282,17 +284,19 @@ class MangaTranslator():
 
         if self.verbose:
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR))
-        if ctx.skip == 'inpaint':
+        if ctx.run_until == 'inpainting':
             return ctx
+
         await self._report_progress('translating')
         translated_sentences = await self._run_text_translation(ctx)
         ctx.translated_sentences = translated_sentences
 
         if not translated_sentences:
             await self._report_progress('error-translating', True)
-            return None
-        if ctx.skip == 'translation':
             return ctx
+        if ctx.run_until == 'translation':
+            return ctx
+
         await self._report_progress('rendering')
         for region, translation in zip(ctx.text_regions, translated_sentences):
             if ctx.capitalize:
@@ -626,7 +630,7 @@ class MangaTranslatorAPI(MangaTranslator):
         self._params = None
         self.params = params
 
-    async def get_file(self, image, base64Images, url) -> PIL.Image:
+    async def get_file(self, image, base64Images, url) -> Image:
         if image is not None:
             content = image.file.read()
         elif base64Images is not None:
@@ -678,15 +682,15 @@ class MangaTranslatorAPI(MangaTranslator):
         web.run_app(app, host=self.host, port=self.port)
 
     async def texts_exec(self, translation_params, img):
-        translation_params['skip'] = 'ocr'
+        translation_params['run_until'] = 'ocr'
         return await self.translate(img, translation_params)
 
     async def translate_exec(self, translation_params, img):
-        translation_params['skip'] = 'translate'
+        translation_params['run_until'] = 'translate'
         return await self.translate(img, translation_params)
 
     async def inpaint_translate_exec(self, translation_params, img):
-        translation_params['skip'] = 'inpaint'
+        translation_params['run_until'] = 'inpainting'
         return await self.translate(img, translation_params)
 
     async def file_exec(self, translation_params, img):

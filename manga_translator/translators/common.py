@@ -1,4 +1,6 @@
 import re
+import time
+import asyncio
 from typing import List, Tuple
 from abc import abstractmethod
 
@@ -88,10 +90,13 @@ class MTPEAdapter():
 class CommonTranslator(InfererModule):
     _LANGUAGE_CODE_MAP = {}
     _INVALID_REPEAT_COUNT = 0
+    _REQUESTS_PER_MINUTE = -1
 
     def __init__(self):
         super().__init__()
         self.mtpe_adapter = MTPEAdapter()
+        self._last_request_ts = 0
+        self._requests_count = 0
 
     def supports_languages(self, from_lang: str, to_lang: str, fatal: bool = False) -> bool:
         supported_src_languages = ['auto'] + list(self._LANGUAGE_CODE_MAP)
@@ -134,6 +139,20 @@ class CommonTranslator(InfererModule):
 
         unchecked_indices = list(range(len(queries))) # unchecked for invalid translations
         for i in range(1 + self._INVALID_REPEAT_COUNT):
+
+            # Sleep to limit rate of translations
+            now = time.time()
+            if self._REQUESTS_PER_MINUTE > 0 and self._requests_count >= self._REQUESTS_PER_MINUTE:
+                print(now - self._last_request_ts)
+                if now - self._last_request_ts < 60:
+                    timeout = 60 - now + self._last_request_ts
+                    self.logger.warn(f'Exceeded max amount of translations per minute ({self._REQUESTS_PER_MINUTE}). Timeout for: {timeout}s')
+                    await asyncio.sleep(timeout)
+                self._requests_count = 0
+                self._last_request_ts = time.time()
+            self._requests_count += 1
+
+            # Translate
             _translations = await self._translate(*self.parse_language_codes(from_lang, to_lang, fatal=True), queries)
 
             # Only overwrite invalid translations
@@ -163,7 +182,7 @@ class CommonTranslator(InfererModule):
             if not n_unchecked_indices:
                 break
             unchecked_indices = n_unchecked_indices
-            self.logger.info('Repeating because of invalid translation')
+            self.logger.info(f'Repeating because of invalid translation. Attempt: {i+1}')
 
         translations = [self._clean_translation_output(q, r) for q, r in zip(queries, translations)]
         if use_mtpe:

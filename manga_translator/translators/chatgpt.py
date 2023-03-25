@@ -48,6 +48,7 @@ class GPT3Translator(CommonTranslator):
         'UKR': 'Ukrainian',
         'VIN': 'Vietnamese',
     }
+    _REQUESTS_PER_MINUTE = 20
 
     def __init__(self):
         super().__init__()
