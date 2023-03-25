@@ -244,9 +244,11 @@ class MangaTranslator():
         # consider adding automatic upscaling on certain kinds of small images.
         if ctx.upscale_ratio:
             await self._report_progress('upscaling')
-            ctx.input = await self._run_upscaling(ctx)
+            ctx.upscaled = await self._run_upscaling(ctx)
+        else:
+            ctx.upscaled = ctx.input
 
-        ctx.img_rgb, ctx.img_alpha = load_image(ctx.input)
+        ctx.img_rgb, ctx.img_alpha = load_image(ctx.upscaled)
 
         await self._report_progress('detection')
         ctx.text_regions, ctx.mask_raw, ctx.mask = await self._run_detection(ctx)
@@ -308,15 +310,12 @@ class MangaTranslator():
 
         ctx.img_rendered = await self._run_text_rendering(ctx)
 
-        if ctx.downscale:
-            await self._report_progress('downscaling')
-            if ctx.img_alpha:
-                # Add alpha channel to rgb
-                ctx.img_rendered = np.concatenate([ctx.img_rendered.astype(np.uint8), np.array(ctx.img_alpha).astype(np.uint8)[..., None]], axis=2)
-            ctx.img_rendered = cv2.resize(ctx.img_rendered, ctx.input.size, interpolation=cv2.INTER_LINEAR)
-
         await self._report_progress('finished', True)
         ctx.result = dump_image(ctx.img_rendered, ctx.img_alpha)
+
+        if ctx.downscale:
+            await self._report_progress('downscaling')
+            ctx.result = ctx.result.resize(ctx.input.size)
 
         return ctx
 

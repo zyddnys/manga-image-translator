@@ -101,6 +101,8 @@ class GPT3Translator(CommonTranslator):
         return response
 
 class GPT35TurboTranslator(GPT3Translator):
+    _REQUESTS_PER_MINUTE = 200
+
     async def _request_translation(self, prompt: str) -> str:
         messages = [
             {'role': 'system', 'content': 'You are a professional translator who will follow the required format for translation.'},
