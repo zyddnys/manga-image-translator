@@ -96,7 +96,7 @@ VIN: Vietnames
 <!-- Auto generated start -->
 ## 选项
     -h, --help                               show this help message and exit
-    -m, --mode {demo,batch,web,web_client,ws}
+    -m, --mode {demo,batch,web,web_client,ws,api}
                                              Run demo in single image demo mode (demo), batch
                                              translation mode (batch), web service mode (web)
     -i, --input INPUT                        Path to an image file if using demo mode, or path to an
@@ -119,6 +119,11 @@ VIN: Vietnames
     --translator {google,youdao,baidu,deepl,papago,gpt3,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
                                              Language translator to use
     --translator-chain TRANSLATOR_CHAIN      Output of one translator goes in another. Example:
+                                             --translator-chain "google:JPN;sugoi:ENG".
+    --selective-translation SELECTIVE_TRANSLATION
+                                             Select a translator based on detected language in
+                                             image. Note the first translation service acts as
+                                             default if the language isnt defined. Example:
                                              --translator-chain "google:JPN;sugoi:ENG".
     --use-cuda                               Turn on/off cuda
     --use-cuda-limited                       Turn on/off cuda (excluding offline translator)
