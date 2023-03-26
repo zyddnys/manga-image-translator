@@ -34,24 +34,24 @@ VALID_LANGUAGES = {
 }
 
 ISO_639_1_TO_VALID_LANGUAGES = {
-        'zh': 'CHS',
-        'ja': 'JPN',
-        'en': 'ENG',
-        'ko': 'KOR',
-        'vi': 'VIN',
-        'cs': 'CSY',
-        'nl': 'NLD',
-        'fr': 'FRA',
-        'de': 'DEU',
-        'hu': 'HUN',
-        'it': 'ITA',
-        'pl': 'PLK',
-        'pt': 'PTB',
-        'ro': 'ROM',
-        'ru': 'RUS',
-        'es': 'ESP',
-        'tr': 'TRK',
-        'uk': 'UKR',
+    'zh': 'CHS',
+    'ja': 'JPN',
+    'en': 'ENG',
+    'ko': 'KOR',
+    'vi': 'VIN',
+    'cs': 'CSY',
+    'nl': 'NLD',
+    'fr': 'FRA',
+    'de': 'DEU',
+    'hu': 'HUN',
+    'it': 'ITA',
+    'pl': 'PLK',
+    'pt': 'PTB',
+    'ro': 'ROM',
+    'ru': 'RUS',
+    'es': 'ESP',
+    'tr': 'TRK',
+    'uk': 'UKR',
 }
 
 class InvalidServerResponse(Exception):
@@ -88,8 +88,15 @@ class MTPEAdapter():
         return new_translations
 
 class CommonTranslator(InfererModule):
+    # Translator has to support all languages listed in here. The language codes will be translated into
+    # _LANGUAGE_CODE_MAP[lang_code] automatically if _LANGUAGE_CODE_MAP is a dict.
     _LANGUAGE_CODE_MAP = {}
+
+    # The amount of repeats upon detecting an invalid translation.
+    # Use with _is_translation_invalid and _modify_invalid_translation_query.
     _INVALID_REPEAT_COUNT = 0
+
+    # Will sleep for the rest of the minute if the request count is over this number.
     _REQUESTS_PER_MINUTE = -1
 
     def __init__(self):
@@ -115,6 +122,8 @@ class CommonTranslator(InfererModule):
     def parse_language_codes(self, from_lang: str, to_lang: str, fatal: bool = False) -> Tuple[str, str]:
         if not self.supports_languages(from_lang, to_lang, fatal):
             return None, None
+        if type(self._LANGUAGE_CODE_MAP) is list:
+            return from_lang, to_lang
 
         _from_lang = self._LANGUAGE_CODE_MAP.get(from_lang) if from_lang != 'auto' else 'auto'
         _to_lang = self._LANGUAGE_CODE_MAP.get(to_lang)
@@ -139,18 +148,11 @@ class CommonTranslator(InfererModule):
 
         unchecked_indices = list(range(len(queries))) # unchecked for invalid translations
         for i in range(1 + self._INVALID_REPEAT_COUNT):
+            if i > 0:
+                self.logger.warn(f'Repeating because of invalid translation. Attempt: {i+1}')
 
-            # Sleep to limit rate of translations
-            now = time.time()
-            if self._REQUESTS_PER_MINUTE > 0 and self._requests_count >= self._REQUESTS_PER_MINUTE:
-                print(now - self._last_request_ts)
-                if now - self._last_request_ts < 60:
-                    timeout = 60 - now + self._last_request_ts
-                    self.logger.warn(f'Exceeded max amount of translations per minute ({self._REQUESTS_PER_MINUTE}). Timeout for: {timeout}s')
-                    await asyncio.sleep(timeout)
-                self._requests_count = 0
-                self._last_request_ts = time.time()
-            self._requests_count += 1
+            # Sleep if speed is over the ratelimit
+            await self._ratelimit_sleep()
 
             # Translate
             _translations = await self._translate(*self.parse_language_codes(from_lang, to_lang, fatal=True), queries)
@@ -182,7 +184,6 @@ class CommonTranslator(InfererModule):
             if not n_unchecked_indices:
                 break
             unchecked_indices = n_unchecked_indices
-            self.logger.info(f'Repeating because of invalid translation. Attempt: {i+1}')
 
         translations = [self._clean_translation_output(q, r) for q, r in zip(queries, translations)]
         if use_mtpe:
@@ -193,7 +194,21 @@ class CommonTranslator(InfererModule):
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         pass
 
+    async def _ratelimit_sleep(self):
+        now = time.time()
+        if self._REQUESTS_PER_MINUTE > 0 and self._requests_count >= self._REQUESTS_PER_MINUTE:
+            print(now - self._last_request_ts)
+            if now - self._last_request_ts < 60:
+                timeout = 60 - now + self._last_request_ts
+                self.logger.warn(f'Exceeded max amount of translations per minute ({self._REQUESTS_PER_MINUTE}). Timeout for: {timeout}s')
+                await asyncio.sleep(timeout)
+            self._requests_count = 0
+            self._last_request_ts = time.time()
+        self._requests_count += 1
+
     def _is_translation_invalid(self, query: str, trans: str) -> bool:
+        if not trans and query:
+            return True
         if not query or not trans:
             return False
 
@@ -205,10 +220,10 @@ class CommonTranslator(InfererModule):
 
     def _modify_invalid_translation_query(self, query: str, trans: str) -> str:
         """
-        Should be overwritten if _INVALID_REPEAT_COUNT was set. It modifies the query
+        Can be overwritten if _INVALID_REPEAT_COUNT was set. It modifies the query
         for the next translation attempt.
         """
-        raise NotImplementedError()
+        return query
 
     def _clean_translation_output(self, query: str, trans: str) -> str:
         """

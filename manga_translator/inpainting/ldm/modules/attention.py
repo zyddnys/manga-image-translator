@@ -13,7 +13,7 @@ try:
     import xformers
     import xformers.ops
     XFORMERS_IS_AVAILBLE = False
-except:
+except ImportError:
     XFORMERS_IS_AVAILBLE = False
 
 # CrossAttn precision handling
