@@ -150,6 +150,7 @@ class CommonTranslator(InfererModule):
         for i in range(1 + self._INVALID_REPEAT_COUNT):
             if i > 0:
                 self.logger.warn(f'Repeating because of invalid translation. Attempt: {i+1}')
+                await asyncio.sleep(0.1)
 
             # Sleep if speed is over the ratelimit
             await self._ratelimit_sleep()
