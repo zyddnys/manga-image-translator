@@ -125,6 +125,7 @@ g.add_argument('--align-right', action='store_true', help='Align rendered text r
 
 parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some additional typesetting. Ignores some other argument options.')
 parser.add_argument('--capitalize', action='store_true', help='Capitalize rendered text')
+parser.add_argument('--chatgpt-prompt-file', type=file_path, help='Prepends contents of the specified file to the chatgpt prompt. Denote the target language with "{lang}".')
 parser.add_argument('--mtpe', action='store_true', help='Turn on/off machine translation post editing (MTPE) on the command line (works only on linux right now)')
 parser.add_argument('--text-output-file', default='', type=str, help='File into which to save extracted text and translations')
 parser.add_argument('--font-path', default='', type=file_path, help='Path to font file')

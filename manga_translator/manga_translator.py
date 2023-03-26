@@ -200,6 +200,10 @@ class MangaTranslator():
             ctx.translator = ctx.translator_chain
         else:
             ctx.translator = TranslatorChain(f'{ctx.translator}:{ctx.target_lang}')
+        if ctx.chatgpt_prompt_file:
+            from .translators.chatgpt import set_global_prompt
+            with open(ctx.chatgpt_prompt_file, 'r') as f:
+                set_global_prompt(f.read())
 
         if ctx.model_dir:
             ModelWrapper._MODEL_DIR = ctx.model_dir

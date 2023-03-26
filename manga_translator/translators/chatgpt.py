@@ -34,6 +34,11 @@ Translation 2:
 The instructions are over. Please translate the following content into {to_lang}:
 '''
 
+PROMPT_OVERWRITE = None
+def set_global_prompt(prompt: str):
+    global PROMPT_OVERWRITE
+    PROMPT_OVERWRITE = prompt
+
 class GPT3Translator(CommonTranslator):
     _LANGUAGE_CODE_MAP = {
         'CHS': 'Simplified Chinese',
@@ -73,8 +78,13 @@ class GPT3Translator(CommonTranslator):
             }
             openai.proxy = proxies
 
+    @property
+    def prompt_template(self):
+        global PROMPT_OVERWRITE
+        return PROMPT_OVERWRITE or self.PROMPT_TEMPLATE
+
     async def _translate(self, from_lang, to_lang, queries):
-        prompt = self.PROMPT_TEMPLATE.format(to_lang=to_lang)
+        prompt = self.prompt_template.format(to_lang=to_lang)
         for i, query in enumerate(queries):
             prompt += f'\nText {i+1}:\n{query}\n'
         prompt += '\nTranslation 1:\n'
