@@ -35,7 +35,7 @@ class PapagoTranslator(CommonTranslator):
         data['text'] = '\n'.join(queries)
         result = await self._do_request(data, self._version_key)
         if "translatedText" not in result:
-            raise InvalidServerResponse('Papago returned invalid response: ' + result + '\nAre the API keys set correctly?')
+            raise InvalidServerResponse(f'Papago returned invalid response: {result}\nAre the API keys set correctly?')
         result_list = [str.strip() for str in result["translatedText"].split("\n")]
         return result_list
 

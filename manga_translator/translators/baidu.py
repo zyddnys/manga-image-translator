@@ -56,7 +56,7 @@ class BaiduTranslator(CommonTranslator):
                 result = await resp.json()
         result_list = []
         if "trans_result" not in result:
-            raise InvalidServerResponse('Baidu returned invalid response: ' + result + '\nAre the API keys set correctly?')
+            raise InvalidServerResponse(f'Baidu returned invalid response: {result}\nAre the API keys set correctly?')
         for ret in result["trans_result"]:
             for v in ret["dst"].split('\n'):
                 result_list.append(v)

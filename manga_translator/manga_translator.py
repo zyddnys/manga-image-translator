@@ -9,7 +9,6 @@ import os
 import torch
 import time
 import logging
-import nest_asyncio
 from PIL import Image
 from aiohttp import web
 from marshmallow import Schema, fields, ValidationError
@@ -619,6 +618,7 @@ class MangaTranslatorWS(MangaTranslator):
 
 class MangaTranslatorAPI(MangaTranslator):
     def __init__(self, params: dict = None):
+        import nest_asyncio
         nest_asyncio.apply()
         super().__init__(params)
         self.host = params.get('host', '127.0.0.1')
