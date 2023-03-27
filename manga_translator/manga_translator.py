@@ -151,10 +151,11 @@ class MangaTranslator():
                             result.save(output_dest)
                             await self._report_progress('saved', True)
                         if translation_dict.text_output_file and translation_dict.text_regions:
-                            dotidx = f.rindex('.')
-                            img_filename = f[:dotidx] + '-orig' + f[dotidx:]
-                            img_path = os.path.join(dest_root, img_filename)
-                            img.save(img_path)
+                            if translation_dict.prep_manual:
+                                dotidx = f.rindex('.')
+                                img_filename = f[:dotidx] + '-orig' + f[dotidx:]
+                                img_path = os.path.join(dest_root, img_filename)
+                                img.save(img_path)
                             self.save_text_to_file(translation_dict, output_dest)
                         translated_count += 1
             if translated_count == 0:
