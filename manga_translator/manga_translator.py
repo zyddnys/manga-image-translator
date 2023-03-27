@@ -9,6 +9,7 @@ import os
 import torch
 import time
 import logging
+import json
 from PIL import Image
 from aiohttp import web
 from marshmallow import Schema, fields, ValidationError
@@ -150,12 +151,16 @@ class MangaTranslator():
                             result.save(output_dest)
                             await self._report_progress('saved', True)
                         if translation_dict.text_output_file and translation_dict.text_regions:
+                            dotidx = f.rindex('.')
+                            img_filename = f[:dotidx] + '-orig' + f[dotidx:]
+                            img_path = os.path.join(dest_root, img_filename)
+                            img.save(img_path)
                             self.save_text_to_file(translation_dict, output_dest)
                         translated_count += 1
             if translated_count == 0:
                 logger.info(f'No untranslated files found')
             else:
-                logger.info(f'Done. Translated {translated_count} image(/s)')
+                logger.info(f'Done. Translated {translated_count} image{"" if translated_count == 1 else "s"}')
 
     async def translate(self, image: Image.Image, params: dict = None) -> Context:
         """
@@ -311,7 +316,10 @@ class MangaTranslator():
             region._alignment = ctx.alignment
             region._direction = ctx.direction
 
-        ctx.img_rendered = await self._run_text_rendering(ctx)
+        if not ctx.prep_manual:
+            ctx.img_rendered = await self._run_text_rendering(ctx)
+        else:
+            ctx.img_rendered = ctx.img_inpainted
 
         await self._report_progress('finished', True)
         ctx.result = dump_image(ctx.img_rendered, ctx.img_alpha)
@@ -363,14 +371,48 @@ class MangaTranslator():
         self.add_progress_hook(ph)
 
     def save_text_to_file(self, ctx: Context, image_name: str):
+        speakers = []
         s = f'\n[{image_name}]\n'
         for i, region in enumerate(ctx.text_regions):
+            fore, back = region.get_font_colors()
+            speaker_id, color_name = self._identify_speaker(speakers, fore)
+
             s += f'\n-- {i+1} --:\n'
-            s += f'text: {region.get_text()}\n trans: {region.translation}'
+            s += f'color #{speaker_id}: {color_name} (FG{fore} BG{back})\n'
+            s += f'text: {region.get_text()}\ntrans: {region.translation}'
         s += '\n\n'
 
-        with open(ctx.text_output_file, 'a', encoding='utf-8') as f:
+        output_file = ctx.text_output_file
+        if output_file == 'output':
+            output_file = os.path.join(os.path.dirname(image_name), '_translations.txt')
+
+        with open(output_file, 'a', encoding='utf-8') as f:
             f.write(s)
+
+    def _identify_speaker(self, known_speakers: list[(list[int],str)], fg_rgb: list[int]) -> (int, str):
+        idx = 0
+        for rgb, _ in known_speakers:
+            if abs(rgb[0] - fg_rgb[0]) + abs(rgb[1] - fg_rgb[1]) + abs(rgb[2] - fg_rgb[2]) < 50:
+                break
+            else:
+                idx = idx + 1
+
+        speaker_id = idx + 1
+        if idx == len(known_speakers):
+            known_speakers.append((fg_rgb, self._get_color_name(fg_rgb)))
+
+        return (speaker_id, known_speakers[idx][1])
+
+    def _get_color_name(self, rgb: list[int]) -> str:
+        try:
+            url = f'https://www.thecolorapi.com/id?format=json&rgb={rgb[0]},{rgb[1]},{rgb[2]}'
+            response = requests.get(url)
+            if response.status_code == 200:
+                return json.loads(response.text)['name']['value']
+            else:
+                return 'Unnamed'
+        except Exception:
+            return 'Unnamed'
 
     async def _run_upscaling(self, ctx: Context):
         return (await dispatch_upscaling(ctx.upscaler, [ctx.input], ctx.upscale_ratio, self.device))[0]
