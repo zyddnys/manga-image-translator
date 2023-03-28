@@ -9,7 +9,6 @@ import os
 import torch
 import time
 import logging
-import json
 from PIL import Image
 from typing import List
 from aiohttp import web
@@ -29,6 +28,7 @@ from .utils import (
     remove_file_logger,
     count_valuable_text,
     rgb2hex,
+    get_color_name,
 )
 
 from .detection import DETECTORS, dispatch as dispatch_detection, prepare as prepare_detection
@@ -385,7 +385,7 @@ class MangaTranslator():
                 else:
                     idx += 1
             else:
-                cached_colors.append((fg_rgb, self._get_color_name(fg_rgb)))
+                cached_colors.append((fg_rgb, get_color_name(fg_rgb)))
 
             return idx + 1, cached_colors[idx][1]
 
@@ -405,18 +405,6 @@ class MangaTranslator():
 
         with open(output_file, 'a', encoding='utf-8') as f:
             f.write(s)
-
-    def _get_color_name(self, rgb: List[int]) -> str:
-        try:
-            # TODO: Maybe replace with offline alternative
-            url = f'https://www.thecolorapi.com/id?format=json&rgb={rgb[0]},{rgb[1]},{rgb[2]}'
-            response = requests.get(url)
-            if response.status_code == 200:
-                return json.loads(response.text)['name']['value']
-            else:
-                return 'Unnamed'
-        except Exception:
-            return 'Unnamed'
 
     async def _run_upscaling(self, ctx: Context):
         return (await dispatch_upscaling(ctx.upscaler, [ctx.input], ctx.upscale_ratio, self.device))[0]
