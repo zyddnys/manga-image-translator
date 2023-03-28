@@ -6,9 +6,9 @@ import time
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY
 
-GPT3_PROMPT_TEMPLATE = 'Please help me to translate the following text from a manga to {to_lang}:\n'
+SIMPLE_PROMPT_TEMPLATE = 'Please help me to translate the following text from a manga to {to_lang}:\n'
 
-GPT35_PROMPT_TEMPLATE = '''Please help me translate the following text from a manga into {to_lang}:
+COMPLEX_PROMPT_TEMPLATE = '''Please help me translate the following text from a manga into {to_lang}:
 You must follow the format below for your reply.
 The content you need to translate will start with "Text" followed by a number. The text to be translated will be on the next line.
 For example:
@@ -64,7 +64,7 @@ class GPT3Translator(CommonTranslator):
     _INVALID_REPEAT_COUNT = 2 # repeat max. 2 times if invalid
     _REQUESTS_PER_MINUTE = 20
 
-    PROMPT_TEMPLATE = GPT3_PROMPT_TEMPLATE
+    PROMPT_TEMPLATE = SIMPLE_PROMPT_TEMPLATE
 
     def __init__(self):
         super().__init__()
@@ -123,7 +123,7 @@ class GPT3Translator(CommonTranslator):
 
 class GPT35TurboTranslator(GPT3Translator):
     _REQUESTS_PER_MINUTE = 200
-    PROMPT_TEMPLATE = GPT35_PROMPT_TEMPLATE
+    PROMPT_TEMPLATE = SIMPLE_PROMPT_TEMPLATE
 
     async def _request_translation(self, prompt: str) -> str:
         messages = [
