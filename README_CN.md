@@ -162,9 +162,17 @@ VIN: Vietnames
                                              additional typesetting. Ignores some other argument
                                              options.
     --capitalize                             Capitalize rendered text
+    --chatgpt-prompt-file CHATGPT_PROMPT_FILE
+                                             Prepends contents of the specified file to the chatgpt
+                                             prompt. Denote the target language with "{lang}".
     --mtpe                                   Turn on/off machine translation post editing (MTPE) on
                                              the command line (works only on linux right now)
-    --text-output-file TEXT_OUTPUT_FILE      File into which to save extracted text and translations
+    --text-output-file TEXT_OUTPUT_FILE      File into which to save extracted text and
+                                             translations. Use "output" to default to
+                                             "_translations.txt" in the image output directory.
+    --prep-manual                            Prepare for manual typesetting by outputting blank,
+                                             inpainted images, plus copies of the original for
+                                             reference
     --font-path FONT_PATH                    Path to font file
     --host HOST                              Used by web module to decide which host to attach to
     --port PORT                              Used by web module to decide which port to attach to
