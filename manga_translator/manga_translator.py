@@ -11,6 +11,7 @@ import time
 import logging
 import json
 from PIL import Image
+from typing import List
 from aiohttp import web
 from marshmallow import Schema, fields, ValidationError
 
@@ -27,6 +28,7 @@ from .utils import (
     add_file_logger,
     remove_file_logger,
     count_valuable_text,
+    rgb2hex,
 )
 
 from .detection import DETECTORS, dispatch as dispatch_detection, prepare as prepare_detection
@@ -372,14 +374,28 @@ class MangaTranslator():
         self.add_progress_hook(ph)
 
     def save_text_to_file(self, ctx: Context, image_name: str):
-        speakers = []
+        cached_colors = []
+
+        def identify_colors(fg_rgb: List[int]):
+            idx = 0
+            for rgb, _ in cached_colors:
+                # If similar color already saved
+                if abs(rgb[0] - fg_rgb[0]) + abs(rgb[1] - fg_rgb[1]) + abs(rgb[2] - fg_rgb[2]) < 50:
+                    break
+                else:
+                    idx += 1
+            else:
+                cached_colors.append((fg_rgb, self._get_color_name(fg_rgb)))
+
+            return idx + 1, cached_colors[idx][1]
+
         s = f'\n[{image_name}]\n'
         for i, region in enumerate(ctx.text_regions):
             fore, back = region.get_font_colors()
-            speaker_id, color_name = self._identify_speaker(speakers, fore)
+            color_id, color_name = identify_colors(fore)
 
-            s += f'\n-- {i+1} --:\n'
-            s += f'color #{speaker_id}: {color_name} (FG{fore} BG{back})\n'
+            s += f'\n-- {i+1} --\n'
+            s += f'color #{color_id}: {color_name} (fg, bg: {rgb2hex(*fore)} {rgb2hex(*back)})\n'
             s += f'text: {region.get_text()}\ntrans: {region.translation}'
         s += '\n\n'
 
@@ -390,22 +406,9 @@ class MangaTranslator():
         with open(output_file, 'a', encoding='utf-8') as f:
             f.write(s)
 
-    def _identify_speaker(self, known_speakers: list[(list[int],str)], fg_rgb: list[int]) -> (int, str):
-        idx = 0
-        for rgb, _ in known_speakers:
-            if abs(rgb[0] - fg_rgb[0]) + abs(rgb[1] - fg_rgb[1]) + abs(rgb[2] - fg_rgb[2]) < 50:
-                break
-            else:
-                idx = idx + 1
-
-        speaker_id = idx + 1
-        if idx == len(known_speakers):
-            known_speakers.append((fg_rgb, self._get_color_name(fg_rgb)))
-
-        return (speaker_id, known_speakers[idx][1])
-
-    def _get_color_name(self, rgb: list[int]) -> str:
+    def _get_color_name(self, rgb: List[int]) -> str:
         try:
+            # TODO: Maybe replace with offline alternative
             url = f'https://www.thecolorapi.com/id?format=json&rgb={rgb[0]},{rgb[1]},{rgb[2]}'
             response = requests.get(url)
             if response.status_code == 200:

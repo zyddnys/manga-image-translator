@@ -776,6 +776,12 @@ def color_difference(rgb1: List, rgb2: List) -> float:
     diff = np.linalg.norm(diff, axis=2) 
     return diff.item()
 
+def rgb2hex(r,g,b):
+    return "#{:02x}{:02x}{:02x}".format(r,g,b)
+
+def hex2rgb(hexcode):
+    return tuple(map(ord,hexcode[1:].decode('hex')))
+
 def square_pad_resize(img: np.ndarray, tgt_size: int):
     h, w = img.shape[:2]
     pad_h, pad_w = 0, 0
