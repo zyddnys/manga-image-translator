@@ -149,6 +149,7 @@ VIN: Vietnames
     --text-threshold TEXT_THRESHOLD          Threshold for text detection
     --text-mag-ratio TEXT_MAG_RATIO          Text rendering magnification ratio, larger means higher
                                              quality
+    --font-size FONT_SIZE                    Use fixed font size for rendering
     --font-size-offset FONT_SIZE_OFFSET      Offset font size by a given amount, positive number
                                              increase font size and vice versa
     --font-size-minimum FONT_SIZE_MINIMUM    Minimum output font size. Default is smallest-image-
@@ -158,8 +159,8 @@ VIN: Vietnames
     --align-left                             Align rendered text left
     --align-center                           Align rendered text centered
     --align-right                            Align rendered text right
-    --upper                                  Change text to lowercase
-    --lower                                  Change text to uppercase
+    --uppercase                              Change text to uppercase
+    --lowercase                              Change text to lowercase
     --manga2eng                              Render english text translated from manga with some
                                              additional typesetting. Ignores some other argument
                                              options
