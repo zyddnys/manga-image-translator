@@ -306,9 +306,9 @@ class MangaTranslator():
             return ctx
 
         for region, translation in zip(ctx.text_regions, translated_sentences):
-            if ctx.upper:
+            if ctx.uppercase:
                 translation = translation.upper()
-            elif ctx.lower:
+            elif ctx.lowercase:
                 translation = translation.upper()
             region.translation = translation
             region.target_lang = ctx.target_lang

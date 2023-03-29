@@ -111,6 +111,7 @@ parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to
 parser.add_argument('--box-threshold', default=0.7, type=float, help='Threshold for bbox generation')
 parser.add_argument('--text-threshold', default=0.5, type=float, help='Threshold for text detection')
 parser.add_argument('--text-mag-ratio', default=1, type=int, help='Text rendering magnification ratio, larger means higher quality')
+parser.add_argument('--font-size', default=0, type=int, help='Use fixed font size for rendering')
 parser.add_argument('--font-size-offset', default=0, type=int, help='Offset font size by a given amount, positive number increase font size and vice versa')
 parser.add_argument('--font-size-minimum', default=-1, type=int, help='Minimum output font size. Default is smallest-image-side/200')
 
@@ -124,8 +125,8 @@ g.add_argument('--align-center', action='store_true', help='Align rendered text 
 g.add_argument('--align-right', action='store_true', help='Align rendered text right')
 
 g = parser.add_mutually_exclusive_group()
-g.add_argument('--upper', action='store_true', help='Change text to lowercase')
-g.add_argument('--lower', action='store_true', help='Change text to uppercase')
+g.add_argument('--uppercase', action='store_true', help='Change text to uppercase')
+g.add_argument('--lowercase', action='store_true', help='Change text to lowercase')
 
 parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some additional typesetting. Ignores some other argument options')
 parser.add_argument('--chatgpt-prompt-file', type=file_path, help='Prepends contents of the specified file to the chatgpt prompt. Denote the target language with "{lang}"')
