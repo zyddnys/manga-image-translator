@@ -46,7 +46,7 @@ def load_ldm_sd(model, path) :
 class StableDiffusionInpainter(OfflineInpainter):
     _MODEL_MAPPING = {
         'model_grapefruit': {
-            'url': 'https://civitai.com/api/download/models/16849',
+            'url': 'https://civitai.com/api/download/models/29179',
             'hash': '8729c2d67e149cc5e0a144b6d21f4cd608f48b1a9097ef046e224bdba243def3',
             'file': 'grapefruitHentaiModel_grapefruitv41_inpainting.safetensors',
         },
