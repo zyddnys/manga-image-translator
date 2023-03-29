@@ -367,7 +367,7 @@ class MangaTranslator():
 
         self.add_progress_hook(ph)
 
-    def save_text_to_file(self, ctx: Context, image_name: str):
+    def save_text_to_file(self, ctx: Context, image_path: str):
         cached_colors = []
 
         def identify_colors(fg_rgb: List[int]):
@@ -383,19 +383,20 @@ class MangaTranslator():
 
             return idx + 1, cached_colors[idx][1]
 
-        s = f'\n[{image_name}]\n'
+        s = f'\n[{image_path}]\n'
         for i, region in enumerate(ctx.text_regions):
             fore, back = region.get_font_colors()
             color_id, color_name = identify_colors(fore)
 
             s += f'\n-- {i+1} --\n'
-            s += f'color #{color_id}: {color_name} (fg, bg: {rgb2hex(*fore)} {rgb2hex(*back)})\n'
-            s += f'text: {region.get_text()}\ntrans: {region.translation}'
+            s += f'color: #{color_id}: {color_name} (fg, bg: {rgb2hex(*fore)} {rgb2hex(*back)})\n'
+            s += f'text:  {region.get_text()}\n'
+            s += f'trans: {region.translation}'
         s += '\n\n'
 
         text_output_file = ctx.text_output_file
         if not text_output_file:
-            text_output_file = os.path.join(os.path.dirname(image_name), '_translations.txt')
+            text_output_file = os.path.join(os.path.dirname(image_path), '_translations.txt')
 
         with open(text_output_file, 'a', encoding='utf-8') as f:
             f.write(s)
