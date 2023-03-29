@@ -279,18 +279,18 @@ VIN: Vietnames
     --align-left                             Align rendered text left
     --align-center                           Align rendered text centered
     --align-right                            Align rendered text right
+    --upper                                  Change text to lowercase
+    --lower                                  Change text to uppercase
     --manga2eng                              Render english text translated from manga with some
                                              additional typesetting. Ignores some other argument
-                                             options.
-    --capitalize                             Capitalize rendered text
+                                             options
     --chatgpt-prompt-file CHATGPT_PROMPT_FILE
                                              Prepends contents of the specified file to the chatgpt
-                                             prompt. Denote the target language with "{lang}".
+                                             prompt. Denote the target language with "{lang}"
     --mtpe                                   Turn on/off machine translation post editing (MTPE) on
                                              the command line (works only on linux right now)
-    --text-output-file TEXT_OUTPUT_FILE      File into which to save extracted text and
-                                             translations. Use "output" to default to
-                                             "_translations.txt" in the image output directory.
+    --save-text                              Save extracted text and translations into a text file.
+    --save-text-file SAVE_TEXT_FILE          Like --save-text but with a specified file path.
     --prep-manual                            Prepare for manual typesetting by outputting blank,
                                              inpainted images, plus copies of the original for
                                              reference
