@@ -142,7 +142,6 @@ class MangaTranslator():
                     except Exception:
                         pass
                     if img:
-                        print()
                         logger.info(f'Processing {file_path} -> {output_dest}')
                         translation_dict = await self.translate(img, params)
                         if not translation_dict.text_regions:
@@ -152,10 +151,13 @@ class MangaTranslator():
                         if result:
                             result.save(output_dest)
                             await self._report_progress('saved', True)
-                        if translation_dict.text_output_file and translation_dict.text_regions:
+                        
+                        save_text_to_file = translation_dict.save_text or translation_dict.save_text_file or translation_dict.prep_manual
+                        if save_text_to_file and translation_dict.text_regions:
                             if translation_dict.prep_manual:
-                                dotidx = f.rindex('.')
-                                img_filename = f[:dotidx] + '-orig' + f[dotidx:]
+                                # Save original image next to translated
+                                p, ext = os.path.splitext(f)
+                                img_filename = p + '-orig' + ext
                                 img_path = os.path.join(dest_root, img_filename)
                                 img.save(img_path)
                             self.save_text_to_file(translation_dict, output_dest)
@@ -199,7 +201,9 @@ class MangaTranslator():
                 ctx.alignment = 'right'
             else:
                 ctx.alignment = 'auto'
-        ctx.setdefault('renderer', 'manga2eng' if ctx['manga2eng'] else 'default')
+        if ctx.prep_manual:
+            ctx.renderer = 'none'
+        ctx.setdefault('renderer', 'manga2eng' if ctx.manga2eng else 'default')
         if ctx.selective_translation is not None:
             ctx.selective_translation.target_lang = ctx.target_lang
             ctx.translator = ctx.selective_translation
@@ -245,7 +249,7 @@ class MangaTranslator():
                     raise
                 else:
                     logger.error(f'{e.__class__.__name__}: {e}',
-                                exc_info=e if self.verbose else None)
+                                 exc_info=e if self.verbose else None)
             attempts += 1
         return ctx
 
@@ -271,15 +275,11 @@ class MangaTranslator():
         if not ctx.text_regions:
             await self._report_progress('skip-no-regions', True)
             return ctx
-        if ctx.run_until == 'detection':
-            return ctx
 
         await self._report_progress('ocr')
         ctx.text_regions = await self._run_ocr(ctx)
         if not ctx.text_regions:
             await self._report_progress('skip-no-text', True)
-            return ctx
-        if ctx.run_until == 'ocr':
             return ctx
 
         # Delayed mask refinement to take advantage of the region filtering done by ocr
@@ -297,32 +297,26 @@ class MangaTranslator():
 
         if self.verbose:
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR))
-        if ctx.run_until == 'inpainting':
-            return ctx
 
         await self._report_progress('translating')
         translated_sentences = await self._run_text_translation(ctx)
-        ctx.translated_sentences = translated_sentences
 
         if not translated_sentences:
             await self._report_progress('error-translating', True)
             return ctx
-        if ctx.run_until == 'translation':
-            return ctx
 
-        await self._report_progress('rendering')
         for region, translation in zip(ctx.text_regions, translated_sentences):
-            if ctx.capitalize:
+            if ctx.upper:
+                translation = translation.upper()
+            elif ctx.lower:
                 translation = translation.upper()
             region.translation = translation
             region.target_lang = ctx.target_lang
             region._alignment = ctx.alignment
             region._direction = ctx.direction
 
-        if not ctx.prep_manual:
-            ctx.img_rendered = await self._run_text_rendering(ctx)
-        else:
-            ctx.img_rendered = ctx.img_inpainted
+        await self._report_progress('rendering')
+        ctx.img_rendered = await self._run_text_rendering(ctx)
 
         await self._report_progress('finished', True)
         ctx.result = dump_image(ctx.img_rendered, ctx.img_alpha)
@@ -399,11 +393,11 @@ class MangaTranslator():
             s += f'text: {region.get_text()}\ntrans: {region.translation}'
         s += '\n\n'
 
-        output_file = ctx.text_output_file
-        if output_file == 'output':
-            output_file = os.path.join(os.path.dirname(image_name), '_translations.txt')
+        text_output_file = ctx.text_output_file
+        if not text_output_file:
+            text_output_file = os.path.join(os.path.dirname(image_name), '_translations.txt')
 
-        with open(output_file, 'a', encoding='utf-8') as f:
+        with open(text_output_file, 'a', encoding='utf-8') as f:
             f.write(s)
 
     async def _run_upscaling(self, ctx: Context):
@@ -432,8 +426,10 @@ class MangaTranslator():
                                           'cpu' if self._cuda_limited_memory else self.device)
 
     async def _run_text_rendering(self, ctx: Context):
+        if ctx.renderer == 'none':
+            output = ctx.img_inpainted
         # manga2eng currently only supports horizontal rendering
-        if ctx.renderer == 'manga2eng' and ctx.text_regions and LANGAUGE_ORIENTATION_PRESETS.get(ctx.text_regions[0].target_lang) == 'h':
+        elif ctx.renderer == 'manga2eng' and ctx.text_regions and LANGAUGE_ORIENTATION_PRESETS.get(ctx.text_regions[0].target_lang) == 'h':
             output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, ctx.font_path)
         else:
             output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, ctx.text_mag_ratio, ctx.font_path, ctx.font_size_offset,
@@ -697,17 +693,25 @@ class MangaTranslatorAPI(MangaTranslator):
         self.params = translation_params
         app = web.Application(client_max_size=1024 * 1024 * 50)
         routes = web.RouteTableDef()
+        run_until_state = ''
 
-        @routes.post("/translate")
-        async def translate_api(req):
-            return await self.err_handling(self.translate_exec, req, self.format_translate)
+        def ph(state, finished):
+            if run_until_state and run_until_state == state and not finished:
+                raise KeyboardInterrupt()
 
         @routes.post("/get_text")
         async def text_api(req):
+            run_until_state = 'ocr'
             return await self.err_handling(self.texts_exec, req, self.format_translate)
+
+        @routes.post("/translate")
+        async def translate_api(req):
+            run_until_state = 'translating'
+            return await self.err_handling(self.translate_exec, req, self.format_translate)
 
         @routes.post("/inpaint_translate")
         async def inpaint_translate_api(req):
+            run_until_state = 'inpainting'
             return await self.err_handling(self.inpaint_translate_exec, req, self.format_translate)
 
         #@routes.post("/file")
@@ -719,15 +723,12 @@ class MangaTranslatorAPI(MangaTranslator):
         web.run_app(app, host=self.host, port=self.port)
 
     async def texts_exec(self, translation_params, img):
-        translation_params['run_until'] = 'ocr'
         return await self.translate(img, translation_params)
 
     async def translate_exec(self, translation_params, img):
-        translation_params['run_until'] = 'translate'
         return await self.translate(img, translation_params)
 
     async def inpaint_translate_exec(self, translation_params, img):
-        translation_params['run_until'] = 'inpainting'
         return await self.translate(img, translation_params)
 
     async def file_exec(self, translation_params, img):
@@ -764,19 +765,14 @@ class MangaTranslatorAPI(MangaTranslator):
             return web.json_response({'error': "Input invalid", 'status': 422}, status=422)
 
 
-    def format_translate(self, data: Context):
-        text_regions = data.text_regions
-        inpaint = data.img_inpainted
-        translated_sentences = data.translated_sentences
+    def format_translate(self, ctx: Context):
+        text_regions = ctx.text_regions
+        inpaint = ctx.img_inpainted
         results = []
         for i, blk in enumerate(text_regions):
             minX, minY, maxX, maxY = blk.xyxy
-            text = str(text_regions[i].get_text())
-            if translated_sentences is None or translated_sentences[i] is None:
-                trans = None
-            else:
-                trans = translated_sentences[i]
-
+            text = text_regions[i].get_text()
+            trans = text_regions[i].translation
             overlay = inpaint[minY:maxY, minX:maxX]
             retval, buffer = cv2.imencode('.jpg', overlay)
             jpg_as_text = base64.b64encode(buffer)

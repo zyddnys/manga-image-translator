@@ -123,11 +123,18 @@ g.add_argument('--align-left', action='store_true', help='Align rendered text le
 g.add_argument('--align-center', action='store_true', help='Align rendered text centered')
 g.add_argument('--align-right', action='store_true', help='Align rendered text right')
 
-parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some additional typesetting. Ignores some other argument options.')
-parser.add_argument('--capitalize', action='store_true', help='Capitalize rendered text')
-parser.add_argument('--chatgpt-prompt-file', type=file_path, help='Prepends contents of the specified file to the chatgpt prompt. Denote the target language with "{lang}".')
+g = parser.add_mutually_exclusive_group()
+g.add_argument('--upper', action='store_true', help='Change text to lowercase')
+g.add_argument('--lower', action='store_true', help='Change text to uppercase')
+
+parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some additional typesetting. Ignores some other argument options')
+parser.add_argument('--chatgpt-prompt-file', type=file_path, help='Prepends contents of the specified file to the chatgpt prompt. Denote the target language with "{lang}"')
 parser.add_argument('--mtpe', action='store_true', help='Turn on/off machine translation post editing (MTPE) on the command line (works only on linux right now)')
-parser.add_argument('--text-output-file', default='', type=str, help='File into which to save extracted text and translations. Use "output" to default to "_translations.txt" in the image output directory.')
+
+g = parser.add_mutually_exclusive_group()
+g.add_argument('--save-text', action='store_true', help='Save extracted text and translations into a text file.')
+g.add_argument('--save-text-file', default='', type=str, help='Like --save-text but with a specified file path.')
+
 parser.add_argument('--prep-manual', action='store_true', help='Prepare for manual typesetting by outputting blank, inpainted images, plus copies of the original for reference')
 parser.add_argument('--font-path', default='', type=file_path, help='Path to font file')
 parser.add_argument('--host', default='127.0.0.1', type=str, help='Used by web module to decide which host to attach to')
