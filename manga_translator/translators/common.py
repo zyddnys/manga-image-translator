@@ -236,7 +236,11 @@ class CommonTranslator(InfererModule):
         # '  ' -> ' '
         trans = re.sub(r'\s+', r' ', trans)
         # 'text .' -> 'text.'
-        trans = re.sub(r'\s+([.,;])', r'\1', trans)
+        trans = re.sub(r'\s+([.,;!?])', r'\1', trans)
+        # 'text.text' -> 'text. text'
+        trans = re.sub(r'([.,;!?])(?=\w)', r'\1 ', trans)
+        # ' ! ! . . ' -> ' !!.. '
+        trans = re.sub(r'([.,;!?])\s+(?=[.,;!?]|$)', r'\1', trans)
 
         seq = repeating_sequence(trans.lower())
 
@@ -249,9 +253,6 @@ class CommonTranslator(InfererModule):
             for i in range(min(len(trans), len(query))):
                 nTrans += trans[i].upper() if query[i].isupper() else trans[i]
             trans = nTrans
-
-        # ' ! ! . . ' -> ' !!.. '
-        trans = re.sub(r'([.!?])\s+(?=[.!?]|$)', r'\1', trans)
 
         # words = text.split()
         # elements = list(set(words))
