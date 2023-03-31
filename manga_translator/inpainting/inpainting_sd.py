@@ -46,9 +46,9 @@ def load_ldm_sd(model, path) :
 class StableDiffusionInpainter(OfflineInpainter):
     _MODEL_MAPPING = {
         'model_grapefruit': {
-            'url': 'https://civitai.com/api/download/models/29179',
-            'hash': '8729c2d67e149cc5e0a144b6d21f4cd608f48b1a9097ef046e224bdba243def3',
-            'file': 'grapefruitHentaiModel_grapefruitv41_inpainting.safetensors',
+            'url': 'https://civitai.com/api/download/models/8364',
+            'hash': 'dd680bd77d553e095faf58ff8c12584efe2a9b844e18bcc6ba2a366b85caceb8',
+            'file': 'abyssorangemix2_Hard-inpainting.safetensors',
         },
         'model_wd_swinv2': {
             'url': 'https://huggingface.co/SmilingWolf/wd-v1-4-swinv2-tagger-v2/resolve/main/model.onnx',
@@ -69,7 +69,7 @@ class StableDiffusionInpainter(OfflineInpainter):
     async def _load(self, device: str):
         self.tagger = Tagger(self._get_file_path('wd_swinv2.onnx'))
         self.model = create_model('manga_translator/inpainting/guided_ldm_inpaint9_v15.yaml').cuda()
-        load_ldm_sd(self.model, self._get_file_path('grapefruitHentaiModel_grapefruitv41_inpainting.safetensors'))
+        load_ldm_sd(self.model, self._get_file_path('abyssorangemix2_Hard-inpainting.safetensors'))
         hack_everything()
         self.model.eval()
         self.use_cuda = device == 'cuda'
@@ -105,7 +105,7 @@ class StableDiffusionInpainter(OfflineInpainter):
             image = cv2.resize(image, (new_w, new_h), interpolation = cv2.INTER_LINEAR)
             mask = cv2.resize(mask, (new_w, new_h), interpolation = cv2.INTER_LINEAR)
         self.logger.info(f'Inpainting resolution: {new_w}x{new_h}')
-        tags = self.tagger.label_cv2_bgr(image)
+        tags = self.tagger.label_cv2_bgr(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
         self.logger.info(f'tags={list(tags.keys())}')
         blacklist = set()
         pos_prompt = ','.join([x for x in tags.keys() if x not in blacklist]).replace('_', ' ')

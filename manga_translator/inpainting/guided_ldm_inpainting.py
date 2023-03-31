@@ -196,11 +196,10 @@ class GuidedLDM(LatentDiffusion):
         nmask = torch.asarray(latmask).to(init_latent.device).float()
         init_latent = (1 - nmask) * init_latent + nmask * torch.randn_like(init_latent)
         denoising_strength = 1
-        image_cdt = get_inpainting_image_condition(self, image, image_mask)
-        cond["c_concat"] = [image_cdt]
-        uc_cond["c_concat"] = [image_cdt]
-        self.model.conditioning_key = 'hybrid'
-        
+        if self.model.conditioning_key == 'hybrid' :
+            image_cdt = get_inpainting_image_condition(self, image, image_mask)
+            cond["c_concat"] = [image_cdt]
+            uc_cond["c_concat"] = [image_cdt]        
         
         steps = ddim_steps
         t_enc = int(min(denoising_strength, 0.999) * steps)
