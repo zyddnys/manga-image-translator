@@ -268,8 +268,6 @@ VIN: Vietnames
     --unclip-ratio UNCLIP_RATIO              How much to extend text skeleton to form bounding box
     --box-threshold BOX_THRESHOLD            Threshold for bbox generation
     --text-threshold TEXT_THRESHOLD          Threshold for text detection
-    --text-mag-ratio TEXT_MAG_RATIO          Text rendering magnification ratio, larger means higher
-                                             quality
     --font-size FONT_SIZE                    Use fixed font size for rendering
     --font-size-offset FONT_SIZE_OFFSET      Offset font size by a given amount, positive number
                                              increase font size and vice versa
