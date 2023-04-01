@@ -54,6 +54,13 @@ def set_main_logger(l):
     global logger
     logger = l
 
+class TranslationInterrupt(Exception):
+    """
+    Can be raised from within a progress hook to prematurely terminate
+    the translation
+    """
+    pass
+
 class MangaTranslator():
 
     def __init__(self, params: dict = None):
@@ -240,6 +247,8 @@ class MangaTranslator():
 
                 # translate
                 return await self._translate(ctx)
+            except TranslationInterrupt:
+                break
             except Exception as e:
                 if isinstance(e, LanguageUnsupportedException):
                     await self._report_progress('error-lang', True)
@@ -697,7 +706,7 @@ class MangaTranslatorAPI(MangaTranslator):
 
         def ph(state, finished):
             if run_until_state and run_until_state == state and not finished:
-                raise KeyboardInterrupt()
+                raise TranslationInterrupt()
 
         @routes.post("/get_text")
         async def text_api(req):

@@ -31,9 +31,11 @@ async def dispatch(args: Namespace):
             dest = args.dest
         translator = MangaTranslator(args_dict)
         await translator.translate_path(args.input, dest, args_dict)
+
     elif args.mode == 'api':
         translator = MangaTranslatorAPI(args_dict)
         await translator.listen(args_dict)
+
     elif args.mode == 'web':
         from .server.web_main import dispatch
         await dispatch(args.host, args.port, translation_params=args_dict)
