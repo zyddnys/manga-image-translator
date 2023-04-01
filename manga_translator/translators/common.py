@@ -233,7 +233,6 @@ class CommonTranslator(InfererModule):
         if not query or not trans:
             return ''
 
-        print(trans)
         # '  ' -> ' '
         trans = re.sub(r'\s+', r' ', trans)
         # 'text .' -> 'text.'
