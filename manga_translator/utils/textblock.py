@@ -106,6 +106,7 @@ class TextBlock(object):
 
     @cached_property
     def xyxy(self):
+        """Coordinates of the bounding box"""
         x1 = self.lines[..., 0].min()
         y1 = self.lines[..., 1].min()
         x2 = self.lines[..., 0].max()
@@ -114,8 +115,8 @@ class TextBlock(object):
 
     @cached_property
     def xywh(self):
-        x, y, w, h = self.xyxy
-        return [x, y, w-x, h-y]
+        x1, y1, x2, y2 = self.xyxy
+        return [x1, y1, x2-x1, y2-y1]
 
     @cached_property
     def center(self) -> np.ndarray:
@@ -128,6 +129,16 @@ class TextBlock(object):
         if self.angle != 0:
             polygons = rotate_polygons(self.center, polygons, self.angle)
         return polygons
+
+    @cached_property
+    def unrotated_min_rect(self) -> np.ndarray:
+        polygons = self.unrotated_polygons
+        min_x = polygons[:, ::2].min()
+        min_y = polygons[:, 1::2].min()
+        max_x = polygons[:, ::2].max()
+        max_y = polygons[:, 1::2].max()
+        min_bbox = np.array([[min_x, min_y, max_x, min_y, max_x, max_y, min_x, max_y]])
+        return min_bbox.reshape(-1, 4, 2).astype(np.int64)
 
     @cached_property
     def min_rect(self) -> np.ndarray:
@@ -151,12 +162,17 @@ class TextBlock(object):
         return np.mean(norm_h / norm_v)
 
     @cached_property
+    def unrotated_size(self) -> Tuple[int, int]:
+        """Returns width and height of unrotated bbox"""
+        middle_pts = (self.min_rect[:, [1, 2, 3, 0]] + self.min_rect) / 2
+        norm_h = np.linalg.norm(middle_pts[:, 1] - middle_pts[:, 3])
+        norm_v = np.linalg.norm(middle_pts[:, 2] - middle_pts[:, 0])
+        return norm_h, norm_v
+
+    @cached_property
     def aspect_ratio(self) -> float:
         """width / height"""
-        middle_pts = (self.min_rect[:, [1, 2, 3, 0]] + self.min_rect) / 2
-        norm_v = np.linalg.norm(middle_pts[:, 2] - middle_pts[:, 0])
-        norm_h = np.linalg.norm(middle_pts[:, 1] - middle_pts[:, 3])
-        return norm_h / norm_v
+        return self.unrotated_size[0] / self.unrotated_size[1]
 
     @property
     def polygon_object(self) -> Polygon:
@@ -313,6 +329,8 @@ class TextBlock(object):
 
 
 def rotate_polygons(center, polygons, rotation, new_center=None, to_int=True):
+    if rotation == 0:
+        return polygons
     if new_center is None:
         new_center = center
     rotation = np.deg2rad(rotation)

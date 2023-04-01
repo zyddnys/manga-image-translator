@@ -380,7 +380,6 @@ class MangaTranslator():
                     idx += 1
             else:
                 cached_colors.append((fg_rgb, get_color_name(fg_rgb)))
-
             return idx + 1, cached_colors[idx][1]
 
         s = f'\n[{image_path}]\n'
@@ -433,8 +432,8 @@ class MangaTranslator():
         elif ctx.renderer == 'manga2eng' and ctx.text_regions and LANGAUGE_ORIENTATION_PRESETS.get(ctx.text_regions[0].target_lang) == 'h':
             output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, ctx.font_path)
         else:
-            output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, ctx.text_mag_ratio, ctx.font_path, ctx.font_size_offset,
-                                              ctx.font_size_minimum, rearrange_regions=(ctx.inpainter != 'none'), render_mask=ctx.render_mask)
+            output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, ctx.font_path, ctx.font_size, ctx.font_size_offset,
+                                              ctx.font_size_minimum, ctx.render_mask)
         return output
 
 

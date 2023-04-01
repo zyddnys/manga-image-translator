@@ -277,6 +277,8 @@ def put_text_vertical(font_size: int, text: str, h: int, alignment: str, fg: Tup
     canvas_x = font_size * num_char_x + spacing_x * (num_char_x - 1) + (font_size + bg_size) * 2
     canvas_y = font_size * num_char_y + (font_size + bg_size) * 2
     line_text_list, line_height_list = calc_vertical(font_size, text, h)
+    # print(line_text_list, line_height_list)
+
     canvas_text = np.zeros((canvas_y, canvas_x), dtype=np.uint8)
     canvas_border = canvas_text.copy()
 

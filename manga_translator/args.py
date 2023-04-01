@@ -110,8 +110,7 @@ parser.add_argument('--inpainting-size', default=2048, type=int, help='Size of i
 parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to extend text skeleton to form bounding box')
 parser.add_argument('--box-threshold', default=0.7, type=float, help='Threshold for bbox generation')
 parser.add_argument('--text-threshold', default=0.5, type=float, help='Threshold for text detection')
-parser.add_argument('--text-mag-ratio', default=1, type=int, help='Text rendering magnification ratio, larger means higher quality')
-parser.add_argument('--font-size', default=0, type=int, help='Use fixed font size for rendering')
+parser.add_argument('--font-size', default=None, type=int, help='Use fixed font size for rendering')
 parser.add_argument('--font-size-offset', default=0, type=int, help='Offset font size by a given amount, positive number increase font size and vice versa')
 parser.add_argument('--font-size-minimum', default=-1, type=int, help='Minimum output font size. Default is smallest-image-side/200')
 
