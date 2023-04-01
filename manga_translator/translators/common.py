@@ -233,14 +233,17 @@ class CommonTranslator(InfererModule):
         if not query or not trans:
             return ''
 
+        print(trans)
         # '  ' -> ' '
         trans = re.sub(r'\s+', r' ', trans)
         # 'text .' -> 'text.'
-        trans = re.sub(r'\s+([.,;!?])', r'\1', trans)
+        trans = re.sub(r'(?<=[.,;!?\w])\s+([.,;!?])', r'\1', trans)
         # 'text.text' -> 'text. text'
-        trans = re.sub(r'([.,;!?])(?=\w)', r'\1 ', trans)
+        trans = re.sub(r'(?<![.,;!?])([.,;!?])(?=\w)', r'\1 ', trans)
         # ' ! ! . . ' -> ' !!.. '
         trans = re.sub(r'([.,;!?])\s+(?=[.,;!?]|$)', r'\1', trans)
+        # ' ... text' -> ' ...text'
+        trans = re.sub(r'(?<=\s\.\.\.)\s+(?=\w)', r'', trans)
 
         seq = repeating_sequence(trans.lower())
 
