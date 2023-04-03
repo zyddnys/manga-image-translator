@@ -3,12 +3,12 @@ import base64
 import io
 import cv2
 import langid
-import numpy as np
 import requests
 import os
 import torch
 import time
 import logging
+import numpy as np
 from PIL import Image
 from typing import List
 from aiohttp import web
@@ -18,6 +18,7 @@ from .args import DEFAULT_ARGS
 from .utils import (
     BASE_PATH,
     LANGAUGE_ORIENTATION_PRESETS,
+    TextBlock,
     ModelWrapper,
     Context,
     load_image,
@@ -29,6 +30,7 @@ from .utils import (
     count_valuable_text,
     rgb2hex,
     get_color_name,
+    is_url,
 )
 
 from .detection import DETECTORS, dispatch as dispatch_detection, prepare as prepare_detection
@@ -419,10 +421,17 @@ class MangaTranslator():
 
     async def _run_ocr(self, ctx: Context):
         text_regions = await dispatch_ocr(ctx.ocr, ctx.img_rgb, ctx.text_regions, self.device, self.verbose)
-
-        # Filter regions by their text
-        text_regions = list(filter(lambda r: count_valuable_text(r.get_text()) > 1 and not r.get_text().isnumeric(), text_regions))
+        text_regions = self._filter_regions_by_text(text_regions)
         return text_regions
+
+    def _filter_regions_by_text(self, text_regions: List[TextBlock]):
+        new_text_regions = []
+        for region in text_regions:
+            if not region.get_text().isnumeric() \
+                and count_valuable_text(region.get_text()) > 1 \
+                and not is_url(region.get_text()):
+                new_text_regions.append(region)
+        return new_text_regions
 
     async def _run_mask_refinement(self, ctx: Context):
         return await dispatch_mask_refinement(ctx.text_regions, ctx.img_rgb, ctx.mask_raw, 'fit_text', self.verbose)
@@ -576,17 +585,18 @@ class MangaTranslatorWS(MangaTranslator):
 
         from .server import ws_pb2
 
+        async def sync_state(state, finished):
+            msg = ws_pb2.WebSocketMessage()
+            msg.status.id = self._task_id
+            msg.status.status = state
+            await websocket.send(msg.SerializeToString())
+
+        self.add_progress_hook(sync_state)
+
         async for websocket in websockets.connect(self.url, extra_headers={'x-secret': self.secret}, max_size=100_000_000):
             try:
                 logger.info('Connected to websocket server')
 
-                async def sync_state(state, finished):
-                    msg = ws_pb2.WebSocketMessage()
-                    msg.status.id = self._task_id
-                    msg.status.status = state
-                    await websocket.send(msg.SerializeToString())
-
-                self.add_progress_hook(sync_state)
 
                 async for raw in websocket:
                     msg = ws_pb2.WebSocketMessage()

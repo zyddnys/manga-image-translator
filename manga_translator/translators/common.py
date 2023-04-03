@@ -88,8 +88,9 @@ class MTPEAdapter():
         return new_translations
 
 class CommonTranslator(InfererModule):
-    # Translator has to support all languages listed in here. The language codes will be translated into
+    # Translator has to support all languages listed in here. The language codes will be resolved into
     # _LANGUAGE_CODE_MAP[lang_code] automatically if _LANGUAGE_CODE_MAP is a dict.
+    # If it is a list it will simply return the language code as is.
     _LANGUAGE_CODE_MAP = {}
 
     # The amount of repeats upon detecting an invalid translation.
@@ -166,16 +167,15 @@ class CommonTranslator(InfererModule):
             else:
                 translations = _translations
 
-            # Extend returned translations to have the same size as queries
+            # Extend returned translations list to have the same size as queries
             if len(translations) < len(queries):
                 translations.extend([''] * (len(queries) - len(translations)))
             elif len(translations) > len(queries):
                 translations = translations[:len(queries)]
 
+            # Repeat invalid translations with slightly modified queries
             if self._INVALID_REPEAT_COUNT <= 0:
                 break
-
-            # Repeat invalid translations with slightly modified queries
             n_unchecked_indices = []
             for j in unchecked_indices:
                 q, t = queries[j], translations[j]
