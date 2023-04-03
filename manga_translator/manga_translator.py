@@ -190,42 +190,12 @@ class MangaTranslator():
         # Turn dict to context to make values also accessible through params.<property>
         params = params or {}
         ctx = Context(**params)
+        self._preprocess_params(ctx)
 
-        # params auto completion
-        for arg in DEFAULT_ARGS:
-            ctx.setdefault(arg, DEFAULT_ARGS[arg])
-        if 'direction' not in ctx:
-            if ctx.force_horizontal:
-                ctx.direction = 'h'
-            elif ctx.force_vertical:
-                ctx.direction = 'v'
-            else:
-                ctx.direction = 'auto'
-        if 'alignment' not in ctx:
-            if ctx.align_left:
-                ctx.alignment = 'left'
-            elif ctx.align_center:
-                ctx.alignment = 'center'
-            elif ctx.align_right:
-                ctx.alignment = 'right'
-            else:
-                ctx.alignment = 'auto'
-        if ctx.prep_manual:
-            ctx.renderer = 'none'
-        ctx.setdefault('renderer', 'manga2eng' if ctx.manga2eng else 'default')
-        if ctx.selective_translation is not None:
-            ctx.selective_translation.target_lang = ctx.target_lang
-            ctx.translator = ctx.selective_translation
-        elif ctx.translator_chain is not None:
-            ctx.target_lang = ctx.translator_chain.langs[-1]
-            ctx.translator = ctx.translator_chain
-        else:
-            ctx.translator = TranslatorChain(f'{ctx.translator}:{ctx.target_lang}')
         if ctx.chatgpt_prompt_file:
             from .translators.chatgpt import set_global_prompt
             with open(ctx.chatgpt_prompt_file, 'r') as f:
                 set_global_prompt(f.read())
-
         if ctx.model_dir:
             ModelWrapper._MODEL_DIR = ctx.model_dir
 
@@ -263,6 +233,39 @@ class MangaTranslator():
                                  exc_info=e if self.verbose else None)
             attempts += 1
         return ctx
+
+    def _preprocess_params(self, ctx: Context):
+        # params auto completion
+        for arg in DEFAULT_ARGS:
+            ctx.setdefault(arg, DEFAULT_ARGS[arg])
+
+        if 'direction' not in ctx:
+            if ctx.force_horizontal:
+                ctx.direction = 'h'
+            elif ctx.force_vertical:
+                ctx.direction = 'v'
+            else:
+                ctx.direction = 'auto'
+        if 'alignment' not in ctx:
+            if ctx.align_left:
+                ctx.alignment = 'left'
+            elif ctx.align_center:
+                ctx.alignment = 'center'
+            elif ctx.align_right:
+                ctx.alignment = 'right'
+            else:
+                ctx.alignment = 'auto'
+        if ctx.prep_manual:
+            ctx.renderer = 'none'
+        ctx.setdefault('renderer', 'manga2eng' if ctx.manga2eng else 'default')
+        if ctx.selective_translation is not None:
+            ctx.selective_translation.target_lang = ctx.target_lang
+            ctx.translator = ctx.selective_translation
+        elif ctx.translator_chain is not None:
+            ctx.target_lang = ctx.translator_chain.langs[-1]
+            ctx.translator = ctx.translator_chain
+        else:
+            ctx.translator = TranslatorChain(f'{ctx.translator}:{ctx.target_lang}')
 
     async def _translate(self, ctx: Context) -> Context:
 
