@@ -186,7 +186,13 @@ Then you can find the translation result in `result/` directory, e.g. using Ngin
 | none           |         | ✔️      | Translate to empty texts                              |
 | original       |         | ✔️      | Keep original texts                                   |
 
-- API Key: Whether the translator requires an API key to be set as environment variable.
+- API Key: Whether the translator requires an API key to be set as environment variable. 
+For this you can create a .env file containing your api keys like so:
+```
+OPENAI_API_KEY=sk-xxxxxxx...
+DEEPL_AUTH_KEY=xxxxxxxx...
+```
+
 - Offline: Whether the translator can be used offline.
 
 ### Language Code Reference
