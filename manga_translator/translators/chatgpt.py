@@ -35,9 +35,13 @@ The instructions are over. Please translate the following content into {to_lang}
 '''
 
 PROMPT_OVERWRITE = None
-def set_global_prompt(prompt: str):
-    global PROMPT_OVERWRITE
+TEMPERATURE_OVERWRITE = 0.5
+def configure_chatgpt(prompt: str, temperature: float):
+    # I have decided to not add this as an translate() argument due to the other
+    # translators not being able to use this...
+    global PROMPT_OVERWRITE, TEMPERATURE_OVERWRITE
     PROMPT_OVERWRITE = prompt
+    TEMPERATURE_OVERWRITE = temperature
 
 class GPT3Translator(CommonTranslator):
     _LANGUAGE_CODE_MAP = {
@@ -64,7 +68,17 @@ class GPT3Translator(CommonTranslator):
     _INVALID_REPEAT_COUNT = 2 # repeat max. 2 times if invalid
     _REQUESTS_PER_MINUTE = 20
 
-    PROMPT_TEMPLATE = SIMPLE_PROMPT_TEMPLATE
+    _prompt_template = SIMPLE_PROMPT_TEMPLATE
+
+    @property
+    def prompt_template(self):
+        global PROMPT_OVERWRITE
+        return PROMPT_OVERWRITE or self._prompt_template
+
+    @property
+    def temperature(self):
+        global TEMPERATURE_OVERWRITE
+        return TEMPERATURE_OVERWRITE
 
     def __init__(self):
         super().__init__()
@@ -77,11 +91,6 @@ class GPT3Translator(CommonTranslator):
                 "https": "http://%s" % OPENAI_HTTP_PROXY
             }
             openai.proxy = proxies
-
-    @property
-    def prompt_template(self):
-        global PROMPT_OVERWRITE
-        return PROMPT_OVERWRITE or self.PROMPT_TEMPLATE
 
     async def _translate(self, from_lang, to_lang, queries):
         prompt = self.prompt_template.format(to_lang=to_lang)
@@ -116,7 +125,7 @@ class GPT3Translator(CommonTranslator):
             model='text-davinci-003',
             prompt=prompt,
             max_tokens=1024,
-            temperature=1,
+            temperature=self.temperature,
         )
         response = completion.choices[0].text
         return response
@@ -130,10 +139,11 @@ class GPT35TurboTranslator(GPT3Translator):
             {'role': 'system', 'content': 'You are a professional translator who will follow the required format for translation.'},
             {'role': 'user', 'content': prompt},
         ]
+        print(self.temperature)
         response = openai.ChatCompletion.create(
             model='gpt-3.5-turbo',
             messages=messages,
-            temperature=1,
+            temperature=self.temperature,
         )
         for choice in response.choices:
             if 'text' in choice:

@@ -129,6 +129,7 @@ g.add_argument('--lowercase', action='store_true', help='Change text to lowercas
 
 parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some additional typesetting. Ignores some other argument options')
 parser.add_argument('--chatgpt-prompt-file', type=file_path, help='Prepends contents of the specified file to the chatgpt prompt. Denote the target language with "{lang}"')
+parser.add_argument('--chatgpt-temperature', default=0.5, type=float, help='The chatgpt temperature. More means it is more creative.')
 parser.add_argument('--mtpe', action='store_true', help='Turn on/off machine translation post editing (MTPE) on the command line (works only on linux right now)')
 
 g = parser.add_mutually_exclusive_group()

@@ -193,9 +193,12 @@ class MangaTranslator():
         self._preprocess_params(ctx)
 
         if ctx.chatgpt_prompt_file:
-            from .translators.chatgpt import set_global_prompt
+            from .translators import chatgpt
             with open(ctx.chatgpt_prompt_file, 'r') as f:
-                set_global_prompt(f.read())
+                chatgpt.PROMPT_OVERWRITE = f.read()
+        if ctx.chatgpt_temperature:
+            from .translators import chatgpt
+            chatgpt.TEMPERATURE_OVERWRITE = ctx.chatgpt_temperature
         if ctx.model_dir:
             ModelWrapper._MODEL_DIR = ctx.model_dir
 

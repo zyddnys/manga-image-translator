@@ -292,6 +292,9 @@ VIN: Vietnames
     --chatgpt-prompt-file CHATGPT_PROMPT_FILE
                                              Prepends contents of the specified file to the chatgpt
                                              prompt. Denote the target language with "{lang}"
+    --chatgpt-temperature CHATGPT_TEMPERATURE
+                                             The chatgpt temperature. More means it is more
+                                             creative.
     --mtpe                                   Turn on/off machine translation post editing (MTPE) on
                                              the command line (works only on linux right now)
     --save-text                              Save extracted text and translations into a text file.
