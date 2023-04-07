@@ -338,7 +338,7 @@ class MangaTranslator():
         await self._report_progress('finished', True)
         ctx.result = dump_image(ctx.img_rendered, ctx.img_alpha)
 
-        if ctx.downscale:
+        if ctx.revert_upscaling:
             await self._report_progress('downscaling')
             ctx.result = ctx.result.resize(ctx.input.size)
 

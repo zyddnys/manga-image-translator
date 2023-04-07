@@ -100,7 +100,7 @@ g.add_argument('--use-cuda-limited', action='store_true', help='Turn on/off cuda
 
 parser.add_argument('--model-dir', default=None, type=str, help='Model directory (by default ./models in project root)')
 parser.add_argument('--retries', default=0, type=int, help='Retry attempts on encountered error. -1 means infinite times.')
-parser.add_argument('--downscale', action='store_true', help='Downscales resulting image to original image size (Use with --upscale-ratio).')
+parser.add_argument('--revert-upscaling', action='store_true', help='Downscales the previously upscaled image after translation back to original size (Use with --upscale-ratio).')
 parser.add_argument('--detection-size', default=1536, type=int, help='Size of image used for detection')
 parser.add_argument('--det-rotate', action='store_true', help='Rotate the image for detection. Might improve detection.')
 parser.add_argument('--det-auto-rotate', action='store_true', help='Rotate the image for detection to prefer vertical textlines. Might improve detection.')
