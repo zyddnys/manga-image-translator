@@ -258,8 +258,9 @@ VIN: Vietnames
     --model-dir MODEL_DIR                    Model directory (by default ./models in project root)
     --retries RETRIES                        Retry attempts on encountered error. -1 means infinite
                                              times.
-    --downscale                              Downscales resulting image to original image size (Use
-                                             with --upscale-ratio).
+    --revert-upscaling                       Downscales the previously upscaled image after
+                                             translation back to original size (Use with --upscale-
+                                             ratio).
     --detection-size DETECTION_SIZE          Size of image used for detection
     --det-rotate                             Rotate the image for detection. Might improve
                                              detection.
