@@ -358,12 +358,12 @@ class MangaTranslator():
         LOG_MESSAGES = {
             'upscaling':            'Running upscaling',
             'detection':            'Running text detection',
-            'ocr':                  'Running OCR',
+            'ocr':                  'Running ocr',
             'mask-generation':      'Running mask refinement',
-            'translating':          'Translating',
-            'rendering':            'Rendering translated text',
+            'translating':          'Running text translation',
+            'rendering':            'Running rendering',
             'downscaling':          'Running downscaling',
-            'saved':                'Saving results',
+            'saved':                'Saving results', # TODO: Pass ctx to logger hook and add save destination
         }
         LOG_MESSAGES_SKIP = {
             'skip-no-regions':      'No text regions! - Skipping',
