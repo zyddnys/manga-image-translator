@@ -6,9 +6,9 @@ import time
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY
 
-SIMPLE_PROMPT_TEMPLATE = 'Please help me to translate the following text from a manga to {to_lang}:\n'
+SIMPLE_PROMPT_TEMPLATE = 'Please help me to translate the following text from a manga to {to_lang}, if it\'s already in {to_lang} or looks like gibberish keep it as is:\n'
 
-COMPLEX_PROMPT_TEMPLATE = '''Please help me translate the following text from a manga into {to_lang}:
+COMPLEX_PROMPT_TEMPLATE = '''Please help me translate the following text from a manga into {to_lang}, if it\'s already in {to_lang} or looks like gibberish keep it as is:
 You must follow the format below for your reply.
 The content you need to translate will start with "Text" followed by a number. The text to be translated will be on the next line.
 For example:
@@ -31,7 +31,7 @@ Translation 1:
 Translation 2:
 讓你操心了，真不好意思！
 ----------Your reply ends-----------
-The instructions are over. Please translate the following content into {to_lang}:
+The instructions are over. Please translate the following content into {to_lang}, if it\'s already in {to_lang} or looks like gibberish keep it as is:
 '''
 
 PROMPT_OVERWRITE = None
