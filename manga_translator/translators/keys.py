@@ -1,6 +1,4 @@
 import os
-from dotenv import load_dotenv
-load_dotenv()
 
 # baidu
 BAIDU_APP_ID = os.getenv('BAIDU_APP_ID', '') #你的appid

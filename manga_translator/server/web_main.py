@@ -433,13 +433,13 @@ def generate_nonce():
     return crypto_utils.rand_bytes(16).hex()
 
 def start_translator_client_proc(host: str, port: int, nonce: str, params: dict):
+    os.environ['MT_WEB_NONCE'] = nonce
     cmds = [
         sys.executable,
         '-m', 'manga_translator',
         '--mode', 'web_client',
         '--host', host,
         '--port', str(port),
-        '--nonce', nonce, # Might be insecure
     ]
     if params.get('use_cuda', False):
         cmds.append('--use-cuda')
@@ -486,6 +486,8 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
 
             # Restart client if OOM or similar errors occured
             if client_process.poll() is not None:
+                # if client_process.poll() == 0:
+                #     break
                 print('Restarting translator process')
                 if len(ONGOING_TASKS) > 0:
                     task_id = ONGOING_TASKS.pop(0)
