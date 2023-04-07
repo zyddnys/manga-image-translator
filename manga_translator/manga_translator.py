@@ -153,7 +153,7 @@ class MangaTranslator():
                     if img:
                         logger.info(f'Processing {file_path} -> {output_dest}')
                         translation_dict = await self.translate(img, params)
-                        if translation_dict.text_regions and len(translation_dict.text_regions) == 0:
+                        if translation_dict.text_regions and len(translation_dict.text_regions) == 0 and not translation_dict.prep_manual:
                             result = img
                         else:
                             result = translation_dict.result
