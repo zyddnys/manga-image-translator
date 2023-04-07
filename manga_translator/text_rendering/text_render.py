@@ -1,4 +1,5 @@
 import os
+import re
 import cv2
 import numpy as np
 import freetype
@@ -307,67 +308,106 @@ def put_text_vertical(font_size: int, text: str, h: int, alignment: str, fg: Tup
     return line_box[y:y+h, x:x+w]
 
 def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str], List[int]]:
+    max_width = max(max_width, font_size)
+
+    whitespace_glyph = get_char_glyph(' ', font_size, 0)
+    whitespace_offset_x = whitespace_glyph.advance.x >> 6
+    hyphen_glyph = get_char_glyph('-', font_size, 0)
+    hyphen_offset_x = hyphen_glyph.metrics.horiAdvance >> 6
+
+    words = re.split(r'\s', text)
+    word_widths = []
+    for i, word in enumerate(words):
+        new_word = ''
+        widths = []
+        for c in word:
+            c, rot_degree = CJK_Compatibility_Forms_translate(c, 0)
+            glyph = get_char_glyph(c, font_size, 0)
+            bitmap = glyph.bitmap
+            # Extract length
+            if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width:
+                # spaces, etc
+                char_offset_x = glyph.advance.x >> 6
+            else:
+                char_offset_x = glyph.metrics.horiAdvance >> 6
+            new_word += c
+            widths.append(char_offset_x)
+        words[i] = new_word
+        word_widths.append(widths)
+
     line_text_list = []
     line_width_list = []
-    line_str = ""
+    line_text = ''
     line_width = 0
-    word_str = ""
-    word_width = 0
-    max_width += font_size
 
-    for i, cdpt in enumerate(text):
-        cdpt, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 0)
-        glyph = get_char_glyph(cdpt, font_size, 0)
-        bitmap = glyph.bitmap
-        next_is_space = is_whitespace(text[min(i+1, len(text)-1)]) or is_punctuation(text[min(i+1, len(text)-1)])
-        # spaces, etc
-        if bitmap.rows * bitmap.width == 0 or len(bitmap.buffer) != bitmap.rows * bitmap.width:
-            char_offset_x = glyph.advance.x >> 6
-            space = True
-        else:
-            char_offset_x = glyph.metrics.horiAdvance >> 6
-            space = False
-
-        if space:
-            if line_width + word_width > max_width:
-                if len(line_str.strip()) > 0: # make sure not to add empty lines
-                    line_text_list.append(line_str.strip())
-                    line_width_list.append(line_width)
-                line_str = ""
-                line_width = 0
-            line_str += word_str
-            line_width += word_width
-            word_width = 0
-            word_str = ""
-        if line_width + word_width + char_offset_x > max_width: # force line break mid word
-            if len(word_str) <= 6 or next_is_space: # word is too short or next char would be a space anyway
-                if line_width + word_width + char_offset_x > max(line_width_list or [0]):
-                    # clear the current line and start a new one
-                    if len(line_str.strip()) > 0: # make sure not to add empty lines
-                        line_text_list.append(line_str.strip())
-                        line_width_list.append(line_width)
-                    line_str = ""
-                    line_width = 0
-            else:
-                # add "-" to a word break
-                word_str += "-"
-                word_width += char_offset_x
-                line_str += word_str
-                line_width += word_width
-                word_width = 0
-                word_str = ""
-                line_text_list.append(line_str.strip())
+    i = 0
+    while True:
+        if i >= len(words):
+            if line_width:
+                line_text_list.append(line_text)
                 line_width_list.append(line_width)
-                line_str = ""
-                line_width = 0
-        word_str += cdpt
-        word_width += char_offset_x
+            break
 
-    # last char
-    line_str += word_str
-    line_width += word_width
-    line_text_list.append(line_str.strip())
-    line_width_list.append(line_width)
+        current_word = words[i]
+        if not current_word.strip():
+            i += 1
+            continue
+
+        current_widths = word_widths[i]
+        # Prepend ' ' to next words
+        if line_width > 0:
+            current_word = ' ' + current_word
+            current_widths = [whitespace_offset_x] + current_widths
+        current_width = sum(current_widths)
+
+        if line_width + current_width <= max_width:
+            line_text += current_word
+            line_width += current_width
+            i += 1
+            continue
+        else:
+            # Split up current word
+            segment1_width = hyphen_offset_x
+            for j, char_len in enumerate(current_widths):
+                if segment1_width + line_width >= max_width:
+                    break
+                segment1_width += char_len
+            # if segment2 will only have one character add both together and go over max_width
+            if j >= len(current_word) - 1 or (j == len(current_word) - 2 and is_punctuation(current_word[-1])):
+                j = len(current_word)
+                segment1_width = current_width
+            # If almost no other char but '-' fits in
+            if j <= 2:
+                # If the max_width is so small that using '-' is undesirable
+                if current_widths[0] + hyphen_offset_x > max_width:
+                    j = 1
+                    segment1_width -= hyphen_offset_x
+                    segment1 = current_word[:j]
+                # If is starting word go over max_width and break the line
+                elif line_width == 0:
+                    line_text += current_word
+                    line_width += current_width
+                    i += 1
+                    continue
+                # Otherwise just break the line
+                else:
+                    line_text_list.append(line_text)
+                    line_width_list.append(line_width)
+                    line_text = ''
+                    line_width = 0
+                    continue
+            elif j + 1 >= len(current_word) or is_punctuation(current_word[j]) or is_punctuation(current_word[j+1]):
+                segment1_width -= hyphen_offset_x
+                segment1 = current_word[:j]
+            else:
+                segment1 = current_word[:j] + '-'
+
+            line_text += segment1
+            line_width += segment1_width
+
+            segment2 = current_word[j:]
+            words[i] = segment2
+            word_widths[i] = current_widths[j:]
 
     return line_text_list, line_width_list
 
@@ -406,6 +446,7 @@ def put_text_horizontal(font_size: int, text: str, width: int, alignment: str, f
     spacing_y = int(font_size * 0.2)
 
     # calc
+    # print(width)
     line_text_list, line_width_list = calc_horizontal(font_size, text, width)
     # print(line_text_list, line_width_list)
 

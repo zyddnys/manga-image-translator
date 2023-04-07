@@ -36,12 +36,6 @@ The instructions are over. Please translate the following content into {to_lang}
 
 PROMPT_OVERWRITE = None
 TEMPERATURE_OVERWRITE = 0.5
-def configure_chatgpt(prompt: str, temperature: float):
-    # I have decided to not add this as an translate() argument due to the other
-    # translators not being able to use this...
-    global PROMPT_OVERWRITE, TEMPERATURE_OVERWRITE
-    PROMPT_OVERWRITE = prompt
-    TEMPERATURE_OVERWRITE = temperature
 
 class GPT3Translator(CommonTranslator):
     _LANGUAGE_CODE_MAP = {

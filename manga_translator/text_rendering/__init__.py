@@ -212,31 +212,42 @@ def fg_bg_compare(fg, bg):
 def resize_regions_to_font_size(img: np.ndarray, text_regions: List[TextBlock], font_size_fixed: int, font_size_offset: int, font_size_minimum: int):
     if font_size_minimum == -1:
         # Automatically determine font_size by image size
-        font_size_minimum = min(img.shape[0], img.shape[1]) / 200
+        font_size_minimum = round((img.shape[0] + img.shape[1]) / 150)
+    logger.debug(f'font_size_minimum {font_size_minimum}')
 
     dst_points_list = []
     for region in text_regions:
-        # Correct the fontsize
-        if min(len(region.get_text()), len(region.translation)) > 0:
-            region.font_size *= max(min(len(region.get_text()) / len(region.translation), 1.2), 0.8)
-        if region.font_size > 50:
-            region.font_size = 0.8 * region.font_size
-        elif region.font_size > 30:
-            region.font_size -= 5
-        region.font_size = int(region.font_size)
+        char_count_orig = len(region.get_text())
+        char_count_trans = len(region.translation.strip())
+        if char_count_trans > char_count_orig:
+            # More characters were added, have to reduce fontsize to fit allotted area
+            # print('count', char_count_trans, region.font_size)
+            rescaled_font_size = region.font_size
+            while True:
+                rows = region.unrotated_size[0] // rescaled_font_size
+                cols = region.unrotated_size[1] // rescaled_font_size
+                if rows * cols >= char_count_trans:
+                    # print(rows, cols, rescaled_font_size, rows * cols, char_count_trans)
+                    # print('rescaled', rescaled_font_size)
+                    region.font_size = rescaled_font_size
+                    break
+                rescaled_font_size -= 1
+                if rescaled_font_size <= 0:
+                    break
+        # Otherwise no need to increase fontsize
 
-        # Modify the fontsize based on user arguments and rescale dst_points accordingly
-        new_font_size = region.font_size
+        # Infer the target fontsize
+        target_font_size = region.font_size
         if font_size_fixed is not None:
-            new_font_size = font_size_fixed
-        elif new_font_size < font_size_minimum:
-            new_font_size = max(region.font_size, font_size_minimum)
-        new_font_size += font_size_offset
+            target_font_size = font_size_fixed
+        elif target_font_size < font_size_minimum:
+            target_font_size = max(region.font_size, font_size_minimum)
+        target_font_size += font_size_offset
 
-        target_scale = new_font_size / region.font_size
-        region.font_size = new_font_size
-        if target_scale != 1:
-            # print('Rescaling to', target_scale)
+        # Rescale dst_points accordingly
+        if target_font_size != region.font_size:
+            target_scale = target_font_size / region.font_size
+            dst_points = region.unrotated_min_rect[0]
             poly = Polygon(region.unrotated_min_rect[0])
             poly = affinity.scale(poly, xfact=target_scale, yfact=target_scale)
             dst_points = np.array(poly.exterior.coords[:4])
@@ -247,6 +258,7 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List[TextBlock], 
             dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0])
 
             dst_points = dst_points.reshape((-1, 4, 2))
+            region.font_size = int(target_font_size)
         else:
             dst_points = region.min_rect
 
@@ -286,7 +298,7 @@ async def dispatch(
 
         logger.info(f'text: {region.get_text()}')
         logger.info(f' trans: {region.translation}')
-        logger.info(f'font_size: {region.font_size}')
+        logger.info(f' font_size: {region.font_size}')
 
         img = render(img, region, dst_points, region.alignment)
     return img
@@ -297,21 +309,6 @@ def render(
     dst_points,
     alignment: str,
 ):
-
-    # -- Disabled upscaled rendering because it made it difficult to set a fixed font size
-    # # Round font_size to fixed powers of 2, to take advantage of the font caching.
-    # # Generated image snippet with text will be downscaled to dst_points after rendering.
-    # # snippet_font_size = findNextPowerOf2(region.font_size) * text_mag_ratio
-    # # enlarge_ratio = snippet_font_size / region.font_size
-    # # while True:
-    # #     enlarged_w = round(enlarge_ratio * region.unrotated_size[0])
-    # #     enlarged_h = round(enlarge_ratio * region.unrotated_size[1])
-    # #     cols = enlarged_w // (snippet_font_size * 1.3)
-    # #     rows = enlarged_h // (snippet_font_size * 1.3)
-    # #     if rows * cols < len(region.translation):
-    # #         enlarge_ratio *= 1.1
-    # #         continue
-    # #     break
 
     fg, bg = region.get_font_colors()
     fg, bg = fg_bg_compare(fg, bg)
