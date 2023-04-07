@@ -153,7 +153,7 @@ class MangaTranslator():
                     if img:
                         logger.info(f'Processing {file_path} -> {output_dest}')
                         translation_dict = await self.translate(img, params)
-                        if translation_dict.text_regions and len(translation_dict.text_regions) == 0 and not translation_dict.prep_manual:
+                        if translation_dict.text_regions and len(translation_dict.text_regions) == 0:
                             result = img
                         else:
                             result = translation_dict.result
@@ -162,14 +162,15 @@ class MangaTranslator():
                             await self._report_progress('saved', True)
                         
                         save_text_to_file = translation_dict.save_text or translation_dict.save_text_file or translation_dict.prep_manual
-                        if save_text_to_file and translation_dict.text_regions:
+                        if save_text_to_file:
                             if translation_dict.prep_manual:
                                 # Save original image next to translated
                                 p, ext = os.path.splitext(f)
                                 img_filename = p + '-orig' + ext
                                 img_path = os.path.join(dest_root, img_filename)
                                 img.save(img_path)
-                            self.save_text_to_file(translation_dict, output_dest)
+                            if translation_dict.text_regions:
+                                self.save_text_to_file(translation_dict, output_dest)
                         translated_count += 1
             if translated_count == 0:
                 logger.info(f'No untranslated files found')
