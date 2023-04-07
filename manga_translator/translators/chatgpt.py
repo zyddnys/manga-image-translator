@@ -91,6 +91,7 @@ class GPT3Translator(CommonTranslator):
         for i, query in enumerate(queries):
             prompt += f'\nText {i+1}:\n{query}\n'
         prompt += '\nTranslation 1:\n'
+        self.logger.debug(f'Temperature: {self.temperature}')
         self.logger.debug('-- GPT Prompt --\n' + prompt)
 
         request_task = asyncio.create_task(self._request_translation(prompt))
@@ -133,7 +134,6 @@ class GPT35TurboTranslator(GPT3Translator):
             {'role': 'system', 'content': 'You are a professional translator who will follow the required format for translation.'},
             {'role': 'user', 'content': prompt},
         ]
-        print(self.temperature)
         response = openai.ChatCompletion.create(
             model='gpt-3.5-turbo',
             messages=messages,
