@@ -150,8 +150,8 @@ VIN: Vietnames
     --font-size FONT_SIZE                    Use fixed font size for rendering
     --font-size-offset FONT_SIZE_OFFSET      Offset font size by a given amount, positive number
                                              increase font size and vice versa
-    --font-size-minimum FONT_SIZE_MINIMUM    Minimum output font size. Default is smallest-image-
-                                             side/200
+    --font-size-minimum FONT_SIZE_MINIMUM    Minimum output font size. Default is
+                                             image_sides_sum/150
     --force-horizontal                       Force text to be rendered horizontally
     --force-vertical                         Force text to be rendered vertically
     --align-left                             Align rendered text left

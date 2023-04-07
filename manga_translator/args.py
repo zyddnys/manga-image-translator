@@ -112,7 +112,7 @@ parser.add_argument('--box-threshold', default=0.7, type=float, help='Threshold 
 parser.add_argument('--text-threshold', default=0.5, type=float, help='Threshold for text detection')
 parser.add_argument('--font-size', default=None, type=int, help='Use fixed font size for rendering')
 parser.add_argument('--font-size-offset', default=0, type=int, help='Offset font size by a given amount, positive number increase font size and vice versa')
-parser.add_argument('--font-size-minimum', default=-1, type=int, help='Minimum output font size. Default is smallest-image-side/200')
+parser.add_argument('--font-size-minimum', default=-1, type=int, help='Minimum output font size. Default is image_sides_sum/150')
 
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--force-horizontal', action='store_true', help='Force text to be rendered horizontally')
