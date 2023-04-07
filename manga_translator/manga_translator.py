@@ -71,7 +71,7 @@ class MangaTranslator():
 
         params = params or {}
         self.verbose = params.get('verbose', False)
-        self.ignore_errors = params.get('ignore_errors', False if params.get('mode', 'demo') == 'demo' else True)
+        self.ignore_errors = params.get('ignore_errors', False)
 
         self.device = 'cuda' if params.get('use_cuda', False) else 'cpu'
         self._cuda_limited_memory = params.get('use_cuda_limited', False)
@@ -153,7 +153,7 @@ class MangaTranslator():
                     if img:
                         logger.info(f'Processing {file_path} -> {output_dest}')
                         translation_dict = await self.translate(img, params)
-                        if not translation_dict.text_regions:
+                        if translation_dict.text_regions and len(translation_dict.text_regions) == 0:
                             result = img
                         else:
                             result = translation_dict.result
@@ -229,7 +229,7 @@ class MangaTranslator():
                     await self._report_progress('error-lang', True)
                 else:
                     await self._report_progress('error', True)
-                if not self.ignore_errors and not (ctx.retries == -1 or attempts < ctx.retries + 1):
+                if not self.ignore_errors and not (ctx.retries == -1 or attempts < ctx.retries):
                     raise
                 else:
                     logger.error(f'{e.__class__.__name__}: {e}',
@@ -522,6 +522,7 @@ class MangaTranslatorWeb(MangaTranslator):
                 add_file_logger(log_file)
 
             await self.translate_path(self._result_path('input.png'), self._result_path('final.png'), params=self._params)
+            print()
 
             if self.verbose:
                 remove_file_logger(log_file)
@@ -602,7 +603,6 @@ class MangaTranslatorWS(MangaTranslator):
         async for websocket in websockets.connect(self.url, extra_headers={'x-secret': self.secret}, max_size=100_000_000):
             try:
                 logger.info('Connected to websocket server')
-
 
                 async for raw in websocket:
                     msg = ws_pb2.WebSocketMessage()
