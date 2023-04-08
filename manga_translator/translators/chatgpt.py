@@ -1,5 +1,6 @@
 import re
 import openai
+import openai.error
 import asyncio
 import time
 
@@ -94,20 +95,30 @@ class GPT3Translator(CommonTranslator):
         self.logger.debug(f'Temperature: {self.temperature}')
         self.logger.debug('-- GPT Prompt --\n' + prompt)
 
-        request_task = asyncio.create_task(self._request_translation(prompt))
-        started = time.time()
-        attempts = 0
-        while not request_task.done():
-            await asyncio.sleep(0.1)
-            if time.time() - started > 15:
-                if attempts >= 3:
-                    raise Exception('API servers did not respond quickly enough.')
-                self.logger.warn(f'Restarting request due to timeout. Attempt: {attempts+1}')
-                request_task.cancel()
-                request_task = asyncio.create_task(self._request_translation(prompt))
-                started = time.time()
-                attempts += 1
-        response = await request_task
+        ratelimit_attempt = 0
+        timeout_attempt = 0
+        while True:
+            request_task = asyncio.create_task(self._request_translation(prompt))
+            started = time.time()
+            while not request_task.done():
+                await asyncio.sleep(0.1)
+                if time.time() - started > 15: # Server takes too long to respond
+                    if timeout_attempt >= 3:
+                        raise Exception('openai servers did not respond quickly enough.')
+                    timeout_attempt += 1
+                    self.logger.warn(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
+                    request_task.cancel()
+                    request_task = asyncio.create_task(self._request_translation(prompt))
+                    started = time.time()
+            try:
+                response = await request_task
+                break
+            except openai.error.RateLimitError: # Server returned ratelimit response
+                ratelimit_attempt += 1
+                if ratelimit_attempt >= 3:
+                    raise
+                self.logger.warn(f'Restarting request due to ratelimiting by openai servers. Attempt: {ratelimit_attempt}')
+                await asyncio.sleep(2)
 
         self.logger.debug('-- GPT Response --\n' + response)
         translations = re.split(r'Translation \d+:\n', response)

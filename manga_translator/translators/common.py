@@ -159,6 +159,12 @@ class CommonTranslator(InfererModule):
             # Translate
             _translations = await self._translate(*self.parse_language_codes(from_lang, to_lang, fatal=True), queries)
 
+            # Extend returned translations list to have the same size as queries
+            if len(_translations) < len(queries):
+                _translations.extend([''] * (len(queries) - len(_translations)))
+            elif len(_translations) > len(queries):
+                _translations = _translations[:len(queries)]
+
             # Only overwrite invalid translations
             if len(unchecked_indices) > 0:
                 for j in unchecked_indices:
@@ -166,12 +172,6 @@ class CommonTranslator(InfererModule):
                         translations[j] = _translations[j]
             else:
                 translations = _translations
-
-            # Extend returned translations list to have the same size as queries
-            if len(translations) < len(queries):
-                translations.extend([''] * (len(queries) - len(translations)))
-            elif len(translations) > len(queries):
-                translations = translations[:len(queries)]
 
             # Repeat invalid translations with slightly modified queries
             if self._INVALID_REPEAT_COUNT <= 0:
