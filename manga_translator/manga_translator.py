@@ -114,8 +114,13 @@ class MangaTranslator():
                     dest = os.path.join(dest, f'{p}-translated.png')
             dest_root = os.path.dirname(dest)
 
-            translation_dict = await self.translate(Image.open(path), params)
-            result = translation_dict.result
+            img = Image.open(path)
+            translation_dict = await self.translate(img, params)
+            result = None
+            if translation_dict.result is not None:
+                result = translation_dict.result
+            elif translation_dict.text_regions is not None:
+                result = img
             if result:
                 os.makedirs(dest_root, exist_ok=True)
                 result.save(dest)
