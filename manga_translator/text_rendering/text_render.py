@@ -308,6 +308,7 @@ def put_text_vertical(font_size: int, text: str, h: int, alignment: str, fg: Tup
     return line_box[y:y+h, x:x+w]
 
 def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str], List[int]]:
+    """Splits up a string of text into lines with max_width for rendering."""
     max_width = max(max_width, font_size)
 
     whitespace_glyph = get_char_glyph(' ', font_size, 0)
@@ -340,13 +341,22 @@ def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str
     line_text = ''
     line_width = 0
 
+    def break_line():
+        nonlocal line_text, line_width
+        line_text_list.append(line_text)
+        line_width_list.append(line_width)
+        line_text = ''
+        line_width = 0
+
     i = 0
     while True:
         if i >= len(words):
-            if line_width:
-                line_text_list.append(line_text)
-                line_width_list.append(line_width)
+            if line_width > 0:
+                break_line()
             break
+        if line_width >= max_width:
+            # Break the line
+            break_line()
 
         current_word = words[i]
         if not current_word.strip():
@@ -360,43 +370,42 @@ def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str
             current_widths = [whitespace_offset_x] + current_widths
         current_width = sum(current_widths)
 
-        if line_width + current_width <= max_width:
+        # print(current_word, current_width)
+        if current_width > 5000:
+            raise Exception('FUCK YOU')
+
+        if line_width + current_width <= max_width + font_size: # May go over max_width by font_size
             line_text += current_word
             line_width += current_width
             i += 1
             continue
-        else:
-            # Split up current word
+        else: # Split up the current word with a '-'
             segment1_width = hyphen_offset_x
             for j, char_len in enumerate(current_widths):
                 if segment1_width + line_width >= max_width:
                     break
                 segment1_width += char_len
-            # if segment2 will only have one character add both together and go over max_width
+            # TODO: Move word to next line if there is enough space
+            # If segment2 will only have one or two characters dont split and rather go over max_width
             if j >= len(current_word) - 1 or (j == len(current_word) - 2 and is_punctuation(current_word[-1])):
                 j = len(current_word)
                 segment1_width = current_width
-            # If almost no other char but '-' fits in
-            if j <= 2:
-                # If the max_width is so small that using '-' is undesirable
-                if current_widths[0] + hyphen_offset_x > max_width:
+                segment1 = current_word
+            elif j == 0:
+                if line_width == 0:
                     j = 1
-                    segment1_width -= hyphen_offset_x
-                    segment1 = current_word[:j]
-                # If is starting word go over max_width and break the line
-                elif line_width == 0:
-                    line_text += current_word
-                    line_width += current_width
-                    i += 1
-                    continue
-                # Otherwise just break the line
+                    segment1_width = current_widths[0]
+                    segment1 = current_word[0]
                 else:
-                    line_text_list.append(line_text)
-                    line_width_list.append(line_width)
-                    line_text = ''
-                    line_width = 0
-                    continue
-            elif j + 1 >= len(current_word) or is_punctuation(current_word[j]) or is_punctuation(current_word[j+1]):
+                    segment1_width = 0
+                    segment1 = ''
+                    break_line()
+            elif line_width > 0 and not current_word[:j].strip():
+                segment1_width = 0
+                segment1 = ''
+                break_line()
+            elif j >= len(current_word) - 1 or is_punctuation(current_word[j]) or is_punctuation(current_word[j+1]):
+                # Dont use '-'
                 segment1_width -= hyphen_offset_x
                 segment1 = current_word[:j]
             else:

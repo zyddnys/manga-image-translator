@@ -108,6 +108,7 @@ def is_punctuation(ch):
     return False
 
 def count_valuable_text(text) -> int:
+    # return sum([1 for ch in text if re.search(r'\w', ch)])
     return sum([1 for ch in text if not is_punctuation(ch) and not is_control(ch) and not is_whitespace(ch)])
 
 def replace_prefix(s: str, old: str, new: str):
