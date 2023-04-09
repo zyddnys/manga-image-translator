@@ -8,21 +8,16 @@ body:
     id: what-did
     attributes:
       label: Issue
+      description: You can describe the bug here as well as add your used images if you want.
     validations:
       required: true
   - type: textarea
     id: cmdargs
     attributes:
       label: Command Line Arguments
-      description: Are you using any launching parameters/command line arguments (modified webui-user .bat/.sh) ? If yes, please write them below. Write "No" otherwise.
       render: Shell
-    validations:
-      required: true
   - type: textarea
     id: logs
     attributes:
       label: Console logs
-      description: Please provide **full** cmd/terminal logs from the moment you started UI to the end of it, after your bug happened. If it's very long, provide a link to pastebin or similar service.
       render: Shell
-    validations:
-      required: true
