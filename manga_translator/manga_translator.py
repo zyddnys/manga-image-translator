@@ -5,6 +5,7 @@ import cv2
 import langid
 import requests
 import os
+import re
 import torch
 import time
 import logging
@@ -258,6 +259,7 @@ class MangaTranslator():
         if ctx.prep_manual:
             ctx.renderer = 'none'
         ctx.setdefault('renderer', 'manga2eng' if ctx.manga2eng else 'default')
+
         if ctx.selective_translation is not None:
             ctx.selective_translation.target_lang = ctx.target_lang
             ctx.translator = ctx.selective_translation
@@ -266,6 +268,11 @@ class MangaTranslator():
             ctx.translator = ctx.translator_chain
         else:
             ctx.translator = TranslatorChain(f'{ctx.translator}:{ctx.target_lang}')
+
+        if ctx.text_filter:
+            ctx.text_filter = re.compile(ctx.text_filter)
+        if ctx.translation_filter:
+            ctx.translation_filter = re.compile(ctx.translation_filter)
 
     async def _translate(self, ctx: Context) -> Context:
 
@@ -296,6 +303,13 @@ class MangaTranslator():
             await self._report_progress('skip-no-text', True)
             return ctx
 
+        await self._report_progress('translating')
+        ctx.text_regions = await self._run_text_translation(ctx)
+
+        if not ctx.text_regions:
+            await self._report_progress('error-translating', True)
+            return ctx
+
         # Delayed mask refinement to take advantage of the region filtering done by ocr
         if ctx.mask is None:
             await self._report_progress('mask-generation')
@@ -311,23 +325,6 @@ class MangaTranslator():
 
         if self.verbose:
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR))
-
-        await self._report_progress('translating')
-        translated_sentences = await self._run_text_translation(ctx)
-
-        if not translated_sentences:
-            await self._report_progress('error-translating', True)
-            return ctx
-
-        for region, translation in zip(ctx.text_regions, translated_sentences):
-            if ctx.uppercase:
-                translation = translation.upper()
-            elif ctx.lowercase:
-                translation = translation.upper()
-            region.translation = translation
-            region.target_lang = ctx.target_lang
-            region._alignment = ctx.alignment
-            region._direction = ctx.direction
 
         await self._report_progress('rendering')
         ctx.img_rendered = await self._run_text_rendering(ctx)
@@ -424,15 +421,41 @@ class MangaTranslator():
 
     async def _run_ocr(self, ctx: Context):
         text_regions = await dispatch_ocr(ctx.ocr, ctx.img_rgb, ctx.text_regions, self.device, self.verbose)
-        text_regions = self._filter_regions_by_text(text_regions)
-        return text_regions
-
-    def _filter_regions_by_text(self, text_regions: List[TextBlock]):
+        # Filter out regions by original text
         new_text_regions = []
         for region in text_regions:
-            if not region.get_text().isnumeric() \
-                and count_valuable_text(region.get_text()) > 1 \
-                and not is_url(region.get_text()):
+            text = region.get_text()
+            if text.isnumeric() \
+                or (ctx.text_filter and re.search(ctx.text_filter, text)) \
+                or count_valuable_text(text) <= 1 \
+                or is_url(text):
+                logger.info(f'Filtered out: {text}')
+            else:
+                new_text_regions.append(region)
+        return new_text_regions
+
+    async def _run_text_translation(self, ctx: Context):
+        translated_sentences = await dispatch_translation(ctx.translator, [region.get_text() for region in ctx.text_regions], ctx.use_mtpe,
+                                                          'cpu' if self._cuda_limited_memory else self.device)
+
+        for region, translation in zip(ctx.text_regions, translated_sentences):
+            if ctx.uppercase:
+                translation = translation.upper()
+            elif ctx.lowercase:
+                translation = translation.upper()
+            region.translation = translation
+            region.target_lang = ctx.target_lang
+            region._alignment = ctx.alignment
+            region._direction = ctx.direction
+
+        # Filter out regions by their translations
+        new_text_regions = []
+        for region in ctx.text_regions:
+            if region.translation.isnumeric() \
+                or (ctx.translation_filter and re.search(ctx.translation_filter, region.translation)) \
+                or count_valuable_text(region.translation) <= 1:
+                logger.info(f'Filtered out: {region.translation}')
+            else:
                 new_text_regions.append(region)
         return new_text_regions
 
@@ -441,10 +464,6 @@ class MangaTranslator():
 
     async def _run_inpainting(self, ctx: Context):
         return await dispatch_inpainting(ctx.inpainter, ctx.img_rgb, ctx.mask, ctx.inpainting_size, self.using_cuda, self.verbose)
-
-    async def _run_text_translation(self, ctx: Context):
-        return await dispatch_translation(ctx.translator, [region.get_text() for region in ctx.text_regions], ctx.use_mtpe,
-                                          'cpu' if self._cuda_limited_memory else self.device)
 
     async def _run_text_rendering(self, ctx: Context):
         if ctx.renderer == 'none':
@@ -538,7 +557,7 @@ class MangaTranslatorWeb(MangaTranslator):
 
     async def _run_ocr(self, ctx: Context):
         regions = await super()._run_ocr(ctx)
-        if ctx.get('manual', False):
+        if ctx.manual:
             requests.post(f'http://{self.host}:{self.port}/request-translation-internal', json={
                 'task_id': self._task_id,
                 'nonce': self.nonce,
