@@ -15,8 +15,3 @@ body:
       description: Tell us about your feature in a very clear and simple way, and what problem it would solve
     validations:
       required: true
-  - type: textarea
-    id: misc
-    attributes:
-      label: Additional information
-      description: Add any other context or screenshots about the feature request here.
