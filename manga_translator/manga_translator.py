@@ -271,8 +271,8 @@ class MangaTranslator():
 
         if ctx.text_filter:
             ctx.text_filter = re.compile(ctx.text_filter)
-        if ctx.translation_filter:
-            ctx.translation_filter = re.compile(ctx.translation_filter)
+        if ctx.trans_filter:
+            ctx.trans_filter = re.compile(ctx.trans_filter)
 
     async def _translate(self, ctx: Context) -> Context:
 
@@ -452,7 +452,7 @@ class MangaTranslator():
         new_text_regions = []
         for region in ctx.text_regions:
             if region.translation.isnumeric() \
-                or (ctx.translation_filter and re.search(ctx.translation_filter, region.translation)) \
+                or (ctx.trans_filter and re.search(ctx.trans_filter, region.translation)) \
                 or count_valuable_text(region.translation) <= 1:
                 logger.info(f'Filtered out: {region.translation}')
             else:
