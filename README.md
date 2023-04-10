@@ -65,6 +65,10 @@ Add `--upgrade --force-reinstall` to the pip command to overwrite the currently 
 
 If you have trouble installing pydensecrf with the command above you can download the pre-compiled wheels
 from <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf> according to your python version and install it with pip.
+## Anaconda
+conda env create -f environment.yaml
+
+conda activate manga-image-translator
 
 ## Usage
 
