@@ -4,8 +4,7 @@ WORKDIR /app
 
 # Assume root to install required dependencies
 RUN apt-get update && \
-    apt-get install -y git g++ ffmpeg libsm6 libxext6 libvulkan-dev && \
-    pip install git+https://github.com/lucasb-eyer/pydensecrf.git
+    apt-get install -y git g++ ffmpeg libsm6 libxext6 libvulkan-dev
 
 # Install pip dependencies
 
