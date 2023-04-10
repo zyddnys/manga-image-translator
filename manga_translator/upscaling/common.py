@@ -1,4 +1,3 @@
-import os
 from PIL import Image
 from typing import List
 from abc import abstractmethod

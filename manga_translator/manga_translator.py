@@ -19,7 +19,6 @@ from .args import DEFAULT_ARGS
 from .utils import (
     BASE_PATH,
     LANGAUGE_ORIENTATION_PRESETS,
-    TextBlock,
     ModelWrapper,
     Context,
     load_image,
@@ -48,6 +47,7 @@ from .translators import (
     prepare as prepare_translation,
 )
 from .text_rendering import dispatch as dispatch_rendering, dispatch_eng_render
+from .save import save_result
 
 
 # Will be overwritten by __main__.py if module is being run directly (with python -m)
@@ -60,7 +60,7 @@ def set_main_logger(l):
 class TranslationInterrupt(Exception):
     """
     Can be raised from within a progress hook to prematurely terminate
-    the translation
+    the translation.
     """
     pass
 
@@ -159,12 +159,13 @@ class MangaTranslator():
         elif translation_dict.text_regions is not None:
             # No text regions with text found
             result = img
+
+        # Save result
         if result:
-            result.save(dest)
+            save_result(result, dest, translation_dict)
             await self._report_progress('saved', True)
 
-        save_text_to_file = translation_dict.save_text or translation_dict.save_text_file or translation_dict.prep_manual
-        if save_text_to_file:
+        if translation_dict.save_text or translation_dict.save_text_file or translation_dict.prep_manual:
             if translation_dict.prep_manual:
                 # Save original image next to translated
                 p, ext = os.path.splitext(dest)
@@ -310,7 +311,7 @@ class MangaTranslator():
             await self._report_progress('error-translating', True)
             return ctx
 
-        # Delayed mask refinement to take advantage of the region filtering done by ocr
+        # Delayed mask refinement to take advantage of the region filtering done after ocr and translation
         if ctx.mask is None:
             await self._report_progress('mask-generation')
             ctx.mask = await self._run_mask_refinement(ctx)
@@ -693,6 +694,8 @@ class MangaTranslatorWS(MangaTranslator):
 
         return output
 
+
+# Experimental. May be replaced by a refactored server/web_main.py in the future.
 class MangaTranslatorAPI(MangaTranslator):
     def __init__(self, params: dict = None):
         import nest_asyncio
@@ -738,29 +741,33 @@ class MangaTranslatorAPI(MangaTranslator):
         routes = web.RouteTableDef()
         run_until_state = ''
 
-        def ph(state, finished):
+        def hook(state, finished):
             if run_until_state and run_until_state == state and not finished:
                 raise TranslationInterrupt()
+        self.add_progress_hook(hook)
 
         @routes.post("/get_text")
         async def text_api(req):
+            nonlocal run_until_state
             run_until_state = 'ocr'
             return await self.err_handling(self.texts_exec, req, self.format_translate)
 
         @routes.post("/translate")
         async def translate_api(req):
+            nonlocal run_until_state
             run_until_state = 'translating'
             return await self.err_handling(self.translate_exec, req, self.format_translate)
 
         @routes.post("/inpaint_translate")
         async def inpaint_translate_api(req):
+            nonlocal run_until_state
             run_until_state = 'inpainting'
             return await self.err_handling(self.inpaint_translate_exec, req, self.format_translate)
 
-        #@routes.post("/file")
-        async def file_api(req):
-            #TODO: return file
-            return await self.err_handling(self.file_exec, req, None)
+        # #@routes.post("/file")
+        # async def file_api(req):
+        #     #TODO: return file
+        #     return await self.err_handling(self.file_exec, req, None)
 
         app.add_routes(routes)
         web.run_app(app, host=self.host, port=self.port)

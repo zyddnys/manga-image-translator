@@ -22,8 +22,8 @@ class CommonDetector(InfererModule):
         img_h, img_w = image.shape[:2]
         orig_image = image.copy()
         minimum_image_size = 400
+        # Automatically add border if image too small (instead of simply resizing due to them more likely containing large fonts)
         add_border = min(img_w, img_h) < minimum_image_size
-        # Add border if image too small (instead of simply resizing due to them likely containing large fonts)
         if rotate:
             self.logger.debug('Adding rotation')
             image = self._add_rotation(image)

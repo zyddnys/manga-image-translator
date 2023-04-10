@@ -62,6 +62,8 @@ class Context(dict):
     def _get_args(self):
         return []
 
+# TODO: Add TranslationContext for type linting
+
 def repeating_sequence(s: str):
     """Extracts repeating sequence from string. Example: 'abcabca' -> 'abc'."""
     for i in range(1, len(s) // 2 + 1):

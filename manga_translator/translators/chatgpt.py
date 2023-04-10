@@ -150,6 +150,7 @@ class GPT35TurboTranslator(GPT3Translator):
             messages=messages,
             temperature=self.temperature,
         )
+        print(response.usage)
         for choice in response.choices:
             if 'text' in choice:
                 return choice.text

@@ -6,6 +6,7 @@ from .ocr import OCRS
 from .inpainting import INPAINTERS
 from .translators import VALID_LANGUAGES, TRANSLATORS, TranslatorChain
 from .upscaling import UPSCALERS
+from .save import OUTPUT_FORMATS
 
 # Additional argparse types
 def path(string):
@@ -83,6 +84,7 @@ parser.add_argument('-i', '--input', default='', type=path, help='Path to an ima
 parser.add_argument('-o', '--dest', default='', type=str, help='Path to the destination folder for translated images in batch mode')
 parser.add_argument('-l', '--target-lang', default='CHS', type=str, choices=VALID_LANGUAGES, help='Destination language')
 parser.add_argument('-v', '--verbose', action='store_true', help='Print debug info and save intermediate images in result folder')
+parser.add_argument('-f', '--format', default=None, choices=OUTPUT_FORMATS, help='Output format of the translation.')
 parser.add_argument('--detector', default='default', type=str, choices=DETECTORS, help='Text detector used for creating a text mask from an image')
 parser.add_argument('--ocr', default='48px_ctc', type=str, choices=OCRS, help='Optical character recognition (OCR) model to use')
 parser.add_argument('--inpainter', default='lama_mpe', type=str, choices=INPAINTERS, help='Inpainting model to use')
@@ -136,8 +138,8 @@ g = parser.add_mutually_exclusive_group()
 g.add_argument('--save-text', action='store_true', help='Save extracted text and translations into a text file.')
 g.add_argument('--save-text-file', default='', type=str, help='Like --save-text but with a specified file path.')
 
-parser.add_argument('--filter-text', default=None, type=str, help='Filter region by their original text with a regex. Example usage: --text-filter ".*badtext.*"')
-parser.add_argument('--filter-trans', default=None, type=str, help='Filter region by their translated text with a regex.')
+parser.add_argument('--filter-text', default=None, type=str, help='Filter regions by their original text with a regex. Example usage: --text-filter ".*badtext.*"')
+parser.add_argument('--filter-trans', default=None, type=str, help='Filter regions by their translated text with a regex.')
 parser.add_argument('--prep-manual', action='store_true', help='Prepare for manual typesetting by outputting blank, inpainted images, plus copies of the original for reference')
 parser.add_argument('--font-path', default='', type=file_path, help='Path to font file')
 parser.add_argument('--host', default='127.0.0.1', type=str, help='Used by web module to decide which host to attach to')
