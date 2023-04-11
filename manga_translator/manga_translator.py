@@ -429,7 +429,8 @@ class MangaTranslator():
                 or (ctx.filter_text and re.search(ctx.filter_text, text)) \
                 or count_valuable_text(text) <= 1 \
                 or is_url(text):
-                logger.info(f'Filtered out: {text}')
+                if text.strip():
+                    logger.info(f'Filtered out: {text}')
             else:
                 new_text_regions.append(region)
         return new_text_regions
@@ -454,7 +455,8 @@ class MangaTranslator():
             if region.translation.isnumeric() \
                 or (ctx.filter_trans and re.search(ctx.filter_trans, region.translation)) \
                 or count_valuable_text(region.translation) <= 1:
-                logger.info(f'Filtered out: {region.translation}')
+                if region.translation.strip():
+                    logger.info(f'Filtered out: {region.translation}')
             else:
                 new_text_regions.append(region)
         return new_text_regions
