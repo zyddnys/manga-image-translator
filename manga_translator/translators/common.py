@@ -148,7 +148,7 @@ class CommonTranslator(InfererModule):
         untranslated_indices = []
         for i, query in enumerate(queries):
             if not re.search(r'\w', query):
-                translations[i] = query[i]
+                translations[i] = queries[i]
             else:
                 untranslated_indices.append(i)
 
