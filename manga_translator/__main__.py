@@ -11,7 +11,7 @@ from .manga_translator import (
     set_main_logger,
 )
 from .args import parser
-from .utils import BASE_PATH, get_logger, set_log_level
+from .utils import BASE_PATH, init_logging, get_logger, set_log_level
 
 # TODO: Dynamic imports to reduce ram usage in web(-server) mode. Will require dealing with args.py imports.
 
@@ -50,6 +50,7 @@ async def dispatch(args: Namespace):
 
 if __name__ == '__main__':
     args = None
+    init_logging()
     try:
         args = parser.parse_args()
         set_log_level(level=logging.DEBUG if args.verbose else logging.INFO)
