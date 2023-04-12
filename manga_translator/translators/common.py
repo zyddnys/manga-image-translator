@@ -253,7 +253,7 @@ class CommonTranslator(InfererModule):
         # ' ! ! . . ' -> ' !!.. '
         trans = re.sub(r'([.,;!?])\s+(?=[.,;!?]|$)', r'\1', trans)
         # ' ... text' -> ' ...text'
-        trans = re.sub(r'(?<=\s\.\.\.)\s+(?=\w)', r'', trans)
+        trans = re.sub(r'((?:\s|^)\.+)\s+(?=\w)', r'\1', trans)
 
         seq = repeating_sequence(trans.lower())
 
