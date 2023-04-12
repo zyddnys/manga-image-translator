@@ -16,6 +16,7 @@ async def test_specified_translator(translator, tgt_lang, text, times):
     if translator is None:
         pytest.skip()
 
+    print()
     for i in range(times):
         if text is None:
             queries_list = [
@@ -30,3 +31,4 @@ async def test_specified_translator(translator, tgt_lang, text, times):
             print(queries)
             print('-->')
             print(await dispatch(chain, queries))
+            print()

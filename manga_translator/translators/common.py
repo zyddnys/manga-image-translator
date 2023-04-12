@@ -140,19 +140,23 @@ class CommonTranslator(InfererModule):
             raise ValueError('Invalid language code: "%s". Choose from the following: auto, %s' % (from_lang, ', '.join(VALID_LANGUAGES)))
         self.logger.info(f'Translating into {VALID_LANGUAGES[to_lang]}')
 
-        translations = [''] * len(queries)
-
         if from_lang == to_lang:
-            return translations
+            return queries
 
-        untranslated_indices = []
+        # Dont translate queries without text
+        query_indices = []
+        final_translations = []
         for i, query in enumerate(queries):
             if not re.search(r'\w', query):
-                translations[i] = queries[i]
+                final_translations.append(queries[i])
             else:
-                untranslated_indices.append(i)
+                final_translations.append(None)
+                query_indices.append(i)
+        queries = [queries[i] for i in query_indices]
 
-        for i in range(1 + self._INVALID_REPEAT_COUNT):
+        translations = [''] * len(queries)
+        untranslated_indices = list(range(len(queries)))
+        for i in range(1 + self._INVALID_REPEAT_COUNT): # Repeat until all translations are considered valid
             if i > 0:
                 self.logger.warn(f'Repeating because of invalid translation. Attempt: {i+1}')
                 await asyncio.sleep(0.1)
@@ -170,30 +174,33 @@ class CommonTranslator(InfererModule):
                 _translations = _translations[:len(queries)]
 
             # Only overwrite yet untranslated indices
-            if len(untranslated_indices) > 0:
-                for j in untranslated_indices:
-                    if j < len(_translations):
-                        translations[j] = _translations[j]
-            else:
-                translations = _translations
+            for j in untranslated_indices:
+                translations[j] = _translations[j]
 
-            if self._INVALID_REPEAT_COUNT <= 0:
+            if self._INVALID_REPEAT_COUNT == 0:
                 break
-            n_unchecked_indices = []
+
+            new_untranslated_indices = []
             for j in untranslated_indices:
                 q, t = queries[j], translations[j]
                 # Repeat invalid translations with slightly modified queries
                 if self._is_translation_invalid(q, t):
-                    n_unchecked_indices.append(j)
+                    new_untranslated_indices.append(j)
                     queries[j] = self._modify_invalid_translation_query(q, t)
-            if not n_unchecked_indices:
+            untranslated_indices = new_untranslated_indices
+
+            if not untranslated_indices:
                 break
-            untranslated_indices = n_unchecked_indices
 
         translations = [self._clean_translation_output(q, r) for q, r in zip(queries, translations)]
+
+        # Merge with the queries without text
+        for i, trans in enumerate(translations):
+            final_translations[query_indices[i]] = trans
+
         if use_mtpe:
-            translations = await self.mtpe_adapter.dispatch(queries, translations)
-        return translations
+            final_translations = await self.mtpe_adapter.dispatch(queries, final_translations)
+        return final_translations
 
     @abstractmethod
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
