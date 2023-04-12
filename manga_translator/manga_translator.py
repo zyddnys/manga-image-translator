@@ -269,10 +269,10 @@ class MangaTranslator():
         else:
             ctx.translator = TranslatorChain(f'{ctx.translator}:{ctx.target_lang}')
 
-        if ctx.text_filter:
-            ctx.text_filter = re.compile(ctx.text_filter)
-        if ctx.trans_filter:
-            ctx.trans_filter = re.compile(ctx.trans_filter)
+        if ctx.filter_text:
+            ctx.filter_text = re.compile(ctx.filter_text)
+        if ctx.filter_trans:
+            ctx.filter_trans = re.compile(ctx.filter_trans)
 
     async def _translate(self, ctx: Context) -> Context:
 
@@ -426,10 +426,11 @@ class MangaTranslator():
         for region in text_regions:
             text = region.get_text()
             if text.isnumeric() \
-                or (ctx.text_filter and re.search(ctx.text_filter, text)) \
+                or (ctx.filter_text and re.search(ctx.filter_text, text)) \
                 or count_valuable_text(text) <= 1 \
                 or is_url(text):
-                logger.info(f'Filtered out: {text}')
+                if text.strip():
+                    logger.info(f'Filtered out: {text}')
             else:
                 new_text_regions.append(region)
         return new_text_regions
@@ -452,9 +453,10 @@ class MangaTranslator():
         new_text_regions = []
         for region in ctx.text_regions:
             if region.translation.isnumeric() \
-                or (ctx.trans_filter and re.search(ctx.trans_filter, region.translation)) \
+                or (ctx.filter_trans and re.search(ctx.filter_trans, region.translation)) \
                 or count_valuable_text(region.translation) <= 1:
-                logger.info(f'Filtered out: {region.translation}')
+                if region.translation.strip():
+                    logger.info(f'Filtered out: {region.translation}')
             else:
                 new_text_regions.append(region)
         return new_text_regions

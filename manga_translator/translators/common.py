@@ -98,7 +98,7 @@ class CommonTranslator(InfererModule):
     _INVALID_REPEAT_COUNT = 0
 
     # Will sleep for the rest of the minute if the request count is over this number.
-    _REQUESTS_PER_MINUTE = -1
+    _MAX_REQUESTS_PER_MINUTE = -1
 
     def __init__(self):
         super().__init__()
@@ -145,9 +145,13 @@ class CommonTranslator(InfererModule):
         if from_lang == to_lang:
             return translations
 
-        # TODO: simplify handling of _INVALID_REPEAT_COUNT because too messy
+        untranslated_indices = []
+        for i, query in enumerate(queries):
+            if not re.search(r'\w', query):
+                translations[i] = queries[i]
+            else:
+                untranslated_indices.append(i)
 
-        unchecked_indices = list(range(len(queries))) # unchecked for invalid translations
         for i in range(1 + self._INVALID_REPEAT_COUNT):
             if i > 0:
                 self.logger.warn(f'Repeating because of invalid translation. Attempt: {i+1}')
@@ -165,26 +169,26 @@ class CommonTranslator(InfererModule):
             elif len(_translations) > len(queries):
                 _translations = _translations[:len(queries)]
 
-            # Only overwrite invalid translations
-            if len(unchecked_indices) > 0:
-                for j in unchecked_indices:
+            # Only overwrite yet untranslated indices
+            if len(untranslated_indices) > 0:
+                for j in untranslated_indices:
                     if j < len(_translations):
                         translations[j] = _translations[j]
             else:
                 translations = _translations
 
-            # Repeat invalid translations with slightly modified queries
             if self._INVALID_REPEAT_COUNT <= 0:
                 break
             n_unchecked_indices = []
-            for j in unchecked_indices:
+            for j in untranslated_indices:
                 q, t = queries[j], translations[j]
+                # Repeat invalid translations with slightly modified queries
                 if self._is_translation_invalid(q, t):
                     n_unchecked_indices.append(j)
                     queries[j] = self._modify_invalid_translation_query(q, t)
             if not n_unchecked_indices:
                 break
-            unchecked_indices = n_unchecked_indices
+            untranslated_indices = n_unchecked_indices
 
         translations = [self._clean_translation_output(q, r) for q, r in zip(queries, translations)]
         if use_mtpe:
@@ -197,11 +201,11 @@ class CommonTranslator(InfererModule):
 
     async def _ratelimit_sleep(self):
         now = time.time()
-        if self._REQUESTS_PER_MINUTE > 0 and self._requests_count >= self._REQUESTS_PER_MINUTE:
+        if self._MAX_REQUESTS_PER_MINUTE > 0 and self._requests_count >= self._MAX_REQUESTS_PER_MINUTE:
             print(now - self._last_request_ts)
             if now - self._last_request_ts < 60:
                 timeout = 60 - now + self._last_request_ts
-                self.logger.warn(f'Exceeded max amount of translations per minute ({self._REQUESTS_PER_MINUTE}). Timeout for: {timeout}s')
+                self.logger.warn(f'Exceeded max amount of translations per minute ({self._MAX_REQUESTS_PER_MINUTE}). Timeout for: {timeout}s')
                 await asyncio.sleep(timeout)
             self._requests_count = 0
             self._last_request_ts = time.time()

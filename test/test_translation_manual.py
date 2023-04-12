@@ -17,7 +17,6 @@ async def test_specified_translator(translator, tgt_lang, text, times):
         pytest.skip()
 
     for i in range(times):
-        print('Translation no.', i)
         if text is None:
             queries_list = [
                 ['How to be dead everyday', '', 'Ich bin ein deutscher', 'Test case m. HELLO THERE I WANT an audition! YOYOYOYO', '目标意识'],
