@@ -15,6 +15,7 @@ body:
     id: cmdargs
     attributes:
       label: Command Line Arguments
+      description: Please use --verbose when running
       render: Shell
   - type: textarea
     id: logs
