@@ -649,10 +649,15 @@ class MangaTranslatorWS(MangaTranslator):
                                 current_value = params.get(p)
                                 params[p] = current_value if current_value is not None else default_value
                         image = Image.open(io.BytesIO(task.source_image))
+                        (ori_w, ori_h) = image.size
+                        if max(ori_h, ori_w) > 1200 :
+                            params['upscale_ratio'] = 1
                         translation_dict = await self.translate(image, params)
-                        output = translation_dict.result
+                        output: Image.Image = translation_dict.result
                         if output is None:
-                            output = Image.fromarray(np.zeros((output.height, output.width, 4), dtype=np.uint8))
+                            output = Image.fromarray(np.zeros((ori_h, ori_w, 4), dtype=np.uint8))
+                        else :
+                            output = output.resize((ori_w, ori_h), resample = Image.BICUBIC)
 
                         img = io.BytesIO()
                         output.save(img, format='PNG')
