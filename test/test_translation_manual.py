@@ -16,11 +16,11 @@ async def test_specified_translator(translator, tgt_lang, text, times):
     if translator is None:
         pytest.skip()
 
+    print()
     for i in range(times):
-        print('Translation no.', i)
         if text is None:
             queries_list = [
-                ['How to be dead everyday', '', 'Ich bin ein deutscher', 'Test case m. HELLO THERE I WANT an audition! YOYOYOYO', '目标意识'],
+                ['Hallo', '', 'English is a West Germanic language in the Indo-European language family, with its earliest forms spoken by the inhabitants of early medieval England.', 'Test case 5. HELLO THERE I WANT an audition! YOYOYOYO', '目标意识'],
                 ['僕はアイネと共に一度、宿の方に戻った', '改めて直面するのは部屋の問題――部屋のベッドが一つでは、さすがに狭すぎるだろう。'],
             ]
         else:
@@ -28,4 +28,7 @@ async def test_specified_translator(translator, tgt_lang, text, times):
 
         chain = TranslatorChain(f'{translator}:{tgt_lang}')
         for queries in queries_list:
+            print(queries)
+            print('-->')
             print(await dispatch(chain, queries))
+            print()

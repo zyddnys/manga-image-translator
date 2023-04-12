@@ -430,7 +430,8 @@ class MangaTranslator():
                 or (ctx.filter_text and re.search(ctx.filter_text, text)) \
                 or count_valuable_text(text) <= 1 \
                 or is_url(text):
-                logger.info(f'Filtered out: {text}')
+                if text.strip():
+                    logger.info(f'Filtered out: {text}')
             else:
                 new_text_regions.append(region)
         return new_text_regions
@@ -455,7 +456,8 @@ class MangaTranslator():
             if region.translation.isnumeric() \
                 or (ctx.filter_trans and re.search(ctx.filter_trans, region.translation)) \
                 or count_valuable_text(region.translation) <= 1:
-                logger.info(f'Filtered out: {region.translation}')
+                if region.translation.strip():
+                    logger.info(f'Filtered out: {region.translation}')
             else:
                 new_text_regions.append(region)
         return new_text_regions
@@ -648,10 +650,15 @@ class MangaTranslatorWS(MangaTranslator):
                                 current_value = params.get(p)
                                 params[p] = current_value if current_value is not None else default_value
                         image = Image.open(io.BytesIO(task.source_image))
+                        (ori_w, ori_h) = image.size
+                        if max(ori_h, ori_w) > 1200 :
+                            params['upscale_ratio'] = 1
                         translation_dict = await self.translate(image, params)
-                        output = translation_dict.result
+                        output: Image.Image = translation_dict.result
                         if output is None:
-                            output = Image.fromarray(np.zeros((output.height, output.width, 4), dtype=np.uint8))
+                            output = Image.fromarray(np.zeros((ori_h, ori_w, 4), dtype=np.uint8))
+                        else :
+                            output = output.resize((ori_w, ori_h), resample = Image.BICUBIC)
 
                         img = io.BytesIO()
                         output.save(img, format='PNG')

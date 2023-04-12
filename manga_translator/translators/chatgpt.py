@@ -9,31 +9,31 @@ from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY
 
 SIMPLE_PROMPT_TEMPLATE = 'Please help me to translate the following text from a manga to {to_lang}, if it\'s already in {to_lang} or looks like gibberish keep it as is:\n'
 
-COMPLEX_PROMPT_TEMPLATE = '''Please help me translate the following text from a manga into {to_lang}, if it\'s already in {to_lang} or looks like gibberish keep it as is:
-You must follow the format below for your reply.
-The content you need to translate will start with "Text" followed by a number. The text to be translated will be on the next line.
-For example:
-Text 1:
-あら… サンタさん 見つかったのですね
-The reply must correspond to the source. For example, the translation result for Text 1 should start with "Translation 1:", followed by the content on the next line.
-For example:
-Translation 1:
-哦，聖誕老人啊，你被找到了啊
-Here is an example:
-----------The source I provided to you--------
-Text 1:
-あら… サンタさん 見つかったのですね
-Text 2:
-ご心配 おかけしました！
-----------The source I provided to you ends---------
----------Your reply starts----------
-Translation 1:
-哦，聖誕老人啊，你被找到了啊
-Translation 2:
-讓你操心了，真不好意思！
-----------Your reply ends-----------
-The instructions are over. Please translate the following content into {to_lang}, if it\'s already in {to_lang} or looks like gibberish keep it as is:
-'''
+# COMPLEX_PROMPT_TEMPLATE = '''Please help me translate the following text from a manga into {to_lang}, if it\'s already in {to_lang} or looks like gibberish keep it as is:
+# You must follow the format below for your reply.
+# The content you need to translate will start with "Text" followed by a number. The text to be translated will be on the next line.
+# For example:
+# Text 1:
+# あら… サンタさん 見つかったのですね
+# The reply must correspond to the source. For example, the translation result for Text 1 should start with "Translation 1:", followed by the content on the next line.
+# For example:
+# Translation 1:
+# 哦，聖誕老人啊，你被找到了啊
+# Here is an example:
+# ----------The source I provided to you--------
+# Text 1:
+# あら… サンタさん 見つかったのですね
+# Text 2:
+# ご心配 おかけしました！
+# ----------The source I provided to you ends---------
+# ---------Your reply starts----------
+# Translation 1:
+# 哦，聖誕老人啊，你被找到了啊
+# Translation 2:
+# 讓你操心了，真不好意思！
+# ----------Your reply ends-----------
+# The instructions are over. Please translate the following content into {to_lang}, if it\'s already in {to_lang} or looks like gibberish keep it as is:
+# '''
 
 PROMPT_OVERWRITE = None
 TEMPERATURE_OVERWRITE = 0.5
@@ -61,7 +61,7 @@ class GPT3Translator(CommonTranslator):
         'VIN': 'Vietnamese',
     }
     _INVALID_REPEAT_COUNT = 2 # repeat max. 2 times if invalid
-    _REQUESTS_PER_MINUTE = 20
+    _MAX_REQUESTS_PER_MINUTE = 20
 
     _prompt_template = SIMPLE_PROMPT_TEMPLATE
 
@@ -86,6 +86,8 @@ class GPT3Translator(CommonTranslator):
                 "https": "http://%s" % OPENAI_HTTP_PROXY
             }
             openai.proxy = proxies
+        self.token_count = 0
+        self.token_count_last = 0
 
     async def _translate(self, from_lang, to_lang, queries):
         prompt = self.prompt_template.format(to_lang=to_lang)
@@ -124,6 +126,9 @@ class GPT3Translator(CommonTranslator):
         translations = re.split(r'Translation \d+:\n', response)
         translations = [t.strip() for t in translations]
         self.logger.debug(translations)
+        if self.token_count_last:
+            self.logger.info(f'Used {self.token_count_last} tokens (Total: {self.token_count})')
+
         return translations
 
     async def _request_translation(self, prompt: str) -> str:
@@ -134,10 +139,12 @@ class GPT3Translator(CommonTranslator):
             temperature=self.temperature,
         )
         response = completion.choices[0].text
+        self.token_count += response.usage['total_tokens']
+        self.token_count_last = response.usage['total_tokens']
         return response
 
 class GPT35TurboTranslator(GPT3Translator):
-    _REQUESTS_PER_MINUTE = 200
+    _MAX_REQUESTS_PER_MINUTE = 200
     PROMPT_TEMPLATE = SIMPLE_PROMPT_TEMPLATE
 
     async def _request_translation(self, prompt: str) -> str:
@@ -150,7 +157,8 @@ class GPT35TurboTranslator(GPT3Translator):
             messages=messages,
             temperature=self.temperature,
         )
-        print(response.usage)
+        self.token_count += response.usage['total_tokens']
+        self.token_count_last = response.usage['total_tokens']
         for choice in response.choices:
             if 'text' in choice:
                 return choice.text
