@@ -13,17 +13,15 @@ class FormatNotSupportedException(Exception):
 OUTPUT_FORMATS = {}
 def register_format(format_obj):
     for fmt in format_obj.SUPPORTED_FORMATS:
-        OUTPUT_FORMATS[fmt] = format_obj
+        OUTPUT_FORMATS[fmt] = format_obj()
     return format_obj
 
-class SubClassRegister(type):
+class TranslationExportFormat():
+    SUPPORTED_FORMATS = []
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         register_format(cls)
-
-
-class TranslationExportFormat(SubClassRegister):
-    SUPPORTED_FORMATS = []
 
     def save(self, result: Image.Image, dest: str, ctx: Context):
         self._save(result, dest, ctx)
@@ -38,7 +36,7 @@ def save_result(result: Image.Image, dest: str, ctx: Context):
     # result.save(dest)
     if ext not in OUTPUT_FORMATS:
         raise FormatNotSupportedException(ext)
-    format_handler = OUTPUT_FORMATS[ext]
+    format_handler: TranslationExportFormat = OUTPUT_FORMATS[ext]
     format_handler.save(result, dest, ctx)
 
 
@@ -48,7 +46,7 @@ class ImageFormat(TranslationExportFormat):
     SUPPORTED_FORMATS = ['png', 'jpg', 'webp']
 
     def _save(self, result: Image.Image, dest: str, ctx: Context):
-        ctx.result.save(dest)
+        result.save(dest)
 
 # class KraFormat(TranslationExportFormat):
 #     SUPPORTED_FORMATS = ['kra']

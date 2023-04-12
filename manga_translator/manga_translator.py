@@ -162,6 +162,7 @@ class MangaTranslator():
 
         # Save result
         if result:
+            logger.info('Saving results')
             save_result(result, dest, translation_dict)
             await self._report_progress('saved', True)
 
@@ -350,6 +351,7 @@ class MangaTranslator():
             await ph(state, finished)
 
     def _add_logger_hook(self):
+        # TODO: Pass ctx to logger hook
         LOG_MESSAGES = {
             'upscaling':            'Running upscaling',
             'detection':            'Running text detection',
@@ -358,7 +360,6 @@ class MangaTranslator():
             'translating':          'Running text translation',
             'rendering':            'Running rendering',
             'downscaling':          'Running downscaling',
-            'saved':                'Saving results', # TODO: Pass ctx to logger hook and add save destination
         }
         LOG_MESSAGES_SKIP = {
             'skip-no-regions':      'No text regions! - Skipping',
@@ -489,7 +490,7 @@ class MangaTranslatorWeb(MangaTranslator):
         self.host = params.get('host', '127.0.0.1')
         if self.host == '0.0.0.0':
             self.host = '127.0.0.1'
-        self.port = str(params.get('port', 5003))
+        self.port = params.get('port', 5003)
         self.nonce = params.get('nonce', '')
         self.ignore_errors = params.get('ignore_errors', True)
         self._task_id = None
