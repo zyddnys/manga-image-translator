@@ -532,7 +532,7 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
                 del TASK_STATES[tid]
                 del TASK_DATA[tid]
 
-            # Delete oldest folder if disk space if becoming sparse
+            # Delete oldest folder if disk space is becoming sparse
             if DISK_SPACE_LIMIT >= 0 and len(FINISHED_TASKS) > 0 and shutil.disk_usage('result/')[2] < DISK_SPACE_LIMIT:
                 tid = FINISHED_TASKS.pop(0)
                 try:
