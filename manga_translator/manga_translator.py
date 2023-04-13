@@ -452,9 +452,9 @@ class MangaTranslator():
         # Filter out regions by their translations
         new_text_regions = []
         for region in ctx.text_regions:
-            if region.translation.isnumeric() \
+            if not ctx.translator.is_none() and (region.translation.isnumeric() \
                 or (ctx.filter_trans and re.search(ctx.filter_trans, region.translation)) \
-                or count_valuable_text(region.translation) <= 1:
+                or count_valuable_text(region.translation) <= 1) :
                 if region.translation.strip():
                     logger.info(f'Filtered out: {region.translation}')
             else:

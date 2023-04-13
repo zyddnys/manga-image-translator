@@ -68,6 +68,9 @@ class TranslatorChain():
             self.chain.append((trans, lang))
         self.translators, self.langs = list(zip(*self.chain))
 
+    def is_none(self) -> bool :
+        return self.translators[0] == 'none'
+    
 async def prepare(chain: TranslatorChain):
     for key, tgt_lang in chain.chain:
         translator = get_translator(key)
