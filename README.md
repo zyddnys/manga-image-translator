@@ -19,6 +19,8 @@ Also check out GUI implementation: https://github.com/dmMaze/BallonsTranslator
 **This is a hobby project, you are welcome to contribute!**\
 Currently this only a simple demo, many imperfections exist, we need your support to make this project better!
 
+Sample images can be found [here](#samples)
+
 ## Support Us
 
 GPU server is not cheap, please consider to donate to us.
@@ -35,8 +37,6 @@ Browser Userscript (by QiroNT): <https://greasyfork.org/scripts/437569>
 - Note this may not work sometimes due to stupid google gcp kept restarting my instance.
   In that case you can wait for me to restart the service, which may take up to 24 hrs.
 - Note this online demo is using the current main branch version.
-
-Sample images can be found [here](#samples)
 
 ## Installation
 
