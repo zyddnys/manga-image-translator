@@ -13,7 +13,8 @@
 Some manga/images will never be translated, therefore this project is born.\
 Primarily designed for translating Japanese text, but also supports Chinese, English and Korean.\
 Supports inpainting and text rendering.\
-Successor to <https://github.com/PatchyVideo/MMDOCR-HighPerformance>
+Successor to <https://github.com/PatchyVideo/MMDOCR-HighPerformance>\
+Also checkout GUI implementation: https://github.com/dmMaze/BallonsTranslator
 
 **This is a hobby project, you are welcome to contribute!**\
 Currently this only a simple demo, many imperfections exist, we need your support to make this project better!
