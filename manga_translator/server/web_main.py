@@ -1,19 +1,22 @@
 import io
 import os
+import re
 import sys
 import time
+import shutil
 import asyncio
 import subprocess
 from PIL import Image
-from oscrypto import util as crypto_utils
-from aiohttp import web
 from io import BytesIO
+from aiohttp import web
 from imagehash import phash
 from collections import deque
+from oscrypto import util as crypto_utils
 
 SERVER_DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 BASE_PATH = os.path.dirname(os.path.dirname(SERVER_DIR_PATH))
 
+# TODO: Get capabilities through api
 VALID_LANGUAGES = {
     'CHS': 'Chinese (Simplified)',
     'CHT': 'Chinese (Traditional)',
@@ -49,8 +52,12 @@ WEB_CLIENT_TIMEOUT = -1
 # Time before finished tasks get removed from memory
 FINISHED_TASK_REMOVE_TIMEOUT = 1800
 
-# TODO: Make to dict with translator client id as key for support of multiple translator clients
+# Auto deletes old task folders upon reaching this disk space limit
+DISK_SPACE_LIMIT = 5e7 # 50mb
+
+# TODO: Turn into dict with translator client id as key for support of multiple translator clients
 ONGOING_TASKS = []
+FINISHED_TASKS = []
 NONCE = ''
 QUEUE = deque()
 TASK_DATA = {}
@@ -328,7 +335,7 @@ async def post_task_update_async(request):
     """
     Lets the translator update the task state it is working on.
     """
-    global NONCE, ONGOING_TASKS
+    global NONCE, ONGOING_TASKS, FINISHED_TASKS
     rqjson = (await request.json())
     if constant_compare(rqjson.get('nonce'), NONCE):
         task_id = rqjson['task_id']
@@ -340,7 +347,7 @@ async def post_task_update_async(request):
             if rqjson['finished'] and not TASK_DATA[task_id].get('manual', False):
                 try:
                     i = ONGOING_TASKS.index(task_id)
-                    ONGOING_TASKS.pop(i)
+                    FINISHED_TASKS.append(ONGOING_TASKS.pop(i))
                 except ValueError:
                     pass
             print(f'Task state {task_id} to {TASK_STATES[task_id]}')
@@ -469,7 +476,7 @@ async def start_async_app(host: str, port: int, nonce: str, translation_params: 
     return runner, site
 
 async def dispatch(host: str, port: int, nonce: str = None, translation_params: dict = None):
-    global ONGOING_TASKS
+    global ONGOING_TASKS, FINISHED_TASKS
 
     if nonce is None:
         nonce = os.getenv('MT_WEB_NONCE', generate_nonce())
@@ -479,6 +486,12 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
     # Create client process that will execute translation tasks
     print()
     client_process = start_translator_client_proc(host, port, nonce, translation_params)
+
+    # Get all prior finished tasks
+    for f in os.listdir('result/'):
+        if os.path.isdir(f'result/{f}') and re.search(r'^\w+-\d+-\w+-\w+-\w+-\w+$', f):
+            FINISHED_TASKS.append(f)
+    FINISHED_TASKS = list(sorted(FINISHED_TASKS, key=lambda task_id: os.path.getmtime(f'result/{task_id}')))
 
     try:
         while True:
@@ -490,8 +503,8 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
                 #     break
                 print('Restarting translator process')
                 if len(ONGOING_TASKS) > 0:
-                    task_id = ONGOING_TASKS.pop(0)
-                    state = TASK_STATES[task_id]
+                    tid = ONGOING_TASKS.pop(0)
+                    state = TASK_STATES[tid]
                     state['info'] = 'error'
                     state['finished'] = True
                 client_process = start_translator_client_proc(host, port, nonce, translation_params)
@@ -519,6 +532,15 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
                 del TASK_STATES[tid]
                 del TASK_DATA[tid]
 
+            # Delete oldest folder if disk space if becoming sparse
+            if DISK_SPACE_LIMIT >= 0 and len(FINISHED_TASKS) > 0 and shutil.disk_usage('result/')[2] < DISK_SPACE_LIMIT:
+                tid = FINISHED_TASKS.pop(0)
+                try:
+                    p = f'result/{tid}'
+                    print(f'REMOVING OLD TASK RESULT: {p}')
+                    shutil.rmtree(p)
+                except FileNotFoundError:
+                    pass
     except:
         if client_process.poll() is None:
             # client_process.terminate()
