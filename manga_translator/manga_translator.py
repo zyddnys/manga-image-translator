@@ -403,8 +403,10 @@ class MangaTranslator():
             s += f'\n-- {i+1} --\n'
             s += f'color: #{color_id}: {color_name} (fg, bg: {rgb2hex(*fore)} {rgb2hex(*back)})\n'
             s += f'text:  {region.get_text()}\n'
-            s += f'trans: {region.translation}'
-        s += '\n\n'
+            s += f'trans: {region.translation}\n'
+            for line in region.lines :
+                s += f'coords: {list(line.ravel())}\n'
+        s += '\n'
 
         text_output_file = ctx.text_output_file
         if not text_output_file:
