@@ -18,8 +18,7 @@ Also check out GUI implementation: https://github.com/dmMaze/BallonsTranslator
 
 **This is a hobby project, you are welcome to contribute!**\
 Currently this only a simple demo, many imperfections exist, we need your support to make this project better!
-
-Example translations can be found under [#samples](#samples).
+Samples are found under [here](#samples).
 
 ## Support Us
 
