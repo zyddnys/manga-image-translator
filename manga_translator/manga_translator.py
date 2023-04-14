@@ -98,6 +98,8 @@ class MangaTranslator():
         dest = os.path.abspath(os.path.expanduser(dest)) if dest else ''
         params = params or {}
 
+        file_ext = 'png' if params.get('save_quality', 100) == 100 else 'jpg'
+
         # TODO: accept * in file paths
 
         if os.path.isfile(path):
@@ -105,14 +107,14 @@ class MangaTranslator():
             if not dest:
                 # Use the same folder as the source
                 p, ext = os.path.splitext(path)
-                dest = f'{p}-translated.png'
+                dest = f'{p}-translated.{file_ext}'
             elif not os.path.basename(dest):
                 p, ext = os.path.splitext(os.path.basename(path))
                 # If the folders differ use the original filename from the source
                 if os.path.dirname(path) != dest:
-                    dest = os.path.join(dest, f'{p}.png')
+                    dest = os.path.join(dest, f'{p}.{file_ext}')
                 else:
-                    dest = os.path.join(dest, f'{p}-translated.png')
+                    dest = os.path.join(dest, f'{p}-translated.{file_ext}')
             dest_root = os.path.dirname(dest)
             await self._translate_file(path, dest, params)
 
@@ -160,7 +162,7 @@ class MangaTranslator():
             # No text regions with text found
             result = img
         if result:
-            result.save(dest)
+            result.save(dest, quality = translation_dict.save_quality)
             await self._report_progress('saved', True)
 
         save_text_to_file = translation_dict.save_text or translation_dict.save_text_file or translation_dict.prep_manual
@@ -170,7 +172,7 @@ class MangaTranslator():
                 p, ext = os.path.splitext(dest)
                 img_filename = p + '-orig' + ext
                 img_path = os.path.join(os.path.dirname(dest), img_filename)
-                img.save(img_path)
+                img.save(img_path, quality = translation_dict.save_quality)
             if translation_dict.text_regions:
                 self.save_text_to_file(dest, translation_dict)
 
