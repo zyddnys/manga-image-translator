@@ -13,10 +13,12 @@
 Some manga/images will never be translated, therefore this project is born.\
 Primarily designed for translating Japanese text, but also supports Chinese, English and Korean.\
 Supports inpainting and text rendering.\
-Successor to <https://github.com/PatchyVideo/MMDOCR-HighPerformance>
+Successor to <https://github.com/PatchyVideo/MMDOCR-HighPerformance>\
+Also check out GUI implementation: https://github.com/dmMaze/BallonsTranslator
 
 **This is a hobby project, you are welcome to contribute!**\
 Currently this only a simple demo, many imperfections exist, we need your support to make this project better!
+Samples are found under [here](#samples).
 
 ## Support Us
 
@@ -35,13 +37,11 @@ Browser Userscript (by QiroNT): <https://greasyfork.org/scripts/437569>
   In that case you can wait for me to restart the service, which may take up to 24 hrs.
 - Note this online demo is using the current main branch version.
 
-Sample images can be found [here](#samples)
-
 ## Installation
 
 ```bash
 # First, you need to have Python(>=3.8) installed on your system
-# The latest version often does not work with pytorch yet
+# The latest version often does not work with some pytorch libraries yet
 $ python --version
 Python 3.10.6
 
@@ -50,17 +50,14 @@ $ git clone https://github.com/zyddnys/manga-image-translator.git
 
 # Install the dependencies
 $ pip install -r requirements.txt
-
-$ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 ```
 
 The models will be downloaded into _./models_ at runtime.
 
 #### If you are on windows
-Some pip dependencies will not compile without _Microsoft C++ Build Tools_
-(See ![#114](https://github.com/zyddnys/manga-image-translator/issues/114)).
+Install Microsoft C++ Build Tools (![Download](https://visualstudio.microsoft.com/vs/), ![Instructions](https://learn.microsoft.com/en-in/visualstudio/install/modify-visual-studio?view=vs-2022#change-workloads-or-individual-components)) as some pip dependencies will not compile without it. (See ![#114](https://github.com/zyddnys/manga-image-translator/issues/114)).
 
-*To use [cuda](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64) on windows* install the correct pytorch version as instructed on https://pytorch.org/.  
+To use [cuda](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64) on windows install the correct pytorch version as instructed on https://pytorch.org/.  
 Add `--upgrade --force-reinstall` to the pip command to overwrite the currently installed version.
 
 If you have trouble installing pydensecrf with the command above you can download the pre-compiled wheels
@@ -304,9 +301,9 @@ VIN: Vietnames
                                              the command line (works only on linux right now)
     --save-text                              Save extracted text and translations into a text file.
     --save-text-file SAVE_TEXT_FILE          Like --save-text but with a specified file path.
-    --text-filter TEXT_FILTER                Filter region by their original text with a regex.
+    --filter-text FILTER_TEXT                Filter region by their original text with a regex.
                                              Example usage: --text-filter ".*badtext.*"
-    --trans-filter TRANS_FILTER              Filter region by their translated text with a regex.
+    --filter-trans FILTER_TRANS              Filter region by their translated text with a regex.
     --prep-manual                            Prepare for manual typesetting by outputting blank,
                                              inpainted images, plus copies of the original for
                                              reference

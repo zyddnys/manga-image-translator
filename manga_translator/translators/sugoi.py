@@ -194,6 +194,7 @@ class SugoiTranslator(JparacrawlBigTranslator):
         if lang == 'en-sugoi':
             new_translations = []
             i = 0
+            # Put the split queries back together
             for query_count in self.query_split_sizes:
                 sentences = ' '.join(translations[i:i+query_count])
                 i += query_count

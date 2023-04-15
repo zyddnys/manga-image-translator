@@ -136,8 +136,8 @@ g = parser.add_mutually_exclusive_group()
 g.add_argument('--save-text', action='store_true', help='Save extracted text and translations into a text file.')
 g.add_argument('--save-text-file', default='', type=str, help='Like --save-text but with a specified file path.')
 
-parser.add_argument('--text-filter', default=None, type=str, help='Filter region by their original text with a regex. Example usage: --text-filter ".*badtext.*"')
-parser.add_argument('--trans-filter', default=None, type=str, help='Filter region by their translated text with a regex.')
+parser.add_argument('--filter-text', default=None, type=str, help='Filter region by their original text with a regex. Example usage: --text-filter ".*badtext.*"')
+parser.add_argument('--filter-trans', default=None, type=str, help='Filter region by their translated text with a regex.')
 parser.add_argument('--prep-manual', action='store_true', help='Prepare for manual typesetting by outputting blank, inpainted images, plus copies of the original for reference')
 parser.add_argument('--font-path', default='', type=file_path, help='Path to font file')
 parser.add_argument('--host', default='127.0.0.1', type=str, help='Used by web module to decide which host to attach to')
@@ -145,6 +145,7 @@ parser.add_argument('--port', default=5003, type=int, help='Used by web module t
 parser.add_argument('--nonce', default=os.getenv('MT_WEB_NONCE', ''), type=str, help='Used by web module as secret for securing internal web server communication')
 # parser.add_argument('--log-web', action='store_true', help='Used by web module to decide if web logs should be surfaced')
 parser.add_argument('--ws-url', default='ws://localhost:5000', type=str, help='Server URL for WebSocket mode')
+parser.add_argument('--save-quality', default=100, type=int, help='Quality of saved JPEG image, range from 0 to 100 with 100 being best')
 
 # Generares dict with a default value for each argument
 DEFAULT_ARGS = vars(parser.parse_args([]))

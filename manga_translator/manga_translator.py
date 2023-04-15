@@ -98,6 +98,8 @@ class MangaTranslator():
         dest = os.path.abspath(os.path.expanduser(dest)) if dest else ''
         params = params or {}
 
+        file_ext = 'png' if params.get('save_quality', 100) == 100 else 'jpg'
+
         # TODO: accept * in file paths
 
         if os.path.isfile(path):
@@ -105,14 +107,14 @@ class MangaTranslator():
             if not dest:
                 # Use the same folder as the source
                 p, ext = os.path.splitext(path)
-                dest = f'{p}-translated.png'
+                dest = f'{p}-translated.{file_ext}'
             elif not os.path.basename(dest):
                 p, ext = os.path.splitext(os.path.basename(path))
                 # If the folders differ use the original filename from the source
                 if os.path.dirname(path) != dest:
-                    dest = os.path.join(dest, f'{p}.png')
+                    dest = os.path.join(dest, f'{p}.{file_ext}')
                 else:
-                    dest = os.path.join(dest, f'{p}-translated.png')
+                    dest = os.path.join(dest, f'{p}-translated.{file_ext}')
             dest_root = os.path.dirname(dest)
             await self._translate_file(path, dest, params)
 
@@ -160,7 +162,7 @@ class MangaTranslator():
             # No text regions with text found
             result = img
         if result:
-            result.save(dest)
+            result.save(dest, quality = translation_dict.save_quality)
             await self._report_progress('saved', True)
 
         save_text_to_file = translation_dict.save_text or translation_dict.save_text_file or translation_dict.prep_manual
@@ -170,7 +172,7 @@ class MangaTranslator():
                 p, ext = os.path.splitext(dest)
                 img_filename = p + '-orig' + ext
                 img_path = os.path.join(os.path.dirname(dest), img_filename)
-                img.save(img_path)
+                img.save(img_path, quality = translation_dict.save_quality)
             if translation_dict.text_regions:
                 self.save_text_to_file(dest, translation_dict)
 
@@ -269,10 +271,10 @@ class MangaTranslator():
         else:
             ctx.translator = TranslatorChain(f'{ctx.translator}:{ctx.target_lang}')
 
-        if ctx.text_filter:
-            ctx.text_filter = re.compile(ctx.text_filter)
-        if ctx.trans_filter:
-            ctx.trans_filter = re.compile(ctx.trans_filter)
+        if ctx.filter_text:
+            ctx.filter_text = re.compile(ctx.filter_text)
+        if ctx.filter_trans:
+            ctx.filter_trans = re.compile(ctx.filter_trans)
 
     async def _translate(self, ctx: Context) -> Context:
 
@@ -401,8 +403,10 @@ class MangaTranslator():
             s += f'\n-- {i+1} --\n'
             s += f'color: #{color_id}: {color_name} (fg, bg: {rgb2hex(*fore)} {rgb2hex(*back)})\n'
             s += f'text:  {region.get_text()}\n'
-            s += f'trans: {region.translation}'
-        s += '\n\n'
+            s += f'trans: {region.translation}\n'
+            for line in region.lines :
+                s += f'coords: {list(line.ravel())}\n'
+        s += '\n'
 
         text_output_file = ctx.text_output_file
         if not text_output_file:
@@ -426,10 +430,11 @@ class MangaTranslator():
         for region in text_regions:
             text = region.get_text()
             if text.isnumeric() \
-                or (ctx.text_filter and re.search(ctx.text_filter, text)) \
+                or (ctx.filter_text and re.search(ctx.filter_text, text)) \
                 or count_valuable_text(text) <= 1 \
                 or is_url(text):
-                logger.info(f'Filtered out: {text}')
+                if text.strip():
+                    logger.info(f'Filtered out: {text}')
             else:
                 new_text_regions.append(region)
         return new_text_regions
@@ -451,10 +456,11 @@ class MangaTranslator():
         # Filter out regions by their translations
         new_text_regions = []
         for region in ctx.text_regions:
-            if region.translation.isnumeric() \
-                or (ctx.trans_filter and re.search(ctx.trans_filter, region.translation)) \
-                or count_valuable_text(region.translation) <= 1:
-                logger.info(f'Filtered out: {region.translation}')
+            if not ctx.translator.is_none() and (region.translation.isnumeric() \
+                or (ctx.filter_trans and re.search(ctx.filter_trans, region.translation)) \
+                or count_valuable_text(region.translation) <= 1) :
+                if region.translation.strip():
+                    logger.info(f'Filtered out: {region.translation}')
             else:
                 new_text_regions.append(region)
         return new_text_regions
@@ -647,10 +653,15 @@ class MangaTranslatorWS(MangaTranslator):
                                 current_value = params.get(p)
                                 params[p] = current_value if current_value is not None else default_value
                         image = Image.open(io.BytesIO(task.source_image))
+                        (ori_w, ori_h) = image.size
+                        if max(ori_h, ori_w) > 1200 :
+                            params['upscale_ratio'] = 1
                         translation_dict = await self.translate(image, params)
-                        output = translation_dict.result
+                        output: Image.Image = translation_dict.result
                         if output is None:
-                            output = Image.fromarray(np.zeros((output.height, output.width, 4), dtype=np.uint8))
+                            output = Image.fromarray(np.zeros((ori_h, ori_w, 4), dtype=np.uint8))
+                        else :
+                            output = output.resize((ori_w, ori_h), resample = Image.BICUBIC)
 
                         img = io.BytesIO()
                         output.save(img, format='PNG')
