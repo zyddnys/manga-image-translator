@@ -56,10 +56,10 @@ The models will be downloaded into `./models` at runtime.
 
 #### If you are on windows
 
-Install Microsoft C++ Build Tools (![Download](https://visualstudio.microsoft.com/vs/),
-![Instructions](https://learn.microsoft.com/en-in/visualstudio/install/modify-visual-studio?view=vs-2022#change-workloads-or-individual-components))
+Install Microsoft C++ Build Tools ([Download](https://visualstudio.microsoft.com/vs/),
+[Instructions](https://learn.microsoft.com/en-in/visualstudio/install/modify-visual-studio?view=vs-2022#change-workloads-or-individual-components))
 as some pip dependencies will not compile without it.
-(See ![#114](https://github.com/zyddnys/manga-image-translator/issues/114)).
+(See [#114](https://github.com/zyddnys/manga-image-translator/issues/114)).
 
 To use [cuda](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64)
 on windows install the correct pytorch version as instructed on <https://pytorch.org/>.  
