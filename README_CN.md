@@ -96,6 +96,8 @@ VIN: Vietnames
 
 <!-- Auto generated start -->
 ## 选项
+
+```text
     -h, --help                               show this help message and exit
     -m, --mode {demo,batch,web,web_client,ws,api}
                                              Run demo in single image demo mode (demo), batch
@@ -185,8 +187,11 @@ VIN: Vietnames
     --nonce NONCE                            Used by web module as secret for securing internal web
                                              server communication
     --ws-url WS_URL                          Server URL for WebSocket mode
-<!-- Auto generated end -->
+    --save-quality SAVE_QUALITY              Quality of saved JPEG image, range from 0 to 100 with
+                                             100 being best
+```
 
+<!-- Auto generated end -->
 
 ### 使用命令行执行
 
@@ -292,11 +297,81 @@ POST 提交一个带图片，名字是 file 的 form 到 <http://127.0.0.1:5003/
 
 ## 效果图
 
-以下图片为最初版效果，并不代表目前最新版本的效果。
+以下样例可能并未经常更新，可能不能代表当前主分支版本的效果。
 
-|                                             原始图片                                              |            翻译后图片             |
-| :-----------------------------------------------------------------------------------------------: | :-------------------------------: |
-|        ![Original](demo/image/original1.jpg "https://www.pixiv.net/en/artworks/85200179")         | ![Output](demo/image/result1.png) |
-| ![Original](demo/image/original2.jpg "https://twitter.com/mmd_96yuki/status/1320122899005460481") | ![Output](demo/image/result2.png) |
-| ![Original](demo/image/original3.jpg "https://twitter.com/_taroshin_/status/1231099378779082754") | ![Output](demo/image/result3.png) |
-|           ![Original](demo/image/original4.jpg "https://amagi.fanbox.cc/posts/1904941")           | ![Output](demo/image/result4.png) |
+<table>
+  <thead>
+    <tr>
+      <th align="center" width="50%">原始图片</th>
+      <th align="center" width="50%">翻译后图片</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td align="center" width="50%">
+        <a href="https://user-images.githubusercontent.com/31543482/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png">
+          <img alt="佐藤さんは知っていた - 猫麦" src="https://user-images.githubusercontent.com/31543482/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png" />
+        </a>
+        <br />
+        <a href="https://twitter.com/09ra_19ra/status/1647079591109103617/photo/1">(Source @09ra_19ra)</a>
+      </td>
+      <td align="center" width="50%">
+        <a href="https://user-images.githubusercontent.com/31543482/232265339-514c843a-0541-4a24-b3bc-1efa6915f757.png">
+          <img alt="Output" src="https://user-images.githubusercontent.com/31543482/232265339-514c843a-0541-4a24-b3bc-1efa6915f757.png" />
+        </a>
+        <br />
+        <a href="https://user-images.githubusercontent.com/31543482/232265376-01a4557d-8120-4b6b-b062-f271df177770.png">(Mask)</a>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" width="50%">
+        <a href="https://user-images.githubusercontent.com/31543482/232265479-a15c43b5-0f00-489c-9b04-5dfbcd48c432.png">
+          <img alt="Gris finds out she's of royal blood - VERTI" src="https://user-images.githubusercontent.com/31543482/232265479-a15c43b5-0f00-489c-9b04-5dfbcd48c432.png" />
+        </a>
+        <br />
+        <a href="https://twitter.com/VERTIGRIS_ART/status/1644365184142647300/photo/1">(Source @VERTIGRIS_ART)</a>
+      </td>
+      <td align="center" width="50%">
+        <a href="https://user-images.githubusercontent.com/31543482/232265480-f8ba7a28-846f-46e7-8041-3dcb1afe3f67.png">
+          <img alt="Output" src="https://user-images.githubusercontent.com/31543482/232265480-f8ba7a28-846f-46e7-8041-3dcb1afe3f67.png" />
+        </a>
+        <br />
+        <code>--detector ctd</code>
+        <a href="https://user-images.githubusercontent.com/31543482/232265483-99ad20af-dca8-4b78-90f9-a6599eb0e70b.png">(Mask)</a>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" width="50%">
+        <a href="https://user-images.githubusercontent.com/31543482/232264684-5a7bcf8e-707b-4925-86b0-4212382f1680.png">
+          <img alt="陰キャお嬢様の新学期🏫📔🌸 (#3) - ひづき夜宵🎀💜" src="https://user-images.githubusercontent.com/31543482/232264684-5a7bcf8e-707b-4925-86b0-4212382f1680.png" />
+        </a>
+        <br />
+        <a href="https://twitter.com/hiduki_yayoi/status/1645186427712573440/photo/2">(Source @hiduki_yayoi)</a>
+      </td>
+      <td align="center" width="50%">
+        <a href="https://user-images.githubusercontent.com/31543482/232264644-39db36c8-a8d9-4009-823d-bf85ca0609bf.png">
+          <img alt="Output" src="https://user-images.githubusercontent.com/31543482/232264644-39db36c8-a8d9-4009-823d-bf85ca0609bf.png" />
+        </a>
+        <br />
+        <code>--translator none</code>
+        <a href="https://user-images.githubusercontent.com/31543482/232264671-bc8dd9d0-8675-4c6d-8f86-0d5b7a342233.png">(Mask)</a>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" width="50%">
+        <a href="https://user-images.githubusercontent.com/31543482/232265794-5ea8a0cb-42fe-4438-80b7-3bf7eaf0ff2c.png">
+          <img alt="幼なじみの高校デビューの癖がすごい (#1) - 神吉李花☪️🐧" src="https://user-images.githubusercontent.com/31543482/232265794-5ea8a0cb-42fe-4438-80b7-3bf7eaf0ff2c.png" />
+        </a>
+        <br />
+        <a href="https://twitter.com/rikak/status/1642727617886556160/photo/1">(Source @rikak)</a>
+      </td>
+      <td align="center" width="50%">
+        <a href="https://user-images.githubusercontent.com/31543482/232265795-4bc47589-fd97-4073-8cf4-82ae216a88bc.png">
+          <img alt="Output" src="https://user-images.githubusercontent.com/31543482/232265795-4bc47589-fd97-4073-8cf4-82ae216a88bc.png" />
+        </a>
+        <br />
+        <a href="https://user-images.githubusercontent.com/31543482/232265800-6bdc7973-41fe-4d7e-a554-98ea7ca7a137.png">(Mask)</a>
+      </td>
+    </tr>
+  </tbody>
+</table>

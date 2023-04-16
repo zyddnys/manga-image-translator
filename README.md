@@ -14,7 +14,7 @@ Some manga/images will never be translated, therefore this project is born.\
 Primarily designed for translating Japanese text, but also supports Chinese, English and Korean.\
 Supports inpainting and text rendering.\
 Successor to <https://github.com/PatchyVideo/MMDOCR-HighPerformance>\
-Also check out GUI implementation: https://github.com/dmMaze/BallonsTranslator
+Also check out GUI implementation: <https://github.com/dmMaze/BallonsTranslator>
 
 **This is a hobby project, you are welcome to contribute!**\
 Currently this only a simple demo, many imperfections exist, we need your support to make this project better!
@@ -52,12 +52,17 @@ $ git clone https://github.com/zyddnys/manga-image-translator.git
 $ pip install -r requirements.txt
 ```
 
-The models will be downloaded into _./models_ at runtime.
+The models will be downloaded into `./models` at runtime.
 
 #### If you are on windows
-Install Microsoft C++ Build Tools (![Download](https://visualstudio.microsoft.com/vs/), ![Instructions](https://learn.microsoft.com/en-in/visualstudio/install/modify-visual-studio?view=vs-2022#change-workloads-or-individual-components)) as some pip dependencies will not compile without it. (See ![#114](https://github.com/zyddnys/manga-image-translator/issues/114)).
 
-To use [cuda](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64) on windows install the correct pytorch version as instructed on https://pytorch.org/.  
+Install Microsoft C++ Build Tools (![Download](https://visualstudio.microsoft.com/vs/),
+![Instructions](https://learn.microsoft.com/en-in/visualstudio/install/modify-visual-studio?view=vs-2022#change-workloads-or-individual-components))
+as some pip dependencies will not compile without it.
+(See ![#114](https://github.com/zyddnys/manga-image-translator/issues/114)).
+
+To use [cuda](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64)
+on windows install the correct pytorch version as instructed on <https://pytorch.org/>.  
 Add `--upgrade --force-reinstall` to the pip command to overwrite the currently installed version.
 
 If you have trouble installing pydensecrf with the command above you can download the pre-compiled wheels
@@ -66,6 +71,7 @@ from <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf> according to your
 ## Usage
 
 #### Demo mode (default)
+
 ```bash
 # saves singular image into /result folder for demonstration purposes
 # `--use-cuda` is optional, if you have a compatible NVIDIA GPU, you can use it.
@@ -167,25 +173,26 @@ Then you can find the translation result in `result/` directory, e.g. using Ngin
 
 ### Translators Reference
 
-| Name           | API Key | Offline | Note                                                  |
-| -------------- | ------- | ------- | ----------------------------------------------------- |
-| google         |         |         |                                                       |
-| youdao         | ✔️      |         | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`     |
-| baidu          | ✔️      |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`        |
-| deepl          | ✔️      |         | Requires `DEEPL_AUTH_KEY`                             |
-| gpt3           | ✔️      |         | Implements text-davinci-003. Requires `OPENAI_API_KEY`|
-| gpt3.5         | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`   |
-| papago         |         |         |                                                       |
-| offline        |         | ✔️      | Chooses most suitable offline translator for language |
-| sugoi          |         | ✔️      | Sugoi V4.0 Models (recommended for JPN->ENG)          |
-| m2m100         |         | ✔️      | Supports every language                               |
-| m2m100_big     |         | ✔️      |                                                       |
-| none           |         | ✔️      | Translate to empty texts                              |
-| original       |         | ✔️      | Keep original texts                                   |
+| Name       | API Key | Offline | Note                                                   |
+| ---------- | ------- | ------- | ------------------------------------------------------ |
+| google     |         |         |                                                        |
+| youdao     | ✔️       |         | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`      |
+| baidu      | ✔️       |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`         |
+| deepl      | ✔️       |         | Requires `DEEPL_AUTH_KEY`                              |
+| gpt3       | ✔️       |         | Implements text-davinci-003. Requires `OPENAI_API_KEY` |
+| gpt3.5     | ✔️       |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`    |
+| papago     |         |         |                                                        |
+| offline    |         | ✔️       | Chooses most suitable offline translator for language  |
+| sugoi      |         | ✔️       | Sugoi V4.0 Models (recommended for JPN->ENG)           |
+| m2m100     |         | ✔️       | Supports every language                                |
+| m2m100_big |         | ✔️       |                                                        |
+| none       |         | ✔️       | Translate to empty texts                               |
+| original   |         | ✔️       | Keep original texts                                    |
 
-- API Key: Whether the translator requires an API key to be set as environment variable. 
-For this you can create a .env file containing your api keys like so:
-```
+- API Key: Whether the translator requires an API key to be set as environment variable.
+  For this you can create a .env file containing your api keys like so:
+
+```env
 OPENAI_API_KEY=sk-xxxxxxx...
 DEEPL_AUTH_KEY=xxxxxxxx...
 ```
@@ -219,7 +226,10 @@ VIN: Vietnames
 ```
 
 <!-- Auto generated start -->
-## Options:
+
+## Options
+
+```text
     -h, --help                               show this help message and exit
     -m, --mode {demo,batch,web,web_client,ws,api}
                                              Run demo in single image demo mode (demo), batch
@@ -309,8 +319,11 @@ VIN: Vietnames
     --nonce NONCE                            Used by web module as secret for securing internal web
                                              server communication
     --ws-url WS_URL                          Server URL for WebSocket mode
-<!-- Auto generated end -->
+    --save-quality SAVE_QUALITY              Quality of saved JPEG image, range from 0 to 100 with
+                                             100 being best
+```
 
+<!-- Auto generated end -->
 
 ## Docker
 
@@ -338,7 +351,8 @@ or
 docker-compose -f demo/doc/docker-compose-web-with-cpu.yml up
 ```
 
-depending on which you prefer. The web server should start on port [5003](http://localhost:5003) and images should become in the `/result` folder.
+depending on which you prefer. The web server should start on port [5003](http://localhost:5003)
+and images should become in the `/result` folder.
 
 ### Using as CLI
 
@@ -370,7 +384,7 @@ To run the container with the following flags set:
 docker run ... --gpus=all ... zyddnys/manga-image-translator:main ... --use-cuda
 ```
 
-Or  (For the web server + GPU)
+Or (For the web server + GPU)
 
 ```bash
 docker-compose -f demo/doc/docker-compose-web-with-gpu.yml up
@@ -406,14 +420,83 @@ A list of what needs to be done next, you're welcome to contribute.
 8. Make web page only show translators with API key
 9. Create pip repository
 
-
 ## Samples
 
-The following samples are from the original version, they do not represent the current main branch version.
+Please note that the samples may not always be updated, they may not represent the current main branch version.
 
-|                                             Original                                              |            Translated             |
-| :-----------------------------------------------------------------------------------------------: | :-------------------------------: |
-|        ![Original](demo/image/original1.jpg 'https://www.pixiv.net/en/artworks/85200179')         | ![Output](demo/image/result1.png) |
-| ![Original](demo/image/original2.jpg 'https://twitter.com/mmd_96yuki/status/1320122899005460481') | ![Output](demo/image/result2.png) |
-| ![Original](demo/image/original3.jpg 'https://twitter.com/_taroshin_/status/1231099378779082754') | ![Output](demo/image/result3.png) |
-|           ![Original](demo/image/original4.jpg 'https://amagi.fanbox.cc/posts/1904941')           | ![Output](demo/image/result4.png) |
+<table>
+  <thead>
+    <tr>
+      <th align="center" width="50%">Original</th>
+      <th align="center" width="50%">Translated</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td align="center" width="50%">
+        <a href="https://user-images.githubusercontent.com/31543482/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png">
+          <img alt="佐藤さんは知っていた - 猫麦" src="https://user-images.githubusercontent.com/31543482/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png" />
+        </a>
+        <br />
+        <a href="https://twitter.com/09ra_19ra/status/1647079591109103617/photo/1">(Source @09ra_19ra)</a>
+      </td>
+      <td align="center" width="50%">
+        <a href="https://user-images.githubusercontent.com/31543482/232265339-514c843a-0541-4a24-b3bc-1efa6915f757.png">
+          <img alt="Output" src="https://user-images.githubusercontent.com/31543482/232265339-514c843a-0541-4a24-b3bc-1efa6915f757.png" />
+        </a>
+        <br />
+        <a href="https://user-images.githubusercontent.com/31543482/232265376-01a4557d-8120-4b6b-b062-f271df177770.png">(Mask)</a>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" width="50%">
+        <a href="https://user-images.githubusercontent.com/31543482/232265479-a15c43b5-0f00-489c-9b04-5dfbcd48c432.png">
+          <img alt="Gris finds out she's of royal blood - VERTI" src="https://user-images.githubusercontent.com/31543482/232265479-a15c43b5-0f00-489c-9b04-5dfbcd48c432.png" />
+        </a>
+        <br />
+        <a href="https://twitter.com/VERTIGRIS_ART/status/1644365184142647300/photo/1">(Source @VERTIGRIS_ART)</a>
+      </td>
+      <td align="center" width="50%">
+        <a href="https://user-images.githubusercontent.com/31543482/232265480-f8ba7a28-846f-46e7-8041-3dcb1afe3f67.png">
+          <img alt="Output" src="https://user-images.githubusercontent.com/31543482/232265480-f8ba7a28-846f-46e7-8041-3dcb1afe3f67.png" />
+        </a>
+        <br />
+        <code>--detector ctd</code>
+        <a href="https://user-images.githubusercontent.com/31543482/232265483-99ad20af-dca8-4b78-90f9-a6599eb0e70b.png">(Mask)</a>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" width="50%">
+        <a href="https://user-images.githubusercontent.com/31543482/232264684-5a7bcf8e-707b-4925-86b0-4212382f1680.png">
+          <img alt="陰キャお嬢様の新学期🏫📔🌸 (#3) - ひづき夜宵🎀💜" src="https://user-images.githubusercontent.com/31543482/232264684-5a7bcf8e-707b-4925-86b0-4212382f1680.png" />
+        </a>
+        <br />
+        <a href="https://twitter.com/hiduki_yayoi/status/1645186427712573440/photo/2">(Source @hiduki_yayoi)</a>
+      </td>
+      <td align="center" width="50%">
+        <a href="https://user-images.githubusercontent.com/31543482/232264644-39db36c8-a8d9-4009-823d-bf85ca0609bf.png">
+          <img alt="Output" src="https://user-images.githubusercontent.com/31543482/232264644-39db36c8-a8d9-4009-823d-bf85ca0609bf.png" />
+        </a>
+        <br />
+        <code>--translator none</code>
+        <a href="https://user-images.githubusercontent.com/31543482/232264671-bc8dd9d0-8675-4c6d-8f86-0d5b7a342233.png">(Mask)</a>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" width="50%">
+        <a href="https://user-images.githubusercontent.com/31543482/232265794-5ea8a0cb-42fe-4438-80b7-3bf7eaf0ff2c.png">
+          <img alt="幼なじみの高校デビューの癖がすごい (#1) - 神吉李花☪️🐧" src="https://user-images.githubusercontent.com/31543482/232265794-5ea8a0cb-42fe-4438-80b7-3bf7eaf0ff2c.png" />
+        </a>
+        <br />
+        <a href="https://twitter.com/rikak/status/1642727617886556160/photo/1">(Source @rikak)</a>
+      </td>
+      <td align="center" width="50%">
+        <a href="https://user-images.githubusercontent.com/31543482/232265795-4bc47589-fd97-4073-8cf4-82ae216a88bc.png">
+          <img alt="Output" src="https://user-images.githubusercontent.com/31543482/232265795-4bc47589-fd97-4073-8cf4-82ae216a88bc.png" />
+        </a>
+        <br />
+        <a href="https://user-images.githubusercontent.com/31543482/232265800-6bdc7973-41fe-4d7e-a554-98ea7ca7a137.png">(Mask)</a>
+      </td>
+    </tr>
+  </tbody>
+</table>
