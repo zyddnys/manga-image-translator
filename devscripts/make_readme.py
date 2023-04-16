@@ -16,7 +16,7 @@ from manga_translator.args import HelpFormatter, parser
 READMES = (
     [
         'README.md',
-        '## Options:',
+        '## Options',
         '<!-- Auto generated end -->',
     ],
     [
@@ -91,6 +91,8 @@ for file, options_start, options_end in READMES:
 
     write_file(file, ''.join((
         take_section(readme, end=options_start, shift=len(options_start)),
+        '\n\n```text',
         functools.reduce(apply_patch, PATCHES, options),
+        '```\n\n',
         take_section(readme, options_end),
     )))
