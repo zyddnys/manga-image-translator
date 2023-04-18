@@ -308,9 +308,8 @@ VIN: Vietnames
                                              the command line (works only on linux right now)
     --save-text                              Save extracted text and translations into a text file.
     --save-text-file SAVE_TEXT_FILE          Like --save-text but with a specified file path.
-    --filter-text FILTER_TEXT                Filter regions by their original text with a regex.
-                                             Example usage: --text-filter ".*badtext.*"
-    --filter-trans FILTER_TRANS              Filter regions by their translated text with a regex.
+    --filter-text FILTER_TEXT                Filter regions by their text with a regex. Example
+                                             usage: --text-filter ".*badtext.*"
     --prep-manual                            Prepare for manual typesetting by outputting blank,
                                              inpainted images, plus copies of the original for
                                              reference
