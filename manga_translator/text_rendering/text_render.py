@@ -370,10 +370,6 @@ def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str
             current_widths = [whitespace_offset_x] + current_widths
         current_width = sum(current_widths)
 
-        # print(current_word, current_width)
-        if current_width > 5000:
-            raise Exception('FUCK YOU')
-
         if line_width + current_width <= max_width + font_size: # May go over max_width by font_size
             line_text += current_word
             line_width += current_width
