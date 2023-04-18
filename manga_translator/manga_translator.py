@@ -31,6 +31,7 @@ from .utils import (
     rgb2hex,
     get_color_name,
     is_url,
+    natural_sort,
 )
 
 from .detection import DETECTORS, dispatch as dispatch_detection, prepare as prepare_detection
@@ -131,7 +132,7 @@ class MangaTranslator():
 
             translated_count = 0
             for root, subdirs, files in os.walk(path):
-                files.sort()
+                files = natural_sort(files)
                 dest_root = replace_prefix(root, path, dest)
                 os.makedirs(dest_root, exist_ok=True)
                 for f in files:

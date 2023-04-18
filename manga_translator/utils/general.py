@@ -64,6 +64,12 @@ class Context(dict):
 
 # TODO: Add TranslationContext for type linting
 
+def atoi(text):
+    return int(text) if text.isdigit() else text
+
+def natural_sort(l: List[str]):
+    return sorted(l, key=lambda text: [atoi(c) for c in re.split(r'(\d+)', text)])
+
 def repeating_sequence(s: str):
     """Extracts repeating sequence from string. Example: 'abcabca' -> 'abc'."""
     for i in range(1, len(s) // 2 + 1):
