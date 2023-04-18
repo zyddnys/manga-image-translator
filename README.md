@@ -242,6 +242,7 @@ VIN: Vietnames
                                              Destination language
     -v, --verbose                            Print debug info and save intermediate images in result
                                              folder
+    -f, --format {png,jpg,webp}              Output format of the translation.
     --detector {default,ctd}                 Text detector used for creating a text mask from an
                                              image
     --ocr {32px,48px_ctc}                    Optical character recognition (OCR) model to use
@@ -307,9 +308,9 @@ VIN: Vietnames
                                              the command line (works only on linux right now)
     --save-text                              Save extracted text and translations into a text file.
     --save-text-file SAVE_TEXT_FILE          Like --save-text but with a specified file path.
-    --filter-text FILTER_TEXT                Filter region by their original text with a regex.
+    --filter-text FILTER_TEXT                Filter regions by their original text with a regex.
                                              Example usage: --text-filter ".*badtext.*"
-    --filter-trans FILTER_TRANS              Filter region by their translated text with a regex.
+    --filter-trans FILTER_TRANS              Filter regions by their translated text with a regex.
     --prep-manual                            Prepare for manual typesetting by outputting blank,
                                              inpainted images, plus copies of the original for
                                              reference
