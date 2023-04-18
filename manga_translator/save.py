@@ -13,10 +13,12 @@ class FormatNotSupportedException(Exception):
 OUTPUT_FORMATS = {}
 def register_format(format_obj):
     for fmt in format_obj.SUPPORTED_FORMATS:
+        if fmt in OUTPUT_FORMATS:
+            raise Exception(f'Tried to register multiple ExportFormats for "{fmt}"')
         OUTPUT_FORMATS[fmt] = format_obj()
     return format_obj
 
-class TranslationExportFormat():
+class ExportFormat():
     SUPPORTED_FORMATS = []
 
     def __init_subclass__(cls, **kwargs):
@@ -36,19 +38,26 @@ def save_result(result: Image.Image, dest: str, ctx: Context):
     # result.save(dest)
     if ext not in OUTPUT_FORMATS:
         raise FormatNotSupportedException(ext)
-    format_handler: TranslationExportFormat = OUTPUT_FORMATS[ext]
+    format_handler: ExportFormat = OUTPUT_FORMATS[ext]
     format_handler.save(result, dest, ctx)
 
 
 # -- Format Implementations
 
-class ImageFormat(TranslationExportFormat):
-    SUPPORTED_FORMATS = ['png', 'jpg', 'webp']
+class ImageFormat(ExportFormat):
+    SUPPORTED_FORMATS = ['png', 'webp']
 
     def _save(self, result: Image.Image, dest: str, ctx: Context):
         result.save(dest)
 
-# class KraFormat(TranslationExportFormat):
+class ImageFormat(ExportFormat):
+    SUPPORTED_FORMATS = ['jpg']
+
+    def _save(self, result: Image.Image, dest: str, ctx: Context):
+        result = result.convert('RGB')
+        result.save(dest, quality=ctx.save_quality)
+
+# class KraFormat(ExportFormat):
 #     SUPPORTED_FORMATS = ['kra']
 
 #     def _save(self, result: Image.Image, dest: str, ctx: Context):

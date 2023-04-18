@@ -242,7 +242,7 @@ VIN: Vietnames
                                              Destination language
     -v, --verbose                            Print debug info and save intermediate images in result
                                              folder
-    -f, --format {png,jpg,webp}              Output format of the translation.
+    -f, --format {png,webp,jpg}              Output format of the translation.
     --detector {default,ctd}                 Text detector used for creating a text mask from an
                                              image
     --ocr {32px,48px_ctc}                    Optical character recognition (OCR) model to use
@@ -250,7 +250,7 @@ VIN: Vietnames
                                              Inpainting model to use
     --upscaler {waifu2x,esrgan}              Upscaler to use. --upscale-ratio has to be set for it
                                              to take effect
-    --upscale-ratio {1,2,4,8,16,32}          Image upscale ratio applied before detection. Can
+    --upscale-ratio {1,2,3,4,8,16,32}        Image upscale ratio applied before detection. Can
                                              improve text detection.
     --translator {google,youdao,baidu,deepl,papago,gpt3,gpt3.5,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
                                              Language translator to use

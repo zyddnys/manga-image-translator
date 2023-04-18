@@ -47,7 +47,7 @@ from .translators import (
     prepare as prepare_translation,
 )
 from .text_rendering import dispatch as dispatch_rendering, dispatch_eng_render
-from .save import save_result
+from .save import OUTPUT_FORMATS, save_result
 
 
 # Will be overwritten by __main__.py if module is being run directly (with python -m)
@@ -98,7 +98,11 @@ class MangaTranslator():
         dest = os.path.abspath(os.path.expanduser(dest)) if dest else ''
         params = params or {}
 
-        file_ext = 'png' if params.get('save_quality', 100) == 100 else 'jpg'
+        if params.get('save_quality', 100) < 100:
+            if not params.get('format'):
+                params['format'] = 'jpg'
+            elif params.get('format') != 'jpg':
+                raise ValueError('--save-quality of lower than 100 is only supported for .jpg files')
 
         # TODO: accept * in file paths
 
@@ -107,15 +111,14 @@ class MangaTranslator():
             if not dest:
                 # Use the same folder as the source
                 p, ext = os.path.splitext(path)
-                dest = f'{p}-translated.{file_ext}'
+                dest = f'{p}-translated{ext}'
             elif not os.path.basename(dest):
                 p, ext = os.path.splitext(os.path.basename(path))
                 # If the folders differ use the original filename from the source
                 if os.path.dirname(path) != dest:
-                    dest = os.path.join(dest, f'{p}.{file_ext}')
+                    dest = os.path.join(dest, f'{p}{ext}')
                 else:
-                    dest = os.path.join(dest, f'{p}-translated.{file_ext}')
-            dest_root = os.path.dirname(dest)
+                    dest = os.path.join(dest, f'{p}-translated{ext}')
             await self._translate_file(path, dest, params)
 
         elif os.path.isdir(path):
@@ -154,16 +157,21 @@ class MangaTranslator():
 
         translation_dict = await self.translate(img, params)
 
+        # Save original image if no text found
         result = None
         if translation_dict.result is not None:
-            # Translation got saved into result
             result = translation_dict.result
         elif translation_dict.text_regions is not None:
-            # No text regions with text found
             result = img
 
         # Save result
         if result:
+            p, ext = os.path.splitext(dest)
+            if translation_dict.format:
+                dest = f'{p}.{translation_dict.format}'
+            elif ext not in OUTPUT_FORMATS:
+                # Default to png
+                dest = f'{p}.png'
             logger.info('Saving results')
             save_result(result, dest, translation_dict)
             await self._report_progress('saved', True)
@@ -174,7 +182,7 @@ class MangaTranslator():
                 p, ext = os.path.splitext(dest)
                 img_filename = p + '-orig' + ext
                 img_path = os.path.join(os.path.dirname(dest), img_filename)
-                img.save(img_path, quality = translation_dict.save_quality)
+                img.save(img_path, quality=translation_dict.save_quality)
             if translation_dict.text_regions:
                 self.save_text_to_file(dest, translation_dict)
 
