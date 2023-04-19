@@ -40,7 +40,7 @@ VALID_LANGUAGES = {
 }
 VALID_DETECTORS = set(['default', 'ctd'])
 VALID_DIRECTIONS = set(['auto', 'h', 'v'])
-VALID_TRANSLATORS = set(['youdao', 'baidu', 'google', 'deepl', 'papago', 'offline', 'none', 'original'])
+VALID_TRANSLATORS = set(['gpt3.5','youdao', 'baidu', 'google', 'deepl', 'papago', 'offline', 'none', 'original'])
 
 MAX_ONGOING_TASKS = 1
 MAX_IMAGE_SIZE_PX = 8000**2
