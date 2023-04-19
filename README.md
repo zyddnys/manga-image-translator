@@ -246,6 +246,7 @@ VIN: Vietnames
                                              Destination language
     -v, --verbose                            Print debug info and save intermediate images in result
                                              folder
+    -f, --format {png,webp,jpg}              Output format of the translation.
     --detector {default,ctd}                 Text detector used for creating a text mask from an
                                              image
     --ocr {32px,48px_ctc}                    Optical character recognition (OCR) model to use
@@ -253,7 +254,7 @@ VIN: Vietnames
                                              Inpainting model to use
     --upscaler {waifu2x,esrgan}              Upscaler to use. --upscale-ratio has to be set for it
                                              to take effect
-    --upscale-ratio {1,2,4,8,16,32}          Image upscale ratio applied before detection. Can
+    --upscale-ratio {1,2,3,4,8,16,32}        Image upscale ratio applied before detection. Can
                                              improve text detection.
     --translator {google,youdao,baidu,deepl,papago,gpt3,gpt3.5,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
                                              Language translator to use
@@ -311,9 +312,8 @@ VIN: Vietnames
                                              the command line (works only on linux right now)
     --save-text                              Save extracted text and translations into a text file.
     --save-text-file SAVE_TEXT_FILE          Like --save-text but with a specified file path.
-    --filter-text FILTER_TEXT                Filter region by their original text with a regex.
-                                             Example usage: --text-filter ".*badtext.*"
-    --filter-trans FILTER_TRANS              Filter region by their translated text with a regex.
+    --filter-text FILTER_TEXT                Filter regions by their text with a regex. Example
+                                             usage: --text-filter ".*badtext.*"
     --prep-manual                            Prepare for manual typesetting by outputting blank,
                                              inpainted images, plus copies of the original for
                                              reference

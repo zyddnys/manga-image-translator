@@ -247,14 +247,14 @@ async def get_task_async(request):
 #     else:
 #         TASK_DATA[task_id]['trans_result'] = []
 
-async def manual_trans_task(task_id, texts):
+async def manual_trans_task(task_id, texts, translations):
     if task_id not in TASK_DATA:
         TASK_DATA[task_id] = {}
-    if texts:
-        TASK_DATA[task_id]['trans_request'] = [{'s': txt, 't': ''} for txt in texts]
+    if texts and translations:
+        TASK_DATA[task_id]['trans_request'] = [{'s': txt, 't': trans} for txt, trans in zip(texts, translations)]
     else:
         TASK_DATA[task_id]['trans_result'] = []
-        print('manual translation complete')
+        print('Manual translation complete')
 
 @routes.post("/post-translation-result")
 async def post_translation_result(request):
@@ -287,10 +287,7 @@ async def request_translation_internal(request):
         if task_id in TASK_DATA:
             if TASK_DATA[task_id].get('manual', False):
                 # manual translation
-                asyncio.gather(manual_trans_task(task_id, rqjson['texts']))
-            # else:
-            #     # using machine translation
-            #     asyncio.gather(machine_trans_task(task_id, rqjson['texts'], TASK_DATA[task_id]['translator'], TASK_DATA[task_id]['tgt']))
+                asyncio.gather(manual_trans_task(task_id, rqjson['texts'], rqjson['translations']))
     return web.json_response({})
 
 @routes.post("/get-translation-result-internal")

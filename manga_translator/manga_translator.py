@@ -19,7 +19,6 @@ from .args import DEFAULT_ARGS
 from .utils import (
     BASE_PATH,
     LANGAUGE_ORIENTATION_PRESETS,
-    TextBlock,
     ModelWrapper,
     Context,
     load_image,
@@ -32,6 +31,7 @@ from .utils import (
     rgb2hex,
     get_color_name,
     is_url,
+    natural_sort,
 )
 
 from .detection import DETECTORS, dispatch as dispatch_detection, prepare as prepare_detection
@@ -48,6 +48,7 @@ from .translators import (
     prepare as prepare_translation,
 )
 from .text_rendering import dispatch as dispatch_rendering, dispatch_eng_render
+from .save import OUTPUT_FORMATS, save_result
 
 
 # Will be overwritten by __main__.py if module is being run directly (with python -m)
@@ -60,7 +61,7 @@ def set_main_logger(l):
 class TranslationInterrupt(Exception):
     """
     Can be raised from within a progress hook to prematurely terminate
-    the translation
+    the translation.
     """
     pass
 
@@ -98,7 +99,11 @@ class MangaTranslator():
         dest = os.path.abspath(os.path.expanduser(dest)) if dest else ''
         params = params or {}
 
-        file_ext = 'png' if params.get('save_quality', 100) == 100 else 'jpg'
+        if params.get('save_quality', 100) < 100:
+            if not params.get('format'):
+                params['format'] = 'jpg'
+            elif params.get('format') != 'jpg':
+                raise ValueError('--save-quality of lower than 100 is only supported for .jpg files')
 
         # TODO: accept * in file paths
 
@@ -107,15 +112,14 @@ class MangaTranslator():
             if not dest:
                 # Use the same folder as the source
                 p, ext = os.path.splitext(path)
-                dest = f'{p}-translated.{file_ext}'
+                dest = f'{p}-translated{ext}'
             elif not os.path.basename(dest):
                 p, ext = os.path.splitext(os.path.basename(path))
                 # If the folders differ use the original filename from the source
                 if os.path.dirname(path) != dest:
-                    dest = os.path.join(dest, f'{p}.{file_ext}')
+                    dest = os.path.join(dest, f'{p}{ext}')
                 else:
-                    dest = os.path.join(dest, f'{p}-translated.{file_ext}')
-            dest_root = os.path.dirname(dest)
+                    dest = os.path.join(dest, f'{p}-translated{ext}')
             await self._translate_file(path, dest, params)
 
         elif os.path.isdir(path):
@@ -128,7 +132,7 @@ class MangaTranslator():
 
             translated_count = 0
             for root, subdirs, files in os.walk(path):
-                files.sort()
+                files = natural_sort(files)
                 dest_root = replace_prefix(root, path, dest)
                 os.makedirs(dest_root, exist_ok=True)
                 for f in files:
@@ -154,25 +158,32 @@ class MangaTranslator():
 
         translation_dict = await self.translate(img, params)
 
+        # Save original image if no text found
         result = None
         if translation_dict.result is not None:
-            # Translation got saved into result
             result = translation_dict.result
         elif translation_dict.text_regions is not None:
-            # No text regions with text found
             result = img
+
+        # Save result
         if result:
-            result.save(dest, quality = translation_dict.save_quality)
+            p, ext = os.path.splitext(dest)
+            if translation_dict.format:
+                dest = f'{p}.{translation_dict.format}'
+            elif ext not in OUTPUT_FORMATS:
+                # Default to png
+                dest = f'{p}.png'
+            logger.info('Saving results')
+            save_result(result, dest, translation_dict)
             await self._report_progress('saved', True)
 
-        save_text_to_file = translation_dict.save_text or translation_dict.save_text_file or translation_dict.prep_manual
-        if save_text_to_file:
+        if translation_dict.save_text or translation_dict.save_text_file or translation_dict.prep_manual:
             if translation_dict.prep_manual:
                 # Save original image next to translated
                 p, ext = os.path.splitext(dest)
                 img_filename = p + '-orig' + ext
                 img_path = os.path.join(os.path.dirname(dest), img_filename)
-                img.save(img_path, quality = translation_dict.save_quality)
+                img.save(img_path, quality=translation_dict.save_quality)
             if translation_dict.text_regions:
                 self.save_text_to_file(dest, translation_dict)
 
@@ -273,8 +284,6 @@ class MangaTranslator():
 
         if ctx.filter_text:
             ctx.filter_text = re.compile(ctx.filter_text)
-        if ctx.filter_trans:
-            ctx.filter_trans = re.compile(ctx.filter_trans)
 
     async def _translate(self, ctx: Context) -> Context:
 
@@ -312,7 +321,7 @@ class MangaTranslator():
             await self._report_progress('error-translating', True)
             return ctx
 
-        # Delayed mask refinement to take advantage of the region filtering done by ocr
+        # Delayed mask refinement to take advantage of the region filtering done after ocr and translation
         if ctx.mask is None:
             await self._report_progress('mask-generation')
             ctx.mask = await self._run_mask_refinement(ctx)
@@ -351,6 +360,7 @@ class MangaTranslator():
             await ph(state, finished)
 
     def _add_logger_hook(self):
+        # TODO: Pass ctx to logger hook
         LOG_MESSAGES = {
             'upscaling':            'Running upscaling',
             'detection':            'Running text detection',
@@ -359,7 +369,6 @@ class MangaTranslator():
             'translating':          'Running text translation',
             'rendering':            'Running rendering',
             'downscaling':          'Running downscaling',
-            'saved':                'Saving results', # TODO: Pass ctx to logger hook and add save destination
         }
         LOG_MESSAGES_SKIP = {
             'skip-no-regions':      'No text regions! - Skipping',
@@ -425,6 +434,7 @@ class MangaTranslator():
 
     async def _run_ocr(self, ctx: Context):
         text_regions = await dispatch_ocr(ctx.ocr, ctx.img_rgb, ctx.text_regions, self.device, self.verbose)
+
         # Filter out regions by original text
         new_text_regions = []
         for region in text_regions:
@@ -457,8 +467,8 @@ class MangaTranslator():
         new_text_regions = []
         for region in ctx.text_regions:
             if not ctx.translator.is_none() and (region.translation.isnumeric() \
-                or (ctx.filter_trans and re.search(ctx.filter_trans, region.translation)) \
-                or count_valuable_text(region.translation) <= 1) :
+                or (ctx.filter_text and re.search(ctx.filter_text, region.translation)) \
+                or count_valuable_text(region.translation) <= 1):
                 if region.translation.strip():
                     logger.info(f'Filtered out: {region.translation}')
             else:
@@ -492,7 +502,7 @@ class MangaTranslatorWeb(MangaTranslator):
         self.host = params.get('host', '127.0.0.1')
         if self.host == '0.0.0.0':
             self.host = '127.0.0.1'
-        self.port = str(params.get('port', 5003))
+        self.port = params.get('port', 5003)
         self.nonce = params.get('nonce', '')
         self.ignore_errors = params.get('ignore_errors', True)
         self._task_id = None
@@ -504,7 +514,7 @@ class MangaTranslatorWeb(MangaTranslator):
         """
         logger.info('Waiting for translation tasks')
 
-        async def sync_state(state: str, finished: bool):
+        async def send_state(state: str, finished: bool):
             # wait for translation to be saved first (bad solution?)
             finished = finished and not state == 'finished'
             while True:
@@ -523,7 +533,7 @@ class MangaTranslatorWeb(MangaTranslator):
                         continue
                     else:
                         break
-        self.add_progress_hook(sync_state)
+        self.add_progress_hook(send_state)
 
         while True:
             self._task_id, self._params = self._get_task()
@@ -572,11 +582,14 @@ class MangaTranslatorWeb(MangaTranslator):
         return regions
 
     async def _run_text_translation(self, ctx: Context):
+        text_regions = await super()._run_text_translation(ctx)
         if ctx.get('manual', False):
+            logger.info('Waiting for user input from manual translation')
             requests.post(f'http://{self.host}:{self.port}/request-translation-internal', json={
                 'task_id': self._task_id,
                 'nonce': self.nonce,
-                'texts': [r.get_text() for r in ctx.text_regions]
+                'texts': [r.get_text() for r in ctx.text_regions],
+                'translations': [r.translation for r in ctx.text_regions],
             }, timeout=20)
 
             # wait for at most 1 hour for manual translation
@@ -587,17 +600,16 @@ class MangaTranslatorWeb(MangaTranslator):
                     'nonce': self.nonce
                 }, timeout=20).json()
                 if 'result' in ret:
-                    translated = ret['result']
-                    if isinstance(translated, str):
-                        if translated == 'error':
-                            return None
-                    for blk, tr in zip(ctx.text_regions, translated):
-                        blk.translation = tr
-                        blk.target_lang = ctx.translator.langs[-1]
-                    return translated
+                    manual_translations = ret['result']
+                    if isinstance(manual_translations, str):
+                        if manual_translations == 'error':
+                            return []
+                    for region, translation in zip(text_regions, manual_translations):
+                        region.translation = translation
+                        region.target_lang = ctx.translator.langs[-1]
+                    break
                 await asyncio.sleep(0.1)
-        else:
-            return await super()._run_text_translation(ctx)
+        return text_regions
 
 
 class MangaTranslatorWS(MangaTranslator):
@@ -640,7 +652,7 @@ class MangaTranslatorWS(MangaTranslator):
                             os.makedirs(f'result/{self._task_id}', exist_ok=True)
 
                         params = {
-                            'target_language': task.target_language,
+                            'target_lang': task.target_language,
                             'detector': task.detector,
                             'direction': task.direction,
                             'translator': task.translator,
@@ -704,6 +716,8 @@ class MangaTranslatorWS(MangaTranslator):
 
         return output
 
+
+# Experimental. May be replaced by a refactored server/web_main.py in the future.
 class MangaTranslatorAPI(MangaTranslator):
     def __init__(self, params: dict = None):
         import nest_asyncio
@@ -749,29 +763,33 @@ class MangaTranslatorAPI(MangaTranslator):
         routes = web.RouteTableDef()
         run_until_state = ''
 
-        def ph(state, finished):
+        def hook(state, finished):
             if run_until_state and run_until_state == state and not finished:
                 raise TranslationInterrupt()
+        self.add_progress_hook(hook)
 
         @routes.post("/get_text")
         async def text_api(req):
+            nonlocal run_until_state
             run_until_state = 'ocr'
             return await self.err_handling(self.texts_exec, req, self.format_translate)
 
         @routes.post("/translate")
         async def translate_api(req):
+            nonlocal run_until_state
             run_until_state = 'translating'
             return await self.err_handling(self.translate_exec, req, self.format_translate)
 
         @routes.post("/inpaint_translate")
         async def inpaint_translate_api(req):
+            nonlocal run_until_state
             run_until_state = 'inpainting'
             return await self.err_handling(self.inpaint_translate_exec, req, self.format_translate)
 
-        #@routes.post("/file")
-        async def file_api(req):
-            #TODO: return file
-            return await self.err_handling(self.file_exec, req, None)
+        # #@routes.post("/file")
+        # async def file_api(req):
+        #     #TODO: return file
+        #     return await self.err_handling(self.file_exec, req, None)
 
         app.add_routes(routes)
         web.run_app(app, host=self.host, port=self.port)

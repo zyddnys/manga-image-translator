@@ -49,6 +49,7 @@ def get_translator(key: str, *args, **kwargs) -> CommonTranslator:
 
 prepare_selective_translator(get_translator)
 
+# TODO: Refactor
 class TranslatorChain():
     def __init__(self, string: str):
         """
@@ -70,7 +71,7 @@ class TranslatorChain():
 
     def is_none(self) -> bool :
         return self.translators[0] == 'none'
-    
+
 async def prepare(chain: TranslatorChain):
     for key, tgt_lang in chain.chain:
         translator = get_translator(key)
@@ -82,6 +83,7 @@ async def prepare(chain: TranslatorChain):
 async def dispatch(chain: TranslatorChain, queries: List[str], use_mtpe: bool = False, device: str = 'cpu') -> List[str]:
     if not queries:
         return queries
+
     if chain.target_lang is not None:
         text_lang = ISO_639_1_TO_VALID_LANGUAGES.get(langid.classify('\n'.join(queries))[0])
         translator = None
