@@ -434,6 +434,7 @@ class MangaTranslator():
 
     async def _run_ocr(self, ctx: Context):
         text_regions = await dispatch_ocr(ctx.ocr, ctx.img_rgb, ctx.text_regions, self.device, self.verbose)
+
         # Filter out regions by original text
         new_text_regions = []
         for region in text_regions:
@@ -465,9 +466,9 @@ class MangaTranslator():
         # Filter out regions by their translations
         new_text_regions = []
         for region in ctx.text_regions:
-            if not ctx.translator.is_none() and (region.translation.isnumeric() \
+            if ctx.translator != 'none' and (region.translation.isnumeric() \
                 or (ctx.filter_text and re.search(ctx.filter_text, region.translation)) \
-                or count_valuable_text(region.translation) <= 1) :
+                or count_valuable_text(region.translation) <= 1):
                 if region.translation.strip():
                     logger.info(f'Filtered out: {region.translation}')
             else:
@@ -513,7 +514,7 @@ class MangaTranslatorWeb(MangaTranslator):
         """
         logger.info('Waiting for translation tasks')
 
-        async def sync_state(state: str, finished: bool):
+        async def send_state(state: str, finished: bool):
             # wait for translation to be saved first (bad solution?)
             finished = finished and not state == 'finished'
             while True:
@@ -532,7 +533,7 @@ class MangaTranslatorWeb(MangaTranslator):
                         continue
                     else:
                         break
-        self.add_progress_hook(sync_state)
+        self.add_progress_hook(send_state)
 
         while True:
             self._task_id, self._params = self._get_task()
@@ -581,11 +582,14 @@ class MangaTranslatorWeb(MangaTranslator):
         return regions
 
     async def _run_text_translation(self, ctx: Context):
+        text_regions = await super()._run_text_translation(ctx)
         if ctx.get('manual', False):
+            logger.info('Waiting for user input from manual translation')
             requests.post(f'http://{self.host}:{self.port}/request-translation-internal', json={
                 'task_id': self._task_id,
                 'nonce': self.nonce,
-                'texts': [r.get_text() for r in ctx.text_regions]
+                'texts': [r.get_text() for r in ctx.text_regions],
+                'translations': [r.translation for r in ctx.text_regions],
             }, timeout=20)
 
             # wait for at most 1 hour for manual translation
@@ -596,17 +600,16 @@ class MangaTranslatorWeb(MangaTranslator):
                     'nonce': self.nonce
                 }, timeout=20).json()
                 if 'result' in ret:
-                    translated = ret['result']
-                    if isinstance(translated, str):
-                        if translated == 'error':
-                            return None
-                    for blk, tr in zip(ctx.text_regions, translated):
-                        blk.translation = tr
-                        blk.target_lang = ctx.translator.langs[-1]
-                    return translated
+                    manual_translations = ret['result']
+                    if isinstance(manual_translations, str):
+                        if manual_translations == 'error':
+                            return []
+                    for region, translation in zip(text_regions, manual_translations):
+                        region.translation = translation
+                        region.target_lang = ctx.translator.langs[-1]
+                    break
                 await asyncio.sleep(0.1)
-        else:
-            return await super()._run_text_translation(ctx)
+        return text_regions
 
 
 class MangaTranslatorWS(MangaTranslator):
