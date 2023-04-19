@@ -652,7 +652,7 @@ class MangaTranslatorWS(MangaTranslator):
                             os.makedirs(f'result/{self._task_id}', exist_ok=True)
 
                         params = {
-                            'target_language': task.target_language,
+                            'target_lang': task.target_language,
                             'detector': task.detector,
                             'direction': task.direction,
                             'translator': task.translator,
