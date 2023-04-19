@@ -49,6 +49,7 @@ def get_translator(key: str, *args, **kwargs) -> CommonTranslator:
 
 prepare_selective_translator(get_translator)
 
+# TODO: Refactor
 class TranslatorChain():
     def __init__(self, string: str):
         """
@@ -67,6 +68,9 @@ class TranslatorChain():
                 raise ValueError(f'Invalid choice: %s (choose from %s)' % (lang, ', '.join(map(repr, VALID_LANGUAGES))))
             self.chain.append((trans, lang))
         self.translators, self.langs = list(zip(*self.chain))
+
+    def is_none(self) -> bool :
+        return self.translators[0] == 'none'
 
 async def prepare(chain: TranslatorChain):
     for key, tgt_lang in chain.chain:
