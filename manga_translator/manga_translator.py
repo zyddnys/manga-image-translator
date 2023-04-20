@@ -508,32 +508,59 @@ class MangaTranslatorWeb(MangaTranslator):
         self._task_id = None
         self._params = None
 
+    async def _init_connection(self):
+        available_translators = []
+        from .translators import MissingAPIKeyException, get_translator
+        for key in TRANSLATORS:
+            try:
+                get_translator(key)
+                available_translators.append(key)
+            except MissingAPIKeyException:
+                pass
+
+        data = {
+            'nonce': self.nonce,
+            'capabilities': {
+                'translators': available_translators,
+            },
+        }
+        requests.post(f'http://{self.host}:{self.port}/connect-internal', json=data)
+
+    async def _send_state(self, state: str, finished: bool):
+        # wait for translation to be saved first (bad solution?)
+        finished = finished and not state == 'finished'
+        while True:
+            try:
+                data = {
+                    'task_id': self._task_id,
+                    'nonce': self.nonce,
+                    'state': state,
+                    'finished': finished,
+                }
+                requests.post(f'http://{self.host}:{self.port}/task-update-internal', json=data, timeout=20)
+                break
+            except Exception:
+                # if translation is finished server has to know
+                if finished:
+                    continue
+                else:
+                    break
+
+    def _get_task(self):
+        try:
+            rjson = requests.get(f'http://{self.host}:{self.port}/task-internal?nonce={self.nonce}', timeout=3600).json()
+            return rjson.get('task_id'), rjson.get('data')
+        except Exception:
+            return None, None
+
     async def listen(self, translation_params: dict = None):
         """
         Listens for translation tasks from web server.
         """
         logger.info('Waiting for translation tasks')
 
-        async def send_state(state: str, finished: bool):
-            # wait for translation to be saved first (bad solution?)
-            finished = finished and not state == 'finished'
-            while True:
-                try:
-                    data = {
-                        'task_id': self._task_id,
-                        'nonce': self.nonce,
-                        'state': state,
-                        'finished': finished,
-                    }
-                    requests.post(f'http://{self.host}:{self.port}/task-update-internal', json=data, timeout=20)
-                    break
-                except Exception:
-                    # if translation is finished server has to know
-                    if finished:
-                        continue
-                    else:
-                        break
-        self.add_progress_hook(send_state)
+        await self._init_connection()
+        self.add_progress_hook(self._send_state)
 
         while True:
             self._task_id, self._params = self._get_task()
@@ -564,28 +591,11 @@ class MangaTranslatorWeb(MangaTranslator):
             self._params = None
             self.result_sub_folder = ''
 
-    def _get_task(self):
-        try:
-            rjson = requests.get(f'http://{self.host}:{self.port}/task-internal?nonce={self.nonce}', timeout=3600).json()
-            return rjson.get('task_id'), rjson.get('data')
-        except Exception:
-            return None, None
-
-    async def _run_ocr(self, ctx: Context):
-        regions = await super()._run_ocr(ctx)
-        if ctx.manual:
-            requests.post(f'http://{self.host}:{self.port}/request-translation-internal', json={
-                'task_id': self._task_id,
-                'nonce': self.nonce,
-                'texts': [r.get_text() for r in regions],
-            }, timeout=20)
-        return regions
-
     async def _run_text_translation(self, ctx: Context):
         text_regions = await super()._run_text_translation(ctx)
         if ctx.get('manual', False):
             logger.info('Waiting for user input from manual translation')
-            requests.post(f'http://{self.host}:{self.port}/request-translation-internal', json={
+            requests.post(f'http://{self.host}:{self.port}/request-manual-internal', json={
                 'task_id': self._task_id,
                 'nonce': self.nonce,
                 'texts': [r.get_text() for r in ctx.text_regions],
@@ -595,7 +605,7 @@ class MangaTranslatorWeb(MangaTranslator):
             # wait for at most 1 hour for manual translation
             wait_until = time.time() + 3600
             while time.time() < wait_until:
-                ret = requests.post(f'http://{self.host}:{self.port}/get-translation-result-internal', json={
+                ret = requests.post(f'http://{self.host}:{self.port}/get-manual-result-internal', json={
                     'task_id': self._task_id,
                     'nonce': self.nonce
                 }, timeout=20).json()

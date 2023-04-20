@@ -1,16 +1,16 @@
 import io
 import os
-import re
 import sys
-import time
+import re
 import shutil
+import time
 import asyncio
 import subprocess
-from PIL import Image
 from io import BytesIO
+from PIL import Image
 from aiohttp import web
-from imagehash import phash
 from collections import deque
+from imagehash import phash
 from oscrypto import util as crypto_utils
 
 SERVER_DIR_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -38,9 +38,10 @@ VALID_LANGUAGES = {
     'UKR': 'Ukrainian',
     'VIN': 'Vietnamese',
 }
+# Whitelists
 VALID_DETECTORS = set(['default', 'ctd'])
 VALID_DIRECTIONS = set(['auto', 'h', 'v'])
-VALID_TRANSLATORS = set(['youdao', 'baidu', 'google', 'deepl', 'papago', 'offline', 'none', 'original'])
+VALID_TRANSLATORS = ['youdao', 'baidu', 'google', 'deepl', 'papago', 'gpt3', 'gpt3.5', 'offline', 'none', 'original']
 
 MAX_ONGOING_TASKS = 1
 MAX_IMAGE_SIZE_PX = 8000**2
@@ -63,6 +64,7 @@ QUEUE = deque()
 TASK_DATA = {}
 TASK_STATES = {}
 DEFAULT_TRANSLATION_PARAMS = {}
+AVAILABLE_TRANSLATORS = []
 
 app = web.Application(client_max_size = 1024 * 1024 * 50)
 routes = web.RouteTableDef()
@@ -85,8 +87,13 @@ def constant_compare(a, b):
 
 @routes.get("/")
 async def index_async(request):
+    global AVAILABLE_TRANSLATORS
     with open(os.path.join(SERVER_DIR_PATH, 'ui.html'), 'r', encoding='utf8') as fp:
-        return web.Response(text=fp.read(), content_type='text/html')
+        content = fp.read()
+        if AVAILABLE_TRANSLATORS:
+            content = re.sub(r'(?<=translator: )(.*)(?=,)', repr(AVAILABLE_TRANSLATORS[0]), content)
+            content = re.sub(r'(?<=validTranslators: )(\[.*\])(?=,)', repr(AVAILABLE_TRANSLATORS), content)
+        return web.Response(text=content, content_type='text/html')
 
 @routes.get("/manual")
 async def index_async(request):
@@ -126,8 +133,8 @@ async def handle_post(request):
             direction = 'auto'
     if 'translator' in data:
         selected_translator = data['translator'].lower()
-        if selected_translator not in VALID_TRANSLATORS:
-            selected_translator = 'youdao'
+        if selected_translator not in AVAILABLE_TRANSLATORS:
+            selected_translator = AVAILABLE_TRANSLATORS[0]
     if 'size' in data:
         size_text = data['size'].upper()
         if size_text == 'S':
@@ -205,6 +212,20 @@ async def run_async(request):
     return web.json_response({'task_id': task_id, 'status': 'successful' if state['finished'] else state['info']})
 
 
+@routes.post("/connect-internal")
+async def index_async(request):
+    global NONCE, VALID_TRANSLATORS, AVAILABLE_TRANSLATORS
+    # Can be extended to allow support for multiple translators
+    rqjson = await request.json()
+    if constant_compare(rqjson.get('nonce'), NONCE):
+        capabilities = rqjson.get('capabilities')
+        if capabilities:
+            translators = capabilities.get('translators')
+            for key in translators:
+                if key in VALID_TRANSLATORS:
+                    AVAILABLE_TRANSLATORS.append(key)
+    return web.json_response({})
+
 @routes.get("/task-internal")
 async def get_task_async(request):
     """
@@ -228,25 +249,6 @@ async def get_task_async(request):
             return web.json_response({})
     return web.json_response({})
 
-# async def machine_trans_task(task_id, texts, translator = 'youdao', target_language = 'CHS'):
-#     print('translator', translator)
-#     print('target_language', target_language)
-#     if task_id not in TASK_DATA:
-#         TASK_DATA[task_id] = {}
-#     if texts:
-#         success = False
-#         for _ in range(10):
-#             try:
-#                 TASK_DATA[task_id]['trans_result'] = await asyncio.wait_for(dispatch_translation(translator, 'auto', target_language, texts), timeout = 15)
-#                 success = True
-#                 break
-#             except Exception as ex:
-#                 continue
-#         if not success:
-#             TASK_DATA[task_id]['trans_result'] = 'error'
-#     else:
-#         TASK_DATA[task_id]['trans_result'] = []
-
 async def manual_trans_task(task_id, texts, translations):
     if task_id not in TASK_DATA:
         TASK_DATA[task_id] = {}
@@ -256,7 +258,7 @@ async def manual_trans_task(task_id, texts, translations):
         TASK_DATA[task_id]['trans_result'] = []
         print('Manual translation complete')
 
-@routes.post("/post-translation-result")
+@routes.post("/post-manual-result")
 async def post_translation_result(request):
     rqjson = (await request.json())
     if 'trans_result' in rqjson and 'task_id' in rqjson:
@@ -278,10 +280,10 @@ async def post_translation_result(request):
             return ret
     return web.json_response({})
 
-@routes.post("/request-translation-internal")
+@routes.post("/request-manual-internal")
 async def request_translation_internal(request):
     global NONCE
-    rqjson = (await request.json())
+    rqjson = await request.json()
     if constant_compare(rqjson.get('nonce'), NONCE):
         task_id = rqjson['task_id']
         if task_id in TASK_DATA:
@@ -290,7 +292,7 @@ async def request_translation_internal(request):
                 asyncio.gather(manual_trans_task(task_id, rqjson['texts'], rqjson['translations']))
     return web.json_response({})
 
-@routes.post("/get-translation-result-internal")
+@routes.post("/get-manual-result-internal")
 async def get_translation_internal(request):
     global NONCE
     rqjson = (await request.json())

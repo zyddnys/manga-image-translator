@@ -65,13 +65,7 @@
               <i class="iconify" data-icon="carbon:operations-record"></i>
               <div class="relative">
                 <select class="w-9ch appearance-none bg-transparent border-b border-gray-300" v-model="translator">
-                  <option value="youdao">Youdao</option>
-                  <option value="baidu">Baidu</option>
-                  <option value="google">Google</option>
-                  <option value="deepl">DeepL</option>
-                  <option value="papago">Papago</option>
-                  <option value="offline">Offline</option>
-                  <option value="none">No Text</option>
+                  <option v-for="key in validTranslators" :value="key">{{getTranslatorName(key)}}</option>
                 </select>
                 <i class="iconify absolute top-1.5 right-1 pointer-events-none" data-icon="carbon:chevron-down"></i>
               </div>
@@ -186,6 +180,12 @@
         textDetector: 'auto',
         renderTextDirection: 'auto',
         translator: 'youdao',
+        validTranslators: ['youdao', 'baidu', 'google', 'deepl', 'papago', 'offline', 'none'],
+        getTranslatorName(key) {
+          if (key == 'none')
+            return "No Text"
+          return key ? key[0].toUpperCase() + key.slice(1) : "";
+        },
         targetLanguage: 'CHS',
         ondrop(e) {
           const file = e.dataTransfer?.files?.[0]
