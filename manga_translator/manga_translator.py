@@ -47,7 +47,7 @@ from .translators import (
     dispatch as dispatch_translation,
     prepare as prepare_translation,
 )
-from .text_rendering import dispatch as dispatch_rendering, dispatch_eng_render
+from .rendering import dispatch as dispatch_rendering, dispatch_eng_render
 from .save import OUTPUT_FORMATS, save_result
 
 
