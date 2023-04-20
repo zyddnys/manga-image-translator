@@ -154,17 +154,17 @@ class GoogleTranslator(CommonTranslator):
             'rt': 'c',
         }
         encountered_exception = None
-        for _ in range(2):
+        for _ in range(3):
             try:
                 r = await self.client.post(url, params=params, data=data)
 
-                if r.status_code != 200 and self.raise_Exception:
+                if r.status_code != 200 and self.raise_exception:
                     raise Exception('Unexpected status code "{}" from {}'.format(
                         r.status_code, self.service_urls))
                 break
             except Exception as e:
                 encountered_exception = e
-                time.sleep(0.5)
+                time.sleep(1)
         else:
             raise encountered_exception
 
