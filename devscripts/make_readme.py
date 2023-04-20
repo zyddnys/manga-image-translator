@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Adopted from https://github.com/yt-dlp/yt-dlp/tree/master/devscripts
+# Adapted from https://github.com/yt-dlp/yt-dlp/tree/master/devscripts
 
 import os
 import sys
@@ -29,7 +29,7 @@ READMES = (
 ALLOWED_OVERSHOOT = 2
 DISABLE_PATCH = object()
 
-HelpFormatter.INDENT_INCREMENT = 4
+HelpFormatter.INDENT_INCREMENT = 0
 HelpFormatter.MAX_HELP_POSITION = 45
 HelpFormatter.WIDTH = 100
 

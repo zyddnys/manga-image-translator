@@ -98,96 +98,94 @@ VIN: Vietnames
 ## 选项
 
 ```text
-    -h, --help                               show this help message and exit
-    -m, --mode {demo,batch,web,web_client,ws,api}
+-h, --help                                   show this help message and exit
+-m, --mode {demo,batch,web,web_client,ws,api}
                                              Run demo in single image demo mode (demo), batch
                                              translation mode (batch), web service mode (web)
-    -i, --input INPUT                        Path to an image file if using demo mode, or path to an
+-i, --input INPUT                            Path to an image file if using demo mode, or path to an
                                              image folder if using batch mode
-    -o, --dest DEST                          Path to the destination folder for translated images in
+-o, --dest DEST                              Path to the destination folder for translated images in
                                              batch mode
-    -l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN}
+-l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN}
                                              Destination language
-    -v, --verbose                            Print debug info and save intermediate images in result
+-v, --verbose                                Print debug info and save intermediate images in result
                                              folder
-    -f, --format {png,webp,jpg}              Output format of the translation.
-    --detector {default,ctd}                 Text detector used for creating a text mask from an
+-f, --format {png,webp,jpg}                  Output format of the translation.
+--detector {default,ctd}                     Text detector used for creating a text mask from an
                                              image
-    --ocr {32px,48px_ctc}                    Optical character recognition (OCR) model to use
-    --inpainter {default,lama_mpe,sd,none,original}
+--ocr {32px,48px_ctc}                        Optical character recognition (OCR) model to use
+--inpainter {default,lama_mpe,sd,none,original}
                                              Inpainting model to use
-    --upscaler {waifu2x,esrgan}              Upscaler to use. --upscale-ratio has to be set for it
+--upscaler {waifu2x,esrgan}                  Upscaler to use. --upscale-ratio has to be set for it
                                              to take effect
-    --upscale-ratio {1,2,3,4,8,16,32}        Image upscale ratio applied before detection. Can
+--upscale-ratio {1,2,3,4,8,16,32}            Image upscale ratio applied before detection. Can
                                              improve text detection.
-    --translator {google,youdao,baidu,deepl,papago,gpt3,gpt3.5,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
+--translator {google,youdao,baidu,deepl,papago,gpt3,gpt3.5,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
                                              Language translator to use
-    --translator-chain TRANSLATOR_CHAIN      Output of one translator goes in another. Example:
+--translator-chain TRANSLATOR_CHAIN          Output of one translator goes in another. Example:
                                              --translator-chain "google:JPN;sugoi:ENG".
-    --selective-translation SELECTIVE_TRANSLATION
+--selective-translation SELECTIVE_TRANSLATION
                                              Select a translator based on detected language in
                                              image. Note the first translation service acts as
                                              default if the language isnt defined. Example:
                                              --translator-chain "google:JPN;sugoi:ENG".
-    --use-cuda                               Turn on/off cuda
-    --use-cuda-limited                       Turn on/off cuda (excluding offline translator)
-    --model-dir MODEL_DIR                    Model directory (by default ./models in project root)
-    --retries RETRIES                        Retry attempts on encountered error. -1 means infinite
+--use-cuda                                   Turn on/off cuda
+--use-cuda-limited                           Turn on/off cuda (excluding offline translator)
+--model-dir MODEL_DIR                        Model directory (by default ./models in project root)
+--retries RETRIES                            Retry attempts on encountered error. -1 means infinite
                                              times.
-    --revert-upscaling                       Downscales the previously upscaled image after
+--revert-upscaling                           Downscales the previously upscaled image after
                                              translation back to original size (Use with --upscale-
                                              ratio).
-    --detection-size DETECTION_SIZE          Size of image used for detection
-    --det-rotate                             Rotate the image for detection. Might improve
+--detection-size DETECTION_SIZE              Size of image used for detection
+--det-rotate                                 Rotate the image for detection. Might improve
                                              detection.
-    --det-auto-rotate                        Rotate the image for detection to prefer vertical
+--det-auto-rotate                            Rotate the image for detection to prefer vertical
                                              textlines. Might improve detection.
-    --det-invert                             Invert the image colors for detection. Might improve
+--det-invert                                 Invert the image colors for detection. Might improve
                                              detection.
-    --det-gamma-correct                      Applies gamma correction for detection. Might improve
+--det-gamma-correct                          Applies gamma correction for detection. Might improve
                                              detection.
-    --inpainting-size INPAINTING_SIZE        Size of image used for inpainting (too large will
+--inpainting-size INPAINTING_SIZE            Size of image used for inpainting (too large will
                                              result in OOM)
-    --unclip-ratio UNCLIP_RATIO              How much to extend text skeleton to form bounding box
-    --box-threshold BOX_THRESHOLD            Threshold for bbox generation
-    --text-threshold TEXT_THRESHOLD          Threshold for text detection
-    --font-size FONT_SIZE                    Use fixed font size for rendering
-    --font-size-offset FONT_SIZE_OFFSET      Offset font size by a given amount, positive number
+--unclip-ratio UNCLIP_RATIO                  How much to extend text skeleton to form bounding box
+--box-threshold BOX_THRESHOLD                Threshold for bbox generation
+--text-threshold TEXT_THRESHOLD              Threshold for text detection
+--font-size FONT_SIZE                        Use fixed font size for rendering
+--font-size-offset FONT_SIZE_OFFSET          Offset font size by a given amount, positive number
                                              increase font size and vice versa
-    --font-size-minimum FONT_SIZE_MINIMUM    Minimum output font size. Default is
+--font-size-minimum FONT_SIZE_MINIMUM        Minimum output font size. Default is
                                              image_sides_sum/150
-    --force-horizontal                       Force text to be rendered horizontally
-    --force-vertical                         Force text to be rendered vertically
-    --align-left                             Align rendered text left
-    --align-center                           Align rendered text centered
-    --align-right                            Align rendered text right
-    --uppercase                              Change text to uppercase
-    --lowercase                              Change text to lowercase
-    --manga2eng                              Render english text translated from manga with some
+--force-horizontal                           Force text to be rendered horizontally
+--force-vertical                             Force text to be rendered vertically
+--align-left                                 Align rendered text left
+--align-center                               Align rendered text centered
+--align-right                                Align rendered text right
+--uppercase                                  Change text to uppercase
+--lowercase                                  Change text to lowercase
+--manga2eng                                  Render english text translated from manga with some
                                              additional typesetting. Ignores some other argument
                                              options
-    --chatgpt-prompt-file CHATGPT_PROMPT_FILE
-                                             Prepends contents of the specified file to the chatgpt
+--chatgpt-prompt-file CHATGPT_PROMPT_FILE    Prepends contents of the specified file to the chatgpt
                                              prompt. Denote the target language with "{lang}"
-    --chatgpt-temperature CHATGPT_TEMPERATURE
-                                             The chatgpt temperature. More means it is more
-                                             creative.
-    --mtpe                                   Turn on/off machine translation post editing (MTPE) on
+--chatgpt-temperature CHATGPT_TEMPERATURE    The chatgpt temperature. 0 is the most strict setting
+                                             and 1 is the most creative. Default is 0.5.
+--mtpe                                       Turn on/off machine translation post editing (MTPE) on
                                              the command line (works only on linux right now)
-    --save-text                              Save extracted text and translations into a text file.
-    --save-text-file SAVE_TEXT_FILE          Like --save-text but with a specified file path.
-    --filter-text FILTER_TEXT                Filter regions by their text with a regex. Example
+--save-text                                  Save extracted text and translations into a text file.
+--save-text-file SAVE_TEXT_FILE              Like --save-text but with a specified file path.
+--filter-text FILTER_TEXT                    Filter regions by their text with a regex. Example
                                              usage: --text-filter ".*badtext.*"
-    --prep-manual                            Prepare for manual typesetting by outputting blank,
+--prep-manual                                Prepare for manual typesetting by outputting blank,
                                              inpainted images, plus copies of the original for
                                              reference
-    --font-path FONT_PATH                    Path to font file
-    --host HOST                              Used by web module to decide which host to attach to
-    --port PORT                              Used by web module to decide which port to attach to
-    --nonce NONCE                            Used by web module as secret for securing internal web
+--font-path FONT_PATH                        Path to font file
+--host HOST                                  Used by web module to decide which host to attach to
+--port PORT                                  Used by web module to decide which port to attach to
+--nonce NONCE                                Used by web module as secret for securing internal web
                                              server communication
-    --ws-url WS_URL                          Server URL for WebSocket mode
-    --save-quality SAVE_QUALITY              Quality of saved JPEG image, range from 0 to 100 with
+--ws-url WS_URL                              Server URL for WebSocket mode
+--save-quality SAVE_QUALITY                  Quality of saved JPEG image, range from 0 to 100 with
                                              100 being best
 ```
 
