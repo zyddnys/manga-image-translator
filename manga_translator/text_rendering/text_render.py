@@ -308,7 +308,7 @@ def put_text_vertical(font_size: int, text: str, h: int, alignment: str, fg: Tup
     return line_box[y:y+h, x:x+w]
 
 def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str], List[int]]:
-    """Splits up a string of text into lines with max_width for rendering."""
+    """Splits up a string of text into lines."""
     max_width = max(max_width, font_size)
 
     whitespace_glyph = get_char_glyph(' ', font_size, 0)
@@ -316,6 +316,7 @@ def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str
     hyphen_glyph = get_char_glyph('-', font_size, 0)
     hyphen_offset_x = hyphen_glyph.metrics.horiAdvance >> 6
 
+    # Split into words and precalculate each word width
     words = re.split(r'\s', text)
     word_widths = []
     for i, word in enumerate(words):
@@ -348,6 +349,7 @@ def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str
         line_text = ''
         line_width = 0
 
+    # Append each word to current line until theres no more space left
     i = 0
     while True:
         if i >= len(words):
@@ -377,25 +379,30 @@ def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str
             continue
         else: # Split up the current word with a '-'
             segment1_width = hyphen_offset_x
-            for j, char_len in enumerate(current_widths):
+            for j, char_width in enumerate(current_widths):
                 if segment1_width + line_width >= max_width:
                     break
-                segment1_width += char_len
+                segment1_width += char_width
             # TODO: Move word to next line if there is enough space
-            # If segment2 will only have one or two characters dont split and rather go over max_width
+            print(j, current_word[:j])
+
+            # If segment2 will only have one or two characters dont split but rather go over max_width
             if j >= len(current_word) - 1 or (j == len(current_word) - 2 and is_punctuation(current_word[-1])):
                 j = len(current_word)
                 segment1_width = current_width
                 segment1 = current_word
-            elif j == 0:
-                if line_width == 0:
-                    j = 1
-                    segment1_width = current_widths[0]
-                    segment1 = current_word[0]
-                else:
-                    segment1_width = 0
-                    segment1 = ''
-                    break_line()
+            # If there isnt any space for even one character
+            elif j == 0 and line_width == 0:
+                j = 1
+                segment1_width = current_widths[0]
+                segment1 = current_word[0]
+            # Carry the small segment over to the next line
+            elif j <= 2 and line_width != 0:
+                print('HERE')
+                j = 0
+                segment1_width = 0
+                segment1 = ''
+                break_line()
             elif line_width > 0 and not current_word[:j].strip():
                 segment1_width = 0
                 segment1 = ''
