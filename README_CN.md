@@ -276,7 +276,7 @@ POST 提交一个带图片，名字是 file 的 form 到 <http://127.0.0.1:5003/
 }
 ```
 
-将该 JSON 发送到 <http://127.0.0.1:5003/post-translation-result>，并等待返回\
+将该 JSON 发送到 <http://127.0.0.1:5003/post-manual-result>，并等待返回\
 之后就可以从得到的 `task_id` 去 result 文件夹里取结果，例如通过 Nginx 暴露 result 下的内容
 
 ## 下一步

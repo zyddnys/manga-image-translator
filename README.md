@@ -166,7 +166,7 @@ Fill in translated texts:
 }
 ```
 
-Post translated JSON to <http://127.0.0.1:5003/post-translation-result> and wait for response.\
+Post translated JSON to <http://127.0.0.1:5003/post-manual-result> and wait for response.\
 Then you can find the translation result in `result/` directory, e.g. using Nginx to expose `result/`.
 
 </details>
@@ -176,18 +176,18 @@ Then you can find the translation result in `result/` directory, e.g. using Ngin
 | Name       | API Key | Offline | Note                                                   |
 | ---------- | ------- | ------- | ------------------------------------------------------ |
 | google     |         |         |                                                        |
-| youdao     | ✔️       |         | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`      |
-| baidu      | ✔️       |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`         |
-| deepl      | ✔️       |         | Requires `DEEPL_AUTH_KEY`                              |
-| gpt3       | ✔️       |         | Implements text-davinci-003. Requires `OPENAI_API_KEY` |
-| gpt3.5     | ✔️       |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`    |
+| youdao     | ✔️      |         | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`      |
+| baidu      | ✔️      |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`         |
+| deepl      | ✔️      |         | Requires `DEEPL_AUTH_KEY`                              |
+| gpt3       | ✔️      |         | Implements text-davinci-003. Requires `OPENAI_API_KEY` |
+| gpt3.5     | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`    |
 | papago     |         |         |                                                        |
-| offline    |         | ✔️       | Chooses most suitable offline translator for language  |
-| sugoi      |         | ✔️       | Sugoi V4.0 Models (recommended for JPN->ENG)           |
-| m2m100     |         | ✔️       | Supports every language                                |
-| m2m100_big |         | ✔️       |                                                        |
-| none       |         | ✔️       | Translate to empty texts                               |
-| original   |         | ✔️       | Keep original texts                                    |
+| offline    |         | ✔️      | Chooses most suitable offline translator for language  |
+| sugoi      |         | ✔️      | Sugoi V4.0 Models (recommended for JPN->ENG)           |
+| m2m100     |         | ✔️      | Supports every language                                |
+| m2m100_big |         | ✔️      |                                                        |
+| none       |         | ✔️      | Translate to empty texts                               |
+| original   |         | ✔️      | Keep original texts                                    |
 
 - API Key: Whether the translator requires an API key to be set as environment variable.
   For this you can create a .env file containing your api keys like so:
