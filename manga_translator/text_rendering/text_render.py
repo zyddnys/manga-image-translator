@@ -384,7 +384,6 @@ def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str
                     break
                 segment1_width += char_width
             # TODO: Move word to next line if there is enough space
-            print(j, current_word[:j])
 
             # If segment2 will only have one or two characters dont split but rather go over max_width
             if j >= len(current_word) - 1 or (j == len(current_word) - 2 and is_punctuation(current_word[-1])):
@@ -398,7 +397,6 @@ def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str
                 segment1 = current_word[0]
             # Carry the small segment over to the next line
             elif j <= 2 and line_width != 0:
-                print('HERE')
                 j = 0
                 segment1_width = 0
                 segment1 = ''
