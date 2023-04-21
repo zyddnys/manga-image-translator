@@ -190,7 +190,7 @@ Then you can find the translation result in `result/` directory, e.g. using Ngin
 | original   |         | ✔️      | Keep original texts                                    |
 
 - API Key: Whether the translator requires an API key to be set as environment variable.
-  For this you can create a .env file containing your api keys like so:
+  For this you can create a .env file in the root directory containing your api keys like so:
 
 ```env
 OPENAI_API_KEY=sk-xxxxxxx...
