@@ -309,7 +309,6 @@ def render(
     dst_points,
     alignment: str,
 ):
-
     fg, bg = region.get_font_colors()
     fg, bg = fg_bg_compare(fg, bg)
 
@@ -348,8 +347,6 @@ def render(
         w_ext = int((h * r_orig - w) / 2)
         box = np.zeros((h, w + w_ext * 2, 4), dtype=np.uint8)
         box[0:h, w_ext:w_ext+w] = temp_box
-    #h_ext += region_ext
-    #w_ext += region_ext
 
     src_points = np.array([[0, 0], [box.shape[1], 0], [box.shape[1], box.shape[0]], [0, box.shape[0]]]).astype(np.float32)
     #src_pts[:, 0] = np.clip(np.round(src_pts[:, 0]), 0, enlarged_w * 2)

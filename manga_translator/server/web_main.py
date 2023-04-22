@@ -221,6 +221,7 @@ async def index_async(request):
         capabilities = rqjson.get('capabilities')
         if capabilities:
             translators = capabilities.get('translators')
+            AVAILABLE_TRANSLATORS.clear()
             for key in VALID_TRANSLATORS:
                 if key in translators:
                     AVAILABLE_TRANSLATORS.append(key)
