@@ -488,6 +488,7 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
     client_process = start_translator_client_proc(host, port, nonce, translation_params)
 
     # Get all prior finished tasks
+    os.makedirs('result/', exist_ok=True)
     for f in os.listdir('result/'):
         if os.path.isdir(f'result/{f}') and re.search(r'^\w+-\d+-\w+-\w+-\w+-\w+$', f):
             FINISHED_TASKS.append(f)
