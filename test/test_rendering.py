@@ -7,7 +7,7 @@ pytest_plugins = ('pytest_asyncio')
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from manga_translator.text_rendering import remove_intersections
+from manga_translator.rendering import remove_intersections
 
 @pytest.mark.asyncio
 async def test_intersection_removal1():

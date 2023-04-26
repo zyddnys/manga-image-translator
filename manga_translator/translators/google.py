@@ -154,17 +154,17 @@ class GoogleTranslator(CommonTranslator):
             'rt': 'c',
         }
         encountered_exception = None
-        for _ in range(2):
+        for _ in range(3):
             try:
                 r = await self.client.post(url, params=params, data=data)
 
-                if r.status_code != 200 and self.raise_Exception:
+                if r.status_code != 200 and self.raise_exception:
                     raise Exception('Unexpected status code "{}" from {}'.format(
                         r.status_code, self.service_urls))
                 break
             except Exception as e:
                 encountered_exception = e
-                time.sleep(0.5)
+                time.sleep(1)
         else:
             raise encountered_exception
 
@@ -216,20 +216,8 @@ class GoogleTranslator(CommonTranslator):
         return extra
 
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
-        empty_l = 0
-        empty_r = len(queries)
-        for query in queries:
-            if query == '':
-                empty_l += 1
-            else:
-                break
-        for query in queries[::-1]:
-            if query == '':
-                empty_r -= 1
-            else:
-                break
-        queries = queries[empty_l:empty_r]
 
+        # Seperate en/ja queries to improve translation quality
         langs = ['en', 'ja']
         langid.set_languages(langs)
         lang_to_queries = {l: [] for l in langs}
@@ -252,7 +240,6 @@ class GoogleTranslator(CommonTranslator):
             else: # Server has translated incorrectly
                 result[i] = ''
 
-        result = empty_l * [''] + result + empty_r * ['']
         return [text.strip() for text in result]
 
     async def _translate_query(self, from_lang: str, to_lang: str, query: str) -> Translated:

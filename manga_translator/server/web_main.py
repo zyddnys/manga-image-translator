@@ -41,7 +41,7 @@ VALID_LANGUAGES = {
 # Whitelists
 VALID_DETECTORS = set(['default', 'ctd'])
 VALID_DIRECTIONS = set(['auto', 'h', 'v'])
-VALID_TRANSLATORS = ['youdao', 'baidu', 'google', 'deepl', 'papago', 'gpt3', 'gpt3.5', 'offline', 'none', 'original']
+VALID_TRANSLATORS = ['youdao', 'baidu', 'google', 'deepl', 'papago', 'gpt3.5', 'offline', 'none', 'original']
 
 MAX_ONGOING_TASKS = 1
 MAX_IMAGE_SIZE_PX = 8000**2
@@ -221,8 +221,9 @@ async def index_async(request):
         capabilities = rqjson.get('capabilities')
         if capabilities:
             translators = capabilities.get('translators')
-            for key in translators:
-                if key in VALID_TRANSLATORS:
+            AVAILABLE_TRANSLATORS.clear()
+            for key in VALID_TRANSLATORS:
+                if key in translators:
                     AVAILABLE_TRANSLATORS.append(key)
     return web.json_response({})
 
@@ -487,6 +488,7 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
     client_process = start_translator_client_proc(host, port, nonce, translation_params)
 
     # Get all prior finished tasks
+    os.makedirs('result/', exist_ok=True)
     for f in os.listdir('result/'):
         if os.path.isdir(f'result/{f}') and re.search(r'^\w+-\d+-\w+-\w+-\w+-\w+$', f):
             FINISHED_TASKS.append(f)

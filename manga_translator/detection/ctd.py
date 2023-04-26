@@ -109,8 +109,8 @@ class ComicTextDetector(OfflineDetector):
             batch = einops.rearrange(batch.astype(np.float32) / 255., 'n h w c -> n c h w')
             batch = torch.from_numpy(batch).to(device)
             _, mask, lines = self.model(batch)
-            mask = mask.cpu().numpy()
-            lines = lines.cpu().numpy()
+            mask = mask.detach().cpu().numpy()
+            lines = lines.detach().cpu().numpy()
         elif isinstance(self.model, TextDetBaseDNN):
             mask_lst, line_lst = [], []
             for b in batch:
