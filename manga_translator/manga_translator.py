@@ -145,22 +145,24 @@ class MangaTranslator():
                     output_dest = replace_prefix(file_path, path, dest)
                     p, _ = os.path.splitext(output_dest)
                     output_dest = f'{p}.{file_ext}'
-                    if os.path.exists(output_dest):
-                        continue
 
-                    logger.info(f'Processing {file_path} -> {output_dest}')
-                    await self._translate_file(file_path, output_dest, params)
-                    translated_count += 1
+                    if await self._translate_file(file_path, output_dest, params):
+                        translated_count += 1
             if translated_count == 0:
                 logger.info(f'No untranslated files found')
             else:
                 logger.info(f'Done. Translated {translated_count} image{"" if translated_count == 1 else "s"}')
 
     async def _translate_file(self, path: str, dest: str, params: dict):
+        if not params.get('overwrite') and os.path.exists(dest):
+            logger.info(f'Skipping as already translated: {dest}')
+            return False
+        logger.info(f'Translating: {path} -> {dest}')
+
         try:
             img = Image.open(path)
         except Exception:
-            return
+            return False
 
         translation_dict = await self.translate(img, params)
 
@@ -171,12 +173,6 @@ class MangaTranslator():
             # If no text was found use original image 
             result = img
 
-        # Save result
-        if result:
-            logger.info('Saving results')
-            save_result(result, dest, translation_dict)
-            await self._report_progress('saved', True)
-
         if translation_dict.save_text or translation_dict.save_text_file or translation_dict.prep_manual:
             if translation_dict.prep_manual:
                 # Save original image next to translated
@@ -186,6 +182,15 @@ class MangaTranslator():
                 img.save(img_path, quality=translation_dict.save_quality)
             if translation_dict.text_regions:
                 self.save_text_to_file(dest, translation_dict)
+
+        # Save result
+        if result:
+            logger.info('Saving results')
+            save_result(result, dest, translation_dict)
+            await self._report_progress('saved', True)
+        else:
+            return False
+        return True
 
     async def translate(self, image: Image.Image, params: dict = None) -> Context:
         """
