@@ -9,18 +9,18 @@ class FormatNotSupportedException(Exception):
     def __init__(self, fmt: str):
         super().__init__(f'Format {fmt} is not supported.')
 
-# Auto-register subclasses
 OUTPUT_FORMATS = {}
-def register_format(format_obj):
-    for fmt in format_obj.SUPPORTED_FORMATS:
+def register_format(format_cls):
+    for fmt in format_cls.SUPPORTED_FORMATS:
         if fmt in OUTPUT_FORMATS:
             raise Exception(f'Tried to register multiple ExportFormats for "{fmt}"')
-        OUTPUT_FORMATS[fmt] = format_obj()
-    return format_obj
+        OUTPUT_FORMATS[fmt] = format_cls()
+    return format_cls
 
 class ExportFormat():
     SUPPORTED_FORMATS = []
 
+    # Subclasses will be auto registered
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         register_format(cls)
@@ -35,9 +35,9 @@ class ExportFormat():
 def save_result(result: Image.Image, dest: str, ctx: Context):
     _, ext = os.path.splitext(dest)
     ext = ext[1:]
-    # result.save(dest)
     if ext not in OUTPUT_FORMATS:
         raise FormatNotSupportedException(ext)
+
     format_handler: ExportFormat = OUTPUT_FORMATS[ext]
     format_handler.save(result, dest, ctx)
 
@@ -50,7 +50,7 @@ class ImageFormat(ExportFormat):
     def _save(self, result: Image.Image, dest: str, ctx: Context):
         result.save(dest)
 
-class ImageFormat(ExportFormat):
+class JPGFormat(ExportFormat):
     SUPPORTED_FORMATS = ['jpg']
 
     def _save(self, result: Image.Image, dest: str, ctx: Context):
