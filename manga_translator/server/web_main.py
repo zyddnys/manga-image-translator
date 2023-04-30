@@ -102,10 +102,19 @@ async def index_async(request):
 
 @routes.get("/result/{taskid}")
 async def result_async(request):
-    im = Image.open("result/" + request.match_info.get('taskid') + "/final.jpg")
-    stream = BytesIO()
-    im.save(stream, "JPG")
-    return web.Response(body=stream.getvalue(), content_type='image/jpeg')
+    # 返回存在的图片格式
+    exts=["jpg","png","webp"]
+    mime={"jpg":"image/jpeg","png":"image/png","webp":"image/webp"}
+    for ext in exts:
+        filepath="result/" +request.match_info.get('taskid')+ "/final."+ext;
+        if not os.path.exists(filepath):
+            continue
+        im = Image.open(filepath)
+        stream = BytesIO()
+        im.save(stream, format=ext.upper())
+        return web.Response(body=stream.getvalue(), content_type=mime[ext])
+    # 不存在返回404
+    return web.Response(status=404, text="Not Found")
 
 @routes.get("/queue-size")
 async def queue_size_async(request):
