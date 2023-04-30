@@ -111,7 +111,7 @@ async def result_async(request):
             continue
         im = Image.open(filepath)
         stream = BytesIO()
-        im.save(stream, format=ext.upper())
+        im.save(stream, format="JPEG" if ext == 'jpg' else ext.upper())
         return web.Response(body=stream.getvalue(), content_type=mime[ext])
     # 不存在返回404
     return web.Response(status=404, text="Not Found")
