@@ -511,7 +511,7 @@ class MangaTranslatorWeb(MangaTranslator):
         self.nonce = params.get('nonce', '')
         self.ignore_errors = params.get('ignore_errors', True)
         self._task_id = None
-        self._params = None
+        self._params = params
 
     async def _init_connection(self):
         available_translators = []
@@ -587,7 +587,7 @@ class MangaTranslatorWeb(MangaTranslator):
                 log_file = self._result_path('log.txt')
                 add_file_logger(log_file)
 
-            await self.translate_path(self._result_path('input.jpg'), self._result_path('final.jpg'), params=self._params)
+            await self.translate_path(self._result_path('input.jpg'), self._result_path('final.'+self._params.get('format','jpg')), params=self._params)
             print()
 
             if self.verbose:
