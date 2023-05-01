@@ -3,12 +3,14 @@ from typing import List, Tuple
 
 from .default import DefaultDetector
 from .ctd import ComicTextDetector
+from .craft import CRAFTDetector
 from .common import CommonDetector, OfflineDetector
 from ..utils import TextBlock
 
 DETECTORS = {
     'default': DefaultDetector,
     'ctd': ComicTextDetector,
+    'craft': CRAFTDetector
 }
 detector_cache = {}
 

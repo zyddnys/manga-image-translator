@@ -27,6 +27,7 @@ from googletrans.constants import (
 from googletrans.models import Translated, Detected, TranslatedPart
 
 from .common import CommonTranslator
+from .keys import OPENAI_HTTP_PROXY
 
 EXCLUDES = ('en', 'ca', 'fr')
 
@@ -38,6 +39,11 @@ if 'http' in SYS_PROXY:
     SYS_HTTP_PROXY = {}
     SYS_HTTP_PROXY['http'] = SYS_PROXY['http']
     SYS_HTTP_PROXY['https'] = SYS_PROXY['http']
+elif OPENAI_HTTP_PROXY :
+    SYS_HTTP_PROXY = {
+        "http": "http://%s" % OPENAI_HTTP_PROXY,
+        "https": "http://%s" % OPENAI_HTTP_PROXY
+    }
 
 
 class GoogleTranslator(CommonTranslator):

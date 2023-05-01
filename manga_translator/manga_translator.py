@@ -99,9 +99,11 @@ class MangaTranslator():
         dest = os.path.abspath(os.path.expanduser(dest)) if dest else ''
         params = params or {}
 
+        # Handle format
+        file_ext = params.get('format') or 'png'
         if params.get('save_quality', 100) < 100:
             if not params.get('format'):
-                params['format'] = 'jpg'
+                file_ext = 'jpg'
             elif params.get('format') != 'jpg':
                 raise ValueError('--save-quality of lower than 100 is only supported for .jpg files')
 
@@ -111,15 +113,15 @@ class MangaTranslator():
             # Determine destination file path
             if not dest:
                 # Use the same folder as the source
-                p, ext = os.path.splitext(path)
-                dest = f'{p}-translated{ext}'
+                p, _ = os.path.splitext(path)
+                dest = f'{p}-translated.{file_ext}'
             elif not os.path.basename(dest):
-                p, ext = os.path.splitext(os.path.basename(path))
+                p, _ = os.path.splitext(os.path.basename(path))
                 # If the folders differ use the original filename from the source
                 if os.path.dirname(path) != dest:
-                    dest = os.path.join(dest, f'{p}{ext}')
+                    dest = os.path.join(dest, f'{p}.{file_ext}')
                 else:
-                    dest = os.path.join(dest, f'{p}-translated{ext}')
+                    dest = os.path.join(dest, f'{p}-translated.{file_ext}')
             await self._translate_file(path, dest, params)
 
         elif os.path.isdir(path):
@@ -138,44 +140,38 @@ class MangaTranslator():
                 for f in files:
                     if f.lower() == '.thumb':
                         continue
+
                     file_path = os.path.join(root, f)
                     output_dest = replace_prefix(file_path, path, dest)
-                    if os.path.exists(output_dest):
-                        continue
-                    logger.info(f'Processing {file_path} -> {output_dest}')
-                    await self._translate_file(file_path, output_dest, params)
-                    translated_count += 1
+                    p, _ = os.path.splitext(output_dest)
+                    output_dest = f'{p}.{file_ext}'
+
+                    if await self._translate_file(file_path, output_dest, params):
+                        translated_count += 1
             if translated_count == 0:
                 logger.info(f'No untranslated files found')
             else:
                 logger.info(f'Done. Translated {translated_count} image{"" if translated_count == 1 else "s"}')
 
     async def _translate_file(self, path: str, dest: str, params: dict):
+        if not params.get('overwrite') and os.path.exists(dest):
+            logger.info(f'Skipping as already translated: {dest}')
+            return False
+        logger.info(f'Translating: {path} -> {dest}')
+
         try:
             img = Image.open(path)
         except Exception:
-            return
+            return False
 
         translation_dict = await self.translate(img, params)
 
-        # Save original image if no text found
         result = None
         if translation_dict.result is not None:
             result = translation_dict.result
         elif translation_dict.text_regions is not None:
+            # If no text was found use original image 
             result = img
-
-        # Save result
-        if result:
-            p, ext = os.path.splitext(dest)
-            if translation_dict.format:
-                dest = f'{p}.{translation_dict.format}'
-            elif ext not in OUTPUT_FORMATS:
-                # Default to png
-                dest = f'{p}.png'
-            logger.info('Saving results')
-            save_result(result, dest, translation_dict)
-            await self._report_progress('saved', True)
 
         if translation_dict.save_text or translation_dict.save_text_file or translation_dict.prep_manual:
             if translation_dict.prep_manual:
@@ -186,6 +182,15 @@ class MangaTranslator():
                 img.save(img_path, quality=translation_dict.save_quality)
             if translation_dict.text_regions:
                 self.save_text_to_file(dest, translation_dict)
+
+        # Save result
+        if result:
+            logger.info('Saving results')
+            save_result(result, dest, translation_dict)
+            await self._report_progress('saved', True)
+        else:
+            return False
+        return True
 
     async def translate(self, image: Image.Image, params: dict = None) -> Context:
         """
@@ -506,7 +511,7 @@ class MangaTranslatorWeb(MangaTranslator):
         self.nonce = params.get('nonce', '')
         self.ignore_errors = params.get('ignore_errors', True)
         self._task_id = None
-        self._params = None
+        self._params = params
 
     async def _init_connection(self):
         available_translators = []
@@ -582,7 +587,7 @@ class MangaTranslatorWeb(MangaTranslator):
                 log_file = self._result_path('log.txt')
                 add_file_logger(log_file)
 
-            await self.translate_path(self._result_path('input.png'), self._result_path('final.png'), params=self._params)
+            await self.translate_path(self._result_path('input.jpg'), self._result_path('final.'+self._params.get('format','jpg')), params=self._params)
             print()
 
             if self.verbose:

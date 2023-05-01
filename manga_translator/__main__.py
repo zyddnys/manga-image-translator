@@ -26,9 +26,11 @@ async def dispatch(args: Namespace):
         if args.mode == 'demo':
             if not os.path.isfile(args.input):
                 raise FileNotFoundError(f'Invalid image file path for demo mode: "{args.input}"')
-            dest = os.path.join(BASE_PATH, 'result/final.png')
+            dest = os.path.join(BASE_PATH, 'result/final.jpg')
+            args.overwrite = True
         else:
             dest = args.dest
+            args.overwrite = False
         translator = MangaTranslator(args_dict)
         await translator.translate_path(args.input, dest, args_dict)
 

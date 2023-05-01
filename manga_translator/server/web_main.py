@@ -102,10 +102,19 @@ async def index_async(request):
 
 @routes.get("/result/{taskid}")
 async def result_async(request):
-    im = Image.open("result/" + request.match_info.get('taskid') + "/final.png")
-    stream = BytesIO()
-    im.save(stream, "PNG")
-    return web.Response(body=stream.getvalue(), content_type='image/png')
+    # 返回存在的图片格式
+    exts=["jpg","png","webp"]
+    mime={"jpg":"image/jpeg","png":"image/png","webp":"image/webp"}
+    for ext in exts:
+        filepath="result/" +request.match_info.get('taskid')+ "/final."+ext;
+        if not os.path.exists(filepath):
+            continue
+        im = Image.open(filepath)
+        stream = BytesIO()
+        im.save(stream, format="JPEG" if ext == 'jpg' else ext.upper())
+        return web.Response(body=stream.getvalue(), content_type=mime[ext])
+    # 不存在返回404
+    return web.Response(status=404, text="Not Found")
 
 @routes.get("/queue-size")
 async def queue_size_async(request):
@@ -177,7 +186,7 @@ async def run_async(request):
         return x
     task_id = f'{phash(img, hash_size = 16)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
     print(f'New `run` task {task_id}')
-    if os.path.exists(f'result/{task_id}/final.png'):
+    if os.path.exists(f'result/{task_id}/final.jpg') or os.path.exists(f'result/{task_id}/final.png') or os.path.exists(f'result/{task_id}/final.webp'):
         return web.json_response({'task_id' : task_id, 'status': 'successful'})
     # elif os.path.exists(f'result/{task_id}'):
     #     # either image is being processed or error occurred
@@ -186,7 +195,7 @@ async def run_async(request):
     #         return web.json_response({'state': 'error'})
     else:
         os.makedirs(f'result/{task_id}/', exist_ok=True)
-        img.save(f'result/{task_id}/input.png')
+        img.save(f'result/{task_id}/input.jpg')
         QUEUE.append(task_id)
         now = time.time()
         TASK_DATA[task_id] = {
@@ -364,7 +373,7 @@ async def submit_async(request):
     task_id = f'{phash(img, hash_size = 16)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
     now = time.time()
     print(f'New `submit` task {task_id}')
-    if os.path.exists(f'result/{task_id}/final.png'):
+    if os.path.exists(f'result/{task_id}/final.jpg') or os.path.exists(f'result/{task_id}/final.png') or os.path.exists(f'result/{task_id}/final.webp'):
         TASK_STATES[task_id] = {
             'info': 'saved',
             'finished': True,
@@ -380,7 +389,7 @@ async def submit_async(request):
         }
     elif task_id not in TASK_DATA or task_id not in TASK_STATES:
         os.makedirs(f'result/{task_id}/', exist_ok=True)
-        img.save(f'result/{task_id}/input.png')
+        img.save(f'result/{task_id}/input.jpg')
         QUEUE.append(task_id)
         TASK_STATES[task_id] = {
             'info': 'pending',
@@ -407,7 +416,7 @@ async def manual_translate_async(request):
     task_id = crypto_utils.rand_bytes(16).hex()
     print(f'New `manual-translate` task {task_id}')
     os.makedirs(f'result/{task_id}/', exist_ok=True)
-    img.save(f'result/{task_id}/input.png')
+    img.save(f'result/{task_id}/input.jpg')
     now = time.time()
     QUEUE.append(task_id)
     TASK_DATA[task_id] = {
