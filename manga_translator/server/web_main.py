@@ -186,7 +186,7 @@ async def run_async(request):
         return x
     task_id = f'{phash(img, hash_size = 16)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
     print(f'New `run` task {task_id}')
-    if os.path.exists(f'result/{task_id}/final.jpg') or os.path.exists(f'result/{task_id}/final.png') or os.path.exists(f'result/{task_id}/final.png'):
+    if os.path.exists(f'result/{task_id}/final.jpg') or os.path.exists(f'result/{task_id}/final.png') or os.path.exists(f'result/{task_id}/final.webp'):
         return web.json_response({'task_id' : task_id, 'status': 'successful'})
     # elif os.path.exists(f'result/{task_id}'):
     #     # either image is being processed or error occurred
@@ -373,7 +373,7 @@ async def submit_async(request):
     task_id = f'{phash(img, hash_size = 16)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
     now = time.time()
     print(f'New `submit` task {task_id}')
-    if os.path.exists(f'result/{task_id}/final.jpg') or os.path.exists(f'result/{task_id}/final.png') or os.path.exists(f'result/{task_id}/final.png'):
+    if os.path.exists(f'result/{task_id}/final.jpg') or os.path.exists(f'result/{task_id}/final.png') or os.path.exists(f'result/{task_id}/final.webp'):
         TASK_STATES[task_id] = {
             'info': 'saved',
             'finished': True,
