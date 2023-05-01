@@ -243,7 +243,7 @@ VIN: Vietnames
 -v, --verbose                                Print debug info and save intermediate images in result
                                              folder
 -f, --format {png,webp,jpg}                  Output format of the translation.
---detector {default,ctd}                     Text detector used for creating a text mask from an
+--detector {default,ctd,craft}               Text detector used for creating a text mask from an
                                              image
 --ocr {32px,48px_ctc}                        Optical character recognition (OCR) model to use
 --inpainter {default,lama_mpe,sd,none,original}

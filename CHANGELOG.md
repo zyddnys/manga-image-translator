@@ -1,5 +1,10 @@
 # Changelogs
 
+### 2023-04-30
+
+1. Countless bug fixes and refactor
+2. Add [CRAFT](https://github.com/clovaai/CRAFT-pytorch) detector, enable by `--detector craft`
+
 ### 2022-06-15
 
 1. Added New inpainting model LaMa MPE by [dmMaze](https://github.com/dmMaze) and set as default

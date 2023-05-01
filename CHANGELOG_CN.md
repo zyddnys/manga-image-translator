@@ -1,5 +1,10 @@
 # 更新日志 (中文)
 
+### 2023-04-30
+
+1. 无数bug修复和重构
+2. 添加了[CRAFT](https://github.com/clovaai/CRAFT-pytorch)文本检测器，使用`--detector craft`启用
+
 ### 2022-06-15
 
 1. 增加了来自[dmMaze](https://github.com/dmMaze)的LaMa MPE图像修补模型
