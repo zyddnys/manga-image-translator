@@ -156,7 +156,9 @@ class MangaTranslator():
     async def _translate_file(self, path: str, dest: str, params: dict):
         if not params.get('overwrite') and os.path.exists(dest):
             logger.info(f'Skipping as already translated: {dest}')
-            return False
+            #  已存在翻译过的图片时，跳过。实际使用中发现，直接返回 False会出现无法获取新任务 而表现为卡住的现象
+            await self._report_progress('saved', True)
+            return True
         logger.info(f'Translating: {path} -> {dest}')
 
         try:
