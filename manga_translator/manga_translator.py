@@ -156,7 +156,7 @@ class MangaTranslator():
     async def _translate_file(self, path: str, dest: str, params: dict):
         if not params.get('overwrite') and os.path.exists(dest):
             logger.info(f'Skipping as already translated: {dest}')
-            #  已存在翻译过的图片时，跳过。实际使用中发现，直接返回 False会出现无法获取新任务 而表现为卡住的现象
+            #  Skip if translated image already exists. In actual use, it is found that if you return False directly, you will not be able to obtain new tasks and appear to be stuck
             await self._report_progress('saved', True)
             return True
         logger.info(f'Translating: {path} -> {dest}')
