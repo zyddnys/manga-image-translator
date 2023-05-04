@@ -187,7 +187,7 @@ async def run_async(request):
     task_id = f'{phash(img, hash_size = 16)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
     print(f'New `run` task {task_id}')
     if os.path.exists(f'result/{task_id}/final.jpg') or os.path.exists(f'result/{task_id}/final.png') or os.path.exists(f'result/{task_id}/final.webp'):
-        # 添加控制台输出提示，避免连续出现命中已翻译的图片时，控制台看起来像是不执行而出现了卡顿。
+        # Add a console output prompt to avoid the console from appearing to be stuck without execution when the translated image is hit consecutively.
         print(f'[succeed] The task {task_id} has exists')
         return web.json_response({'task_id' : task_id, 'status': 'successful'})
     # elif os.path.exists(f'result/{task_id}'):
