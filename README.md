@@ -57,7 +57,7 @@ The models will be downloaded into `./models` at runtime.
 #### If you are on windows
 
 Before you start the pip install, first install Microsoft C++ Build Tools ([Download](https://visualstudio.microsoft.com/vs/),
-[Instructions](https://learn.microsoft.com/en-in/visualstudio/install/modify-visual-studio?view=vs-2022#change-workloads-or-individual-components))
+[Instructions](https://stackoverflow.com/questions/40504552/how-to-install-visual-c-build-tools))
 as some pip dependencies will not compile without it.
 (See [#114](https://github.com/zyddnys/manga-image-translator/issues/114)).
 
