@@ -188,7 +188,7 @@ async def run_async(request):
     print(f'New `run` task {task_id}')
     if os.path.exists(f'result/{task_id}/final.jpg') or os.path.exists(f'result/{task_id}/final.png') or os.path.exists(f'result/{task_id}/final.webp'):
         # Add a console output prompt to avoid the console from appearing to be stuck without execution when the translated image is hit consecutively.
-        print(f'[succeed] The task {task_id} has exists')
+        print('Using cached result for {task_id}')
         return web.json_response({'task_id' : task_id, 'status': 'successful'})
     # elif os.path.exists(f'result/{task_id}'):
     #     # either image is being processed or error occurred
