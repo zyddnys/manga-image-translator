@@ -56,16 +56,16 @@ The models will be downloaded into `./models` at runtime.
 
 #### If you are on windows
 
-Install Microsoft C++ Build Tools ([Download](https://visualstudio.microsoft.com/vs/),
-[Instructions](https://learn.microsoft.com/en-in/visualstudio/install/modify-visual-studio?view=vs-2022#change-workloads-or-individual-components))
+Before you start the pip install, first install Microsoft C++ Build Tools ([Download](https://visualstudio.microsoft.com/vs/),
+[Instructions](https://stackoverflow.com/questions/40504552/how-to-install-visual-c-build-tools))
 as some pip dependencies will not compile without it.
 (See [#114](https://github.com/zyddnys/manga-image-translator/issues/114)).
 
 To use [cuda](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64)
 on windows install the correct pytorch version as instructed on <https://pytorch.org/>.  
-Add `--upgrade --force-reinstall` to the pip command to overwrite the currently installed version.
+Add `--upgrade --force-reinstall` to the pip command to overwrite the currently installed pytorch version.
 
-If you have trouble installing pydensecrf with the command above you can download the pre-compiled wheels
+Also, if you have trouble installing pydensecrf with the command above you can download the pre-compiled wheels
 from <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf> according to your python version and install it with pip.
 
 ## Usage
@@ -372,7 +372,7 @@ Some translation services require API keys to function to set these pass them as
 docker run --env="DEEPL_AUTH_KEY=xxx" --ipc=host --rm zyddnys/manga-image-translator:main <cli flags>
 ```
 
-### Using with Nvida GPU
+### Using with Nvidia GPU
 
 > To use with a supported GPU please first read the initial `Docker` section. There are some special dependencies you will need to use
 
