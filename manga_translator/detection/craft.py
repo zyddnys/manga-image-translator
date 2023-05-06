@@ -183,16 +183,18 @@ class CRAFTDetector(OfflineDetector):
         for poly in polys :
             mask = cv2.fillPoly(mask, [poly.reshape((-1, 1, 2)).astype(np.int32)], color = 255)
         
+        polys_ret = []
         for i in range(len(polys)) :
             poly = MultiPoint(polys[i])
-            rect = poly.minimum_rotated_rectangle
-            rect = affinity.scale(rect, xfact = 1.2, yfact = 1.2)
-            polys[i] = np.roll(np.asarray(list(rect.exterior.coords)[:4]), 2)
+            if poly.area > 10 :
+                rect = poly.minimum_rotated_rectangle
+                rect = affinity.scale(rect, xfact = 1.2, yfact = 1.2)
+                polys_ret.append(np.roll(np.asarray(list(rect.exterior.coords)[:4]), 2))
 
         kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
         mask = cv2.dilate(mask, kern)
 
-        textlines = [Quadrilateral(pts.astype(int), '', 1) for pts in polys]
+        textlines = [Quadrilateral(pts.astype(int), '', 1) for pts in polys_ret]
         textlines = list(filter(lambda q: q.area > 16, textlines))
         text_regions = await self._merge_textlines(textlines, image.shape[1], image.shape[0], verbose=verbose)
 
