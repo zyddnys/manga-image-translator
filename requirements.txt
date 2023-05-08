@@ -37,4 +37,5 @@ omegaconf
 python-dotenv
 nest-asyncio
 marshmallow
-git+https://github.com/lucasb-eyer/pydensecrf.git
+cython
+https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf
