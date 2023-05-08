@@ -50,6 +50,8 @@ $ git clone https://github.com/zyddnys/manga-image-translator.git
 
 # Install the dependencies
 $ pip install -r requirements.txt
+
+$ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 ```
 
 The models will be downloaded into `./models` at runtime.
@@ -66,7 +68,7 @@ on windows install the correct pytorch version as instructed on <https://pytorch
 Add `--upgrade --force-reinstall` to the pip command to overwrite the currently installed pytorch version.
 
 Also, if you have trouble installing pydensecrf with the command above you can download the pre-compiled wheels
-from <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf> according to your python version and install it with pip.
+from <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf> according to your python version and install it with `pip install https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf`.
 
 ## Usage
 

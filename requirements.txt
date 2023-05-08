@@ -38,4 +38,3 @@ python-dotenv
 nest-asyncio
 marshmallow
 cython
-https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf
