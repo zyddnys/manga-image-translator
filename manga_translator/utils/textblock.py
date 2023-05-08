@@ -220,7 +220,6 @@ class TextBlock(object):
             w = int(round(textheight / ratio))
             dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
             M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-            breakpoint()
             region = cv2.warpPerspective(img, M, (w, h))
         else:
             w = int(textheight)
