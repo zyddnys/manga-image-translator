@@ -67,8 +67,7 @@ To use [cuda](https://developer.nvidia.com/cuda-downloads?target_os=Windows&targ
 on windows install the correct pytorch version as instructed on <https://pytorch.org/>.  
 Add `--upgrade --force-reinstall` to the pip command to overwrite the currently installed pytorch version.
 
-Also, if you have trouble installing pydensecrf with the command above you can download the pre-compiled wheels
-from <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf> according to your python version and install it with `pip install https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf`.
+Also, if you have trouble installing pydensecrf with the command above you can install the pre-compiled wheels with `pip install https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf`.
 
 ## Usage
 
