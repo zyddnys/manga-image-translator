@@ -183,6 +183,11 @@ class TextBlock(object):
     def area(self) -> float:
         return self.polygon_object.area
 
+    @property
+    def real_area(self) -> float:
+        lines = self.lines.reshape((-1, 2))
+        return MultiPoint([tuple(l) for l in lines]).convex_hull.area
+    
     def normalizd_width_list(self) -> List[float]:
         polygons = self.unrotated_polygons
         width_list = []
@@ -215,6 +220,7 @@ class TextBlock(object):
             w = int(round(textheight / ratio))
             dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
             M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+            breakpoint()
             region = cv2.warpPerspective(img, M, (w, h))
         else:
             w = int(textheight)

@@ -51,7 +51,7 @@ class CommonDetector(InfererModule):
         if add_border:
             text_regions, raw_mask, mask = self._remove_border(image, img_w, img_h, text_regions, raw_mask, mask)
         if auto_rotate:
-            # Rotate if horizontal aspect ratios are prevalent to optentially improve detection
+            # Rotate if horizontal aspect ratios are prevalent to potentially improve detection
             if len(text_regions) > 0:
                 orientations = ['h' if region.polygon_aspect_ratio > 75 else 'v' for region in text_regions]
                 majority_orientation = Counter(orientations).most_common(1)[0][0]
@@ -62,6 +62,13 @@ class CommonDetector(InfererModule):
                 return await self.detect(orig_image, detect_size, text_threshold, box_threshold, unclip_ratio, invert, gamma_correct, rotate=(not rotate), auto_rotate=False, verbose=verbose)
         if rotate:
             text_regions, raw_mask, mask = self._remove_rotation(text_regions, raw_mask, mask)
+
+        text_regions = list(filter(lambda x: x.real_area > 1, text_regions))
+
+        if verbose :
+            from ..utils.textblock import visualize_textblocks
+            bboxes = visualize_textblocks(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), text_regions)
+            cv2.imwrite('result/bboxes_unfiltered.png', bboxes)
 
         return text_regions, raw_mask, mask
 
