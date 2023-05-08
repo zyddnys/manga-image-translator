@@ -4,10 +4,12 @@ from PIL import Image
 from .common import CommonUpscaler, OfflineUpscaler
 from .waifu2x import Waifu2xUpscaler
 from .esrgan import ESRGANUpscaler
+from .esrgan_pytorch import ESRGANUpscalerPytorch
 
 UPSCALERS = {
     'waifu2x': Waifu2xUpscaler,
     'esrgan': ESRGANUpscaler,
+    '4xultrasharp': ESRGANUpscalerPytorch,
 }
 upscaler_cache = {}
 

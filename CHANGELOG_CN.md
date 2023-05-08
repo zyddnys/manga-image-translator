@@ -1,5 +1,9 @@
 # 更新日志 (中文)
 
+### 2023-05-08
+
+1. 添加了[4x-UltraSharp](https://mega.nz/folder/qZRBmaIY#nIG8KyWFcGNTuMX_XNbJ_g)超分辨率
+
 ### 2023-04-30
 
 1. 无数bug修复和重构

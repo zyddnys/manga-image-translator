@@ -116,10 +116,10 @@ VIN: Vietnames
 --ocr {32px,48px_ctc}                        Optical character recognition (OCR) model to use
 --inpainter {default,lama_mpe,sd,none,original}
                                              Inpainting model to use
---upscaler {waifu2x,esrgan}                  Upscaler to use. --upscale-ratio has to be set for it
+--upscaler {waifu2x,esrgan,4xultrasharp}     Upscaler to use. --upscale-ratio has to be set for it
                                              to take effect
 --upscale-ratio {1,2,3,4,8,16,32}            Image upscale ratio applied before detection. Can
-                                             improve text detection.
+                                             improve text detection. (4xultrasharp only supports 4x)
 --translator {google,youdao,baidu,deepl,papago,gpt3,gpt3.5,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
                                              Language translator to use
 --translator-chain TRANSLATOR_CHAIN          Output of one translator goes in another. Example:
