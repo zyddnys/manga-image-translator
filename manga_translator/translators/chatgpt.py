@@ -132,16 +132,15 @@ class GPT3Translator(CommonTranslator):
         return translations
 
     async def _request_translation(self, prompt: str) -> str:
-        completion = openai.Completion.create(
+        response = openai.Completion.create(
             model='text-davinci-003',
             prompt=prompt,
             max_tokens=1024,
             temperature=self.temperature,
         )
-        response = completion.choices[0].text
         self.token_count += response.usage['total_tokens']
         self.token_count_last = response.usage['total_tokens']
-        return response
+        return response.choices[0].text
 
 class GPT35TurboTranslator(GPT3Translator):
     _MAX_REQUESTS_PER_MINUTE = 200
