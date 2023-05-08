@@ -380,9 +380,9 @@ class MangaTranslator():
         LOG_MESSAGES_SKIP = {
             'skip-no-regions':      'No text regions! - Skipping',
             'skip-no-text':         'No text regions with text! - Skipping',
+            'error-translating':    'Text translator returned empty queries',
         }
         LOG_MESSAGES_ERROR = {
-            'error-translating':    'Text translator returned empty queries',
             # 'error-lang':           'Target language not supported by chosen translator',
         }
 
@@ -474,8 +474,7 @@ class MangaTranslator():
         new_text_regions = []
         for region in ctx.text_regions:
             if not ctx.translator.is_none() and (region.translation.isnumeric() \
-                or (ctx.filter_text and re.search(ctx.filter_text, region.translation)) \
-                or count_valuable_text(region.translation) <= 1):
+                or (ctx.filter_text and re.search(ctx.filter_text, region.translation))):
                 if region.translation.strip():
                     logger.info(f'Filtered out: {region.translation}')
             else:
