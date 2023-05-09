@@ -111,6 +111,7 @@ class MangaTranslator():
 
         if os.path.isfile(path):
             # Determine destination file path
+            # TODO: Simplify
             if not dest:
                 # Use the same folder as the source
                 p, _ = os.path.splitext(path)
@@ -122,6 +123,9 @@ class MangaTranslator():
                     dest = os.path.join(dest, f'{p}.{file_ext}')
                 else:
                     dest = os.path.join(dest, f'{p}-translated.{file_ext}')
+            else:
+                p, _ = os.path.splitext(dest)
+                dest = f'{p}.{file_ext}'
             await self._translate_file(path, dest, params)
 
         elif os.path.isdir(path):
@@ -182,7 +186,7 @@ class MangaTranslator():
                 img_path = os.path.join(os.path.dirname(dest), img_filename)
                 img.save(img_path, quality=translation_dict.save_quality)
             if translation_dict.text_regions:
-                self.save_text_to_file(dest, translation_dict)
+                self._save_text_to_file(dest, translation_dict)
 
         # Save result
         if result:
@@ -396,7 +400,7 @@ class MangaTranslator():
 
         self.add_progress_hook(ph)
 
-    def save_text_to_file(self, image_path: str, ctx: Context):
+    def _save_text_to_file(self, image_path: str, ctx: Context):
         cached_colors = []
 
         def identify_colors(fg_rgb: List[int]):
@@ -583,13 +587,12 @@ class MangaTranslatorWeb(MangaTranslator):
                 for p, default_value in translation_params.items():
                     current_value = self._params.get(p)
                     self._params[p] = current_value if current_value is not None else default_value
-            # Dont change the format
-            self._params['format'] = None
             if self.verbose:
                 # Write log file
                 log_file = self._result_path('log.txt')
                 add_file_logger(log_file)
 
+            # final.jpg will be renamed if format param is set
             await self.translate_path(self._result_path('input.jpg'), self._result_path('final.jpg'), params=self._params)
             print()
 

@@ -55,6 +55,7 @@ class JPGFormat(ExportFormat):
 
     def _save(self, result: Image.Image, dest: str, ctx: Context):
         result = result.convert('RGB')
+        # Certain versions of PIL only support JPEG but not JPG
         result.save(dest, quality=ctx.save_quality, format='JPEG')
 
 # class KraFormat(ExportFormat):
