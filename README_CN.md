@@ -58,9 +58,9 @@ $ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 | 名称            | 是否需要 API Key | 是否离线可用 | 其他说明                                    |
 | -------------- | ------- | ------- | ----------------------------------------------------- |
 | google         |         |         |                                                       |
-| youdao         | ✔️      |         | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`     |
-| baidu          | ✔️      |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`        |
-| deepl          | ✔️      |         | Requires `DEEPL_AUTH_KEY`                             |
+| youdao         | ✔️      |         | 需要 `YOUDAO_APP_KEY` 和 `YOUDAO_SECRET_KEY`     |
+| baidu          | ✔️      |         | 需要 `BAIDU_APP_ID` 和 `BAIDU_SECRET_KEY`        |
+| deepl          | ✔️      |         | 需要 `DEEPL_AUTH_KEY`                             |
 | gpt3           | ✔️      |         | Implements text-davinci-003. Requires `OPENAI_API_KEY`|
 | gpt3.5         | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`   |
 | papago         |         |         |                                                       |
