@@ -588,7 +588,7 @@ class MangaTranslatorWeb(MangaTranslator):
                 log_file = self._result_path('log.txt')
                 add_file_logger(log_file)
 
-            await self.translate_path(self._result_path('input.jpg'), self._result_path('final.'+self._params.get('format','jpg')), params=self._params)
+            await self.translate_path(self._result_path('input.jpg'), self._result_path('format.jpg')), params=self._params)
             print()
 
             if self.verbose:
