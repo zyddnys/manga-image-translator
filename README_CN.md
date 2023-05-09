@@ -64,7 +64,7 @@ $ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 | gpt3           | ✔️      |         | Implements text-davinci-003. Requires `OPENAI_API_KEY`|
 | gpt3.5         | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`   |
 | papago         |         |         |                                                       |
-| offline        |         | ✔️      |                                                       |
+| offline        |         | ✔️      |  为语言选择最合适的离线翻译器                                                     |
 | sugoi          |         | ✔️      |                                                       |
 | m2m100         |         | ✔️      |                                                       |
 | m2m100_big     |         | ✔️      |                                                       |
