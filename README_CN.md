@@ -67,7 +67,7 @@ $ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 | offline        |         | ✔️      |  自动选择可用的离线模型，只是选择器                                                  |
 | sugoi          |         | ✔️      |  只能翻译英文                                                    |
 | m2m100         |         | ✔️      |  可以翻译所有语言                                                     |
-| m2m100_big     |         | ✔️      |  m2m100是一个模型，带big的是完整尺寸，不带是精简版                                                    |
+| m2m100_big     |         | ✔️      |  带big的是完整尺寸，不带是精简版                                                    |
 | none           |         | ✔️      | 翻译成空白文本                                          |
 | original       |         | ✔️      | 翻译成源文本                                            |
 
