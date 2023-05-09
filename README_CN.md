@@ -65,8 +65,8 @@ $ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 | gpt3.5         | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`   |
 | papago         |         |         |                                                       |
 | offline        |         | ✔️      |  为语言选择最合适的离线翻译器                                                     |
-| sugoi          |         | ✔️      |                                                       |
-| m2m100         |         | ✔️      |                                                       |
+| sugoi          |         | ✔️      |  Sugoi V4.0 模型（推荐用于 JPN->ENG）                                                     |
+| m2m100         |         | ✔️      |  支持所有语言                                                     |
 | m2m100_big     |         | ✔️      |                                                       |
 | none           |         | ✔️      | 翻译成空白文本                                          |
 | original       |         | ✔️      | 翻译成源文本                                            |
