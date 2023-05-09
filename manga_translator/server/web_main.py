@@ -477,7 +477,8 @@ async def start_async_app(host: str, port: int, nonce: str, translation_params: 
     NONCE = nonce
     DEFAULT_TRANSLATION_PARAMS = translation_params or {}
     FORMAT = DEFAULT_TRANSLATION_PARAMS.get('format') or 'jpg'
-    
+    DEFAULT_TRANSLATION_PARAMS['format'] = FORMAT
+
     # Schedule web server to run
     runner = web.AppRunner(app)
     await runner.setup()
