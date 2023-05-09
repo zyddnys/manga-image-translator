@@ -102,19 +102,13 @@ async def index_async(request):
 
 @routes.get("/result/{taskid}")
 async def result_async(request):
-    # 返回存在的图片格式
-    exts=["jpg","png","webp"]
-    mime={"jpg":"image/jpeg","png":"image/png","webp":"image/webp"}
-    for ext in exts:
-        filepath="result/" +request.match_info.get('taskid')+ "/final."+ext;
-        if not os.path.exists(filepath):
-            continue
-        im = Image.open(filepath)
-        stream = BytesIO()
-        im.save(stream, format="JPEG" if ext == 'jpg' else ext.upper())
-        return web.Response(body=stream.getvalue(), content_type=mime[ext])
-    # 不存在返回404
-    return web.Response(status=404, text="Not Found")
+    filepath = 'result/' +request.match_info.get('taskid')+ '/final.jpg'
+    if not os.path.exists(filepath):
+        return web.Response(status=404, text='Not Found')
+    im = Image.open(filepath)
+    stream = BytesIO()
+    im.save(stream, format='JPEG') # Certain versions of PIL only support JPEG but not JPG
+    return web.Response(body=stream.getvalue(), content_type='image/jpeg')
 
 @routes.get("/queue-size")
 async def queue_size_async(request):
@@ -186,7 +180,7 @@ async def run_async(request):
         return x
     task_id = f'{phash(img, hash_size = 16)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
     print(f'New `run` task {task_id}')
-    if os.path.exists(f'result/{task_id}/final.jpg') or os.path.exists(f'result/{task_id}/final.png') or os.path.exists(f'result/{task_id}/final.webp'):
+    if os.path.exists(f'result/{task_id}/final.jpg'):
         # Add a console output prompt to avoid the console from appearing to be stuck without execution when the translated image is hit consecutively.
         print('Using cached result for {task_id}')
         return web.json_response({'task_id' : task_id, 'status': 'successful'})
@@ -375,7 +369,7 @@ async def submit_async(request):
     task_id = f'{phash(img, hash_size = 16)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
     now = time.time()
     print(f'New `submit` task {task_id}')
-    if os.path.exists(f'result/{task_id}/final.jpg') or os.path.exists(f'result/{task_id}/final.png') or os.path.exists(f'result/{task_id}/final.webp'):
+    if os.path.exists(f'result/{task_id}/final.jpg'):
         TASK_STATES[task_id] = {
             'info': 'saved',
             'finished': True,

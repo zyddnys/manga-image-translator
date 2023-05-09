@@ -156,7 +156,6 @@ class MangaTranslator():
     async def _translate_file(self, path: str, dest: str, params: dict):
         if not params.get('overwrite') and os.path.exists(dest):
             logger.info(f'Skipping as already translated: {dest}')
-            #  Skip if translated image already exists. In actual use, it is found that if you return False directly, you will not be able to obtain new tasks and appear to be stuck
             await self._report_progress('saved', True)
             return True
         logger.info(f'Translating: {path} -> {dest}')
@@ -197,6 +196,7 @@ class MangaTranslator():
     async def translate(self, image: Image.Image, params: dict = None) -> Context:
         """
         Translates a PIL image from a manga. Returns dict with result and intermediates of translation.
+        Default params are taken from args.py.
 
         ```py
         translation_dict = await translator.translate(image)
@@ -512,7 +512,7 @@ class MangaTranslatorWeb(MangaTranslator):
         self.nonce = params.get('nonce', '')
         self.ignore_errors = params.get('ignore_errors', True)
         self._task_id = None
-        self._params = params
+        self._params = None
 
     async def _init_connection(self):
         available_translators = []
@@ -583,12 +583,14 @@ class MangaTranslatorWeb(MangaTranslator):
                 for p, default_value in translation_params.items():
                     current_value = self._params.get(p)
                     self._params[p] = current_value if current_value is not None else default_value
+            # Dont change the format
+            self._params['format'] = None
             if self.verbose:
                 # Write log file
                 log_file = self._result_path('log.txt')
                 add_file_logger(log_file)
 
-            await self.translate_path(self._result_path('input.jpg'), self._result_path('final.'+self._params.get('format','jpg')), params=self._params)
+            await self.translate_path(self._result_path('input.jpg'), self._result_path('final.jpg'), params=self._params)
             print()
 
             if self.verbose:

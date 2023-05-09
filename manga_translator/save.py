@@ -55,7 +55,7 @@ class JPGFormat(ExportFormat):
 
     def _save(self, result: Image.Image, dest: str, ctx: Context):
         result = result.convert('RGB')
-        result.save(dest, quality=ctx.save_quality)
+        result.save(dest, quality=ctx.save_quality, format='JPEG')
 
 # class KraFormat(ExportFormat):
 #     SUPPORTED_FORMATS = ['kra']
