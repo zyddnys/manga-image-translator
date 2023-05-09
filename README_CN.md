@@ -67,7 +67,7 @@ $ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 | offline        |         | ✔️      |  为语言选择最合适的离线翻译器                                                     |
 | sugoi          |         | ✔️      |  Sugoi V4.0 模型（推荐用于 JPN->ENG）                                                     |
 | m2m100         |         | ✔️      |  支持所有语言                                                     |
-| m2m100_big     |         | ✔️      |                                                       |
+| m2m100_big     |         | ✔️      |  m2m100是一个模型，big是完整尺寸，不带是精简版                                                    |
 | none           |         | ✔️      | 翻译成空白文本                                          |
 | original       |         | ✔️      | 翻译成源文本                                            |
 
