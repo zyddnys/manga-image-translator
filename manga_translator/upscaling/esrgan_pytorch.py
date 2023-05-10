@@ -516,7 +516,7 @@ class ESRGANUpscalerPytorch(OfflineUpscaler):
             'hash': '545805CE2D861EE90972B5FA50B851F19EE4BB35DEDD2EB090BE1F7C935B6B00'.lower(),
         },
     }
-    _VALID_UPSCALE_RATIOS = [4]
+    _VALID_UPSCALE_RATIOS = '<=4'
 
     async def _load(self, device: str):
         super().__init__()
@@ -535,13 +535,15 @@ class ESRGANUpscalerPytorch(OfflineUpscaler):
         pass
 
     async def _infer(self, image_batch: List[Image.Image], upscale_ratio: float) -> List[Image.Image]:
-        assert upscale_ratio == 4
+        assert upscale_ratio <= 4
+        ratio = upscale_ratio / 4
         if image_batch :
             batch = torch.cat([einops.rearrange(torch.from_numpy(np.array(img.convert('RGB'))[:,:,::-1].copy()).float() / 255.0, 'h w c -> 1 c h w') for img in image_batch], dim = 0).to(self.device)
             with torch.no_grad() :
                 ret = self.model(batch)
             ret: torch.Tensor
-            ret = [Image.fromarray((einops.rearrange(img.clip(0, 1), 'c h w -> h w c').cpu().numpy()[:,:,::-1].copy() * 255.0).astype(np.uint8)) for img in ret]
+            ret: List[Image.Image] = [Image.fromarray((einops.rearrange(img.clip(0, 1), 'c h w -> h w c').cpu().numpy()[:,:,::-1].copy() * 255.0).astype(np.uint8)) for img in ret]
+            ret = [img.resize(size = (int(round(img.size[0] * ratio)), int(round(img.size[1] * ratio))), resample = Image.Resampling.BILINEAR) for img in ret]
             return ret
         else :
             return []
