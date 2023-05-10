@@ -111,6 +111,7 @@ class MangaTranslator():
 
         if os.path.isfile(path):
             # Determine destination file path
+            # TODO: Simplify
             if not dest:
                 # Use the same folder as the source
                 p, _ = os.path.splitext(path)
@@ -122,6 +123,9 @@ class MangaTranslator():
                     dest = os.path.join(dest, f'{p}.{file_ext}')
                 else:
                     dest = os.path.join(dest, f'{p}-translated.{file_ext}')
+            else:
+                p, _ = os.path.splitext(dest)
+                dest = f'{p}.{file_ext}'
             await self._translate_file(path, dest, params)
 
         elif os.path.isdir(path):
@@ -156,7 +160,6 @@ class MangaTranslator():
     async def _translate_file(self, path: str, dest: str, params: dict):
         if not params.get('overwrite') and os.path.exists(dest):
             logger.info(f'Skipping as already translated: {dest}')
-            #  Skip if translated image already exists. In actual use, it is found that if you return False directly, you will not be able to obtain new tasks and appear to be stuck
             await self._report_progress('saved', True)
             return True
         logger.info(f'Translating: {path} -> {dest}')
@@ -183,7 +186,7 @@ class MangaTranslator():
                 img_path = os.path.join(os.path.dirname(dest), img_filename)
                 img.save(img_path, quality=translation_dict.save_quality)
             if translation_dict.text_regions:
-                self.save_text_to_file(dest, translation_dict)
+                self._save_text_to_file(dest, translation_dict)
 
         # Save result
         if result:
@@ -197,6 +200,7 @@ class MangaTranslator():
     async def translate(self, image: Image.Image, params: dict = None) -> Context:
         """
         Translates a PIL image from a manga. Returns dict with result and intermediates of translation.
+        Default params are taken from args.py.
 
         ```py
         translation_dict = await translator.translate(image)
@@ -380,9 +384,9 @@ class MangaTranslator():
         LOG_MESSAGES_SKIP = {
             'skip-no-regions':      'No text regions! - Skipping',
             'skip-no-text':         'No text regions with text! - Skipping',
+            'error-translating':    'Text translator returned empty queries',
         }
         LOG_MESSAGES_ERROR = {
-            'error-translating':    'Text translator returned empty queries',
             # 'error-lang':           'Target language not supported by chosen translator',
         }
 
@@ -396,7 +400,7 @@ class MangaTranslator():
 
         self.add_progress_hook(ph)
 
-    def save_text_to_file(self, image_path: str, ctx: Context):
+    def _save_text_to_file(self, image_path: str, ctx: Context):
         cached_colors = []
 
         def identify_colors(fg_rgb: List[int]):
@@ -474,8 +478,7 @@ class MangaTranslator():
         new_text_regions = []
         for region in ctx.text_regions:
             if not ctx.translator.is_none() and (region.translation.isnumeric() \
-                or (ctx.filter_text and re.search(ctx.filter_text, region.translation)) \
-                or count_valuable_text(region.translation) <= 1):
+                or (ctx.filter_text and re.search(ctx.filter_text, region.translation))):
                 if region.translation.strip():
                     logger.info(f'Filtered out: {region.translation}')
             else:
@@ -513,7 +516,7 @@ class MangaTranslatorWeb(MangaTranslator):
         self.nonce = params.get('nonce', '')
         self.ignore_errors = params.get('ignore_errors', True)
         self._task_id = None
-        self._params = params
+        self._params = None
 
     async def _init_connection(self):
         available_translators = []
@@ -589,7 +592,8 @@ class MangaTranslatorWeb(MangaTranslator):
                 log_file = self._result_path('log.txt')
                 add_file_logger(log_file)
 
-            await self.translate_path(self._result_path('input.jpg'), self._result_path('final.'+self._params.get('format','jpg')), params=self._params)
+            # final.jpg will be renamed if format param is set
+            await self.translate_path(self._result_path('input.jpg'), self._result_path('final.jpg'), params=self._params)
             print()
 
             if self.verbose:

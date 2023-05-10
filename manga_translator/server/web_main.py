@@ -3,6 +3,7 @@ import os
 import sys
 import re
 import shutil
+import mimetypes
 import time
 import asyncio
 import subprocess
@@ -65,6 +66,7 @@ TASK_DATA = {}
 TASK_STATES = {}
 DEFAULT_TRANSLATION_PARAMS = {}
 AVAILABLE_TRANSLATORS = []
+FORMAT = ''
 
 app = web.Application(client_max_size = 1024 * 1024 * 50)
 routes = web.RouteTableDef()
@@ -102,19 +104,15 @@ async def index_async(request):
 
 @routes.get("/result/{taskid}")
 async def result_async(request):
-    # 返回存在的图片格式
-    exts=["jpg","png","webp"]
-    mime={"jpg":"image/jpeg","png":"image/png","webp":"image/webp"}
-    for ext in exts:
-        filepath="result/" +request.match_info.get('taskid')+ "/final."+ext;
-        if not os.path.exists(filepath):
-            continue
-        im = Image.open(filepath)
-        stream = BytesIO()
-        im.save(stream, format="JPEG" if ext == 'jpg' else ext.upper())
-        return web.Response(body=stream.getvalue(), content_type=mime[ext])
-    # 不存在返回404
-    return web.Response(status=404, text="Not Found")
+    global FORMAT
+    filepath = os.path.join('result', request.match_info.get('taskid'), f'final.{FORMAT}')
+    if not os.path.exists(filepath):
+        return web.Response(status=404, text='Not Found')
+    stream = BytesIO()
+    with open(filepath, 'rb') as f:
+        stream.write(f.read())
+    mime = mimetypes.guess_type(filepath)[0] or 'application/octet-stream'
+    return web.Response(body=stream.getvalue(), content_type=mime)
 
 @routes.get("/queue-size")
 async def queue_size_async(request):
@@ -179,6 +177,7 @@ async def handle_post(request):
 
 @routes.post("/run")
 async def run_async(request):
+    global FORMAT
     x = await handle_post(request)
     if isinstance(x, tuple):
         img, size, selected_translator, target_language, detector, direction = x
@@ -186,9 +185,9 @@ async def run_async(request):
         return x
     task_id = f'{phash(img, hash_size = 16)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
     print(f'New `run` task {task_id}')
-    if os.path.exists(f'result/{task_id}/final.jpg') or os.path.exists(f'result/{task_id}/final.png') or os.path.exists(f'result/{task_id}/final.webp'):
+    if os.path.exists(f'result/{task_id}/final.{FORMAT}'):
         # Add a console output prompt to avoid the console from appearing to be stuck without execution when the translated image is hit consecutively.
-        print('Using cached result for {task_id}')
+        print(f'Using cached result for {task_id}')
         return web.json_response({'task_id' : task_id, 'status': 'successful'})
     # elif os.path.exists(f'result/{task_id}'):
     #     # either image is being processed or error occurred
@@ -367,6 +366,7 @@ async def post_task_update_async(request):
 @routes.post("/submit")
 async def submit_async(request):
     """Adds new task to the queue. Called by web client in ui.html when submitting an image."""
+    global FORMAT
     x = await handle_post(request)
     if isinstance(x, tuple):
         img, size, selected_translator, target_language, detector, direction = x
@@ -375,7 +375,7 @@ async def submit_async(request):
     task_id = f'{phash(img, hash_size = 16)}-{size}-{selected_translator}-{target_language}-{detector}-{direction}'
     now = time.time()
     print(f'New `submit` task {task_id}')
-    if os.path.exists(f'result/{task_id}/final.jpg') or os.path.exists(f'result/{task_id}/final.png') or os.path.exists(f'result/{task_id}/final.webp'):
+    if os.path.exists(f'result/{task_id}/final.{FORMAT}'):
         TASK_STATES[task_id] = {
             'info': 'saved',
             'finished': True,
@@ -472,11 +472,13 @@ def start_translator_client_proc(host: str, port: int, nonce: str, params: dict)
     return proc
 
 async def start_async_app(host: str, port: int, nonce: str, translation_params: dict = None):
-    global NONCE, DEFAULT_TRANSLATION_PARAMS
+    global NONCE, DEFAULT_TRANSLATION_PARAMS, FORMAT
     # Secret to secure communication between webserver and translator clients
     NONCE = nonce
     DEFAULT_TRANSLATION_PARAMS = translation_params or {}
-    
+    FORMAT = DEFAULT_TRANSLATION_PARAMS.get('format') or 'jpg'
+    DEFAULT_TRANSLATION_PARAMS['format'] = FORMAT
+
     # Schedule web server to run
     runner = web.AppRunner(app)
     await runner.setup()

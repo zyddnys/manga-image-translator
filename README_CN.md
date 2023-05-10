@@ -41,10 +41,12 @@ $ git clone https://github.com/zyddnys/manga-image-translator.git
 
 # 安装依赖
 $ pip install -r requirements.txt
+
+$ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 ```
 
 注意：`pydensecrf` 并没有作为一个依赖列出，如果你的机器没有安装过，就需要手动安装一下。\
-如果你在使用 Windows，可以尝试在 <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf> (英文)
+如果你在使用 Windows，可以尝试在 <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf> (英文) (`pip install https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf`)
 找一个对应 Python 版本的预编译包，并使用 `pip` 安装。\
 如果你在使用其它操作系统，可以尝试使用 `pip install git+https://github.com/lucasb-eyer/pydensecrf.git` 安装。
 
