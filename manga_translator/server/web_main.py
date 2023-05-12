@@ -42,7 +42,23 @@ VALID_LANGUAGES = {
 # Whitelists
 VALID_DETECTORS = set(['default', 'ctd'])
 VALID_DIRECTIONS = set(['auto', 'h', 'v'])
-VALID_TRANSLATORS = ['youdao', 'baidu', 'google', 'deepl', 'papago', 'gpt3.5', 'offline', 'none', 'original']
+VALID_TRANSLATORS = [
+    'youdao',
+    'baidu',
+    'google',
+    'deepl',
+    'papago',
+    'gpt3.5',
+    'none',
+    'original',
+    'nllb',
+    'nllb_big',
+    'sugoi',
+    'jparacrawl',
+    'jparacrawl_big',
+    'm2m100',
+    'm2m100_big'
+    ]
 
 MAX_ONGOING_TASKS = 1
 MAX_IMAGE_SIZE_PX = 8000**2

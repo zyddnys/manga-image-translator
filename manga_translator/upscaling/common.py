@@ -10,7 +10,13 @@ class CommonUpscaler(InfererModule):
     async def upscale(self, image_batch: List[Image.Image], upscale_ratio: float) -> List[Image.Image]:
         if upscale_ratio == 1:
             return image_batch
-        if self._VALID_UPSCALE_RATIOS and upscale_ratio not in self._VALID_UPSCALE_RATIOS:
+        if isinstance(self._VALID_UPSCALE_RATIOS, str) :
+            if self._VALID_UPSCALE_RATIOS.startswith('<=') :
+                max_ratio = float(self._VALID_UPSCALE_RATIOS[2:])
+                if upscale_ratio > max_ratio :
+                    self.logger.warn(f'Changed upscale ratio {upscale_ratio} to closest supported value: {max_ratio}')
+                    upscale_ratio = max_ratio
+        elif self._VALID_UPSCALE_RATIOS and upscale_ratio not in self._VALID_UPSCALE_RATIOS:
             new_upscale_ratio = min(self._VALID_UPSCALE_RATIOS, key = lambda x: abs(x - upscale_ratio))
             self.logger.warn(f'Changed upscale ratio {upscale_ratio} to closest supported value: {new_upscale_ratio}')
             upscale_ratio = new_upscale_ratio
