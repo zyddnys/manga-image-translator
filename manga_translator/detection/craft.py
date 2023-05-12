@@ -147,7 +147,6 @@ class CRAFTDetector(OfflineDetector):
     async def _unload(self):
         del self.model
 
-    @torch.no_grad()
     async def _infer(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
                      unclip_ratio: float, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
         
@@ -159,7 +158,8 @@ class CRAFTDetector(OfflineDetector):
         x = torch.from_numpy(x).permute(2, 0, 1)    # [h, w, c] to [c, h, w]
         x = x.unsqueeze(0).to(self.device)                # [c, h, w] to [b, c, h, w]
 
-        y, feature = self.model(x)
+        with torch.no_grad() :
+            y, feature = self.model(x)
 
         # make score and link map
         score_text = y[0,:,:,0].cpu().data.numpy()
