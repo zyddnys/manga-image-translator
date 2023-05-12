@@ -200,6 +200,8 @@ DEEPL_AUTH_KEY=xxxxxxxx...
 
 - Offline: Whether the translator can be used offline.
 
+- Sugoi is created by mingshiba, please support him in https://www.patreon.com/mingshiba
+
 ### Language Code Reference
 
 Used by the `--target-lang` or `-l` argument.
