@@ -176,7 +176,7 @@ class MangaTranslator():
             result = translation_dict.result
         elif translation_dict.text_regions is not None:
             # If no text was found use original image 
-            result = img
+            result = translation_dict.upscaled or img
 
         if translation_dict.save_text or translation_dict.save_text_file or translation_dict.prep_manual:
             if translation_dict.prep_manual:
