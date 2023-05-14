@@ -60,7 +60,7 @@ class GPT3Translator(CommonTranslator):
         'UKR': 'Ukrainian',
         'VIN': 'Vietnamese',
     }
-    _INVALID_REPEAT_COUNT = 2 # repeat max. 2 times if invalid
+    _INVALID_REPEAT_COUNT = 2 # repeat 2 times at most if invalid translation was returned
     _MAX_REQUESTS_PER_MINUTE = 20
 
     _prompt_template = SIMPLE_PROMPT_TEMPLATE
