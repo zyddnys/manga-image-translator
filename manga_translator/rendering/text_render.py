@@ -308,7 +308,7 @@ def put_text_vertical(font_size: int, text: str, h: int, alignment: str, fg: Tup
     return line_box[y:y+h, x:x+w]
 
 def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str], List[int]]:
-    """Splits up a string of text into lines."""
+    """Splits up a string of text into lines. Returns list of lines and their widths."""
     max_width = max(max_width, font_size)
 
     whitespace_glyph = get_char_glyph(' ', font_size, 0)
@@ -360,8 +360,8 @@ def calc_horizontal(font_size: int, text: str, max_width: int) -> Tuple[List[str
             # Break the line
             break_line()
 
-        current_word = words[i]
-        if not current_word.strip():
+        current_word = words[i].strip()
+        if not current_word:
             i += 1
             continue
 
