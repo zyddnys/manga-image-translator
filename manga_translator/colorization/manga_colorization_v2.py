@@ -40,9 +40,9 @@ class MangaColorizationV2(OfflineColorizer):
 
     async def _infer(self, image: np.ndarray, apply_denoise=True, denoise_sigma=25) -> np.ndarray:
         # Size has to be multiple of 32
-        # image_width = image.shape[1]
-        # size = image_width - image_width % 32
-        size = 576
+        image_width = image.shape[1]
+        size = min(image_width - image_width % 32, 1024)
+        # TODO: Add automatic upscaling to approximate original size
 
         if apply_denoise:
             image = self.denoiser.get_denoised_image(image, sigma=denoise_sigma)

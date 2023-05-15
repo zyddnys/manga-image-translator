@@ -122,6 +122,7 @@ VIN: Vietnames
                                              to take effect
 --upscale-ratio {1,2,3,4,8,16,32}            Image upscale ratio applied before detection. Can
                                              improve text detection.
+--colorizer {mc2}                            Colorization model to use.
 --translator {google,youdao,baidu,deepl,papago,gpt3,gpt3.5,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
                                              Language translator to use
 --translator-chain TRANSLATOR_CHAIN          Output of one translator goes in another. Example:
@@ -171,7 +172,7 @@ VIN: Vietnames
 --chatgpt-prompt-file CHATGPT_PROMPT_FILE    Prepends contents of the specified file to the chatgpt
                                              prompt. Denote the target language with "{lang}"
 --chatgpt-temperature CHATGPT_TEMPERATURE    The chatgpt temperature. 0 is the most strict setting
-                                             and 1 is the most creative. Default is 0.5.
+                                             and 1 is the most creative. Default is 0.3.
 --mtpe                                       Turn on/off machine translation post editing (MTPE) on
                                              the command line (works only on linux right now)
 --save-text                                  Save extracted text and translations into a text file.
