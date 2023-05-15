@@ -47,8 +47,9 @@ from .translators import (
     dispatch as dispatch_translation,
     prepare as prepare_translation,
 )
+from .colorization import dispatch as dispatch_colorization, prepare as preparse_colorization
 from .rendering import dispatch as dispatch_rendering, dispatch_eng_render
-from .save import OUTPUT_FORMATS, save_result
+from .save import save_result
 
 
 # Will be overwritten by __main__.py if module is being run directly (with python -m)
@@ -241,6 +242,8 @@ class MangaTranslator():
                 await prepare_ocr(ctx.ocr, self.device)
                 await prepare_inpainting(ctx.inpainter, self.device)
                 await prepare_translation(ctx.translator)
+                if ctx.colorizer:
+                    await preparse_colorization(ctx.colorizer)
 
                 # translate
                 return await self._translate(ctx)
@@ -351,8 +354,14 @@ class MangaTranslator():
         await self._report_progress('rendering')
         ctx.img_rendered = await self._run_text_rendering(ctx)
 
+        if ctx.colorizer:
+            await self._report_progress('colorizing')
+            ctx.img_colorized = await self._run_colorizer(ctx)
+        else:
+            ctx.img_colorized = ctx.img_rendered
+
         await self._report_progress('finished', True)
-        ctx.result = dump_image(ctx.img_rendered, ctx.img_alpha)
+        ctx.result = dump_image(ctx.img_colorized, ctx.img_alpha)
 
         if ctx.revert_upscaling:
             await self._report_progress('downscaling')
@@ -379,6 +388,7 @@ class MangaTranslator():
             'mask-generation':      'Running mask refinement',
             'translating':          'Running text translation',
             'rendering':            'Running rendering',
+            'colorizing':            'Running colorization',
             'downscaling':          'Running downscaling',
         }
         LOG_MESSAGES_SKIP = {
@@ -501,6 +511,9 @@ class MangaTranslator():
             output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, ctx.font_path, ctx.font_size, ctx.font_size_offset,
                                               ctx.font_size_minimum, ctx.render_mask)
         return output
+
+    async def _run_colorizer(self, ctx: Context):
+        return await dispatch_colorization(ctx.colorizer, ctx.img_rendered, self.device)
 
 
 class MangaTranslatorWeb(MangaTranslator):
