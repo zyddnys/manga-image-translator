@@ -351,17 +351,17 @@ class MangaTranslator():
         if self.verbose:
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR))
 
-        await self._report_progress('rendering')
-        ctx.img_rendered = await self._run_text_rendering(ctx)
-
         if ctx.colorizer:
             await self._report_progress('colorizing')
             ctx.img_colorized = await self._run_colorizer(ctx)
         else:
-            ctx.img_colorized = ctx.img_rendered
+            ctx.img_colorized = ctx.img_inpainted
+
+        await self._report_progress('rendering')
+        ctx.img_rendered = await self._run_text_rendering(ctx)
 
         await self._report_progress('finished', True)
-        ctx.result = dump_image(ctx.img_colorized, ctx.img_alpha)
+        ctx.result = dump_image(ctx.img_rendered, ctx.img_alpha)
 
         if ctx.revert_upscaling:
             await self._report_progress('downscaling')
@@ -503,17 +503,17 @@ class MangaTranslator():
 
     async def _run_text_rendering(self, ctx: Context):
         if ctx.renderer == 'none':
-            output = ctx.img_inpainted
+            output = ctx.img_colorized
         # manga2eng currently only supports horizontal rendering
         elif ctx.renderer == 'manga2eng' and ctx.text_regions and LANGAUGE_ORIENTATION_PRESETS.get(ctx.text_regions[0].target_lang) == 'h':
-            output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, ctx.font_path)
+            output = await dispatch_eng_render(ctx.img_colorized, ctx.img_rgb, ctx.text_regions, ctx.font_path)
         else:
-            output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, ctx.font_path, ctx.font_size, ctx.font_size_offset,
+            output = await dispatch_rendering(ctx.img_colorized, ctx.text_regions, ctx.font_path, ctx.font_size, ctx.font_size_offset,
                                               ctx.font_size_minimum, ctx.render_mask)
         return output
 
     async def _run_colorizer(self, ctx: Context):
-        return await dispatch_colorization(ctx.colorizer, ctx.img_rendered, self.device)
+        return await dispatch_colorization(ctx.colorizer, ctx.img_inpainted, self.device)
 
 
 class MangaTranslatorWeb(MangaTranslator):

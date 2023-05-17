@@ -1,4 +1,6 @@
 import os
+
+import cv2
 import torch
 import numpy as np
 from torchvision.transforms import ToTensor
@@ -27,10 +29,10 @@ class MangaColorizationV2(OfflineColorizer):
     }
 
     async def _load(self, device: str):
-        device = 'cuda'
         self.device = device
         self.colorizer = Colorizer().to(device)
-        self.colorizer.generator.load_state_dict(torch.load(self._get_file_path('generator.zip'), map_location=self.device))
+        self.colorizer.generator.load_state_dict(
+            torch.load(self._get_file_path('generator.zip'), map_location=self.device))
         self.colorizer = self.colorizer.eval()
         self.denoiser = FFDNetDenoiser(device, _weights_dir=self.model_dir)
 
@@ -41,7 +43,9 @@ class MangaColorizationV2(OfflineColorizer):
     async def _infer(self, image: np.ndarray, apply_denoise=True, denoise_sigma=25) -> np.ndarray:
         # Size has to be multiple of 32
         image_width = image.shape[1]
-        size = min(image_width - image_width % 32, 1024)
+        image_height = image.shape[0]
+        extra = get_extra(image_width)
+        size = image_width + extra
         # TODO: Add automatic upscaling to approximate original size
 
         if apply_denoise:
@@ -63,4 +67,9 @@ class MangaColorizationV2(OfflineColorizer):
         if current_pad[1] != 0:
             result = result[:, :-current_pad[1]]
 
-        return result.numpy() * 255
+        colored_image = result.numpy() * 255
+        return cv2.resize(colored_image, (image_width, image_height), interpolation=cv2.INTER_CUBIC)
+
+
+def get_extra(width: int):
+    return 32 - (width % 32)
