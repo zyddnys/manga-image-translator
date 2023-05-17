@@ -1,4 +1,4 @@
-import numpy as np
+from PIL import Image
 from abc import abstractmethod
 
 from ..utils import InfererModule, ModelWrapper
@@ -6,11 +6,11 @@ from ..utils import InfererModule, ModelWrapper
 class CommonColorizer(InfererModule):
     _VALID_UPSCALE_RATIOS = None
 
-    async def colorize(self, image: np.ndarray) -> np.ndarray:
-        return await self._colorize(image)
+    async def colorize(self, image: Image.Image, colorization_size: int) -> Image.Image:
+        return await self._colorize(image, colorization_size)
 
     @abstractmethod
-    async def _colorize(self, image: np.ndarray) -> np.ndarray:
+    async def _colorize(self, image: Image.Image, colorization_size: int) -> Image.Image:
         pass
 
 class OfflineColorizer(CommonColorizer, ModelWrapper):
@@ -20,5 +20,5 @@ class OfflineColorizer(CommonColorizer, ModelWrapper):
         return await self.infer(*args, **kwargs)
 
     @abstractmethod
-    async def _infer(self, image: np.ndarray) -> np.ndarray:
+    async def _infer(self, image: Image.Image, colorization_size: int) -> Image.Image:
         pass

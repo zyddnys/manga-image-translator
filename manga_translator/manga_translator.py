@@ -301,13 +301,19 @@ class MangaTranslator():
 
     async def _translate(self, ctx: Context) -> Context:
 
+        if ctx.colorizer:
+            await self._report_progress('colorizing')
+            ctx.img_colorized = await self._run_colorizer(ctx)
+        else:
+            ctx.img_colorized = ctx.input
+
         # The default text detector doesn't work very well on smaller images, might want to
         # consider adding automatic upscaling on certain kinds of small images.
         if ctx.upscale_ratio:
             await self._report_progress('upscaling')
             ctx.upscaled = await self._run_upscaling(ctx)
         else:
-            ctx.upscaled = ctx.input
+            ctx.upscaled = ctx.img_colorized
 
         ctx.img_rgb, ctx.img_alpha = load_image(ctx.upscaled)
 
@@ -350,12 +356,6 @@ class MangaTranslator():
 
         if self.verbose:
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR))
-
-        if ctx.colorizer:
-            await self._report_progress('colorizing')
-            ctx.img_colorized = await self._run_colorizer(ctx)
-        else:
-            ctx.img_colorized = ctx.img_inpainted
 
         await self._report_progress('rendering')
         ctx.img_rendered = await self._run_text_rendering(ctx)
@@ -445,8 +445,11 @@ class MangaTranslator():
         with open(text_output_file, 'a', encoding='utf-8') as f:
             f.write(s)
 
+    async def _run_colorizer(self, ctx: Context):
+        return await dispatch_colorization(ctx.colorizer, ctx.input, ctx.colorization_size, self.device)
+
     async def _run_upscaling(self, ctx: Context):
-        return (await dispatch_upscaling(ctx.upscaler, [ctx.input], ctx.upscale_ratio, self.device))[0]
+        return (await dispatch_upscaling(ctx.upscaler, [ctx.img_colorized], ctx.upscale_ratio, self.device))[0]
 
     async def _run_detection(self, ctx: Context):
         return await dispatch_detection(ctx.detector, ctx.img_rgb, ctx.detection_size, ctx.text_threshold, ctx.box_threshold,
@@ -503,17 +506,14 @@ class MangaTranslator():
 
     async def _run_text_rendering(self, ctx: Context):
         if ctx.renderer == 'none':
-            output = ctx.img_colorized
+            output = ctx.img_inpainted
         # manga2eng currently only supports horizontal rendering
         elif ctx.renderer == 'manga2eng' and ctx.text_regions and LANGAUGE_ORIENTATION_PRESETS.get(ctx.text_regions[0].target_lang) == 'h':
-            output = await dispatch_eng_render(ctx.img_colorized, ctx.img_rgb, ctx.text_regions, ctx.font_path)
+            output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, ctx.font_path)
         else:
-            output = await dispatch_rendering(ctx.img_colorized, ctx.text_regions, ctx.font_path, ctx.font_size, ctx.font_size_offset,
+            output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, ctx.font_path, ctx.font_size, ctx.font_size_offset,
                                               ctx.font_size_minimum, ctx.render_mask)
         return output
-
-    async def _run_colorizer(self, ctx: Context):
-        return await dispatch_colorization(ctx.colorizer, ctx.img_inpainted, self.device)
 
 
 class MangaTranslatorWeb(MangaTranslator):

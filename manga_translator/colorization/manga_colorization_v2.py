@@ -1,8 +1,8 @@
 import os
-
 import cv2
 import torch
 import numpy as np
+from PIL import Image
 from torchvision.transforms import ToTensor
 
 from .common import OfflineColorizer
@@ -40,20 +40,20 @@ class MangaColorizationV2(OfflineColorizer):
         del self.colorizer
         del self.denoiser
 
-    async def _infer(self, image: np.ndarray, apply_denoise=True, denoise_sigma=25) -> np.ndarray:
+    async def _infer(self, image: Image.Image, colorization_size: int, apply_denoise=True, denoise_sigma=25) -> Image.Image:
         # Size has to be multiple of 32
-        image_width = image.shape[1]
-        image_height = image.shape[0]
-        extra = get_extra(image_width)
-        size = image_width + extra
-        # TODO: Add automatic upscaling to approximate original size
+        img = np.array(image.convert('RGBA'))
+        image_height, image_width = img.shape[:2]
+        size = image_width + 32 - (image_width % 32)
+        if colorization_size >= 0:
+            size = min(size, colorization_size)
 
         if apply_denoise:
-            image = self.denoiser.get_denoised_image(image, sigma=denoise_sigma)
+            img = self.denoiser.get_denoised_image(img / 255, sigma=denoise_sigma)
 
-        image, current_pad = resize_pad(image, size)
+        img, current_pad = resize_pad(img, size)
         transform = ToTensor()
-        current_image = transform(image).unsqueeze(0).to(self.device)
+        current_image = transform(img).unsqueeze(0).to(self.device)
         current_hint = torch.zeros(1, 4, current_image.shape[2], current_image.shape[3]).float().to(self.device)
 
         with torch.no_grad():
@@ -68,8 +68,6 @@ class MangaColorizationV2(OfflineColorizer):
             result = result[:, :-current_pad[1]]
 
         colored_image = result.numpy() * 255
-        return cv2.resize(colored_image, (image_width, image_height), interpolation=cv2.INTER_CUBIC)
-
-
-def get_extra(width: int):
-    return 32 - (width % 32)
+        if image_width < size:
+            colored_image = cv2.resize(colored_image, (image_width, image_height), interpolation=cv2.INTER_CUBIC)
+        return Image.fromarray(colored_image.astype(np.uint8))

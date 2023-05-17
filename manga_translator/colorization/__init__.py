@@ -1,4 +1,4 @@
-import numpy as np
+from PIL import Image
 
 from .common import CommonColorizer, OfflineColorizer
 from .manga_colorization_v2 import MangaColorizationV2
@@ -21,8 +21,8 @@ async def prepare(key: str):
     if isinstance(upscaler, OfflineColorizer):
         await upscaler.download()
 
-async def dispatch(key: str, image: np.ndarray, device: str = 'cpu') -> np.ndarray:
+async def dispatch(key: str, image: Image.Image, colorization_size: int = 1024, device: str = 'cpu') -> Image.Image:
     colorizer = get_colorizer(key)
     if isinstance(colorizer, OfflineColorizer):
         await colorizer.load(device)
-    return await colorizer.colorize(image)
+    return await colorizer.colorize(image, colorization_size)

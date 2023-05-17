@@ -149,11 +149,13 @@ VIN: Vietnames
                                              detection.
 --det-gamma-correct                          Applies gamma correction for detection. Might improve
                                              detection.
---inpainting-size INPAINTING_SIZE            Size of image used for inpainting (too large will
-                                             result in OOM)
 --unclip-ratio UNCLIP_RATIO                  How much to extend text skeleton to form bounding box
 --box-threshold BOX_THRESHOLD                Threshold for bbox generation
 --text-threshold TEXT_THRESHOLD              Threshold for text detection
+--inpainting-size INPAINTING_SIZE            Size of image used for inpainting (too large will
+                                             result in OOM)
+--colorization-size COLORIZATION_SIZE        Size of image used for colorization. Set to -1 to use
+                                             full image size
 --font-size FONT_SIZE                        Use fixed font size for rendering
 --font-size-offset FONT_SIZE_OFFSET          Offset font size by a given amount, positive number
                                              increase font size and vice versa
