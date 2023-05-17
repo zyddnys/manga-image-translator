@@ -42,8 +42,8 @@ class MangaColorizationV2(OfflineColorizer):
 
     async def _infer(self, image: np.ndarray, apply_denoise=True, denoise_sigma=25) -> np.ndarray:
         # Size has to be multiple of 32
-        image_dim = image.shape
         image_width = image.shape[1]
+        image_height = image.shape[0]
         extra = get_extra(image_width)
         size = image_width + extra
         # TODO: Add automatic upscaling to approximate original size
@@ -68,7 +68,7 @@ class MangaColorizationV2(OfflineColorizer):
             result = result[:, :-current_pad[1]]
 
         colored_image = result.numpy() * 255
-        return cv2.resize(colored_image, (image_dim[1], image_dim[0]), interpolation=cv2.INTER_CUBIC)
+        return cv2.resize(colored_image, (image_width, image_height), interpolation=cv2.INTER_CUBIC)
 
 
 def get_extra(width: int):
