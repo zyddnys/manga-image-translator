@@ -421,8 +421,7 @@ A list of what needs to be done next, you're welcome to contribute.
    Used for detecting hard subtitles in videos, generting ass file and remove them completetly.
 6. ~~Mask refinement based using non deep learning algorithms, I am currently testing out CRF based algorithm.~~
 7. ~~Angled text region merge is not currently supported~~
-8. Make web page only show translators with API key
-9. Create pip repository
+8. Create pip repository
 
 ## Samples
 
