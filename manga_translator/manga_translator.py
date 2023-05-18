@@ -47,8 +47,9 @@ from .translators import (
     dispatch as dispatch_translation,
     prepare as prepare_translation,
 )
+from .colorization import dispatch as dispatch_colorization, prepare as preparse_colorization
 from .rendering import dispatch as dispatch_rendering, dispatch_eng_render
-from .save import OUTPUT_FORMATS, save_result
+from .save import save_result
 
 
 # Will be overwritten by __main__.py if module is being run directly (with python -m)
@@ -241,6 +242,8 @@ class MangaTranslator():
                 await prepare_ocr(ctx.ocr, self.device)
                 await prepare_inpainting(ctx.inpainter, self.device)
                 await prepare_translation(ctx.translator)
+                if ctx.colorizer:
+                    await preparse_colorization(ctx.colorizer)
 
                 # translate
                 return await self._translate(ctx)
@@ -298,13 +301,19 @@ class MangaTranslator():
 
     async def _translate(self, ctx: Context) -> Context:
 
+        if ctx.colorizer:
+            await self._report_progress('colorizing')
+            ctx.img_colorized = await self._run_colorizer(ctx)
+        else:
+            ctx.img_colorized = ctx.input
+
         # The default text detector doesn't work very well on smaller images, might want to
         # consider adding automatic upscaling on certain kinds of small images.
         if ctx.upscale_ratio:
             await self._report_progress('upscaling')
             ctx.upscaled = await self._run_upscaling(ctx)
         else:
-            ctx.upscaled = ctx.input
+            ctx.upscaled = ctx.img_colorized
 
         ctx.img_rgb, ctx.img_alpha = load_image(ctx.upscaled)
 
@@ -379,6 +388,7 @@ class MangaTranslator():
             'mask-generation':      'Running mask refinement',
             'translating':          'Running text translation',
             'rendering':            'Running rendering',
+            'colorizing':            'Running colorization',
             'downscaling':          'Running downscaling',
         }
         LOG_MESSAGES_SKIP = {
@@ -435,8 +445,11 @@ class MangaTranslator():
         with open(text_output_file, 'a', encoding='utf-8') as f:
             f.write(s)
 
+    async def _run_colorizer(self, ctx: Context):
+        return await dispatch_colorization(ctx.colorizer, ctx.input, ctx.colorization_size, self.device)
+
     async def _run_upscaling(self, ctx: Context):
-        return (await dispatch_upscaling(ctx.upscaler, [ctx.input], ctx.upscale_ratio, self.device))[0]
+        return (await dispatch_upscaling(ctx.upscaler, [ctx.img_colorized], ctx.upscale_ratio, self.device))[0]
 
     async def _run_detection(self, ctx: Context):
         return await dispatch_detection(ctx.detector, ctx.img_rgb, ctx.detection_size, ctx.text_threshold, ctx.box_threshold,
