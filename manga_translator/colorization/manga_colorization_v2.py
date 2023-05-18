@@ -46,7 +46,7 @@ class MangaColorizationV2(OfflineColorizer):
         image_height, image_width = img.shape[:2]
         size = image_width + 32 - (image_width % 32)
         if colorization_size >= 0:
-            size = min(size, colorization_size)
+            size = min(size, colorization_size + 32 - (colorization_size % 32))
 
         if apply_denoise:
             img = self.denoiser.get_denoised_image(img / 255, sigma=denoise_sigma)
