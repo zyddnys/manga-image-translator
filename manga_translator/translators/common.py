@@ -226,7 +226,7 @@ class CommonTranslator(InfererModule):
 
         query_symbols_count = len(set(query))
         trans_symbols_count = len(set(trans))
-        if query_symbols_count > 6 and trans_symbols_count < 0.3 * query_symbols_count:
+        if query_symbols_count > 6 and trans_symbols_count < 6 and trans_symbols_count < 0.25 * len(trans):
             return True
         return False
 

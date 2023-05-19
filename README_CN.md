@@ -58,16 +58,16 @@ $ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
 | 名称            | 是否需要 API Key | 是否离线可用 | 其他说明                                    |
 | -------------- | ------- | ------- | ----------------------------------------------------- |
 | google         |         |         |                                                       |
-| youdao         | ✔️      |         | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`     |
-| baidu          | ✔️      |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`        |
-| deepl          | ✔️      |         | Requires `DEEPL_AUTH_KEY`                             |
+| youdao         | ✔️      |         | 需要 `YOUDAO_APP_KEY` 和 `YOUDAO_SECRET_KEY`     |
+| baidu          | ✔️      |         | 需要 `BAIDU_APP_ID` 和 `BAIDU_SECRET_KEY`        |
+| deepl          | ✔️      |         | 需要 `DEEPL_AUTH_KEY`                             |
 | gpt3           | ✔️      |         | Implements text-davinci-003. Requires `OPENAI_API_KEY`|
 | gpt3.5         | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`   |
 | papago         |         |         |                                                       |
-| offline        |         | ✔️      |                                                       |
-| sugoi          |         | ✔️      |                                                       |
-| m2m100         |         | ✔️      |                                                       |
-| m2m100_big     |         | ✔️      |                                                       |
+| offline        |         | ✔️      |  自动选择可用的离线模型，只是选择器                                                  |
+| sugoi          |         | ✔️      |  只能翻译英文                                                    |
+| m2m100         |         | ✔️      |  可以翻译所有语言                                                     |
+| m2m100_big     |         | ✔️      |  带big的是完整尺寸，不带是精简版                                                    |
 | none           |         | ✔️      | 翻译成空白文本                                          |
 | original       |         | ✔️      | 翻译成源文本                                            |
 
@@ -122,6 +122,7 @@ VIN: Vietnames
                                              to take effect
 --upscale-ratio {1,2,3,4,8,16,32}            Image upscale ratio applied before detection. Can
                                              improve text detection.
+--colorizer {mc2}                            Colorization model to use.
 --translator {google,youdao,baidu,deepl,papago,gpt3,gpt3.5,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
                                              Language translator to use
 --translator-chain TRANSLATOR_CHAIN          Output of one translator goes in another. Example:
@@ -148,11 +149,13 @@ VIN: Vietnames
                                              detection.
 --det-gamma-correct                          Applies gamma correction for detection. Might improve
                                              detection.
---inpainting-size INPAINTING_SIZE            Size of image used for inpainting (too large will
-                                             result in OOM)
 --unclip-ratio UNCLIP_RATIO                  How much to extend text skeleton to form bounding box
 --box-threshold BOX_THRESHOLD                Threshold for bbox generation
 --text-threshold TEXT_THRESHOLD              Threshold for text detection
+--inpainting-size INPAINTING_SIZE            Size of image used for inpainting (too large will
+                                             result in OOM)
+--colorization-size COLORIZATION_SIZE        Size of image used for colorization. Set to -1 to use
+                                             full image size
 --font-size FONT_SIZE                        Use fixed font size for rendering
 --font-size-offset FONT_SIZE_OFFSET          Offset font size by a given amount, positive number
                                              increase font size and vice versa
@@ -171,7 +174,7 @@ VIN: Vietnames
 --chatgpt-prompt-file CHATGPT_PROMPT_FILE    Prepends contents of the specified file to the chatgpt
                                              prompt. Denote the target language with "{lang}"
 --chatgpt-temperature CHATGPT_TEMPERATURE    The chatgpt temperature. 0 is the most strict setting
-                                             and 1 is the most creative. Default is 0.5.
+                                             and 1 is the most creative. Default is 0.3.
 --mtpe                                       Turn on/off machine translation post editing (MTPE) on
                                              the command line (works only on linux right now)
 --save-text                                  Save extracted text and translations into a text file.

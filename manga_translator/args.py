@@ -6,6 +6,7 @@ from .ocr import OCRS
 from .inpainting import INPAINTERS
 from .translators import VALID_LANGUAGES, TRANSLATORS, TranslatorChain
 from .upscaling import UPSCALERS
+from .colorization import COLORIZERS
 from .save import OUTPUT_FORMATS
 
 # Additional argparse types
@@ -90,6 +91,7 @@ parser.add_argument('--ocr', default='48px_ctc', type=str, choices=OCRS, help='O
 parser.add_argument('--inpainter', default='lama_mpe', type=str, choices=INPAINTERS, help='Inpainting model to use')
 parser.add_argument('--upscaler', default='esrgan', type=str, choices=UPSCALERS, help='Upscaler to use. --upscale-ratio has to be set for it to take effect')
 parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 3, 4, 8, 16, 32], help='Image upscale ratio applied before detection. Can improve text detection.')
+parser.add_argument('--colorizer', default=None, type=str, choices=COLORIZERS, help='Colorization model to use.')
 
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--translator', default='google', type=str, choices=TRANSLATORS, help='Language translator to use')
@@ -108,10 +110,11 @@ parser.add_argument('--det-rotate', action='store_true', help='Rotate the image 
 parser.add_argument('--det-auto-rotate', action='store_true', help='Rotate the image for detection to prefer vertical textlines. Might improve detection.')
 parser.add_argument('--det-invert', action='store_true', help='Invert the image colors for detection. Might improve detection.')
 parser.add_argument('--det-gamma-correct', action='store_true', help='Applies gamma correction for detection. Might improve detection.')
-parser.add_argument('--inpainting-size', default=2048, type=int, help='Size of image used for inpainting (too large will result in OOM)')
 parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to extend text skeleton to form bounding box')
 parser.add_argument('--box-threshold', default=0.7, type=float, help='Threshold for bbox generation')
 parser.add_argument('--text-threshold', default=0.5, type=float, help='Threshold for text detection')
+parser.add_argument('--inpainting-size', default=2048, type=int, help='Size of image used for inpainting (too large will result in OOM)')
+parser.add_argument('--colorization-size', default=1024, type=int, help='Size of image used for colorization. Set to -1 to use full image size')
 parser.add_argument('--font-size', default=None, type=int, help='Use fixed font size for rendering')
 parser.add_argument('--font-size-offset', default=0, type=int, help='Offset font size by a given amount, positive number increase font size and vice versa')
 parser.add_argument('--font-size-minimum', default=-1, type=int, help='Minimum output font size. Default is image_sides_sum/150')

@@ -200,6 +200,8 @@ DEEPL_AUTH_KEY=xxxxxxxx...
 
 - Offline: Whether the translator can be used offline.
 
+- Sugoi is created by mingshiba, please support him in https://www.patreon.com/mingshiba
+
 ### Language Code Reference
 
 Used by the `--target-lang` or `-l` argument.
@@ -253,6 +255,7 @@ VIN: Vietnames
                                              to take effect
 --upscale-ratio {1,2,3,4,8,16,32}            Image upscale ratio applied before detection. Can
                                              improve text detection.
+--colorizer {mc2}                            Colorization model to use.
 --translator {google,youdao,baidu,deepl,papago,gpt3,gpt3.5,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
                                              Language translator to use
 --translator-chain TRANSLATOR_CHAIN          Output of one translator goes in another. Example:
@@ -279,11 +282,13 @@ VIN: Vietnames
                                              detection.
 --det-gamma-correct                          Applies gamma correction for detection. Might improve
                                              detection.
---inpainting-size INPAINTING_SIZE            Size of image used for inpainting (too large will
-                                             result in OOM)
 --unclip-ratio UNCLIP_RATIO                  How much to extend text skeleton to form bounding box
 --box-threshold BOX_THRESHOLD                Threshold for bbox generation
 --text-threshold TEXT_THRESHOLD              Threshold for text detection
+--inpainting-size INPAINTING_SIZE            Size of image used for inpainting (too large will
+                                             result in OOM)
+--colorization-size COLORIZATION_SIZE        Size of image used for colorization. Set to -1 to use
+                                             full image size
 --font-size FONT_SIZE                        Use fixed font size for rendering
 --font-size-offset FONT_SIZE_OFFSET          Offset font size by a given amount, positive number
                                              increase font size and vice versa
@@ -302,7 +307,7 @@ VIN: Vietnames
 --chatgpt-prompt-file CHATGPT_PROMPT_FILE    Prepends contents of the specified file to the chatgpt
                                              prompt. Denote the target language with "{lang}"
 --chatgpt-temperature CHATGPT_TEMPERATURE    The chatgpt temperature. 0 is the most strict setting
-                                             and 1 is the most creative. Default is 0.5.
+                                             and 1 is the most creative. Default is 0.3.
 --mtpe                                       Turn on/off machine translation post editing (MTPE) on
                                              the command line (works only on linux right now)
 --save-text                                  Save extracted text and translations into a text file.
@@ -416,8 +421,7 @@ A list of what needs to be done next, you're welcome to contribute.
    Used for detecting hard subtitles in videos, generting ass file and remove them completetly.
 6. ~~Mask refinement based using non deep learning algorithms, I am currently testing out CRF based algorithm.~~
 7. ~~Angled text region merge is not currently supported~~
-8. Make web page only show translators with API key
-9. Create pip repository
+8. Create pip repository
 
 ## Samples
 

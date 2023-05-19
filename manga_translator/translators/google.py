@@ -131,96 +131,6 @@ class GoogleTranslator(CommonTranslator):
 
         self.raise_exception = raise_exception
 
-    def _build_rpc_request(self, text: str, dest: str, src: str):
-        return json.dumps([[
-            [
-                RPC_ID,
-                json.dumps([[text, src, dest, True], [None]], separators=(',', ':')),
-                None,
-                'generic',
-            ],
-        ]], separators=(',', ':'))
-
-    def _pick_service_url(self):
-        if len(self.service_urls) == 1:
-            return self.service_urls[0]
-        return random.choice(self.service_urls)
-
-    async def _request_translation(self, text: str, dest: str, src: str):
-        url = urls.TRANSLATE_RPC.format(host=self._pick_service_url())
-        data = {
-            'f.req': self._build_rpc_request(text, dest, src),
-        }
-        params = {
-            'rpcids': RPC_ID,
-            'bl': 'boq_translate-webserver_20201207.13_p0',
-            'soc-app': 1,
-            'soc-platform': 1,
-            'soc-device': 1,
-            'rt': 'c',
-        }
-        encountered_exception = None
-        for _ in range(3):
-            try:
-                r = await self.client.post(url, params=params, data=data)
-
-                if r.status_code != 200 and self.raise_exception:
-                    raise Exception('Unexpected status code "{}" from {}'.format(
-                        r.status_code, self.service_urls))
-                break
-            except Exception as e:
-                encountered_exception = e
-                time.sleep(1)
-        else:
-            raise encountered_exception
-
-        return r.text, r
-
-    async def _translate_legacy(self, text, dest, src, override):
-        token = '' #dummy default value here as it is not used by api client
-        if self.client_type == 'webapp':
-            token = self.token_acquirer.do(text)
-
-        params = utils.build_params(client=self.client_type, query=text, src=src, dest=dest,
-                                    token=token, override=override)
-
-        url = urls.TRANSLATE.format(host=self._pick_service_url())
-        r = await self.client.get(url, params=params)
-
-        if r.status_code == 200:
-            data = utils.format_json(r.text)
-            return data, r
-
-        if self.raise_exception:
-            raise Exception('Unexpected status code "{}" from {}'.format(
-                r.status_code, self.service_urls))
-
-        DUMMY_DATA[0][0][0] = text
-        return DUMMY_DATA, r
-
-    def _parse_extra_data(self, data):
-        response_parts_name_mapping = {
-            0: 'translation',
-            1: 'all-translations',
-            2: 'original-language',
-            5: 'possible-translations',
-            6: 'confidence',
-            7: 'possible-mistakes',
-            8: 'language',
-            11: 'synonyms',
-            12: 'definitions',
-            13: 'examples',
-            14: 'see-also',
-        }
-
-        extra = {}
-
-        for index, category in response_parts_name_mapping.items():
-            extra[category] = data[index] if (
-                index < len(data) and data[index]) else None
-
-        return extra
-
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
 
         # Seperate en/ja queries to improve translation quality
@@ -271,6 +181,18 @@ class GoogleTranslator(CommonTranslator):
             else:
                 raise ValueError('invalid destination language')
 
+        encountered_exception = None
+        for _ in range(3):
+            try:
+                return await self._request_and_parse_translation(query, to_lang, from_lang)
+
+            except Exception as e:
+                encountered_exception = e
+                time.sleep(1)
+
+        raise encountered_exception
+
+    async def _request_and_parse_translation(self, query, to_lang, from_lang):
         origin = query
         data, response = await self._request_translation(query, to_lang, from_lang)
 
@@ -351,6 +273,87 @@ class GoogleTranslator(CommonTranslator):
                             response=response)
         return result
 
+    def _build_rpc_request(self, text: str, dest: str, src: str):
+        return json.dumps([[
+            [
+                RPC_ID,
+                json.dumps([[text, src, dest, True], [None]], separators=(',', ':')),
+                None,
+                'generic',
+            ],
+        ]], separators=(',', ':'))
+
+    def _pick_service_url(self):
+        if len(self.service_urls) == 1:
+            return self.service_urls[0]
+        return random.choice(self.service_urls)
+
+    async def _request_translation(self, text: str, dest: str, src: str):
+        url = urls.TRANSLATE_RPC.format(host=self._pick_service_url())
+        data = {
+            'f.req': self._build_rpc_request(text, dest, src),
+        }
+        params = {
+            'rpcids': RPC_ID,
+            'bl': 'boq_translate-webserver_20201207.13_p0',
+            'soc-app': 1,
+            'soc-platform': 1,
+            'soc-device': 1,
+            'rt': 'c',
+        }
+ 
+        r = await self.client.post(url, params=params, data=data)
+
+        if r.status_code != 200 and self.raise_exception:
+            raise Exception('Unexpected status code "{}" from {}'.format(
+                r.status_code, self.service_urls))
+
+        return r.text, r
+
+    async def _translate_legacy(self, text, dest, src, override):
+        token = '' #dummy default value here as it is not used by api client
+        if self.client_type == 'webapp':
+            token = self.token_acquirer.do(text)
+
+        params = utils.build_params(client=self.client_type, query=text, src=src, dest=dest,
+                                    token=token, override=override)
+
+        url = urls.TRANSLATE.format(host=self._pick_service_url())
+        r = await self.client.get(url, params=params)
+
+        if r.status_code == 200:
+            data = utils.format_json(r.text)
+            return data, r
+
+        if self.raise_exception:
+            raise Exception('Unexpected status code "{}" from {}'.format(
+                r.status_code, self.service_urls))
+
+        DUMMY_DATA[0][0][0] = text
+        return DUMMY_DATA, r
+
+    def _parse_extra_data(self, data):
+        response_parts_name_mapping = {
+            0: 'translation',
+            1: 'all-translations',
+            2: 'original-language',
+            5: 'possible-translations',
+            6: 'confidence',
+            7: 'possible-mistakes',
+            8: 'language',
+            11: 'synonyms',
+            12: 'definitions',
+            13: 'examples',
+            14: 'see-also',
+        }
+
+        extra = {}
+
+        for index, category in response_parts_name_mapping.items():
+            extra[category] = data[index] if (
+                index < len(data) and data[index]) else None
+
+        return extra
 
     async def translate_legacy(self, text, dest='en', src='auto', **kwargs):
         """Translate text from source language to destination language
