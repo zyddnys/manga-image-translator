@@ -4,13 +4,15 @@ from typing import List, Tuple
 from .default import DefaultDetector
 from .ctd import ComicTextDetector
 from .craft import CRAFTDetector
+from .none import NoneDetector
 from .common import CommonDetector, OfflineDetector
 from ..utils import TextBlock
 
 DETECTORS = {
     'default': DefaultDetector,
     'ctd': ComicTextDetector,
-    'craft': CRAFTDetector
+    'craft': CRAFTDetector,
+    'none': NoneDetector,
 }
 detector_cache = {}
 
@@ -28,7 +30,7 @@ async def prepare(detector_key: str):
         await detector.download()
 
 async def dispatch(detector_key: str, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float, unclip_ratio: float,
-                   invert: bool, gamma_correct: bool, rotate: bool, auto_rotate: bool = False, device: str = 'cpu', verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
+                   invert: bool, gamma_correct: bool, rotate: bool, auto_rotate: bool = False, device: str = 'cpu', verbose: bool = False):
     detector = get_detector(detector_key)
     if isinstance(detector, OfflineDetector):
         await detector.load(device)
