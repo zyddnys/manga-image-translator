@@ -5,7 +5,7 @@ def pytest_addoption(parser):
     parser.addoption('--translator', action='store', default=None, help='Chosen translator for test run')
     parser.addoption('--target-lang', action='store', default='ENG', help='Target language for translator test run')
     parser.addoption('--text', action='store', default=None, help='Text to be used for translation test run')
-    parser.addoption('--times', action='store', type=int, default=1, help='Amount of times the test should be repeated')
+    parser.addoption('--count', action='store', type=int, default=1, help='Amount of times the test should be repeated')
 
 @pytest.fixture
 def translator(request):
@@ -20,5 +20,5 @@ def text(request):
     return request.config.getoption('--text')
 
 @pytest.fixture
-def times(request):
-    return request.config.getoption('--times')
+def count(request):
+    return request.config.getoption('--count')

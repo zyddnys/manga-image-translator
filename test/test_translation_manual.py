@@ -12,12 +12,12 @@ from manga_translator.translators import (
 )
 
 @pytest.mark.asyncio
-async def test_specified_translator(translator, tgt_lang, text, times):
+async def test_specified_translator(translator, tgt_lang, text, count):
     if translator is None:
         pytest.skip()
 
     print()
-    for i in range(times):
+    for i in range(count):
         if text is None:
             queries_list = [
                 ['Hallo', '', 'English is a West Germanic language in the Indo-European language family, with its earliest forms spoken by the inhabitants of early medieval England.', 'Test case 5. HELLO THERE I WANT an audition! YOYOYOYO', '目标意识'],

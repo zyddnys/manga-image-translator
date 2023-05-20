@@ -104,7 +104,6 @@ class CommonTranslator(InfererModule):
         super().__init__()
         self.mtpe_adapter = MTPEAdapter()
         self._last_request_ts = 0
-        self._requests_count = 0
 
     def supports_languages(self, from_lang: str, to_lang: str, fatal: bool = False) -> bool:
         supported_src_languages = ['auto'] + list(self._LANGUAGE_CODE_MAP)
@@ -207,16 +206,13 @@ class CommonTranslator(InfererModule):
         pass
 
     async def _ratelimit_sleep(self):
-        now = time.time()
-        if self._MAX_REQUESTS_PER_MINUTE > 0 and self._requests_count >= self._MAX_REQUESTS_PER_MINUTE:
-            print(now - self._last_request_ts)
-            if now - self._last_request_ts < 60:
-                timeout = 60 - now + self._last_request_ts
-                self.logger.warn(f'Exceeded max amount of translations per minute ({self._MAX_REQUESTS_PER_MINUTE}). Timeout for: {timeout}s')
-                await asyncio.sleep(timeout)
-            self._requests_count = 0
+        if self._MAX_REQUESTS_PER_MINUTE > 0:
+            now = time.time()
+            ratelimit_timeout = self._last_request_ts + 60 / self._MAX_REQUESTS_PER_MINUTE
+            if ratelimit_timeout > now:
+                self.logger.info(f'Ratelimit sleep: {(ratelimit_timeout-now):.2f}s')
+                await asyncio.sleep(ratelimit_timeout-now)
             self._last_request_ts = time.time()
-        self._requests_count += 1
 
     def _is_translation_invalid(self, query: str, trans: str) -> bool:
         if not trans and query:
