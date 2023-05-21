@@ -12,7 +12,7 @@ from .common import OfflineDetector
 from ..utils import TextBlock, Quadrilateral, det_rearrange_forward
 
 MODEL = None
-def det_batch_forward_default(batch: np.ndarray, device: str) -> Tuple[np.ndarray, np.ndarray]:
+def det_batch_forward_default(batch: np.ndarray, device: str):
     global MODEL
     if isinstance(batch, list):
         batch = np.array(batch)
@@ -54,7 +54,7 @@ class DefaultDetector(OfflineDetector):
         del self.model
 
     async def _infer(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
-                     unclip_ratio: float, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
+                     unclip_ratio: float, verbose: bool = False):
 
         # TODO: Move det_rearrange_forward to common.py and refactor
         db, mask = det_rearrange_forward(image, det_batch_forward_default, detect_size, 4, device=self.device, verbose=verbose)

@@ -13,7 +13,7 @@ class CommonDetector(InfererModule):
         return await dispatch_textline_merge(textlines, img_width, img_height, verbose)
 
     async def detect(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float, unclip_ratio: float,
-                     invert: bool, gamma_correct: bool, rotate: bool, auto_rotate: bool = False, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
+                     invert: bool, gamma_correct: bool, rotate: bool, auto_rotate: bool = False, verbose: bool = False):
         '''
         Returns textblock list and text mask.
         '''
@@ -173,5 +173,5 @@ class OfflineDetector(CommonDetector, ModelWrapper):
 
     @abstractmethod
     async def _infer(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
-                       unclip_ratio: float, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
+                       unclip_ratio: float, verbose: bool = False):
         pass

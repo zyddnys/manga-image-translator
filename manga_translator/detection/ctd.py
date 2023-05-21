@@ -128,7 +128,7 @@ class ComicTextDetector(OfflineDetector):
 
     @torch.no_grad()
     async def _infer(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
-                     unclip_ratio: float, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
+                     unclip_ratio: float, verbose: bool = False):
 
         # keep_undetected_mask = False
         refine_mode = REFINEMASK_INPAINT
