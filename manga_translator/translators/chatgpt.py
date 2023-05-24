@@ -139,7 +139,7 @@ class GPT3Translator(CommonTranslator):
 class GPT35TurboTranslator(GPT3Translator):
     _MAX_REQUESTS_PER_MINUTE = 200
     PROMPT_TEMPLATE = SIMPLE_PROMPT_TEMPLATE
-    _RETRY_ATTEMPTS = 5
+    _RETRY_ATTEMPTS = 3
 
     async def _request_translation(self, prompt: str) -> str:
         messages = [
@@ -147,7 +147,8 @@ class GPT35TurboTranslator(GPT3Translator):
             {'role': 'user', 'content': prompt},
         ]
 
-        # Due to load on OpenAI servers, this fails relatively often, so retry a few times
+        # Due to load on OpenAI servers, this fails relatively often.
+        # The openai library does retry, but sometimes it's not enough.
         for i in range(self._RETRY_ATTEMPTS):
             try:
                 response = openai.ChatCompletion.create(
@@ -177,6 +178,7 @@ class GPT4Translator(GPT3Translator):
     _MAX_REQUESTS_PER_MINUTE = 200
     PROMPT_TEMPLATE = SIMPLE_PROMPT_TEMPLATE
     _RETRY_ATTEMPTS = 3
+
     async def _request_translation(self, prompt: str) -> str:
         messages = [
             {'role': 'system', 'content': 'You are a professional translator who will follow the required format for translation.'},
