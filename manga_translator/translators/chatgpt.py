@@ -136,11 +136,10 @@ class GPT3Translator(CommonTranslator):
         self.token_count_last = response.usage['total_tokens']
         return response.choices[0].text
 
-class GPTChatTranslator(GPT3Translator):
+class GPT35TurboTranslator(GPT3Translator):
     _MAX_REQUESTS_PER_MINUTE = 200
     PROMPT_TEMPLATE = SIMPLE_PROMPT_TEMPLATE
     _RETRY_ATTEMPTS = 5
-    _model: Literal['gpt-3.5-turbo', 'gpt-4']
 
     async def _request_translation(self, prompt: str) -> str:
         messages = [
@@ -152,7 +151,7 @@ class GPTChatTranslator(GPT3Translator):
         for i in range(self._RETRY_ATTEMPTS):
             try:
                 response = openai.ChatCompletion.create(
-                    model=self._model,
+                    model='gpt-3.5-turbo',
                     messages=messages,
                     max_tokens=2048,
                     temperature=self.temperature,
@@ -174,7 +173,39 @@ class GPTChatTranslator(GPT3Translator):
         # If no response with text is found, return the first response's content (which may be empty)
         return response.choices[0].message.content
 
-class GPT35TurboTranslator(GPTChatTranslator):
-    _model = 'gpt-3.5-turbo'
-class GPT4Translator(GPTChatTranslator):
-    _model = 'gpt-4'
+class GPT4Translator(GPT3Translator):
+    _MAX_REQUESTS_PER_MINUTE = 200
+    PROMPT_TEMPLATE = SIMPLE_PROMPT_TEMPLATE
+    _RETRY_ATTEMPTS = 3
+    async def _request_translation(self, prompt: str) -> str:
+        messages = [
+            {'role': 'system', 'content': 'You are a professional translator who will follow the required format for translation.'},
+            {'role': 'user', 'content': prompt},
+        ]
+
+        # Due to load on OpenAI servers, this fails relatively often.
+        # The openai library does retry, but sometimes it's not enough.
+        for i in range(self._RETRY_ATTEMPTS):
+            try:
+                response = openai.ChatCompletion.create(
+                    model='gpt-4',
+                    messages=messages,
+                    max_tokens=4096,
+                    temperature=self.temperature,
+                )
+                break
+            except:
+                if i == self._RETRY_ATTEMPTS - 1:
+                    raise Exception('Failed to get response from OpenAI servers. Use a different translator or try again later.')
+                self.logger.warn(f'Failed to get response from OpenAI servers. Retrying... Attempt: {i+1}/{self._RETRY_ATTEMPTS}')
+                await asyncio.sleep(1)
+                continue
+
+        self.token_count += response.usage['total_tokens']
+        self.token_count_last = response.usage['total_tokens']
+        for choice in response.choices:
+            if 'text' in choice:
+                return choice.text
+
+        # If no response with text is found, return the first response's content (which may be empty)
+        return response.choices[0].message.content
