@@ -36,7 +36,7 @@ class GPT3Translator(CommonTranslator):
     }
     _INVALID_REPEAT_COUNT = 2 # repeat 2 times at most if invalid translation was returned
     _MAX_REQUESTS_PER_MINUTE = 20
-    _RETRY_ATTEMPTS = 3
+    _RETRY_ATTEMPTS = 3 # Number of times to retry an errored request before giving up
 
     _MAX_TOKENS = 4096
     _prompt_template = SIMPLE_PROMPT_TEMPLATE
