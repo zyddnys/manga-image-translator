@@ -119,6 +119,7 @@ FALLBACK_FONTS = [
 FONT_SELECTION: List[freetype.Face] = []
 font_cache = {}
 def get_cached_font(path: str) -> freetype.Face:
+    path = path.replace('\\', '/')
     if not font_cache.get(path):
         font_cache[path] = freetype.Face(path)
     return font_cache[path]
