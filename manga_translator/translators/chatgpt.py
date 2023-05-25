@@ -36,6 +36,7 @@ class GPT3Translator(CommonTranslator):
     }
     _INVALID_REPEAT_COUNT = 2 # repeat 2 times at most if invalid translation was returned
     _MAX_REQUESTS_PER_MINUTE = 20
+    _RETRY_ATTEMPTS = 3
 
     _MAX_TOKENS = 4096
     _prompt_template = SIMPLE_PROMPT_TEMPLATE
@@ -91,6 +92,7 @@ class GPT3Translator(CommonTranslator):
             self.logger.debug('-- GPT Prompt --\n' + prompt)
 
             ratelimit_attempt = 0
+            server_error_attempt = 0
             timeout_attempt = 0
             while True:
                 request_task = asyncio.create_task(self._request_translation(prompt))
@@ -114,6 +116,13 @@ class GPT3Translator(CommonTranslator):
                         raise
                     self.logger.warn(f'Restarting request due to ratelimiting by openai servers. Attempt: {ratelimit_attempt}')
                     await asyncio.sleep(2)
+                except openai.error.APIError: # Server returned 500 error (probably server load)
+                    server_error_attempt += 1
+                    if server_error_attempt >= self._RETRY_ATTEMPTS:
+                        self.logger.error('OpenAI encountered a server error, possibly due to high server load. Use a different translator or try again later.')
+                        raise
+                    self.logger.warn(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
+                    await asyncio.sleep(1)
 
             self.logger.debug('-- GPT Response --\n' + response)
             new_translations = re.split(r'Translation \d+:\n', response)
@@ -139,7 +148,6 @@ class GPT3Translator(CommonTranslator):
 class GPT35TurboTranslator(GPT3Translator):
     _MAX_REQUESTS_PER_MINUTE = 200
     PROMPT_TEMPLATE = SIMPLE_PROMPT_TEMPLATE
-    _RETRY_ATTEMPTS = 3
 
     async def _request_translation(self, prompt: str) -> str:
         messages = [
@@ -147,23 +155,12 @@ class GPT35TurboTranslator(GPT3Translator):
             {'role': 'user', 'content': prompt},
         ]
 
-        # Due to load on OpenAI servers, this fails relatively often.
-        # The openai library does retry, but sometimes it's not enough.
-        for i in range(self._RETRY_ATTEMPTS):
-            try:
-                response = openai.ChatCompletion.create(
-                    model='gpt-3.5-turbo',
-                    messages=messages,
-                    max_tokens=2048,
-                    temperature=self.temperature,
-                )
-                break
-            except:
-                if i == self._RETRY_ATTEMPTS - 1:
-                    raise Exception('Failed to get response from OpenAI servers. Use a different translator or try again later.')
-                self.logger.warn(f'Failed to get response from OpenAI servers. Retrying... Attempt: {i+1}/{self._RETRY_ATTEMPTS}')
-                await asyncio.sleep(1)
-                continue
+        response = openai.ChatCompletion.create(
+            model='gpt-3.5-turbo',
+            messages=messages,
+            max_tokens=2048,
+            temperature=self.temperature,
+        )
 
         self.token_count += response.usage['total_tokens']
         self.token_count_last = response.usage['total_tokens']
@@ -177,7 +174,7 @@ class GPT35TurboTranslator(GPT3Translator):
 class GPT4Translator(GPT3Translator):
     _MAX_REQUESTS_PER_MINUTE = 200
     PROMPT_TEMPLATE = SIMPLE_PROMPT_TEMPLATE
-    _RETRY_ATTEMPTS = 3
+    _RETRY_ATTEMPTS = 5
 
     async def _request_translation(self, prompt: str) -> str:
         messages = [
@@ -185,23 +182,12 @@ class GPT4Translator(GPT3Translator):
             {'role': 'user', 'content': prompt},
         ]
 
-        # Due to load on OpenAI servers, this fails relatively often.
-        # The openai library does retry, but sometimes it's not enough.
-        for i in range(self._RETRY_ATTEMPTS):
-            try:
-                response = openai.ChatCompletion.create(
-                    model='gpt-4',
-                    messages=messages,
-                    max_tokens=4096,
-                    temperature=self.temperature,
-                )
-                break
-            except:
-                if i == self._RETRY_ATTEMPTS - 1:
-                    raise Exception('Failed to get response from OpenAI servers. Use a different translator or try again later.')
-                self.logger.warn(f'Failed to get response from OpenAI servers. Retrying... Attempt: {i+1}/{self._RETRY_ATTEMPTS}')
-                await asyncio.sleep(1)
-                continue
+        response = openai.ChatCompletion.create(
+            model='gpt-4',
+            messages=messages,
+            max_tokens=4096,
+            temperature=self.temperature,
+        )
 
         self.token_count += response.usage['total_tokens']
         self.token_count_last = response.usage['total_tokens']
