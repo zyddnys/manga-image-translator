@@ -182,6 +182,7 @@ Then you can find the translation result in `result/` directory, e.g. using Ngin
 | deepl      | ✔️      |         | Requires `DEEPL_AUTH_KEY`                              |
 | gpt3       | ✔️      |         | Implements text-davinci-003. Requires `OPENAI_API_KEY` |
 | gpt3.5     | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`    |
+| gpt4       | ✔️      |         | Implements gpt-4. Requires `OPENAI_API_KEY`            |
 | papago     |         |         |                                                        |
 | offline    |         | ✔️      | Chooses most suitable offline translator for language  |
 | sugoi      |         | ✔️      | Sugoi V4.0 Models (recommended for JPN->ENG)           |
@@ -256,7 +257,7 @@ VIN: Vietnames
 --upscale-ratio {1,2,3,4,8,16,32}            Image upscale ratio applied before detection. Can
                                              improve text detection.
 --colorizer {mc2}                            Colorization model to use.
---translator {google,youdao,baidu,deepl,papago,gpt3,gpt3.5,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
+--translator {google,youdao,baidu,deepl,papago,gpt3,gpt3.5,gpt4,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
                                              Language translator to use
 --translator-chain TRANSLATOR_CHAIN          Output of one translator goes in another. Example:
                                              --translator-chain "google:JPN;sugoi:ENG".
