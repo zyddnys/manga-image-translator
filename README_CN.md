@@ -205,6 +205,7 @@ VIN: Vietnames
 # 使用 `--translator=<翻译器名称>` 来指定翻译器
 # 使用 `--target-lang=<语言代码>` 来指定目标语言
 # 将 <图片文件路径> 替换为图片的路径
+# 如果你要翻译的图片比较小或者模糊，可以使用upscaler提升图像大小与质量，从而提升检测翻译效果
 $ python -m manga_translator --verbose --use-cuda --translator=google --target-lang=CHS -i <path_to_image_file>
 # 结果会存放到 result 文件夹里
 ```

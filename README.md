@@ -81,6 +81,7 @@ Also, if you have trouble installing pydensecrf with the command above you can i
 # use `--translator=<translator>` to specify a translator.
 # use `--translator=none` if you only want to use inpainting (blank bubbles)
 # use `--target-lang <language_code>` to specify a target language.
+# if you are not getting good result for small images you can try specifying an upscaler to enlarge and enhance the image to improve detection
 # replace <path_to_image_file> with the path to the image file.
 $ python -m manga_translator -v --use-cuda --translator=google -l ENG -i <path_to_image_file>
 # result can be found in `result/`.
