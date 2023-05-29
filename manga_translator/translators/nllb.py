@@ -1,5 +1,5 @@
 from typing import List
-import langid
+import py3langid as langid
 
 from .common import OfflineTranslator
 
