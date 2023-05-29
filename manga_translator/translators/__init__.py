@@ -1,4 +1,4 @@
-import langid
+import py3langid as langid
 
 from .common import *
 from .baidu import BaiduTranslator
