@@ -1,5 +1,5 @@
 from typing import Callable, List
-import langid
+import py3langid as langid
 
 from .common import OfflineTranslator, ISO_639_1_TO_VALID_LANGUAGES
 from .m2m100 import M2M100Translator
