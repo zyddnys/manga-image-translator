@@ -268,7 +268,7 @@ def get_translation(conn, input_text):
         else:
             raise ValueError(f"Page {page} contains empty or whitespace-only strings.")
 
-    # 获取摘要更新
+    # Get summary updates
     # summary = json_obj.get("@Summary", "")
     summary = json_obj["@Summary"]
     print("当前摘要信息：")
@@ -287,7 +287,7 @@ def update_translations(conn, translations, starting_row):
         conn.execute("UPDATE manga_page SET trans=? WHERE rowid=?", (translation, starting_row + index))
     conn.commit()
 
-# 查错函数
+# Error checking function
 def update_translations2(conn, translations, row_ids):
     for index, translation in enumerate(translations):
         conn.execute("UPDATE manga_page SET trans=? WHERE rowid=?", (translation, row_ids[index]))
@@ -312,7 +312,7 @@ cur = conn.cursor()
 cur.execute('UPDATE page_count SET page=1 WHERE rowid=1')
 conn.commit()
 
-# 测试变量化操作
+# Test variable operation
 batch_size_default = 5
 batch_size = batch_size_default
 
@@ -333,10 +333,10 @@ while True:
 
     # words = '\n'.join([word[0] for word in cur.fetchall()])
 
-    # 执行数据库查询并获取结果集合
+    # Execute a database query and get a result set
     result_set = cur.fetchall()
 
-    # 创建一个列表，包含每个单词的第一个字符
+    # Create a list containing the first character of each word
     word_array = [word[0] for word in result_set]
     # print(len(word_array))
     # Convert a list to a string, with each element on a line
