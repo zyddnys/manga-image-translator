@@ -62,15 +62,15 @@ def compare_key_value_pairs(json_obj1, json_obj2):
 def validate_and_fix_json(json_data, schema):
     try:
         jsonschema.validate(json_data, schema)
-        print("JSON数据有效")
+        print("JSON data is valid")
     except jsonschema.exceptions.ValidationError as e:
-        print("JSON数据无效：", e)
-        print("正在尝试修复...")
+        print("Invalid JSON data：", e)
+        print("trying to fix...")
         json_data = jsonschema.validators.ref_resolver.RefResolver('', json_data).resolve(json_data)
-        print("修复后的JSON数据：", json.dumps(json_data, indent=2))
+        print("Repaired JSON data：", json.dumps(json_data, indent=2))
 
 
-# 定义JSON数据的模式
+# Defines the schema for JSON data
 schema = {
     "type": "object",
     "patternProperties": {
