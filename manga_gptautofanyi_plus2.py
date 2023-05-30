@@ -193,11 +193,11 @@ def your_chatgpt_api_call(conn, input_text):
 
     return resText
 
-# json修复
+# json fix
 def remove_invalid_comma(json_string):
-    # 移除对象中的多余逗号
+    # Remove extra commas in objects
     json_string = re.sub(r',\s*}', '}', json_string)
-    # 移除数组中的多余逗号
+    # Remove extra commas in an array
     # json_string = re.sub(r',\s*]', ']', json_string)
     return json_string
 def get_translation(conn, input_text):
@@ -209,7 +209,7 @@ def get_translation(conn, input_text):
 
 
 
-    # 尝试修补}
+    # try patching}
     if not check_string_end(response):
         print("尝试修补第一个括号")
         response = response + "}"
