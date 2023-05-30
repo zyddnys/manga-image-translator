@@ -215,7 +215,7 @@ def get_translation(conn, input_text):
         response = response + "}"
 
     # if not check_string_end(response):
-    #     print("尝试修补第二个括号")
+    #     print("Try patching the second parenthesis")
     #     response = response + "}"
 
     print("得到翻译文本：")
@@ -227,7 +227,7 @@ def get_translation(conn, input_text):
     # Replace this line with the actual method to extract translations from your ChatGPT 3.5 response
     # translations = response.text.strip().split('\n')
     # translations = response.strip().split('\n')
-    # 老代码
+    # old code
     # response = remove_invalid_comma(response)
     # json_obj = json.loads(response)
     json_obj = json5.loads(response)
@@ -241,21 +241,21 @@ def get_translation(conn, input_text):
 
     translations = []
 
-    # for page, content in json_obj.items():
-    #     page_str = "\n".join(content.values())
-    #     translations.append(page_str)
-    # 增加空字符串检测，遇到空抛出异常缩减规模重试
-    # for page, content in json_obj.items():
-    #     # 检查所有值是否都不为空字符串
-    #     # if all(value != '' for value in content.values()):
-    #     # 要把空格也排除
-    #     if all(value and not value.isspace() for value in content.values()):
-    #         page_str = "\n".join(content.values())
-    #         translations.append(page_str)
-    #     else:
-    #         raise ValueError(f"在页码 {page} 中，存在空字符串。")
+     # for page, content in json_obj.items():
+     # page_str = "\n". join(content. values())
+     # translations.append(page_str)
+     # Increase the detection of empty strings, throw exceptions when encountering empty strings, reduce the scale and try again
+     # for page, content in json_obj.items():
+     # # Check if all values are not empty strings
+     # # if all(value != '' for value in content. values()):
+     # # Also exclude spaces
+     # if all(value and not value.isspace() for value in content.values()):
+     # page_str = "\n". join(content. values())
+     # translations.append(page_str)
+     # else:
+     # raise ValueError(f"In page number {page}, there is an empty string.")
 
-    # 排除summary拼接
+     # Exclude summary splicing
     for page, content in json_obj.items():
         # Exclude the "summary" field
         if page == "@Summary":
