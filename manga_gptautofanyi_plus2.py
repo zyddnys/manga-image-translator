@@ -113,16 +113,16 @@ def check_string_end(s):
 
 
 def your_chatgpt_api_call(conn, input_text):
-    print("当前翻译文本：")
+    print("current translated text：")
     print(input_text)
 
-    # 先过滤掉双引号这种容易引起JSON错误的符号
+    # First filter out double quotes, which are easy to cause JSON errors
     input_text = input_text.replace("\"", " ")
 
-    print("转换为JSON格式：")
+    print("Convert to JSON format：")
     pages = re.findall(r'@Page (\d+)，(\d+) sentences in total\.(.*?)@Page \1 End', input_text, re.DOTALL)
 
-    # 获取摘要
+    # get summary
     cur = conn.cursor()
     cur.execute("select summary from manga_summary WHERE rowid=1", )
     # conn.commit()
