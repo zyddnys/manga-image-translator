@@ -141,10 +141,10 @@ def your_chatgpt_api_call(conn, input_text):
     #
     #     for sentence in sentences:
     #         json_obj[page_key][sentence[0]] = sentence[1].strip()
-    #         # 强制分段保证数据格式正确
+    #         # Mandatory segmentation ensures that the data format is correct
     #         # json_obj[page_key][sentence[0]] = sentence[1].strip()+"\n"
 
-    # 让键更详细
+    # make the key more verbose
     for page in pages:
         page_key = f"@Page {page[0]}"
         json_obj[page_key] = {}
@@ -154,9 +154,9 @@ def your_chatgpt_api_call(conn, input_text):
             # json_obj[page_key]["@IndependentDialogue "+str(sentence[0])] = "[No need for complete sentences and translate separately to Chinese without merging]#START# " + sentence[1].strip().replace(" ", "") + " #END#[stop translate]"
             json_obj[page_key]["@IndependentDialogue "+str(sentence[0])] = "[No need for complete sentences and translate separately to Chinese without merging] " + sentence[1].strip().replace(" ", "") + " [stop translate]"
 
-    # 塞入需要提取摘要
+    # Insert needs to extract the abstract
     json_obj["@Summary"] = "[Please summarize the new translated content into a short sentence and put it in this line]"
-    # 缓存原文json用作对比
+    # Cache the original json for comparison
     global temp_origin_words_json
     temp_origin_words_json = json_obj
 
@@ -339,10 +339,10 @@ while True:
     # 创建一个列表，包含每个单词的第一个字符
     word_array = [word[0] for word in result_set]
     # print(len(word_array))
-    # 将列表转换为字符串，每个元素占一行
+    # Convert a list to a string, with each element on a line
     words = '\n'.join(word_array)
 
-    # 在其他地方使用word_array
+    # Using word_array elsewhere
     # ...
 
     try:
@@ -357,7 +357,7 @@ while True:
                 break
             continue
 
-        # 用于结尾
+        # for ending
         if len(word_array) < batch_size:
             print("当前未翻译页数少于batch_size自动调整为:"+str(len(word_array)))
             update_translations(conn, translations, starting_row)
