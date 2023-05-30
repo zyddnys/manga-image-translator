@@ -7,15 +7,15 @@ import json
 import jsonschema
 import json5
 
-# 自用key
+# self-use key
 openai.api_key = ""
 
 os.environ["http_proxy"] = "http://127.0.0.1:7890"
 os.environ["https_proxy"] = "http://127.0.0.1:7890"
 
-# frequency_penalty_default = 0.35 # 用于CG这种气泡少的 0.35
-# frequency_penalty_default = 0.1 # 用于漫画这种气泡多的
-frequency_penalty_default = 0 # 用于漫画这种气泡多的
+# frequency_penalty_default = 0.35 # Used for CG with less air bubbles 0.35
+# frequency_penalty_default = 0.1 # For comics with many bubbles
+frequency_penalty_default = 0 # For comics with many bubbles
 
 frequency_penalty_current = frequency_penalty_default
 
@@ -24,7 +24,7 @@ temp_trans_words_json = {}
 
 
 
-# 测试每个值都给出具体指示
+# Test each value to give specific instructions
 prompt = '''
 此JSON表示漫画的数页,每个“@Page”对象是一页,每个“@IndependentDialogue”的值是对话框内的文本,
 根据[]内的要求翻译，尽可能按字面意思准确翻译，人物的中文名称请保持原状，尽可能少使用人称代词避免可能的代词歧义。
