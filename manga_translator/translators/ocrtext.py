@@ -57,7 +57,7 @@ class OCRTextTranslator(CommonTranslator):
 			# result_list.append(str(i+1)) # tagging order
 		atext = atext + "@Page "+str(page)+" End"
 
-		# 过滤[]
+		# filter[]
 		atext = atext.replace("[", "")
 		atext = atext.replace("]", "")
 
