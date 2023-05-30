@@ -34,17 +34,17 @@ class ReadTextTranslator(CommonTranslator):
 		super().__init__()
 
 	async def _translate(self, from_lang, to_lang, queries):
-		# 创建连接并打开数据库
+		# Create a connection and open the database
 		conn = sqlite3.connect('manga_page.db')
 
-		# 创建游标对象
+		# Create a cursor object
 		cursor = conn.cursor()
-		# 读取page_count表中第一条数据的page字段值
+		# Read the page field value of the first piece of data in the page_count table
 		cursor.execute('SELECT page FROM page_count LIMIT 1')
 		result = cursor.fetchone()
 		page = result[0]
 		
-		# 查询当前页码翻译数据
+		# Query the translation data of the current page number
 		cursor.execute("SELECT trans FROM manga_page ORDER BY id ")
 		#result = c.fetchone()
 		result = cursor.fetchall()
