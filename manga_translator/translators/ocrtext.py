@@ -33,12 +33,12 @@ class OCRTextTranslator(CommonTranslator):
 		super().__init__()
 
 	async def _translate(self, from_lang, to_lang, queries):
-		# 创建连接并打开数据库
+		# Create a connection and open the database
 		conn = sqlite3.connect('manga_page.db')
 
-		# 创建游标对象
+		# Create a cursor object
 		cursor = conn.cursor()
-		# 读取page_count表中第一条数据的page字段值
+		# Read the page field value of the first piece of data in the page_count table
 		cursor.execute('SELECT page FROM page_count LIMIT 1')
 		result = cursor.fetchone()
 		page = result[0]
@@ -47,10 +47,10 @@ class OCRTextTranslator(CommonTranslator):
 		atext = "@Page "+str(page)+"，"+str(len(queries))+" sentences in total.\r\n" # 测试增加特殊符号
 		# atext = "第"+str(page)+"页，共"+str(len(queries))+"句。\r\n\r\n" # 测试增加特殊符号
 
-		result_list = [] # 按数字标号
+		result_list = [] # by number
 
 		for i, text in enumerate(queries):
-			# 对text错误词替换
+			# Replace the wrong words in the text
 			for key, value in dict_kv.items():
 				text = text.replace(key, value)
 			atext += f"{i + 1}.{text}\r\n"
