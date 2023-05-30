@@ -33,57 +33,56 @@ class OCRTextTranslator(CommonTranslator):
 		super().__init__()
 
 	async def _translate(self, from_lang, to_lang, queries):
-# Create a connection and open the database
-conn = sqlite3.connect('manga_page.db')
+		# 创建连接并打开数据库
+		conn = sqlite3.connect('manga_page.db')
 
-# create cursor object
-cursor = conn. cursor()
-# Read the page field value of the first piece of data in the page_count table
-cursor.execute('SELECT page FROM page_count LIMIT 1')
-result = cursor. fetchone()
-page = result[0]
+		# 创建游标对象
+		cursor = conn.cursor()
+		# 读取page_count表中第一条数据的page字段值
+		cursor.execute('SELECT page FROM page_count LIMIT 1')
+		result = cursor.fetchone()
+		page = result[0]
+		
+		atext = ""
+		atext = "@Page "+str(page)+"，"+str(len(queries))+" sentences in total.\r\n" # 测试增加特殊符号
+		# atext = "第"+str(page)+"页，共"+str(len(queries))+"句。\r\n\r\n" # 测试增加特殊符号
 
-atext = ""
-atext = "@Page "+str(page)+", "+str(len(queries))+" sentences in total.\r\n" # test to add special symbols
-# atext = "Page "+str(page)+", a total of "+str(len(queries))+" sentences.\r\n\r\n" # Test to add special symbols
+		result_list = [] # 按数字标号
 
-result_list = [] # label by number
+		for i, text in enumerate(queries):
+			# 对text错误词替换
+			for key, value in dict_kv.items():
+				text = text.replace(key, value)
+			atext += f"{i + 1}.{text}\r\n"
+			# result_list.append(str(i+1)) # 标记顺序
+		atext = atext + "@Page "+str(page)+" End"
 
-for i, text in enumerate(queries):
-# Replace text with wrong words
-for key, value in dict_kv.items():
-text = text.replace(key, value)
-atext += f"{i + 1}.{text}\r\n"
-# result_list.append(str(i+1)) # mark order
-atext = atext + "@Page "+str(page)+" End"
+		# 过滤[]
+		atext = atext.replace("[", "")
+		atext = atext.replace("]", "")
 
-# filter[]
-atext = atext.replace("[", "")
-atext = atext.replace("]", "")
-
-print("Current text overview:")
-print(atext)
-print("import database")
-
-
-
-
-# Update the page field value
-new_page = page + 1
-cursor.execute('UPDATE page_count SET page=? WHERE rowid=1', (new_page,))
+		print("当前文本概览：")
+		print(atext)
+		print("导入数据库")
+		
 
 
-# create table
-#cursor.execute('''CREATE TABLE manga_page(id INTEGER PRIMARY KEY AUTOINCREMENT, words TEXT, trans TEXT)''')
+		
+		# 更新page字段值
+		new_page = page + 1
+		cursor.execute('UPDATE page_count SET page=? WHERE rowid=1', (new_page,))
 
-# insert data
-#data = 'Hello, World!'
-cursor.execute("INSERT INTO manga_page (words) VALUES (?)", (atext,))
 
-# commit changes
-conn.commit()
+		# 创建表格
+		#cursor.execute('''CREATE TABLE manga_page(id INTEGER PRIMARY KEY AUTOINCREMENT, words TEXT, trans TEXT)''')
 
-# close the connection
+		# 插入数据
+		#data = 'Hello, World!'
+		cursor.execute("INSERT INTO manga_page (words) VALUES (?)", (atext,))
+
+		# 提交更改
+		conn.commit()
+
+		# 关闭连接
 		conn.close()
 		return result_list
-
