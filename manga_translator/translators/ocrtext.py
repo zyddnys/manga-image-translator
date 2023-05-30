@@ -44,8 +44,8 @@ class OCRTextTranslator(CommonTranslator):
 		page = result[0]
 		
 		atext = ""
-		atext = "@Page "+str(page)+"，"+str(len(queries))+" sentences in total.\r\n" # 测试增加特殊符号
-		# atext = "第"+str(page)+"页，共"+str(len(queries))+"句。\r\n\r\n" # 测试增加特殊符号
+		atext = "@Page "+str(page)+"，"+str(len(queries))+" sentences in total.\r\n" # Test to add special symbols
+		# atext = "第"+str(page)+"页，共"+str(len(queries))+"句。\r\n\r\n" # Test to add special symbols
 
 		result_list = [] # by number
 
@@ -54,7 +54,7 @@ class OCRTextTranslator(CommonTranslator):
 			for key, value in dict_kv.items():
 				text = text.replace(key, value)
 			atext += f"{i + 1}.{text}\r\n"
-			# result_list.append(str(i+1)) # 标记顺序
+			# result_list.append(str(i+1)) # tagging order
 		atext = atext + "@Page "+str(page)+" End"
 
 		# 过滤[]
@@ -68,21 +68,21 @@ class OCRTextTranslator(CommonTranslator):
 
 
 		
-		# 更新page字段值
+		# Update page field value
 		new_page = page + 1
 		cursor.execute('UPDATE page_count SET page=? WHERE rowid=1', (new_page,))
 
 
-		# 创建表格
+		# create form
 		#cursor.execute('''CREATE TABLE manga_page(id INTEGER PRIMARY KEY AUTOINCREMENT, words TEXT, trans TEXT)''')
 
-		# 插入数据
+		# insert data
 		#data = 'Hello, World!'
 		cursor.execute("INSERT INTO manga_page (words) VALUES (?)", (atext,))
 
-		# 提交更改
+		# commit changes
 		conn.commit()
 
-		# 关闭连接
+		# close connection
 		conn.close()
 		return result_list
