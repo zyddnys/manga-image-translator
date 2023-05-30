@@ -2,7 +2,7 @@ import asyncio
 import base64
 import io
 import cv2
-import langid
+import py3langid as langid
 import requests
 import os
 import re

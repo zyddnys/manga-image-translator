@@ -9,7 +9,7 @@ import typing
 import time
 import json
 import urllib
-import langid
+import py3langid as langid
 from typing import List
 
 import httpcore
