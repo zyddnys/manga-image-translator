@@ -86,10 +86,10 @@ schema = {
 
 # 补}
 # def check_string_end(s):
-#     # 使用正则表达式查找以"}"结尾的字符串，并允许在两个"}"之间存在空格、制表符或换行符
+#     # Use regex to find strings ending with "}" and allow spaces, tabs or newlines between two "}"s
 #     pattern = r'\}\s*\}\s*$'
 #
-#     # 搜索字符串是否匹配模式
+#     # Whether the search string matches the pattern
 #     match = re.search(pattern, s)
 #
 #     if match:
@@ -97,12 +97,12 @@ schema = {
 #     else:
 #         return False
 
-# 加入摘要后的检查格式补}
+# Check format supplement after adding summary}
 def check_string_end(s):
-    # 使用正则表达式查找以"}"结尾的字符串，并允许在两个"}"之间存在空格、制表符或换行符
+    # Use regex to find strings ending with "}" and allow spaces, tabs or newlines between two "}"s
     pattern = r'\}\s*$'
 
-    # 搜索字符串是否匹配模式
+    # Whether the search string matches the pattern
     match = re.search(pattern, s)
 
     if match:
