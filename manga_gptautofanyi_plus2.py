@@ -7,15 +7,15 @@ import json
 import jsonschema
 import json5
 
-# 自用key
+# key
 openai.api_key = ""
 
 os.environ["http_proxy"] = "http://127.0.0.1:7890"
 os.environ["https_proxy"] = "http://127.0.0.1:7890"
 
-# frequency_penalty_default = 0.35 # 用于CG这种气泡少的 0.35
-# frequency_penalty_default = 0.1 # 用于漫画这种气泡多的
-frequency_penalty_default = 0 # 用于漫画这种气泡多的
+# frequency_penalty_default = 0.35 # Used for CG with less air bubbles 0.35
+# frequency_penalty_default = 0.1 # For comics with many bubbles
+frequency_penalty_default = 0 # For comics with many bubbles
 
 frequency_penalty_current = frequency_penalty_default
 
@@ -24,13 +24,13 @@ temp_trans_words_json = {}
 
 
 
-# 测试每个值都给出具体指示
+# Test each value to give specific instructions
 prompt = '''
-此JSON表示漫画的数页,每个“@Page”对象是一页,每个“@IndependentDialogue”的值是对话框内的文本,
-根据[]内的要求翻译，尽可能按字面意思准确翻译，人物的中文名称请保持原状，尽可能少使用人称代词避免可能的代词歧义。
-在漫画中，角色间的对话可能包括俚语、口语表达和面部表情等不太规范的内容，请尽可能保留这些元素的含义。
-要根据动漫常用的表达习惯翻译,不添加注释。
-只回复翻译后的JSON,不要其他回答,确保JSON没有语法错误。
+This JSON represents several pages of comics, each "@Page" object is a page, and the value of each "@IndependentDialogue" is the text in the dialog box,
+Translate according to the requirements in [], and translate as literally as possible. Please keep the Chinese names of the characters as they are, and use as few personal pronouns as possible to avoid possible pronoun ambiguity.
+In comics, the dialogue between characters may include slang, colloquial expressions, and facial expressions, etc., which are less standardized. Please keep the meaning of these elements as much as possible.
+It should be translated according to the expression habits commonly used in animation, without adding notes.
+Only reply the translated JSON, do not answer other, make sure the JSON has no syntax errors.
 '''
 
 
