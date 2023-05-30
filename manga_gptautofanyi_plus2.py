@@ -7,15 +7,15 @@ import json
 import jsonschema
 import json5
 
-# key
+# 自用key
 openai.api_key = ""
 
 os.environ["http_proxy"] = "http://127.0.0.1:7890"
 os.environ["https_proxy"] = "http://127.0.0.1:7890"
 
-# frequency_penalty_default = 0.35 # Used for CG with less air bubbles 0.35
-# frequency_penalty_default = 0.1 # For comics with many bubbles
-frequency_penalty_default = 0 # For comics with many bubbles
+# frequency_penalty_default = 0.35 # 用于CG这种气泡少的 0.35
+# frequency_penalty_default = 0.1 # 用于漫画这种气泡多的
+frequency_penalty_default = 0 # 用于漫画这种气泡多的
 
 frequency_penalty_current = frequency_penalty_default
 
@@ -37,7 +37,7 @@ prompt = '''
 
 print(prompt)
 
-# hensigui 20230512 Determine whether the translated json is in the same format as the original json
+# hensigui 20230512 判断翻译json是否和原文json格式一致
 def compare_key_value_pairs(json_obj1, json_obj2):
     if len(json_obj1) != len(json_obj2):
         return False
@@ -58,19 +58,19 @@ def compare_key_value_pairs(json_obj1, json_obj2):
 
     return True
 
-# Add json check and repair json
+# 新增json校验并修复json
 def validate_and_fix_json(json_data, schema):
     try:
         jsonschema.validate(json_data, schema)
-        print("JSON data is valid")
+        print("JSON数据有效")
     except jsonschema.exceptions.ValidationError as e:
-        print("Invalid JSON data：", e)
-        print("trying to fix...")
+        print("JSON数据无效：", e)
+        print("正在尝试修复...")
         json_data = jsonschema.validators.ref_resolver.RefResolver('', json_data).resolve(json_data)
-        print("Repaired JSON data：", json.dumps(json_data, indent=2))
+        print("修复后的JSON数据：", json.dumps(json_data, indent=2))
 
 
-# Defines the schema for JSON data
+# 定义JSON数据的模式
 schema = {
     "type": "object",
     "patternProperties": {
@@ -86,10 +86,10 @@ schema = {
 
 # 补}
 # def check_string_end(s):
-#     # Use regex to find strings ending with "}" and allow spaces, tabs or newlines between two "}"s
+#     # 使用正则表达式查找以"}"结尾的字符串，并允许在两个"}"之间存在空格、制表符或换行符
 #     pattern = r'\}\s*\}\s*$'
 #
-#     # Whether the search string matches the pattern
+#     # 搜索字符串是否匹配模式
 #     match = re.search(pattern, s)
 #
 #     if match:
@@ -97,12 +97,12 @@ schema = {
 #     else:
 #         return False
 
-# Check format supplement after adding summary}
+# 加入摘要后的检查格式补}
 def check_string_end(s):
-    # Use regex to find strings ending with "}" and allow spaces, tabs or newlines between two "}"s
+    # 使用正则表达式查找以"}"结尾的字符串，并允许在两个"}"之间存在空格、制表符或换行符
     pattern = r'\}\s*$'
 
-    # Whether the search string matches the pattern
+    # 搜索字符串是否匹配模式
     match = re.search(pattern, s)
 
     if match:
@@ -113,16 +113,16 @@ def check_string_end(s):
 
 
 def your_chatgpt_api_call(conn, input_text):
-    print("current translated text：")
+    print("当前翻译文本：")
     print(input_text)
 
-    # First filter out double quotes, which are easy to cause JSON errors
+    # 先过滤掉双引号这种容易引起JSON错误的符号
     input_text = input_text.replace("\"", " ")
 
-    print("Convert to JSON format：")
+    print("转换为JSON格式：")
     pages = re.findall(r'@Page (\d+)，(\d+) sentences in total\.(.*?)@Page \1 End', input_text, re.DOTALL)
 
-    # get summary
+    # 获取摘要
     cur = conn.cursor()
     cur.execute("select summary from manga_summary WHERE rowid=1", )
     # conn.commit()
