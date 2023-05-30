@@ -37,7 +37,7 @@ Only reply the translated JSON, do not answer other, make sure the JSON has no s
 
 print(prompt)
 
-# hensigui 20230512 判断翻译json是否和原文json格式一致
+# hensigui 20230512 Determine whether the translated json is in the same format as the original json
 def compare_key_value_pairs(json_obj1, json_obj2):
     if len(json_obj1) != len(json_obj2):
         return False
@@ -58,7 +58,7 @@ def compare_key_value_pairs(json_obj1, json_obj2):
 
     return True
 
-# 新增json校验并修复json
+# Add json check and repair json
 def validate_and_fix_json(json_data, schema):
     try:
         jsonschema.validate(json_data, schema)
