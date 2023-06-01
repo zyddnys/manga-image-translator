@@ -50,9 +50,7 @@ class OCRTextTranslator(CommonTranslator):
 		result_list = [] # by number
 
 		for i, text in enumerate(queries):
-			# Replace the wrong words in the text
-			for key, value in dict_kv.items():
-				text = text.replace(key, value)
+			
 			atext += f"{i + 1}.{text}\r\n"
 			# result_list.append(str(i+1)) # tagging order
 		atext = atext + "@Page "+str(page)+" End"
