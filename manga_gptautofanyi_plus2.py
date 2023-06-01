@@ -129,7 +129,7 @@ def your_chatgpt_api_call(conn, input_text):
     row = cur.fetchone()
     summary = row[0]
     if summary:
-        summary = "前文摘要："+summary
+        summary = "Summary："+summary
 
 
     json_obj = {}
@@ -162,7 +162,7 @@ def your_chatgpt_api_call(conn, input_text):
 
     print(json.dumps(json_obj, ensure_ascii=False, indent=2))
 
-    print(f"塞入的Summary:{summary}")
+    print(f"Stuffed Summary:{summary}")
 
     resText = ""
 
@@ -173,7 +173,7 @@ def your_chatgpt_api_call(conn, input_text):
                 model='gpt-3.5-turbo',
                 # model='gpt-4',
                 messages=[
-                    {"role": "system", "content": "你是一个大师级的漫画编剧。"},
+                    {"role": "system", "content": "You're a master comic book writer。"},
                     {"role": "user", "content": prompt},
                     {"role": "user", "content": summary},
                     {"role": "user", "content": json.dumps(json_obj, ensure_ascii=False, indent=2)}
@@ -189,7 +189,7 @@ def your_chatgpt_api_call(conn, input_text):
             break
         except Exception as ec:
             print(ec)
-            print("请求遇到问题，重试！")
+            print("Request encountered a problem, try again！")
 
     return resText
 
