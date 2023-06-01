@@ -378,9 +378,9 @@ while True:
                 break
     except (json.JSONDecodeError, TypeError, ValueError) as e:
         batch_size = batch_size - 2
-        print("出现解析错误，修改batch_size为"+str(batch_size)+"继续尝试")
+        print("A parsing error occurs, modify batch_size to"+str(batch_size)+"keep trying")
         if batch_size < 0:
-            print("输出卡死，强制中断")
+            print("Output stuck, forced interrupt")
             break
 
 
