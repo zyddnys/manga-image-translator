@@ -211,14 +211,14 @@ def get_translation(conn, input_text):
 
     # try patching}
     if not check_string_end(response):
-        print("尝试修补第一个括号")
+        print("Try patching the first parenthesis")
         response = response + "}"
 
     # if not check_string_end(response):
     #     print("Try patching the second parenthesis")
     #     response = response + "}"
 
-    print("得到翻译文本：")
+    print("get translated text：")
     print(response)
 
 
@@ -271,7 +271,7 @@ def get_translation(conn, input_text):
     # Get summary updates
     # summary = json_obj.get("@Summary", "")
     summary = json_obj["@Summary"]
-    print("当前摘要信息：")
+    print("Current Summary Information：")
     print(summary)
     conn.execute("UPDATE manga_summary SET summary=? WHERE rowid=1", (summary, ))
     conn.commit()
@@ -324,7 +324,7 @@ while True:
 
     starting_row = row[0]
 
-    print("当前位置："+str(starting_row))
+    print("current location："+str(starting_row))
 
     cur.execute("SELECT words FROM manga_page WHERE rowid BETWEEN ? AND ? ORDER BY rowid",
                 # (starting_row, starting_row + 19))
