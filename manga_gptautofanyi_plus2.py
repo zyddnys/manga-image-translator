@@ -349,17 +349,17 @@ while True:
         translations = get_translation(conn, words)
 
         if not compare_key_value_pairs(temp_origin_words_json, temp_trans_words_json):
-            print("两个 JSON 对象的格式不一致，重试")
+            print("The formats of the two JSON objects are inconsistent, try again")
             batch_size = batch_size - 2
-            print("修改batch_size为" + str(batch_size) + "继续尝试")
+            print("Modify batch_size to" + str(batch_size) + "keep trying")
             if batch_size < 0:
-                print("输出卡死，强制中断")
+                print("Output stuck, forced interrupt")
                 break
             continue
 
         # for ending
         if len(word_array) < batch_size:
-            print("当前未翻译页数少于batch_size自动调整为:"+str(len(word_array)))
+            print("The current number of untranslated pages is less than batch_size and automatically adjusted to:"+str(len(word_array)))
             update_translations(conn, translations, starting_row)
             break
 
@@ -372,9 +372,9 @@ while True:
             batch_size = batch_size_default
         else:
             batch_size = batch_size - 2
-            print("修改batch_size为" + str(batch_size) + "继续尝试")
+            print("Modify batch_size to" + str(batch_size) + "keep trying")
             if batch_size < 0:
-                print("输出卡死，强制中断")
+                print("Output stuck, forced interrupt")
                 break
     except (json.JSONDecodeError, TypeError, ValueError) as e:
         batch_size = batch_size - 2
