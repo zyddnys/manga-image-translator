@@ -45,7 +45,7 @@ class OCRTextTranslator(CommonTranslator):
 		
 		atext = ""
 		atext = "@Page "+str(page)+"，"+str(len(queries))+" sentences in total.\r\n" # Test to add special symbols
-		# atext = "第"+str(page)+"页，共"+str(len(queries))+"句。\r\n\r\n" # Test to add special symbols
+		# atext = "Page "+str(page)+", a total of "+str(len(queries))+" sentences.\r\n\r\n" # Test to add special symbols
 
 		result_list = [] # by number
 
@@ -61,9 +61,9 @@ class OCRTextTranslator(CommonTranslator):
 		atext = atext.replace("[", "")
 		atext = atext.replace("]", "")
 
-		print("当前文本概览：")
+		print("Overview of the current text：")
 		print(atext)
-		print("导入数据库")
+		print("import database")
 		
 
 
