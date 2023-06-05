@@ -35,7 +35,7 @@ async def dispatch(args: Namespace):
                 raise FileNotFoundError(f'Invalid single image file path for demo mode: "{args.input}". Use `-m batch`.')
             dest = os.path.join(BASE_PATH, 'result/final.png')
             args.overwrite = True # Do overwrite result/final.png file
-            await translator.translate_path(args.input, dest, args_dict)
+            await translator.translate_path(args.input[0], dest, args_dict)
         else: # batch
             dest = args.dest
             args.overwrite = False
