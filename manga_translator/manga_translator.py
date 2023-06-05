@@ -10,6 +10,7 @@ import torch
 import time
 import logging
 import numpy as np
+import glob
 from PIL import Image
 from typing import List
 from aiohttp import web
@@ -94,9 +95,11 @@ class MangaTranslator():
         Translates an image or folder (recursively) specified through the path.
         """
         path = os.path.expanduser(path)
-        if not os.path.exists(path):
+        # expand path patterns such as *
+        expanded_paths = glob.glob(path)
+        if not expanded_paths:
             raise FileNotFoundError(path)
-        path = os.path.abspath(path)
+        expanded_paths = natural_sort(expanded_paths)
         dest = os.path.abspath(os.path.expanduser(dest)) if dest else ''
         params = params or {}
 
@@ -108,66 +111,67 @@ class MangaTranslator():
             elif params.get('format') != 'jpg':
                 raise ValueError('--save-quality of lower than 100 is only supported for .jpg files')
 
-        # TODO: accept * in file paths
+        for path in expanded_paths:
+            path = os.path.abspath(path)
 
-        if os.path.isfile(path):
-            # Determine destination file path
-            # TODO: Simplify
-            if not dest:
-                # Use the same folder as the source
-                p, _ = os.path.splitext(path)
-                dest = f'{p}-translated.{file_ext}'
-            elif not os.path.basename(dest):
-                p, _ = os.path.splitext(os.path.basename(path))
-                # If the folders differ use the original filename from the source
-                if os.path.dirname(path) != dest:
-                    dest = os.path.join(dest, f'{p}.{file_ext}')
+            if os.path.isfile(path):
+                # Determine destination file path
+                if not dest:
+                    # Use the same folder as the source
+                    p, _ = os.path.splitext(path)
+                    _dest = f'{p}-translated.{file_ext}'
+                elif not os.path.basename(dest):
+                    p, _ = os.path.splitext(os.path.basename(path))
+                    # If the folders differ use the original filename from the source
+                    if os.path.dirname(path) != dest:
+                        _dest = os.path.join(dest, f'{p}.{file_ext}')
+                    else:
+                        _dest = os.path.join(dest, f'{p}-translated.{file_ext}')
                 else:
-                    dest = os.path.join(dest, f'{p}-translated.{file_ext}')
-            else:
-                p, _ = os.path.splitext(dest)
-                dest = f'{p}.{file_ext}'
-            await self._translate_file(path, dest, params)
+                    p, _ = os.path.splitext(dest)
+                    _dest = f'{p}.{file_ext}'
+                await self._translate_file(path, _dest, params)
 
-        elif os.path.isdir(path):
-            # Determine destination folder path
-            if path[-1] == '\\' or path[-1] == '/':
-                path = path[:-1]
-            dest = dest or path + '-translated'
-            if os.path.exists(dest) and not os.path.isdir(dest):
-                raise FileExistsError(dest)
+            elif os.path.isdir(path):
+                # Determine destination folder path
+                if path[-1] == '\\' or path[-1] == '/':
+                    path = path[:-1]
+                _dest = dest or path + '-translated'
+                if os.path.exists(_dest) and not os.path.isdir(_dest):
+                    raise FileExistsError(_dest)
 
-            translated_count = 0
-            for root, subdirs, files in os.walk(path):
-                files = natural_sort(files)
-                dest_root = replace_prefix(root, path, dest)
-                os.makedirs(dest_root, exist_ok=True)
-                for f in files:
-                    if f.lower() == '.thumb':
-                        continue
+                translated_count = 0
+                for root, subdirs, files in os.walk(path):
+                    files = natural_sort(files)
+                    dest_root = replace_prefix(root, path, _dest)
+                    os.makedirs(dest_root, exist_ok=True)
+                    for f in files:
+                        if f.lower() == '.thumb':
+                            continue
 
-                    file_path = os.path.join(root, f)
-                    output_dest = replace_prefix(file_path, path, dest)
-                    p, _ = os.path.splitext(output_dest)
-                    output_dest = f'{p}.{file_ext}'
+                        file_path = os.path.join(root, f)
+                        output_dest = replace_prefix(file_path, path, _dest)
+                        p, _ = os.path.splitext(output_dest)
+                        output_dest = f'{p}.{file_ext}'
 
-                    if await self._translate_file(file_path, output_dest, params):
-                        translated_count += 1
-            if translated_count == 0:
-                logger.info(f'No untranslated files found')
-            else:
-                logger.info(f'Done. Translated {translated_count} image{"" if translated_count == 1 else "s"}')
+                        if await self._translate_file(file_path, output_dest, params):
+                            translated_count += 1
+                if translated_count == 0:
+                    logger.info('No untranslated files found')
+                else:
+                    logger.info(f'Done. Translated {translated_count} image{"" if translated_count == 1 else "s"}')
 
     async def _translate_file(self, path: str, dest: str, params: dict):
         if not params.get('overwrite') and os.path.exists(dest):
             logger.info(f'Skipping as already translated: {dest}')
             await self._report_progress('saved', True)
             return True
-        logger.info(f'Translating: {path} -> {dest}')
+        logger.info(f'Translating: "{path}" -> "{dest}"')
 
         try:
             img = Image.open(path)
         except Exception:
+            logger.warn(f'Failed to open image: {path}')
             return False
 
         translation_dict = await self.translate(img, params)

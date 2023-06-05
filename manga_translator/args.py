@@ -1,5 +1,6 @@
 import argparse
 import os
+import glob
 
 from .detection import DETECTORS
 from .ocr import OCRS
@@ -14,7 +15,7 @@ def path(string):
     if not string:
         return ''
     s = os.path.expanduser(string)
-    if not os.path.exists(s):
+    if not glob.glob(s):
         raise argparse.ArgumentTypeError(f'No such file or directory: "{string}"')
     return s
 
@@ -22,7 +23,7 @@ def file_path(string):
     if not string:
         return ''
     s = os.path.expanduser(string)
-    if not os.path.isfile(s):
+    if not glob.glob(s):
         raise argparse.ArgumentTypeError(f'No such file: "{string}"')
     return s
 
@@ -30,7 +31,7 @@ def dir_path(string):
     if not string:
         return ''
     s = os.path.expanduser(string)
-    if not os.path.isdir(s):
+    if not glob.glob(s):
         raise argparse.ArgumentTypeError(f'No such directory: "{string}"')
     return s
 
@@ -81,7 +82,7 @@ class HelpFormatter(argparse.HelpFormatter):
 
 parser = argparse.ArgumentParser(prog='manga_translator', description='Seamlessly translate mangas into a chosen language', formatter_class=HelpFormatter)
 parser.add_argument('-m', '--mode', default='demo', type=str, choices=['demo', 'batch', 'web', 'web_client', 'ws', 'api'], help='Run demo in single image demo mode (demo), batch translation mode (batch), web service mode (web)')
-parser.add_argument('-i', '--input', default='', type=path, help='Path to an image file if using demo mode, or path to an image folder if using batch mode')
+parser.add_argument('-i', '--input', default=None, type=path, nargs='+', help='Path to an image file if using demo mode, or path to an image folder if using batch mode')
 parser.add_argument('-o', '--dest', default='', type=str, help='Path to the destination folder for translated images in batch mode')
 parser.add_argument('-l', '--target-lang', default='CHS', type=str, choices=VALID_LANGUAGES, help='Destination language')
 parser.add_argument('-v', '--verbose', action='store_true', help='Print debug info and save intermediate images in result folder')
