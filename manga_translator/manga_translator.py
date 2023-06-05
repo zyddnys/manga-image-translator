@@ -620,7 +620,9 @@ class MangaTranslatorWeb(MangaTranslator):
             self.result_sub_folder = ''
 
     async def _run_text_translation(self, ctx: Context):
+        # Run machine translation as reference for manual translation (if `--translator=none` is not set)
         text_regions = await super()._run_text_translation(ctx)
+
         if ctx.get('manual', False):
             logger.info('Waiting for user input from manual translation')
             requests.post(f'http://{self.host}:{self.port}/request-manual-internal', json={
