@@ -407,6 +407,7 @@ async def submit_async(request):
         }
     elif task_id not in TASK_DATA or task_id not in TASK_STATES:
         os.makedirs(f'result/{task_id}/', exist_ok=True)
+        img = img.convert('RGB')
         img.save(f'result/{task_id}/input.jpg')
         QUEUE.append(task_id)
         TASK_STATES[task_id] = {
