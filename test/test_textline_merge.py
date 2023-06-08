@@ -9,7 +9,7 @@ pytest_plugins = ('pytest_asyncio')
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from manga_translator.detection.textline_merge import dispatch as dispatch_merge
+from manga_translator.textline_merge import dispatch as dispatch_merge
 from manga_translator.utils import (
     TextBlock,
     Quadrilateral,
