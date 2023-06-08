@@ -52,11 +52,11 @@ class Model48pxCTCOCR(OfflineOCR):
     async def _unload(self):
         del self.model
 
-    async def _infer(self, image: np.ndarray, regions: List[TextBlock], verbose: bool = False) -> List[TextBlock]:
+    async def _infer(self, image: np.ndarray, textlines: List[Quadrilateral], verbose: bool = False) -> List[TextBlock]:
         text_height = 48
         max_chunk_size = 16
 
-        quadrilaterals = list(self.generate_text_direction(regions))
+        quadrilaterals = list(self._generate_text_direction(textlines))
         region_imgs = [q.get_transformed_region(image, d, text_height) for q, d in quadrilaterals]
         out_regions = []
 
@@ -144,7 +144,7 @@ class Model48pxCTCOCR(OfflineOCR):
 
         if is_quadrilaterals:
             return out_regions
-        return regions
+        return textlines
 
 
 class PositionalEncoding(nn.Module):

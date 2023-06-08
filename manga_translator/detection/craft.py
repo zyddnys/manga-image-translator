@@ -196,7 +196,5 @@ class CRAFTDetector(OfflineDetector):
 
         textlines = [Quadrilateral(pts.astype(int), '', 1) for pts in polys_ret]
         textlines = list(filter(lambda q: q.area > 16, textlines))
-        text_regions = await self._merge_textlines(textlines, image.shape[1], image.shape[0], verbose=verbose)
 
-        return text_regions, mask, None
-
+        return textlines, mask, None

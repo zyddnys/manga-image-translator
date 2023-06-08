@@ -4,7 +4,7 @@ from typing import List, Set
 from collections import Counter
 import networkx as nx
 
-from ...utils import TextBlock, Quadrilateral, quadrilateral_can_merge_region
+from ..utils import TextBlock, Quadrilateral, quadrilateral_can_merge_region
 
 def split_text_region(
         bboxes: List[Quadrilateral],
@@ -177,7 +177,8 @@ async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verb
         if abs(angle) < 3:
             angle = 0
         lines = [txtln.pts for txtln in txtlns]
-        region = TextBlock(lines, font_size=font_size, angle=angle, prob=np.exp(total_logprobs),
+        texts = [txtln.text for txtln in txtlns]
+        region = TextBlock(lines, texts, font_size=font_size, angle=angle, prob=np.exp(total_logprobs),
                            fg_color=fg_color, bg_color=bg_color)
         text_regions.append(region)
     return text_regions

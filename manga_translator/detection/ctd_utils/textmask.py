@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 
 from .utils.imgproc_utils import union_area, enlarge_window
-from ...utils import TextBlock
+from ...utils import TextBlock, Quadrilateral
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -70,12 +70,12 @@ def get_topk_masklist(im_grey, pred_mask):
         mask_list.append([threshed, xor_sum])
     return mask_list
 
-def merge_mask_list(mask_list, pred_mask, blk: TextBlock = None, pred_thresh=30, text_window=None, filter_with_lines=False, refine_mode=REFINEMASK_INPAINT):
+def merge_mask_list(mask_list, pred_mask, blk: Quadrilateral = None, pred_thresh=30, text_window=None, filter_with_lines=False, refine_mode=REFINEMASK_INPAINT):
     mask_list.sort(key=lambda x: x[1])
     linemask = None
     if blk is not None and filter_with_lines:
         linemask = np.zeros_like(pred_mask)
-        lines = blk.lines_array(dtype=np.int64)
+        lines = blk.pts.astype(np.int64)
         for line in lines:
             line[..., 0] -= text_window[0]
             line[..., 1] -= text_window[1]
@@ -155,8 +155,7 @@ def refine_undetected_mask(img: np.ndarray, mask_pred: np.ndarray, mask_refined:
         mask_refined = cv2.bitwise_or(mask_refined, refine_mask(img, mask_pred, seg_blk_list, refine_mode=refine_mode))
     return mask_refined
 
-# Deprecated
-def refine_mask(img: np.ndarray, pred_mask: np.ndarray, blk_list: List[TextBlock], refine_mode: int = REFINEMASK_INPAINT) -> np.ndarray:
+def refine_mask(img: np.ndarray, pred_mask: np.ndarray, blk_list: List[Quadrilateral], refine_mode: int = REFINEMASK_INPAINT) -> np.ndarray:
     mask_refined = np.zeros_like(pred_mask)
     for blk in blk_list:
         bx1, by1, bx2, by2 = enlarge_window(blk.xyxy, img.shape[1], img.shape[0])

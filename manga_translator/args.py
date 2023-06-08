@@ -23,7 +23,7 @@ def file_path(string):
     if not string:
         return ''
     s = os.path.expanduser(string)
-    if not glob.glob(s):
+    if not os.path.exists(s):
         raise argparse.ArgumentTypeError(f'No such file: "{string}"')
     return s
 
@@ -31,7 +31,7 @@ def dir_path(string):
     if not string:
         return ''
     s = os.path.expanduser(string)
-    if not glob.glob(s):
+    if not os.path.exists(s):
         raise argparse.ArgumentTypeError(f'No such directory: "{string}"')
     return s
 

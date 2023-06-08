@@ -353,6 +353,30 @@ def rotate_polygons(center, polygons, rotation, new_center=None, to_int=True):
         return rotated.astype(np.int64)
     return rotated
 
+
+def sort_regions(regions: List[TextBlock], right_to_left=True) -> List[TextBlock]:
+    # Sort regions from right to left, top to bottom
+    sorted_regions = []
+    for region in sorted(regions, key=lambda region: region.center[1]):
+        for i, sorted_region in enumerate(sorted_regions):
+            if region.center[1] > sorted_region.xyxy[3]:
+                continue
+            if region.center[1] < sorted_region.xyxy[1]:
+                sorted_regions.insert(i + 1, region)
+                break
+
+            # y center of region inside sorted_region so sort by x instead
+            if right_to_left and region.center[0] > sorted_region.center[0]:
+                sorted_regions.insert(i, region)
+                break
+            if not right_to_left and region.center[0] < sorted_region.center[0]:
+                sorted_regions.insert(i, region)
+                break
+        else:
+            sorted_regions.append(region)
+    return sorted_regions
+
+
 # def sort_textblk_list(blk_list: List[TextBlock], im_w: int, im_h: int) -> List[TextBlock]:
 #     if len(blk_list) == 0:
 #         return blk_list

@@ -4,13 +4,10 @@ from collections import Counter
 import numpy as np
 import cv2
 
-from .textline_merge import dispatch as dispatch_textline_merge
-from ..utils import InfererModule, ModelWrapper, TextBlock, Quadrilateral
+from ..utils import InfererModule, ModelWrapper, Quadrilateral
 
 
 class CommonDetector(InfererModule):
-    async def _merge_textlines(self, textlines: List[Quadrilateral], img_width: int, img_height: int, verbose: bool = False) -> List[TextBlock]:
-        return await dispatch_textline_merge(textlines, img_width, img_height, verbose)
 
     async def detect(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float, unclip_ratio: float,
                      invert: bool, gamma_correct: bool, rotate: bool, auto_rotate: bool = False, verbose: bool = False):
@@ -44,37 +41,31 @@ class CommonDetector(InfererModule):
         # cv2.waitKey(0)
 
         # Run detection
-        text_regions, raw_mask, mask = await self._detect(image, detect_size, text_threshold, box_threshold, unclip_ratio, verbose)
-        text_regions = self._sort_regions(text_regions, image.shape[1], image.shape[0])
+        textlines, raw_mask, mask = await self._detect(image, detect_size, text_threshold, box_threshold, unclip_ratio, verbose)
+        textlines = list(filter(lambda x: x.area > 1, textlines))
 
         # Remove filters
         if add_border:
-            text_regions, raw_mask, mask = self._remove_border(image, img_w, img_h, text_regions, raw_mask, mask)
+            textlines, raw_mask, mask = self._remove_border(image, img_w, img_h, textlines, raw_mask, mask)
         if auto_rotate:
             # Rotate if horizontal aspect ratios are prevalent to potentially improve detection
-            if len(text_regions) > 0:
-                orientations = ['h' if region.polygon_aspect_ratio > 75 else 'v' for region in text_regions]
+            if len(textlines) > 0:
+                orientations = ['h' if txtln.aspect_ratio > 1 else 'v' for txtln in textlines]
                 majority_orientation = Counter(orientations).most_common(1)[0][0]
             else:
                 majority_orientation = 'h'
             if majority_orientation == 'h':
                 self.logger.info('Rerunning detection with 90° rotation')
-                return await self.detect(orig_image, detect_size, text_threshold, box_threshold, unclip_ratio, invert, gamma_correct, rotate=(not rotate), auto_rotate=False, verbose=verbose)
+                return await self.detect(orig_image, detect_size, text_threshold, box_threshold, unclip_ratio, invert, gamma_correct,
+                                         rotate=(not rotate), auto_rotate=False, verbose=verbose)
         if rotate:
-            text_regions, raw_mask, mask = self._remove_rotation(text_regions, raw_mask, mask)
+            textlines, raw_mask, mask = self._remove_rotation(textlines, raw_mask, mask, img_w, img_h)
 
-        text_regions = list(filter(lambda x: x.real_area > 1, text_regions))
-
-        if verbose :
-            from ..utils.textblock import visualize_textblocks
-            bboxes = visualize_textblocks(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), text_regions)
-            cv2.imwrite('result/bboxes_unfiltered.png', bboxes)
-
-        return text_regions, raw_mask, mask
+        return textlines, raw_mask, mask
 
     @abstractmethod
     async def _detect(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
-                      unclip_ratio: float, verbose: bool = False) -> Tuple[List[TextBlock], np.ndarray]:
+                      unclip_ratio: float, verbose: bool = False) -> Tuple[List[Quadrilateral], np.ndarray, np.ndarray]:
         pass
 
     def _add_border(self, image: np.ndarray, target_side_length: int):
@@ -112,19 +103,16 @@ class CommonDetector(InfererModule):
     def _add_rotation(self, image: np.ndarray):
         return np.rot90(image, k=-1)
 
-    def _remove_rotation(self, text_regions, raw_mask, mask):
+    def _remove_rotation(self, textlines, raw_mask, mask, img_w, img_h):
         raw_mask = np.ascontiguousarray(np.rot90(raw_mask))
         if mask is not None:
             mask = np.ascontiguousarray(np.rot90(mask).astype(np.uint8))
 
-        for i, region in enumerate(text_regions):
-            rot_lines = region.lines[:,:,[1,0]]
-            rot_lines[:,:,1] = -rot_lines[:,:,1] + raw_mask.shape[0]
-            # TODO: Copy over all values
-            new_region = TextBlock(rot_lines, font_size=region.font_size, angle=region.angle, prob=region.prob,
-                                   fg_color=region.fg_colors, bg_color=region.bg_colors)
-            text_regions[i] = new_region
-        return text_regions, raw_mask, mask
+        for i, txtln in enumerate(textlines):
+            rot_lines = txtln.pts[:,[1,0]]
+            rot_lines[:,1] = -rot_lines[:,1] + img_h
+            textlines[i] = Quadrilateral(rot_lines, '', txtln.prob)
+        return textlines, raw_mask, mask
 
     def _add_invertion(self, image: np.ndarray):
         return cv2.bitwise_not(image)
@@ -147,23 +135,6 @@ class CommonDetector(InfererModule):
         img_output = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
         return img_output
 
-    def _sort_regions(self, regions: List[TextBlock], width: int, height: int) -> List[TextBlock]:
-        # Sort regions from right to left, top to bottom
-        sorted_regions = []
-        for region in sorted(regions, key=lambda region: region.center[1]):
-            for i, sorted_region in enumerate(sorted_regions):
-                if region.center[1] > sorted_region.xyxy[3]:
-                    continue
-                if region.center[1] < sorted_region.xyxy[1]:
-                    sorted_regions.insert(i + 1, region)
-                    break
-                # y center of region inside sorted_region so sort by x instead
-                if region.center[0] > sorted_region.center[0]:
-                    sorted_regions.insert(i, region)
-                    break
-            else:
-                sorted_regions.append(region)
-        return sorted_regions
 
 class OfflineDetector(CommonDetector, ModelWrapper):
     _MODEL_SUB_DIR = 'detection'
