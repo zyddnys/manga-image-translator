@@ -178,12 +178,14 @@ class MangaTranslator():
 
         translation_dict = await self.translate(img, params)
 
+        # If no text was found save intermediate image product
         result = None
         if translation_dict.result is not None:
             result = translation_dict.result
-        elif translation_dict.text_regions is not None:
-            # If no text was found use original image 
-            result = translation_dict.upscaled or img
+        elif translation_dict.upscaled:
+            result = translation_dict.upscaled
+        else:
+            result = img
 
         if translation_dict.save_text or translation_dict.save_text_file or translation_dict.prep_manual:
             if translation_dict.prep_manual:
