@@ -10,6 +10,7 @@ import torch
 import time
 import logging
 import numpy as np
+import glob
 from PIL import Image
 from typing import List
 from aiohttp import web
@@ -32,11 +33,13 @@ from .utils import (
     get_color_name,
     is_url,
     natural_sort,
+    sort_regions,
 )
 
 from .detection import DETECTORS, dispatch as dispatch_detection, prepare as prepare_detection
 from .upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
 from .ocr import OCRS, dispatch as dispatch_ocr, prepare as prepare_ocr
+from .textline_merge import dispatch as dispatch_textline_merge
 from .mask_refinement import dispatch as dispatch_mask_refinement
 from .inpainting import INPAINTERS, dispatch as dispatch_inpainting, prepare as prepare_inpainting
 from .translators import (
@@ -94,9 +97,11 @@ class MangaTranslator():
         Translates an image or folder (recursively) specified through the path.
         """
         path = os.path.expanduser(path)
-        if not os.path.exists(path):
+        # expand path patterns such as *
+        expanded_paths = glob.glob(path)
+        if not expanded_paths:
             raise FileNotFoundError(path)
-        path = os.path.abspath(path)
+        expanded_paths = natural_sort(expanded_paths)
         dest = os.path.abspath(os.path.expanduser(dest)) if dest else ''
         params = params or {}
 
@@ -108,76 +113,79 @@ class MangaTranslator():
             elif params.get('format') != 'jpg':
                 raise ValueError('--save-quality of lower than 100 is only supported for .jpg files')
 
-        # TODO: accept * in file paths
+        for path in expanded_paths:
+            path = os.path.abspath(path)
 
-        if os.path.isfile(path):
-            # Determine destination file path
-            # TODO: Simplify
-            if not dest:
-                # Use the same folder as the source
-                p, _ = os.path.splitext(path)
-                dest = f'{p}-translated.{file_ext}'
-            elif not os.path.basename(dest):
-                p, _ = os.path.splitext(os.path.basename(path))
-                # If the folders differ use the original filename from the source
-                if os.path.dirname(path) != dest:
-                    dest = os.path.join(dest, f'{p}.{file_ext}')
+            if os.path.isfile(path):
+                # Determine destination file path
+                if not dest:
+                    # Use the same folder as the source
+                    p, _ = os.path.splitext(path)
+                    _dest = f'{p}-translated.{file_ext}'
+                elif not os.path.basename(dest):
+                    p, _ = os.path.splitext(os.path.basename(path))
+                    # If the folders differ use the original filename from the source
+                    if os.path.dirname(path) != dest:
+                        _dest = os.path.join(dest, f'{p}.{file_ext}')
+                    else:
+                        _dest = os.path.join(dest, f'{p}-translated.{file_ext}')
                 else:
-                    dest = os.path.join(dest, f'{p}-translated.{file_ext}')
-            else:
-                p, _ = os.path.splitext(dest)
-                dest = f'{p}.{file_ext}'
-            await self._translate_file(path, dest, params)
+                    p, _ = os.path.splitext(dest)
+                    _dest = f'{p}.{file_ext}'
+                await self._translate_file(path, _dest, params)
 
-        elif os.path.isdir(path):
-            # Determine destination folder path
-            if path[-1] == '\\' or path[-1] == '/':
-                path = path[:-1]
-            dest = dest or path + '-translated'
-            if os.path.exists(dest) and not os.path.isdir(dest):
-                raise FileExistsError(dest)
+            elif os.path.isdir(path):
+                # Determine destination folder path
+                if path[-1] == '\\' or path[-1] == '/':
+                    path = path[:-1]
+                _dest = dest or path + '-translated'
+                if os.path.exists(_dest) and not os.path.isdir(_dest):
+                    raise FileExistsError(_dest)
 
-            translated_count = 0
-            for root, subdirs, files in os.walk(path):
-                files = natural_sort(files)
-                dest_root = replace_prefix(root, path, dest)
-                os.makedirs(dest_root, exist_ok=True)
-                for f in files:
-                    if f.lower() == '.thumb':
-                        continue
+                translated_count = 0
+                for root, subdirs, files in os.walk(path):
+                    files = natural_sort(files)
+                    dest_root = replace_prefix(root, path, _dest)
+                    os.makedirs(dest_root, exist_ok=True)
+                    for f in files:
+                        if f.lower() == '.thumb':
+                            continue
 
-                    file_path = os.path.join(root, f)
-                    output_dest = replace_prefix(file_path, path, dest)
-                    p, _ = os.path.splitext(output_dest)
-                    output_dest = f'{p}.{file_ext}'
+                        file_path = os.path.join(root, f)
+                        output_dest = replace_prefix(file_path, path, _dest)
+                        p, _ = os.path.splitext(output_dest)
+                        output_dest = f'{p}.{file_ext}'
 
-                    if await self._translate_file(file_path, output_dest, params):
-                        translated_count += 1
-            if translated_count == 0:
-                logger.info(f'No untranslated files found')
-            else:
-                logger.info(f'Done. Translated {translated_count} image{"" if translated_count == 1 else "s"}')
+                        if await self._translate_file(file_path, output_dest, params):
+                            translated_count += 1
+                if translated_count == 0:
+                    logger.info('No untranslated files found')
+                else:
+                    logger.info(f'Done. Translated {translated_count} image{"" if translated_count == 1 else "s"}')
 
     async def _translate_file(self, path: str, dest: str, params: dict):
         if not params.get('overwrite') and os.path.exists(dest):
             logger.info(f'Skipping as already translated: {dest}')
             await self._report_progress('saved', True)
             return True
-        logger.info(f'Translating: {path} -> {dest}')
+        logger.info(f'Translating: "{path}"')
 
         try:
             img = Image.open(path)
         except Exception:
+            logger.warn(f'Failed to open image: {path}')
             return False
 
         translation_dict = await self.translate(img, params)
 
+        # If no text was found save intermediate image product
         result = None
         if translation_dict.result is not None:
             result = translation_dict.result
-        elif translation_dict.text_regions is not None:
-            # If no text was found use original image 
-            result = translation_dict.upscaled or img
+        elif translation_dict.upscaled:
+            result = translation_dict.upscaled
+        else:
+            result = img
 
         if translation_dict.save_text or translation_dict.save_text_file or translation_dict.prep_manual:
             if translation_dict.prep_manual:
@@ -191,7 +199,7 @@ class MangaTranslator():
 
         # Save result
         if result:
-            logger.info('Saving results')
+            logger.info(f'Saving "{dest}"')
             save_result(result, dest, translation_dict)
             await self._report_progress('saved', True)
         else:
@@ -318,21 +326,31 @@ class MangaTranslator():
         ctx.img_rgb, ctx.img_alpha = load_image(ctx.upscaled)
 
         await self._report_progress('detection')
-        ctx.text_regions, ctx.mask_raw, ctx.mask = await self._run_detection(ctx)
+        ctx.textlines, ctx.mask_raw, ctx.mask = await self._run_detection(ctx)
         if self.verbose:
             cv2.imwrite(self._result_path('mask_raw.png'), ctx.mask_raw)
-            bboxes = visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions)
-            cv2.imwrite(self._result_path('bboxes.png'), bboxes)
 
-        if not ctx.text_regions:
+        if not ctx.textlines:
             await self._report_progress('skip-no-regions', True)
             return ctx
+        if self.verbose:
+            img_bbox_raw = np.copy(ctx.img_rgb)
+            for txtln in ctx.textlines:
+                cv2.polylines(img_bbox_raw, [txtln.pts], True, color=(255, 0, 0), thickness=2)
+            cv2.imwrite(self._result_path('bboxes_unfiltered.png'), cv2.cvtColor(img_bbox_raw, cv2.COLOR_RGB2BGR))
 
         await self._report_progress('ocr')
-        ctx.text_regions = await self._run_ocr(ctx)
-        if not ctx.text_regions:
+        ctx.textlines = await self._run_ocr(ctx)
+        if not ctx.textlines:
             await self._report_progress('skip-no-text', True)
             return ctx
+
+        await self._report_progress('textline_merge')
+        ctx.text_regions = await self._run_textline_merge(ctx)
+
+        if self.verbose:
+            bboxes = visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions)
+            cv2.imwrite(self._result_path('bboxes.png'), bboxes)
 
         await self._report_progress('translating')
         ctx.text_regions = await self._run_text_translation(ctx)
@@ -369,7 +387,89 @@ class MangaTranslator():
 
         return ctx
 
+    async def _run_colorizer(self, ctx: Context):
+        return await dispatch_colorization(ctx.colorizer, ctx.input, ctx.colorization_size, self.device)
+
+    async def _run_upscaling(self, ctx: Context):
+        return (await dispatch_upscaling(ctx.upscaler, [ctx.img_colorized], ctx.upscale_ratio, self.device))[0]
+
+    async def _run_detection(self, ctx: Context):
+        return await dispatch_detection(ctx.detector, ctx.img_rgb, ctx.detection_size, ctx.text_threshold, ctx.box_threshold,
+                                        ctx.unclip_ratio, ctx.det_invert, ctx.det_gamma_correct, ctx.det_rotate, ctx.det_auto_rotate,
+                                        self.device, self.verbose)
+
+    async def _run_ocr(self, ctx: Context):
+        textlines = await dispatch_ocr(ctx.ocr, ctx.img_rgb, ctx.textlines, self.device, self.verbose)
+
+        # Filter out regions by original text
+        new_textlines = []
+        for textline in textlines:
+            text = textline.text
+            if text.isnumeric() \
+                or (ctx.filter_text and re.search(ctx.filter_text, text)) \
+                or count_valuable_text(text) <= 1 \
+                or is_url(text):
+                if text.strip():
+                    logger.info(f'Filtered out: {text}')
+            else:
+                new_textlines.append(textline)
+        return new_textlines
+
+    async def _run_textline_merge(self, ctx: Context):
+        text_regions = await dispatch_textline_merge(ctx.textlines, *ctx.img_rgb.shape[:2], verbose=self.verbose)
+
+        # Sort ctd (comic text detector) regions left to right. Otherwise right to left.
+        # Sorting will improve text translation quality.
+        text_regions = sort_regions(text_regions, right_to_left=True if ctx.detector != 'ctd' else False)
+        return text_regions
+
+    async def _run_text_translation(self, ctx: Context):
+        translated_sentences = await dispatch_translation(ctx.translator, [region.get_text() for region in ctx.text_regions], ctx.use_mtpe,
+                                                          'cpu' if self._cuda_limited_memory else self.device)
+
+        for region, translation in zip(ctx.text_regions, translated_sentences):
+            if ctx.uppercase:
+                translation = translation.upper()
+            elif ctx.lowercase:
+                translation = translation.upper()
+            region.translation = translation
+            region.target_lang = ctx.target_lang
+            region._alignment = ctx.alignment
+            region._direction = ctx.direction
+
+        # Filter out regions by their translations
+        new_text_regions = []
+        for region in ctx.text_regions:
+            if not ctx.translator.is_none() and (region.translation.isnumeric() \
+                or (ctx.filter_text and re.search(ctx.filter_text, region.translation))):
+                if region.translation.strip():
+                    logger.info(f'Filtered out: {region.translation}')
+            else:
+                new_text_regions.append(region)
+        return new_text_regions
+
+    async def _run_mask_refinement(self, ctx: Context):
+        return await dispatch_mask_refinement(ctx.text_regions, ctx.img_rgb, ctx.mask_raw, 'fit_text', self.verbose)
+
+    async def _run_inpainting(self, ctx: Context):
+        return await dispatch_inpainting(ctx.inpainter, ctx.img_rgb, ctx.mask, ctx.inpainting_size, self.using_cuda, self.verbose)
+
+    async def _run_text_rendering(self, ctx: Context):
+        if ctx.renderer == 'none':
+            output = ctx.img_inpainted
+        # manga2eng currently only supports horizontal rendering
+        elif ctx.renderer == 'manga2eng' and ctx.text_regions and LANGAUGE_ORIENTATION_PRESETS.get(ctx.text_regions[0].target_lang) == 'h':
+            output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, ctx.font_path)
+        else:
+            output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, ctx.font_path, ctx.font_size, ctx.font_size_offset,
+                                              ctx.font_size_minimum, ctx.render_mask)
+        return output
+
     def _result_path(self, path: str) -> str:
+        """
+        Returns path to result folder where intermediate images are saved when using verbose flag
+        or web mode input/result images are cached.
+        """
         return os.path.join(BASE_PATH, 'result', self.result_sub_folder, path)
 
     def add_progress_hook(self, ph):
@@ -444,76 +544,6 @@ class MangaTranslator():
 
         with open(text_output_file, 'a', encoding='utf-8') as f:
             f.write(s)
-
-    async def _run_colorizer(self, ctx: Context):
-        return await dispatch_colorization(ctx.colorizer, ctx.input, ctx.colorization_size, self.device)
-
-    async def _run_upscaling(self, ctx: Context):
-        return (await dispatch_upscaling(ctx.upscaler, [ctx.img_colorized], ctx.upscale_ratio, self.device))[0]
-
-    async def _run_detection(self, ctx: Context):
-        return await dispatch_detection(ctx.detector, ctx.img_rgb, ctx.detection_size, ctx.text_threshold, ctx.box_threshold,
-                                        ctx.unclip_ratio, ctx.det_invert, ctx.det_gamma_correct, ctx.det_rotate, ctx.det_auto_rotate,
-                                        self.device, self.verbose)
-
-    async def _run_ocr(self, ctx: Context):
-        text_regions = await dispatch_ocr(ctx.ocr, ctx.img_rgb, ctx.text_regions, self.device, self.verbose)
-
-        # Filter out regions by original text
-        new_text_regions = []
-        for region in text_regions:
-            text = region.get_text()
-            if text.isnumeric() \
-                or (ctx.filter_text and re.search(ctx.filter_text, text)) \
-                or count_valuable_text(text) <= 1 \
-                or is_url(text):
-                if text.strip():
-                    logger.info(f'Filtered out: {text}')
-            else:
-                new_text_regions.append(region)
-        return new_text_regions
-
-    async def _run_text_translation(self, ctx: Context):
-        translated_sentences = await dispatch_translation(ctx.translator, [region.get_text() for region in ctx.text_regions], ctx.use_mtpe,
-                                                          'cpu' if self._cuda_limited_memory else self.device)
-
-        for region, translation in zip(ctx.text_regions, translated_sentences):
-            if ctx.uppercase:
-                translation = translation.upper()
-            elif ctx.lowercase:
-                translation = translation.upper()
-            region.translation = translation
-            region.target_lang = ctx.target_lang
-            region._alignment = ctx.alignment
-            region._direction = ctx.direction
-
-        # Filter out regions by their translations
-        new_text_regions = []
-        for region in ctx.text_regions:
-            if not ctx.translator.is_none() and (region.translation.isnumeric() \
-                or (ctx.filter_text and re.search(ctx.filter_text, region.translation))):
-                if region.translation.strip():
-                    logger.info(f'Filtered out: {region.translation}')
-            else:
-                new_text_regions.append(region)
-        return new_text_regions
-
-    async def _run_mask_refinement(self, ctx: Context):
-        return await dispatch_mask_refinement(ctx.text_regions, ctx.img_rgb, ctx.mask_raw, 'fit_text', self.verbose)
-
-    async def _run_inpainting(self, ctx: Context):
-        return await dispatch_inpainting(ctx.inpainter, ctx.img_rgb, ctx.mask, ctx.inpainting_size, self.using_cuda, self.verbose)
-
-    async def _run_text_rendering(self, ctx: Context):
-        if ctx.renderer == 'none':
-            output = ctx.img_inpainted
-        # manga2eng currently only supports horizontal rendering
-        elif ctx.renderer == 'manga2eng' and ctx.text_regions and LANGAUGE_ORIENTATION_PRESETS.get(ctx.text_regions[0].target_lang) == 'h':
-            output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, ctx.font_path)
-        else:
-            output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, ctx.font_path, ctx.font_size, ctx.font_size_offset,
-                                              ctx.font_size_minimum, ctx.render_mask)
-        return output
 
 
 class MangaTranslatorWeb(MangaTranslator):
@@ -616,7 +646,9 @@ class MangaTranslatorWeb(MangaTranslator):
             self.result_sub_folder = ''
 
     async def _run_text_translation(self, ctx: Context):
+        # Run machine translation as reference for manual translation (if `--translator=none` is not set)
         text_regions = await super()._run_text_translation(ctx)
+
         if ctx.get('manual', False):
             logger.info('Waiting for user input from manual translation')
             requests.post(f'http://{self.host}:{self.port}/request-manual-internal', json={

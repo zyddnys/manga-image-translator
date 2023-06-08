@@ -1,4 +1,3 @@
-import os
 import numpy as np
 from abc import abstractmethod
 from typing import List, Union
@@ -9,14 +8,14 @@ import itertools
 from ..utils import InfererModule, TextBlock, ModelWrapper, Quadrilateral
 
 class CommonOCR(InfererModule):
-    def generate_text_direction(self, bboxes: List[Union[Quadrilateral, TextBlock]]):
+    def _generate_text_direction(self, bboxes: List[Union[Quadrilateral, TextBlock]]):
         if len(bboxes) > 0:
             if isinstance(bboxes[0], TextBlock):
                 for blk in bboxes:
                     for line_idx in range(len(blk.lines)):
                         yield blk, line_idx
             else:
-                from utils import quadrilateral_can_merge_region
+                from ..utils import quadrilateral_can_merge_region
 
                 G = nx.Graph()
                 for i, box in enumerate(bboxes):
@@ -38,15 +37,15 @@ class CommonOCR(InfererModule):
                     for node in nodes:
                         yield bboxes[node], majority_dir
 
-    async def recognize(self, image: np.ndarray, regions: List[TextBlock], verbose: bool = False) -> List[TextBlock]:
+    async def recognize(self, image: np.ndarray, textlines: List[Quadrilateral], verbose: bool = False) -> List[Quadrilateral]:
         '''
-        Performs the optical character recognition, using the `regions` as areas of interests.
-        Returns TextBlocks defined by the `regions` which contain the recognized text.
+        Performs the optical character recognition, using the `textlines` as areas of interests.
+        Returns a `textlines` list with the `textline.text` property set to the detected text string.
         '''
-        return await self._recognize(image, regions, verbose)
+        return await self._recognize(image, textlines, verbose)
 
     @abstractmethod
-    async def _recognize(self, image: np.ndarray, regions: List[TextBlock], verbose: bool = False) -> List[TextBlock]:
+    async def _recognize(self, image: np.ndarray, textlines: List[Quadrilateral], verbose: bool = False) -> List[Quadrilateral]:
         pass
 
 class OfflineOCR(CommonOCR, ModelWrapper):
@@ -56,5 +55,5 @@ class OfflineOCR(CommonOCR, ModelWrapper):
         return await self.infer(*args, **kwargs)
 
     @abstractmethod
-    async def _infer(self, image: np.ndarray, regions: List[TextBlock], verbose: bool = False) -> List[TextBlock]:
+    async def _infer(self, image: np.ndarray, textlines: List[Quadrilateral], verbose: bool = False) -> List[Quadrilateral]:
         pass

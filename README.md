@@ -249,7 +249,8 @@ VIN: Vietnames
                                              folder
 -f, --format {png,webp,jpg}                  Output format of the translation.
 --detector {default,ctd,craft,none}          Text detector used for creating a text mask from an
-                                             image, DO NOT use craft for manga, it's not designed for it
+                                             image, DO NOT use craft for manga, it's not designed
+                                             for it
 --ocr {32px,48px_ctc}                        Optical character recognition (OCR) model to use
 --inpainter {default,lama_mpe,sd,none,original}
                                              Inpainting model to use

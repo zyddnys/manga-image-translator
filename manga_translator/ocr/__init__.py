@@ -4,7 +4,7 @@ from typing import List
 from .common import CommonOCR, OfflineOCR
 from .model_32px import Model32pxOCR
 from .model_48px_ctc import Model48pxCTCOCR
-from ..utils import TextBlock
+from ..utils import Quadrilateral
 
 OCRS = {
     '32px': Model32pxOCR,
@@ -26,7 +26,7 @@ async def prepare(ocr_key: str, device: str = 'cpu'):
         await ocr.download()
         await ocr.load(device)
 
-async def dispatch(ocr_key: str, image: np.ndarray, regions: List[TextBlock], device: str = 'cpu', verbose: bool = False) -> List[TextBlock]:
+async def dispatch(ocr_key: str, image: np.ndarray, regions: List[Quadrilateral], device: str = 'cpu', verbose: bool = False) -> List[Quadrilateral]:
     ocr = get_ocr(ocr_key)
     if isinstance(ocr, OfflineOCR):
         await ocr.load(device)

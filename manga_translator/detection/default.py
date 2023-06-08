@@ -100,6 +100,4 @@ class DefaultDetector(OfflineDetector):
         #         cv2.polylines(img_bbox_raw, [txtln.pts], True, color=(255, 0, 0), thickness=2)
         #     cv2.imwrite(f'result/bboxes_unfiltered.png', cv2.cvtColor(img_bbox_raw, cv2.COLOR_RGB2BGR))
 
-        text_regions = await self._merge_textlines(textlines, image.shape[1], image.shape[0], verbose=verbose)
-
-        return text_regions, raw_mask, None
+        return textlines, raw_mask, None

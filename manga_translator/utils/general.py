@@ -360,6 +360,7 @@ class Quadrilateral(object):
 
     @functools.cached_property
     def aspect_ratio(self) -> float:
+        """hor/ver"""
         [l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.structure]
         v1 = l1b - l1a
         v2 = l2b - l2a
@@ -377,6 +378,10 @@ class Quadrilateral(object):
 
     def height(self) -> int:
         return self.aabb.h
+
+    @functools.cached_property
+    def xyxy(self):
+        return self.aabb.x, self.aabb.y, self.aabb.x + self.aabb.w, self.aabb.y + self.aabb.h
 
     def clip(self, width, height):
         self.pts[:, 0] = np.clip(np.round(self.pts[:, 0]), 0, width)

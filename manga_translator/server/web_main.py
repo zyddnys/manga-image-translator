@@ -407,6 +407,7 @@ async def submit_async(request):
         }
     elif task_id not in TASK_DATA or task_id not in TASK_STATES:
         os.makedirs(f'result/{task_id}/', exist_ok=True)
+        img = img.convert('RGB')
         img.save(f'result/{task_id}/input.jpg')
         QUEUE.append(task_id)
         TASK_STATES[task_id] = {
@@ -437,14 +438,16 @@ async def manual_translate_async(request):
     img.save(f'result/{task_id}/input.jpg')
     now = time.time()
     QUEUE.append(task_id)
+    # TODO: Add form fields to manual translate website
     TASK_DATA[task_id] = {
-        'detection_size': size,
+        # 'detection_size': size,
         'manual': True,
-        'detector': detector,
-        'direction': direction,
+        # 'detector': detector,
+        # 'direction': direction,
         'created_at': now,
         'requested_at': now,
     }
+    print(TASK_DATA[task_id])
     TASK_STATES[task_id] = {
         'info': 'pending',
         'finished': False,

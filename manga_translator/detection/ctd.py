@@ -2,7 +2,7 @@ import os
 import shutil
 import numpy as np
 import einops
-from typing import List, Union, Tuple
+from typing import Union, Tuple
 import cv2
 import torch
 
@@ -12,7 +12,7 @@ from .ctd_utils.utils.db_utils import SegDetectorRepresenter
 from .ctd_utils.utils.imgproc_utils import letterbox
 from .ctd_utils.textmask import REFINEMASK_INPAINT, refine_mask
 from .common import OfflineDetector
-from ..utils import TextBlock, Quadrilateral, det_rearrange_forward
+from ..utils import Quadrilateral, det_rearrange_forward
 
 def preprocess_img(img, input_size=(1024, 1024), device='cpu', bgr2rgb=True, half=False, to_tensor=True):
     if bgr2rgb:
@@ -174,10 +174,9 @@ class ComicTextDetector(OfflineDetector):
         # as the merge could be postponed until after the OCR finishes.
 
         textlines = [Quadrilateral(pts.astype(int), '', score) for pts, score in zip(lines, scores)]
-        text_regions = await self._merge_textlines(textlines, image.shape[1], image.shape[0], verbose=verbose)
-        mask_refined = refine_mask(image, mask, text_regions, refine_mode=refine_mode)
+        mask_refined = refine_mask(image, mask, textlines, refine_mode=refine_mode)
 
-        return text_regions, mask, mask_refined
+        return textlines, mask, mask_refined
 
         # blk_list = group_output(blks, lines, im_w, im_h, mask)
         # mask_refined = refine_mask(image, mask, blk_list, refine_mode=refine_mode)
@@ -185,21 +184,3 @@ class ComicTextDetector(OfflineDetector):
         #     mask_refined = refine_undetected_mask(image, mask, mask_refined, blk_list, refine_mode=refine_mode)
 
         # return blk_list, mask, mask_refined
-
-    def _sort_regions(self, regions: List[TextBlock], width: int, height: int) -> List[TextBlock]:
-        # Sort regions from left to right, top to bottom
-        sorted_regions = []
-        for region in sorted(regions, key=lambda region: region.center[1]):
-            for i, sorted_region in enumerate(sorted_regions):
-                if region.center[1] > sorted_region.xyxy[3]:
-                    continue
-                if region.center[1] < sorted_region.xyxy[1]:
-                    sorted_regions.insert(i + 1, region)
-                    break
-                # y center of region inside sorted_region so sort by x instead
-                if region.center[0] < sorted_region.center[0]:
-                    sorted_regions.insert(i, region)
-                    break
-            else:
-                sorted_regions.append(region)
-        return sorted_regions
