@@ -11,3 +11,9 @@ Manga-translated
 .env
 .env.local
 test/testdata/bboxes
+.idea
+pyvenv.cfg
+Scripts
+Lib
+include
+share

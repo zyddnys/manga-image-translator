@@ -76,6 +76,8 @@ class MangaTranslator():
         self._add_logger_hook()
 
         params = params or {}
+        # Use environment variables to save thresholds for use in ocr
+        os.environ['ignore_bubble']=str(params["ignore_bubble"])
         self.verbose = params.get('verbose', False)
         self.ignore_errors = params.get('ignore_errors', False)
 

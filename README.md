@@ -328,6 +328,14 @@ VIN: Vietnames
 --ws-url WS_URL                              Server URL for WebSocket mode
 --save-quality SAVE_QUALITY                  Quality of saved JPEG image, range from 0 to 100 with
                                              100 being best
+--ignore-bubble {Numbers from 1 to 50}       The threshold for ignoring text in non bubble areas, with
+                                             valid values ranging from 1 to 50, does not ignore others.
+                                             Recommendation 5 to 10. If it is too small, normal bubble
+                                             areas may be ignored, and if it is too large, non bubble
+                                             areas may be considered normal bubbles
+                                             For example, --ignore-bubble 5
+
+
 ```
 
 <!-- Auto generated end -->

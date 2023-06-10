@@ -71,7 +71,12 @@ class Model32pxOCR(OfflineOCR):
             region = np.zeros((N, text_height, max_width, 3), dtype = np.uint8)
             for i, idx in enumerate(indices):
                 W = region_imgs[idx].shape[1]
-                region[i, :, : W, :] = region_imgs[idx]
+                tmp = region_imgs[idx]
+                # Determine whether to skip the text block, and return True to skip.
+                if  self.is_ignore(region_imgs[idx]):
+                    ix+=1
+                    continue
+                region[i, :, : W, :]=tmp
                 if verbose:
                     os.makedirs('result/ocrs/', exist_ok=True)
                     if quadrilaterals[idx][1] == 'v':
