@@ -194,7 +194,7 @@ VIN: Vietnames
 --ws-url WS_URL                              Server URL for WebSocket mode
 --save-quality SAVE_QUALITY                  Quality of saved JPEG image, range from 0 to 100 with
                                              100 being best
---ignore-bubble {Numbers from 1 to 50}       后边的语句都翻译成英文：忽略非气泡区域中的文本块，如果仅仅想对气泡进行处理，
+--ignore-bubble {Numbers from 1 to 50}       忽略非气泡区域中的文本块，如果仅仅想对气泡进行处理，
                                              可启用该参数。范围 从 1 到 50，不在范围内则该参数不起作用。建议 5 到 10。
                                              如果太小，正常气泡可能会被当做非气泡区，如果太大，则非气泡区可能被当做正常气泡
                                              例如 --ignore-bubble 5
