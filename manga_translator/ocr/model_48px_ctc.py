@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .common import OfflineOCR
-from ..utils import TextBlock, Quadrilateral, AvgMeter, chunks
+from ..utils import TextBlock, Quadrilateral, AvgMeter, chunks,is_ignore
 
 class Model48pxCTCOCR(OfflineOCR):
     _MODEL_MAPPING = {
@@ -69,6 +69,7 @@ class Model48pxCTCOCR(OfflineOCR):
                 perm = sorted(range(len(region_imgs)), key = lambda x: region_imgs[x].shape[1])
 
         ix = 0
+        ignore_bubble=int(os.environ['ignore_bubble'])
         for indices in chunks(perm, max_chunk_size):
             N = len(indices)
             widths = [region_imgs[i].shape[1] for i in indices]
@@ -78,7 +79,7 @@ class Model48pxCTCOCR(OfflineOCR):
                 W = region_imgs[idx].shape[1]
                 tmp = region_imgs[idx]
                 # Determine whether to skip the text block, and return True to skip.
-                if  self.is_ignore(region_imgs[idx]):
+                if  ignore_bubble >=1 and ignore_bubble<=50 and  is_ignore(region_imgs[idx]):
                     ix+=1
                     continue
                 region[i, :, : W, :]=tmp
