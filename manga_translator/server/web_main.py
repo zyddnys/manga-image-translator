@@ -513,6 +513,7 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
     if nonce is None:
         nonce = os.getenv('MT_WEB_NONCE', generate_nonce())
 
+    # Start web service
     runner, site = await start_async_app(host, port, nonce, translation_params)
 
     # Create client process that will execute translation tasks

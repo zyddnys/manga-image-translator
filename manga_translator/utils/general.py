@@ -387,10 +387,10 @@ class Quadrilateral(object):
         self.pts[:, 0] = np.clip(np.round(self.pts[:, 0]), 0, width)
         self.pts[:, 1] = np.clip(np.round(self.pts[:, 1]), 0, height)
 
-    @functools.cached_property
-    def points(self):
-        ans = [a.astype(np.float32) for a in self.structure]
-        return [Point(a[0], a[1]) for a in ans]
+    # @functools.cached_property
+    # def points(self):
+    #     ans = [a.astype(np.float32) for a in self.structure]
+    #     return [Point(a[0], a[1]) for a in ans]
 
     @functools.cached_property
     def aabb(self) -> BBox:

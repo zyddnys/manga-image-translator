@@ -5,9 +5,9 @@ from argparse import Namespace
 
 from .manga_translator import (
     MangaTranslator,
-    MangaTranslatorAPI,
     MangaTranslatorWeb,
     MangaTranslatorWS,
+    MangaTranslatorAPI,
     set_main_logger,
 )
 from .args import parser
@@ -42,10 +42,6 @@ async def dispatch(args: Namespace):
             for path in natural_sort(args.input):
                 await translator.translate_path(path, dest, args_dict)
 
-    elif args.mode == 'api':
-        translator = MangaTranslatorAPI(args_dict)
-        await translator.listen(args_dict)
-
     elif args.mode == 'web':
         from .server.web_main import dispatch
         await dispatch(args.host, args.port, translation_params=args_dict)
@@ -56,6 +52,10 @@ async def dispatch(args: Namespace):
 
     elif args.mode == 'ws':
         translator = MangaTranslatorWS(args_dict)
+        await translator.listen(args_dict)
+
+    elif args.mode == 'api':
+        translator = MangaTranslatorAPI(args_dict)
         await translator.listen(args_dict)
 
 if __name__ == '__main__':

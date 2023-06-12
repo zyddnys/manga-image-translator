@@ -78,7 +78,7 @@ class CommonDetector(InfererModule):
         new_image[y:y+old_h, x:x+old_w] = image
         return new_image
 
-    def _remove_border(self, image: np.ndarray, old_w: int, old_h: int, text_regions, raw_mask, mask):
+    def _remove_border(self, image: np.ndarray, old_w: int, old_h: int, textlines: List[Quadrilateral], raw_mask, mask):
         new_h, new_w = image.shape[:2]
         raw_mask = cv2.resize(raw_mask, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
         raw_mask = raw_mask[:old_h, :old_w]
@@ -88,16 +88,14 @@ class CommonDetector(InfererModule):
 
         # Filter out regions within the border and clamp the points of the remaining regions
         new_text_regions = []
-        for region in text_regions:
-            if region.xyxy[0] >= old_w and region.xyxy[1] >= old_h:
+        for txtln in textlines:
+            if txtln.xyxy[0] >= old_w and txtln.xyxy[1] >= old_h:
                 continue
-            region.xyxy[2] = min(region.xyxy[2], old_w)
-            region.xyxy[3] = min(region.xyxy[3], old_h)
-            for line in region.lines:
-                for pt in line:
-                    pt[0] = min(pt[0], old_w)
-                    pt[1] = min(pt[1], old_h)
-            new_text_regions.append(region)
+            points = txtln.pts
+            points[:,0] = np.clip(points[:,0], 0, old_w)
+            points[:,1] = np.clip(points[:,1], 0, old_h)
+            new_txtln = Quadrilateral(points, txtln.text, txtln.prob)
+            new_text_regions.append(new_txtln)
         return new_text_regions, raw_mask, mask
 
     def _add_rotation(self, image: np.ndarray):
@@ -109,9 +107,9 @@ class CommonDetector(InfererModule):
             mask = np.ascontiguousarray(np.rot90(mask).astype(np.uint8))
 
         for i, txtln in enumerate(textlines):
-            rot_lines = txtln.pts[:,[1,0]]
-            rot_lines[:,1] = -rot_lines[:,1] + img_h
-            textlines[i] = Quadrilateral(rot_lines, '', txtln.prob)
+            rotated_pts = txtln.pts[:,[1,0]]
+            rotated_pts[:,1] = -rotated_pts[:,1] + img_h
+            textlines[i] = Quadrilateral(rotated_pts, txtln.text, txtln.prob)
         return textlines, raw_mask, mask
 
     def _add_invertion(self, image: np.ndarray):
