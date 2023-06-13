@@ -172,6 +172,8 @@ class MangaTranslator():
 
         try:
             img = Image.open(path)
+            img.verify()
+            img = Image.open(path)
         except Exception:
             logger.warn(f'Failed to open image: {path}')
             return False

@@ -87,7 +87,7 @@ class CommonDetector(InfererModule):
             mask = mask[:old_h, :old_w]
 
         # Filter out regions within the border and clamp the points of the remaining regions
-        new_text_regions = []
+        new_textlines = []
         for txtln in textlines:
             if txtln.xyxy[0] >= old_w and txtln.xyxy[1] >= old_h:
                 continue
@@ -95,8 +95,8 @@ class CommonDetector(InfererModule):
             points[:,0] = np.clip(points[:,0], 0, old_w)
             points[:,1] = np.clip(points[:,1], 0, old_h)
             new_txtln = Quadrilateral(points, txtln.text, txtln.prob)
-            new_text_regions.append(new_txtln)
-        return new_text_regions, raw_mask, mask
+            new_textlines.append(new_txtln)
+        return new_textlines, raw_mask, mask
 
     def _add_rotation(self, image: np.ndarray):
         return np.rot90(image, k=-1)
