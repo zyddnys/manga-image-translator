@@ -204,6 +204,69 @@ DEEPL_AUTH_KEY=xxxxxxxx...
 
 - Sugoi is created by mingshiba, please support him in https://www.patreon.com/mingshiba
 
+#### GPT Config Reference
+
+Used by the `--gpt-config` argument.
+
+```yaml
+# The prompt being feed into GPT before the text to translate.
+# Use {to_lang} to indicate where the target language name should be inserted.
+# Note: ChatGPT models don't use this prompt.
+prompt_template: >
+  Please help me to translate the following text from a manga to {to_lang}
+  (if it's already in {to_lang} or looks like gibberish you have to output it as it is instead):\n
+
+# What sampling temperature to use, between 0 and 2.
+# Higher values like 0.8 will make the output more random,
+# while lower values like 0.2 will make it more focused and deterministic.
+temperature: 0.5
+
+# An alternative to sampling with temperature, called nucleus sampling,
+# where the model considers the results of the tokens with top_p probability mass.
+# So 0.1 means only the tokens comprising the top 10% probability mass are considered.
+top_p: 1
+
+# The prompt being feed into ChatGPT before the text to translate.
+# Use {to_lang} to indicate where the target language name should be inserted.
+# Tokens used in this example: 62+
+chat_system_template: >
+  You are a professional translation engine,
+  please translate the text into a colloquial, elegant and fluent content,
+  without referencing machine translations.
+  You must only translate the text content, never interpret it.
+  If there's any issue in the text, output the text as is.
+
+  Translate to {to_lang}.
+
+# Samples being feed into ChatGPT to show an example conversation.
+# In a [prompt, response] format, keyed by the target language name.
+#
+# Generally, samples should include some examples of translation preferences, and ideally
+# some names of characters it's likely to encounter. Like the "ちゃん" -> "酱" preference,
+# and the "ふたり" -> "二里" name as shown below.
+#
+# If you'd like to disable this feature, just set this to an empty list.
+chat_sample:
+  Simplified Chinese: # Tokens used in this example: 161 + 171
+    - <|1|>二人のちゅーを 目撃した ぼっちちゃん
+      <|2|>ふたりさん
+      <|3|>大好きなお友達には あいさつ代わりに ちゅーするんだって
+      <|4|>アイス あげた
+      <|5|>喜多ちゃんとは どどど どういった ご関係なのでしようか...
+      <|6|>テレビで見た！
+    - <|1|>小孤独目击了两人的接吻
+      <|2|>二里酱
+      <|3|>我听说人们会把亲吻作为与喜爱的朋友打招呼的方式
+      <|4|>我给了她冰激凌
+      <|5|>喜多酱和你是怎么样的关系啊...
+      <|6|>我在电视上看到的！
+
+# Overwrite configs for a specific model.
+# For now the list is: gpt3, gpt35, gpt4
+gpt35:
+  temperature: 0.3
+```
+
 ### Language Code Reference
 
 Used by the `--target-lang` or `-l` argument.
@@ -239,7 +302,7 @@ VIN: Vietnames
 -m, --mode {demo,batch,web,web_client,ws,api}
                                              Run demo in single image demo mode (demo), batch
                                              translation mode (batch), web service mode (web)
--i, --input INPUT                            Path to an image file if using demo mode, or path to an
+-i, --input INPUT [INPUT ...]                Path to an image file if using demo mode, or path to an
                                              image folder if using batch mode
 -o, --dest DEST                              Path to the destination folder for translated images in
                                              batch mode
@@ -307,10 +370,7 @@ VIN: Vietnames
 --manga2eng                                  Render english text translated from manga with some
                                              additional typesetting. Ignores some other argument
                                              options
---chatgpt-prompt-file CHATGPT_PROMPT_FILE    Prepends contents of the specified file to the chatgpt
-                                             prompt. Denote the target language with "{lang}"
---chatgpt-temperature CHATGPT_TEMPERATURE    The chatgpt temperature. 0 is the most strict setting
-                                             and 1 is the most creative. Default is 0.3.
+--gpt-config GPT_CONFIG                      Path to GPT config file, more info in README
 --mtpe                                       Turn on/off machine translation post editing (MTPE) on
                                              the command line (works only on linux right now)
 --save-text                                  Save extracted text and translations into a text file.

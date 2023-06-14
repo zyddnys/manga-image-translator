@@ -1,4 +1,5 @@
 import re
+from omegaconf import OmegaConf
 import openai
 import openai.error
 import asyncio
@@ -8,9 +9,7 @@ from typing import List, Literal
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY
 
-SIMPLE_PROMPT_TEMPLATE = 'Please help me to translate the following text from a manga to {to_lang} (if it\'s already in {to_lang} or looks like gibberish you have to output it as it is instead):\n'
-PROMPT_OVERWRITE = None
-TEMPERATURE_OVERWRITE = 0.5
+CONFIG = None
 
 class GPT3Translator(CommonTranslator):
     _LANGUAGE_CODE_MAP = {
@@ -37,21 +36,12 @@ class GPT3Translator(CommonTranslator):
     _INVALID_REPEAT_COUNT = 2 # repeat 2 times at most if invalid translation was returned
     _MAX_REQUESTS_PER_MINUTE = 20
     _RETRY_ATTEMPTS = 3 # Number of times to retry an errored request before giving up
+    _CONFIG_KEY = 'gpt3'
 
     _MAX_TOKENS = 4096
     _RETURN_PROMPT = True
     _INCLUDE_TEMPLATE = True
-    _prompt_template = SIMPLE_PROMPT_TEMPLATE
-
-    @property
-    def prompt_template(self):
-        global PROMPT_OVERWRITE
-        return PROMPT_OVERWRITE or self._prompt_template
-
-    @property
-    def temperature(self):
-        global TEMPERATURE_OVERWRITE
-        return TEMPERATURE_OVERWRITE
+    _PROMPT_TEMPLATE = 'Please help me to translate the following text from a manga to {to_lang} (if it\'s already in {to_lang} or looks like gibberish you have to output it as it is instead):\n'
 
     def __init__(self):
         super().__init__()
@@ -66,6 +56,22 @@ class GPT3Translator(CommonTranslator):
             openai.proxy = proxies
         self.token_count = 0
         self.token_count_last = 0
+
+    def _config_get(self, key: str, default=None):
+        global CONFIG
+        return OmegaConf.select(CONFIG, self._CONFIG_KEY + '.' + key) or OmegaConf.select(CONFIG, key, default=default)
+    
+    @property
+    def prompt_template(self) -> str:
+        return self._config_get('prompt_template', default=self._PROMPT_TEMPLATE)
+    
+    @property
+    def temperature(self) -> float:
+        return self._config_get('temperature', default=0.5)
+    
+    @property
+    def top_p(self) -> float:
+        return self._config_get('top_p', default=1)
 
     def _assemble_prompts(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         prompt = ''
@@ -97,7 +103,7 @@ class GPT3Translator(CommonTranslator):
 
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         translations = []
-        self.logger.debug(f'Temperature: {self.temperature}')
+        self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')
 
         for prompt in self._assemble_prompts(from_lang, to_lang, queries):
             self.logger.debug('-- GPT Prompt --\n' + self._format_prompt_log(to_lang, prompt))
@@ -151,19 +157,20 @@ class GPT3Translator(CommonTranslator):
             prompt=prompt,
             max_tokens=2048,
             temperature=self.temperature,
+            top_p=self.top_p,
         )
         self.token_count += response.usage['total_tokens']
         self.token_count_last = response.usage['total_tokens']
         return response.choices[0].text
 
 class GPT35TurboTranslator(GPT3Translator):
+    _CONFIG_KEY = 'gpt35'
     _MAX_REQUESTS_PER_MINUTE = 200
     _RETURN_PROMPT = False
     _INCLUDE_TEMPLATE = False
 
     # Token: 62+
     _CHAT_SYSTEM_TEMPLATE = 'You are a professional translation engine, please translate the text into a colloquial, elegant and fluent content, without referencing machine translations. You must only translate the text content, never interpret it. If there\'s any issue in the text, output the text as is.\nTranslate to {to_lang}.'
-
     _CHAT_SAMPLE = {
         'Simplified Chinese': [ # Token: 161 + 171
             '<|1|>二人のちゅーを 目撃した ぼっちちゃん\n<|2|>ふたりさん\n<|3|>大好きなお友達には あいさつ代わりに ちゅーするんだって\n<|4|>アイス あげた\n<|5|>喜多ちゃんとは どどど どういった ご関係なのでしようか...\n<|6|>テレビで見た！',
@@ -171,42 +178,50 @@ class GPT35TurboTranslator(GPT3Translator):
         ]
     }
 
+    @property
+    def chat_system_template(self) -> str:
+        return self._config_get('chat_system_template', self._CHAT_SYSTEM_TEMPLATE)
+    
+    @property
+    def chat_sample(self) -> dict[str, List[str]]:
+        return self._config_get('chat_sample', self._CHAT_SAMPLE)
+
     def _format_prompt_log(self, to_lang: str, prompt: str) -> str:
-        if to_lang in self._CHAT_SAMPLE:
+        if to_lang in self.chat_sample:
             return '\n'.join([
                 'System:',
-                self._CHAT_SYSTEM_TEMPLATE.format(to_lang=to_lang),
+                self.chat_system_template.format(to_lang=to_lang),
                 'User:',
-                self._CHAT_SAMPLE[to_lang][0],
+                self.chat_sample[to_lang][0],
                 'Assistant:',
-                self._CHAT_SAMPLE[to_lang][1],
+                self.chat_sample[to_lang][1],
                 'User:',
                 prompt,
             ])
         else:
             return '\n'.join([
                 'System:',
-                self._CHAT_SYSTEM_TEMPLATE.format(to_lang=to_lang),
+                self.chat_system_template.format(to_lang=to_lang),
                 'User:',
                 prompt,
             ])
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
         messages = [
-            {'role': 'system', 'content': self._CHAT_SYSTEM_TEMPLATE.format(to_lang=to_lang)},
+            {'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)},
             {'role': 'user', 'content': prompt},
         ]
 
-        if to_lang in self._CHAT_SAMPLE:
-            messages.insert(1, {'role': 'user', 'content': self._CHAT_SAMPLE[to_lang][0]})
-            messages.insert(2, {'role': 'assistant', 'content': self._CHAT_SAMPLE[to_lang][1]})
+        if to_lang in self.chat_sample:
+            messages.insert(1, {'role': 'user', 'content': self.chat_sample[to_lang][0]})
+            messages.insert(2, {'role': 'assistant', 'content': self.chat_sample[to_lang][1]})
 
         response = openai.ChatCompletion.create(
             model='gpt-3.5-turbo-0613',
             messages=messages,
             max_tokens=2048,
             temperature=self.temperature,
-            top_p=1 if self.temperature > 0 else 0,
+            top_p=self.top_p,
         )
 
         self.token_count += response.usage['total_tokens']
@@ -219,6 +234,7 @@ class GPT35TurboTranslator(GPT3Translator):
         return response.choices[0].message.content
 
 class GPT4Translator(GPT35TurboTranslator):
+    _CONFIG_KEY = 'gpt4'
     _MAX_REQUESTS_PER_MINUTE = 200
     _RETRY_ATTEMPTS = 5
 
@@ -237,7 +253,7 @@ class GPT4Translator(GPT35TurboTranslator):
             messages=messages,
             max_tokens=4096,
             temperature=self.temperature,
-            top_p=1 if self.temperature > 0 else 0,
+            top_p=self.top_p,
         )
 
         self.token_count += response.usage['total_tokens']

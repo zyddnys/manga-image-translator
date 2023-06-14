@@ -134,8 +134,7 @@ g.add_argument('--uppercase', action='store_true', help='Change text to uppercas
 g.add_argument('--lowercase', action='store_true', help='Change text to lowercase')
 
 parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some additional typesetting. Ignores some other argument options')
-parser.add_argument('--chatgpt-prompt-file', type=file_path, help='Prepends contents of the specified file to the chatgpt prompt. Denote the target language with "{lang}"')
-parser.add_argument('--chatgpt-temperature', default=0.3, type=float, help='The chatgpt temperature. 0 is the most strict setting and 1 is the most creative. Default is 0.3.')
+parser.add_argument('--gpt-config', type=file_path, help='Path to GPT config file, more info in README')
 parser.add_argument('--mtpe', action='store_true', help='Turn on/off machine translation post editing (MTPE) on the command line (works only on linux right now)')
 
 g = parser.add_mutually_exclusive_group()
