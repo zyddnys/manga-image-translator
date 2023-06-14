@@ -9,5 +9,6 @@ Manga
 Manga-translated
 /models
 .env
-.env.local
+*.local
+*.local.*
 test/testdata/bboxes

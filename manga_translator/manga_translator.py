@@ -2,6 +2,7 @@ import asyncio
 import base64
 import io
 import cv2
+from omegaconf import OmegaConf
 import py3langid as langid
 import requests
 import os
@@ -225,13 +226,9 @@ class MangaTranslator():
         ctx = Context(**params)
         self._preprocess_params(ctx)
 
-        if ctx.chatgpt_prompt_file:
+        if ctx.gpt_config:
             from .translators import chatgpt
-            with open(ctx.chatgpt_prompt_file, 'r') as f:
-                chatgpt.PROMPT_OVERWRITE = f.read()
-        if ctx.chatgpt_temperature:
-            from .translators import chatgpt
-            chatgpt.TEMPERATURE_OVERWRITE = ctx.chatgpt_temperature
+            chatgpt.CONFIG = OmegaConf.load(ctx.gpt_config)
         if ctx.model_dir:
             ModelWrapper._MODEL_DIR = ctx.model_dir
 

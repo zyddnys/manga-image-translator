@@ -105,7 +105,7 @@ VIN: Vietnames
 -m, --mode {demo,batch,web,web_client,ws,api}
                                              Run demo in single image demo mode (demo), batch
                                              translation mode (batch), web service mode (web)
--i, --input INPUT                            Path to an image file if using demo mode, or path to an
+-i, --input INPUT [INPUT ...]                Path to an image file if using demo mode, or path to an
                                              image folder if using batch mode
 -o, --dest DEST                              Path to the destination folder for translated images in
                                              batch mode
@@ -173,10 +173,7 @@ VIN: Vietnames
 --manga2eng                                  Render english text translated from manga with some
                                              additional typesetting. Ignores some other argument
                                              options
---chatgpt-prompt-file CHATGPT_PROMPT_FILE    Prepends contents of the specified file to the chatgpt
-                                             prompt. Denote the target language with "{lang}"
---chatgpt-temperature CHATGPT_TEMPERATURE    The chatgpt temperature. 0 is the most strict setting
-                                             and 1 is the most creative. Default is 0.3.
+--gpt-config GPT_CONFIG                      Path to GPT config file, more info in README
 --mtpe                                       Turn on/off machine translation post editing (MTPE) on
                                              the command line (works only on linux right now)
 --save-text                                  Save extracted text and translations into a text file.
