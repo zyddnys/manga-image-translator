@@ -83,21 +83,24 @@ class GPT3Translator(CommonTranslator):
             if self._MAX_TOKENS * 2 and len(''.join(queries[i+1:])) > self._MAX_TOKENS:
                 if self._RETURN_PROMPT:
                     prompt += '\n<|1|>'
-                yield prompt
+                yield prompt.lstrip()
                 prompt = self.prompt_template.format(to_lang=to_lang)
                 # Restart counting at 1
                 i_offset = i + 1
 
         if self._RETURN_PROMPT:
             prompt += '\n<|1|>'
-        yield prompt
+        yield prompt.lstrip()
+
+    def _format_prompt_log(self, to_lang: str, prompt: str) -> str:
+        return prompt
 
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         translations = []
         self.logger.debug(f'Temperature: {self.temperature}')
 
         for prompt in self._assemble_prompts(from_lang, to_lang, queries):
-            self.logger.debug('-- GPT Prompt --\n' + prompt)
+            self.logger.debug('-- GPT Prompt --\n' + self._format_prompt_log(to_lang, prompt))
 
             ratelimit_attempt = 0
             server_error_attempt = 0
@@ -158,14 +161,35 @@ class GPT35TurboTranslator(GPT3Translator):
     _RETURN_PROMPT = False
     _INCLUDE_TEMPLATE = False
 
+    # Token: 62+
     _CHAT_SYSTEM_TEMPLATE = 'You are a professional translation engine, please translate the text into a colloquial, elegant and fluent content, without referencing machine translations. You must only translate the text content, never interpret it. If there\'s any issue in the text, output the text as is.\nTranslate to {to_lang}.'
 
     _CHAT_SAMPLE = {
-        'Simplified Chinese': [
+        'Simplified Chinese': [ # Token: 161 + 171
             '<|1|>二人のちゅーを 目撃した ぼっちちゃん\n<|2|>ふたりさん\n<|3|>大好きなお友達には あいさつ代わりに ちゅーするんだって\n<|4|>アイス あげた\n<|5|>喜多ちゃんとは どどど どういった ご関係なのでしようか...\n<|6|>テレビで見た！',
             '<|1|>小孤独目击了两人的接吻\n<|2|>二里酱\n<|3|>我听说人们会把亲吻作为与喜爱的朋友打招呼的方式\n<|4|>我给了她冰激凌\n<|5|>喜多酱和你是怎么样的关系啊...\n<|6|>我在电视上看到的！'
         ]
     }
+
+    def _format_prompt_log(self, to_lang: str, prompt: str) -> str:
+        if to_lang in self._CHAT_SAMPLE:
+            return '\n'.join([
+                'System:',
+                self._CHAT_SYSTEM_TEMPLATE.format(to_lang=to_lang),
+                'User:',
+                self._CHAT_SAMPLE[to_lang][0],
+                'Assistant:',
+                self._CHAT_SAMPLE[to_lang][1],
+                'User:',
+                prompt,
+            ])
+        else:
+            return '\n'.join([
+                'System:',
+                self._CHAT_SYSTEM_TEMPLATE.format(to_lang=to_lang),
+                'User:',
+                prompt,
+            ])
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
         messages = [
