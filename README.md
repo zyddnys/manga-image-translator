@@ -243,7 +243,7 @@ chat_system_template: >
 #
 # Generally, samples should include some examples of translation preferences, and ideally
 # some names of characters it's likely to encounter. Like the "ちゃん" -> "酱" preference,
-# and the "ふたり" -> "二里" name as shown below.
+# and the "ぼっちちゃん" -> "小孤独" name as shown below.
 #
 # If you'd like to disable this feature, just set this to an empty list.
 chat_sample:
