@@ -12,3 +12,9 @@ Manga-translated
 *.local
 *.local.*
 test/testdata/bboxes
+.idea
+pyvenv.cfg
+Scripts
+Lib
+include
+share
