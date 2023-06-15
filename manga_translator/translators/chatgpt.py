@@ -59,8 +59,10 @@ class GPT3Translator(CommonTranslator):
 
     def _config_get(self, key: str, default=None):
         global CONFIG
-        return OmegaConf.select(CONFIG, self._CONFIG_KEY + '.' + key) or OmegaConf.select(CONFIG, key, default=default)
-    
+        if CONFIG is None:
+            return default
+        return CONFIG.get(self._CONFIG_KEY + '.' + key, CONFIG.get(key, default))
+
     @property
     def prompt_template(self) -> str:
         return self._config_get('prompt_template', default=self._PROMPT_TEMPLATE)
