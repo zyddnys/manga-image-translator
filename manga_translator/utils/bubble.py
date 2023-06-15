@@ -1,6 +1,5 @@
 import numpy as np
 import cv2
-import os
 
 def check_color(image):
     """
@@ -24,7 +23,7 @@ def check_color(image):
         return True
     return False
 
-def is_ignore(region_img):
+def is_ignore(region_img,ignore_bubble = 0):
     """
     Principle: Normally, white bubbles and their text boxes are mostly white, while black bubbles and their text boxes are mostly black. We calculate the ratio of white or black pixels around the text block to the total pixels, and judge whether the area is a normal bubble area or not. Based on the value of the --ingore-bubble parameter, if the ratio is greater than the base value and less than (100-base value), then it is considered a non-bubble area.
     The normal range for ingore-bubble is 1-50, and other values are considered not input. The recommended value for ingore-bubble is 10. The smaller it is, the more likely it is to recognize normal bubbles as image text and skip them. The larger it is, the more likely it is to recognize image text as normal bubbles.
@@ -40,11 +39,8 @@ def is_ignore(region_img):
 
     last determine if there is color, consider the colored text as invalid information and skip it without translation
     """
-    ignore_bubble=int(os.environ['ignore_bubble'])
-
     if ignore_bubble<1 or ignore_bubble>50:
         return  False
-
     _, binary_raw_mask = cv2.threshold(region_img, 127, 255, cv2.THRESH_BINARY)
     height, width = binary_raw_mask.shape[:2]
 

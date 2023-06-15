@@ -5,9 +5,10 @@ import numpy as np
 # from functools import reduce
 
 from .text_mask_utils import complete_mask_fill, filter_masks, complete_mask
-from ..utils import TextBlock, Quadrilateral, is_ignore
+from ..utils import TextBlock, Quadrilateral
+from ..utils.bubble import is_ignore
 
-async def dispatch(text_regions: List[TextBlock], raw_image: np.ndarray, raw_mask: np.ndarray, method: str = 'fit_text', verbose: bool = False) -> np.ndarray:
+async def dispatch(text_regions: List[TextBlock], raw_image: np.ndarray, raw_mask: np.ndarray, method: str = 'fit_text', verbose: bool = False, ignore_bubble: int = 0) -> np.ndarray:
     img_resized = cv2.resize(raw_image, (raw_image.shape[1] // 2, raw_image.shape[0] // 2), interpolation = cv2.INTER_LINEAR)
     mask_resized = cv2.resize(raw_mask, (raw_image.shape[1] // 2, raw_image.shape[0] // 2), interpolation = cv2.INTER_LINEAR)
 
@@ -33,8 +34,6 @@ async def dispatch(text_regions: List[TextBlock], raw_image: np.ndarray, raw_mas
     else:
         final_mask = np.zeros((raw_image.shape[0], raw_image.shape[1]), dtype = np.uint8)
 
-    ignore_bubble=int(os.environ['ignore_bubble'])
-
     if ignore_bubble<1 or ignore_bubble>50:
         return final_mask
 
@@ -51,6 +50,6 @@ async def dispatch(text_regions: List[TextBlock], raw_image: np.ndarray, raw_mas
         cv2.rectangle(temp_mask, (x, y), (x + w, y + h), 255, -1)
         # get textblock
         textblock=cv2.bitwise_and(raw_image, raw_image, mask=temp_mask)
-        if is_ignore(textblock):
+        if is_ignore(textblock, ignore_bubble):
             cv2.drawContours(final_mask, [cnt], -1, 0, -1)
     return final_mask
