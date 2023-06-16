@@ -65,8 +65,8 @@ class JPGFormat(ExportFormat):
 #     def _save(self, result: Image.Image, dest: str, ctx: Context):
 #         ...
 
-class SvgFormat(ExportFormat):
-    SUPPORTED_FORMATS = ['svg']
+class MitFormat(ExportFormat):
+    SUPPORTED_FORMATS = ['svg', 'pdf']
 
     def _save(self, result: Image.Image, dest: str, ctx: Context):
         import mit_tools
@@ -78,4 +78,6 @@ class SvgFormat(ExportFormat):
             color = region.fg_colors[0] << 16 | region.fg_colors[1] << 8 | region.fg_colors[2]
             renderer.add_text(region.translation, tuple(region.xywh), region.font_size, region.alignment, region.alignment, color)
 
-        renderer.save(dest, img.shape[1], img.shape[0], 'svg')
+        _, ext = os.path.splitext(dest)
+        ext = ext[1:] if not ext == '.pdf' else 'pdf false'
+        renderer.save(dest, img.shape[1], img.shape[0], ext)
