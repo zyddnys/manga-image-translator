@@ -157,7 +157,7 @@ class GPT3Translator(CommonTranslator):
         response = openai.Completion.create(
             model='text-davinci-003',
             prompt=prompt,
-            max_tokens=2048,
+            max_tokens=self._MAX_TOKENS // 2, # Assuming that half of the tokens are used for the query
             temperature=self.temperature,
             top_p=self.top_p,
         )
@@ -221,7 +221,7 @@ class GPT35TurboTranslator(GPT3Translator):
         response = openai.ChatCompletion.create(
             model='gpt-3.5-turbo-0613',
             messages=messages,
-            max_tokens=2048,
+            max_tokens=self._MAX_TOKENS // 2,
             temperature=self.temperature,
             top_p=self.top_p,
         )
@@ -239,6 +239,7 @@ class GPT4Translator(GPT35TurboTranslator):
     _CONFIG_KEY = 'gpt4'
     _MAX_REQUESTS_PER_MINUTE = 200
     _RETRY_ATTEMPTS = 5
+    _MAX_TOKENS = 8192
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
         messages = [
@@ -253,7 +254,7 @@ class GPT4Translator(GPT35TurboTranslator):
         response = openai.ChatCompletion.create(
             model='gpt-4-0613',
             messages=messages,
-            max_tokens=4096,
+            max_tokens=self._MAX_TOKENS // 2,
             temperature=self.temperature,
             top_p=self.top_p,
         )
