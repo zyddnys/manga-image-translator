@@ -293,7 +293,7 @@ UKR: Ukrainian
 VIN: Vietnames
 ```
 
-<!-- Auto generated start -->
+<!-- Auto generated start (See devscripts/make_readme.py) -->
 
 ## Options
 

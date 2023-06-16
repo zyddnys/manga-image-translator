@@ -97,7 +97,7 @@ TRK: Turkish
 VIN: Vietnames
 ```
 
-<!-- Auto generated start -->
+<!-- Auto generated start (See devscripts/make_readme.py) -->
 ## 选项
 
 ```text
