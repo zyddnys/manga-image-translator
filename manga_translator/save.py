@@ -1,8 +1,9 @@
 import os
 from PIL import Image
 from abc import abstractmethod
+import numpy as np
 
-from .utils import Context
+from .utils import Context, TextBlock
 
 
 class FormatNotSupportedException(Exception):
@@ -64,6 +65,17 @@ class JPGFormat(ExportFormat):
 #     def _save(self, result: Image.Image, dest: str, ctx: Context):
 #         ...
 
-# class SvgFormat(TranslationExportFormat):
-#     SUPPORTED_FORMATS = ['svg']
+class SvgFormat(ExportFormat):
+    SUPPORTED_FORMATS = ['svg']
 
+    def _save(self, result: Image.Image, dest: str, ctx: Context):
+        import mit_tools
+        renderer = mit_tools.PangoRenderer("", False)
+        img = np.asarray(result.convert('RGB'))
+        renderer.set_background(img)
+        for region in ctx.text_regions:
+            region: TextBlock = region
+            color = region.fg_colors[0] << 16 | region.fg_colors[1] << 8 | region.fg_colors[2]
+            renderer.add_text(region.translation, tuple(region.xywh), region.font_size, region.alignment, region.alignment, color)
+
+        renderer.save(dest, img.shape[1], img.shape[0], 'svg')
