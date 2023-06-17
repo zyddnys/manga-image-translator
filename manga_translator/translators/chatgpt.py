@@ -4,7 +4,7 @@ import openai
 import openai.error
 import asyncio
 import time
-from typing import List, Literal
+from typing import List, Dict
 
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY
@@ -185,7 +185,7 @@ class GPT35TurboTranslator(GPT3Translator):
         return self._config_get('chat_system_template', self._CHAT_SYSTEM_TEMPLATE)
     
     @property
-    def chat_sample(self) -> dict[str, List[str]]:
+    def chat_sample(self) -> Dict[str, List[str]]:
         return self._config_get('chat_sample', self._CHAT_SAMPLE)
 
     def _format_prompt_log(self, to_lang: str, prompt: str) -> str:

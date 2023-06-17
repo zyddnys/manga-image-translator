@@ -329,7 +329,7 @@ class Quadrilateral(object):
         self.bg_g = bg_g
         self.bg_b = bg_b
         self.assigned_direction: str = None
-        self.textlines: list[Quadrilateral] = []
+        self.textlines: List[Quadrilateral] = []
 
     @functools.cached_property
     def structure(self) -> List[np.ndarray]:
