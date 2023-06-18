@@ -133,7 +133,7 @@ class GoogleTranslator(CommonTranslator):
 
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
 
-        # Seperate en/ja queries to improve translation quality
+        # Separate en/ja queries to improve translation quality
         langs = ['en', 'ja']
         langid.set_languages(langs)
         lang_to_queries = {l: [] for l in langs}
