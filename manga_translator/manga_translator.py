@@ -51,7 +51,7 @@ from .translators import (
     dispatch as dispatch_translation,
     prepare as prepare_translation,
 )
-from .colorization import dispatch as dispatch_colorization, prepare as preparse_colorization
+from .colorization import dispatch as dispatch_colorization, prepare as prepare_colorization
 from .rendering import dispatch as dispatch_rendering, dispatch_eng_render
 from .save import save_result
 
@@ -252,7 +252,7 @@ class MangaTranslator():
                 await prepare_inpainting(ctx.inpainter, self.device)
                 await prepare_translation(ctx.translator)
                 if ctx.colorizer:
-                    await preparse_colorization(ctx.colorizer)
+                    await prepare_colorization(ctx.colorizer)
 
                 # translate
                 return await self._translate(ctx)
