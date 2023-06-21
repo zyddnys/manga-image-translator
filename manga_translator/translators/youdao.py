@@ -1,5 +1,3 @@
-
-# -*- coding: utf-8 -*-
 import uuid
 import hashlib
 import time
@@ -9,10 +7,12 @@ import time
 from .common import CommonTranslator, InvalidServerResponse, MissingAPIKeyException
 from .keys import YOUDAO_APP_KEY, YOUDAO_SECRET_KEY
 
+
 def sha256_encode(signStr):
     hash_algorithm = hashlib.sha256()
     hash_algorithm.update(signStr.encode('utf-8'))
     return hash_algorithm.hexdigest()
+
 
 class YoudaoTranslator(CommonTranslator):
     _LANGUAGE_CODE_MAP = {
@@ -39,30 +39,28 @@ class YoudaoTranslator(CommonTranslator):
     def __init__(self):
         super().__init__()
         if not YOUDAO_APP_KEY or not YOUDAO_SECRET_KEY:
-            raise MissingAPIKeyException('Please set the YOUDAO_APP_KEY and YOUDAO_SECRET_KEY environment variables before using the youdao translator.')
+            raise MissingAPIKeyException(
+                'Please set the YOUDAO_APP_KEY and YOUDAO_SECRET_KEY environment variables before using the youdao translator.'
+            )
 
     async def _translate(self, from_lang, to_lang, queries):
-        data = {}
-        query_text = '\n'.join(queries)
-        data['from'] = from_lang
-        data['to'] = to_lang
-        data['signType'] = 'v3'
-        curtime = str(int(time.time()))
-        data['curtime'] = curtime
-        salt = str(uuid.uuid1())
-        signStr = YOUDAO_APP_KEY + self._truncate(query_text) + salt + curtime + YOUDAO_SECRET_KEY
-        sign = sha256_encode(signStr)
-        data['appKey'] = YOUDAO_APP_KEY
-        data['q'] = query_text
-        data['salt'] = salt
-        data['sign'] = sign
-        #data['vocabId'] = "您的用户词表ID"
+        data = {
+            'from': from_lang,
+            'to': to_lang,
+            'signType': 'v3',
+            'curtime': int(time.time()),
+            'appKey': YOUDAO_APP_KEY,
+            'q': '\n'.join(queries),
+            'salt': str(uuid.uuid1()),
+            'sign': sha256_encode(YOUDAO_APP_KEY + self._truncate(queries) + str(data['curtime']) + YOUDAO_SECRET_KEY),
+        }
+        # data['vocabId'] = "您的用户词表ID"
 
         result = await self._do_request(data)
         result_list = []
-        if "translation" not in result:
+        if 'translation' not in result:
             raise InvalidServerResponse(f'Youdao returned invalid response: {result}\nAre the API keys set correctly?')
-        for ret in result["translation"]:
+        for ret in result['translation']:
             result_list.extend(ret.split('\n'))
         return result_list
 
@@ -77,3 +75,4 @@ class YoudaoTranslator(CommonTranslator):
         async with aiohttp.ClientSession() as session:
             async with session.post(self._API_URL, data=data, headers=headers) as resp:
                 return await resp.json()
+
