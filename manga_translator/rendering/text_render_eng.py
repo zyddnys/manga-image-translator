@@ -374,7 +374,7 @@ def render_textblock_list_eng(
                 base_length = word_length
         return font_size, sw, line_height, delimiter_len, base_length, word_lengths
 
-    pilimg = Image.fromarray(img)
+    img_pil = Image.fromarray(img)
 
     for region in text_regions:
         words = seg_eng(region.translation)
@@ -386,10 +386,33 @@ def render_textblock_list_eng(
         if ref_textballon:
             assert original_img is not None
             # non-dl textballon segmentation
+            # The larger the aspect ratio the more it should try to enlarge the bubble
             enlarge_ratio = min(max(region.xywh[2] / region.xywh[3], region.xywh[3] / region.xywh[2]) * 1.5, 3)
+
+            # Adjust enlarge_ratio to reduce intersections with neighbouring regions
+            # Its a bit messy though
+            enlarged_xyxy = region.xyxy.copy()
+            w_diff, h_diff = ((region.xywh[2:] * enlarge_ratio) - region.xywh[2:].astype(np.float64)) // 2
+            enlarged_xyxy[:2] -= int(w_diff)
+            enlarged_xyxy[2:] += int(h_diff)
+            for region2 in text_regions:
+                if region is region2:
+                    continue
+                if (region2.xyxy[0] > enlarged_xyxy[0] and region2.xyxy[0] < enlarged_xyxy[2] \
+                    or region2.xyxy[2] > enlarged_xyxy[0] and region2.xyxy[2] < enlarged_xyxy[2]) \
+                    and (region2.xyxy[1] > enlarged_xyxy[1] and region2.xyxy[1] < enlarged_xyxy[3] \
+                    or region2.xyxy[3] > enlarged_xyxy[1] and region2.xyxy[3] < enlarged_xyxy[3]):
+                    # print('Reducing enlarge ratio to prevent intersection')
+                    # print(region.translation, enlarged_xyxy)
+                    # print('>->', region2.translation, region2.xyxy)
+                    enlarge_ratio /= 3
+                    break
+
+            # Extract ballon region
             ballon_mask, xyxy = extract_ballon_region(original_img, region.xywh, enlarge_ratio=enlarge_ratio)
             ballon_area = (ballon_mask > 0).sum()
             rotated, rx, ry = False, 0, 0
+
             if abs(region.angle) > 3:
                 rotated = True
                 region_angle_rad = np.deg2rad(region.angle)
@@ -483,7 +506,7 @@ def render_textblock_list_eng(
                 textlines_image = textlines_image.resize((int(textlines_image.width / resize_ratio), int(textlines_image.height / resize_ratio)))
             abs_x = int(abs_cx - textlines_image.width / 2)
             abs_y = int(abs_cy - textlines_image.height / 2)
-            pilimg.paste(textlines_image, (abs_x, abs_y), mask=textlines_image)
+            img_pil.paste(textlines_image, (abs_x, abs_y), mask=textlines_image)
             # cv2.imshow('ballon_region', ballon_region)
             # cv2.imshow('cropped', original_img[xyxy[1]:xyxy[3], xyxy[0]:xyxy[2]])
             # cv2.imshow('raw_lines', np.array(raw_lines))
@@ -528,4 +551,4 @@ def render_textblock_list_eng(
 
         #     pilimg.paste(textlines_image, (paste_x, paste_y), mask=textlines_image)
 
-    return np.array(pilimg)
+    return np.array(img_pil)
