@@ -333,10 +333,6 @@ class TextBlock(object):
         return 0
 
 
-def textblocks_intersect(self, region1: TextBlock, region2: TextBlock) -> bool:
-    ...
-
-
 def rotate_polygons(center, polygons, rotation, new_center=None, to_int=True):
     if rotation == 0:
         return polygons

@@ -5,7 +5,7 @@ from typing import List, Tuple
 
 from .text_render import get_char_glyph, put_char_horizontal, add_color
 from .ballon_extractor import extract_ballon_region
-from ..utils import TextBlock
+from ..utils import TextBlock, rect_distance
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -344,7 +344,6 @@ def render_textblock_list_eng(
     size_tol: float = 1.0,
     ballonarea_thresh: float = 2,
     downscale_constraint: float = 0.7,
-    ref_textballon: bool = True,
     original_img: np.ndarray = None,
 ) -> np.ndarray:
 
@@ -376,6 +375,43 @@ def render_textblock_list_eng(
 
     img_pil = Image.fromarray(img)
 
+
+    # Initialize enlarge ratios
+    for region in text_regions:
+        region.enlarge_ratio = 1
+        region.enlarged_xyxy = region.xyxy.copy()
+
+    def update_enlarged_xyxy(region):
+        region.enlarged_xyxy = region.xyxy.copy()
+        w_diff, h_diff = ((region.xywh[2:] * region.enlarge_ratio) - region.xywh[2:].astype(np.float64)) // 2
+        region.enlarged_xyxy[:2] -= int(w_diff)
+        region.enlarged_xyxy[2:] += int(h_diff)
+
+    # Adjust enlarge ratios relative to each other to reduce intersections
+    for region in text_regions:
+        # If it wasnt changed below already
+        if region.enlarge_ratio == 1:
+            # The larger the aspect ratio the more it should try to enlarge the bubble
+            region.enlarge_ratio = min(max(region.xywh[2] / region.xywh[3], region.xywh[3] / region.xywh[2]) * 1.5, 3)
+            update_enlarged_xyxy(region)
+
+        for region2 in text_regions:
+            if region is region2:
+                continue
+
+            if rect_distance(*region.enlarged_xyxy, *region2.enlarged_xyxy) == 0: # if intersect
+                # Get prior distance and adjust both enlargement ratios accordingly
+                d = rect_distance(*region.xyxy, *region2.xyxy)
+                l1 = (region.xywh[2] + region.xywh[3]) / 2
+                l2 = (region2.xywh[2] + region2.xywh[3]) / 2
+                region.enlarge_ratio = d / l1 + 1
+                region2.enlarge_ratio = d / l2 + 1
+                update_enlarged_xyxy(region)
+                update_enlarged_xyxy(region2)
+                # print('Reducing enlarge ratio to prevent intersection')
+                # print(region.translation, region.enlarged_xyxy)
+                # print('>->', region2.translation, region2.enlarged_xyxy)
+
     for region in text_regions:
         words = seg_eng(region.translation)
         if not words:
@@ -383,172 +419,109 @@ def render_textblock_list_eng(
 
         font_size, sw, line_height, delimiter_len, base_length, word_lengths = calculate_font_values(region.font_size, words)
 
-        if ref_textballon:
-            assert original_img is not None
-            # non-dl textballon segmentation
-            # The larger the aspect ratio the more it should try to enlarge the bubble
-            enlarge_ratio = min(max(region.xywh[2] / region.xywh[3], region.xywh[3] / region.xywh[2]) * 1.5, 3)
+        # non-dl textballon segmentation
+        # Extract ballon region
+        ballon_mask, xyxy = extract_ballon_region(original_img, region.xywh, enlarge_ratio=region.enlarge_ratio)
+        ballon_area = (ballon_mask > 0).sum()
+        rotated, rx, ry = False, 0, 0
 
-            # Adjust enlarge_ratio to reduce intersections with neighbouring regions
-            # Its a bit messy though
-            enlarged_xyxy = region.xyxy.copy()
-            w_diff, h_diff = ((region.xywh[2:] * enlarge_ratio) - region.xywh[2:].astype(np.float64)) // 2
-            enlarged_xyxy[:2] -= int(w_diff)
-            enlarged_xyxy[2:] += int(h_diff)
-            for region2 in text_regions:
-                if region is region2:
-                    continue
-                if (region2.xyxy[0] > enlarged_xyxy[0] and region2.xyxy[0] < enlarged_xyxy[2] \
-                    or region2.xyxy[2] > enlarged_xyxy[0] and region2.xyxy[2] < enlarged_xyxy[2]) \
-                    and (region2.xyxy[1] > enlarged_xyxy[1] and region2.xyxy[1] < enlarged_xyxy[3] \
-                    or region2.xyxy[3] > enlarged_xyxy[1] and region2.xyxy[3] < enlarged_xyxy[3]):
-                    # print('Reducing enlarge ratio to prevent intersection')
-                    # print(region.translation, enlarged_xyxy)
-                    # print('>->', region2.translation, region2.xyxy)
-                    enlarge_ratio /= 3
-                    break
+        if abs(region.angle) > 3:
+            rotated = True
+            region_angle_rad = np.deg2rad(region.angle)
+            region_angle_sin = np.sin(region_angle_rad)
+            region_angle_cos = np.cos(region_angle_rad)
+            rotated_ballon_mask = Image.fromarray(ballon_mask).rotate(region.angle, expand=True)
+            rotated_ballon_mask = np.array(rotated_ballon_mask)
 
-            # Extract ballon region
-            ballon_mask, xyxy = extract_ballon_region(original_img, region.xywh, enlarge_ratio=enlarge_ratio)
-            ballon_area = (ballon_mask > 0).sum()
-            rotated, rx, ry = False, 0, 0
+            region.angle %= 360
+            if region.angle > 0 and region.angle <= 90:
+                ry = abs(ballon_mask.shape[1] * region_angle_sin)
+            elif region.angle > 90 and region.angle <= 180:
+                rx = abs(ballon_mask.shape[1] * region_angle_cos)
+                ry = rotated_ballon_mask.shape[0]
+            elif region.angle > 180 and region.angle <= 270:
+                ry = abs(ballon_mask.shape[0] * region_angle_cos)
+                rx = rotated_ballon_mask.shape[1]
+            else:
+                rx = abs(ballon_mask.shape[0] * region_angle_sin)
+            ballon_mask = rotated_ballon_mask
 
-            if abs(region.angle) > 3:
-                rotated = True
-                region_angle_rad = np.deg2rad(region.angle)
-                region_angle_sin = np.sin(region_angle_rad)
-                region_angle_cos = np.cos(region_angle_rad)
-                rotated_ballon_mask = Image.fromarray(ballon_mask).rotate(region.angle, expand=True)
-                rotated_ballon_mask = np.array(rotated_ballon_mask)
+        line_width = sum(word_lengths) + delimiter_len * (len(word_lengths) - 1)
+        region_area = line_width * line_height + delimiter_len * (len(words) - 1) * line_height
+        area_ratio = ballon_area / region_area
+        resize_ratio = 1
+        # if ballon_area is smaller than 2*region_area
+        if area_ratio < ballonarea_thresh:
+            # resize so that it is 2*region_area
+            resize_ratio = ballonarea_thresh / area_ratio
+            ballon_area = int(resize_ratio * ballon_area) # = ballonarea_thresh * line_area
+            resize_ratio = min(np.sqrt(resize_ratio), (1/downscale_constraint)**2)
+            rx *= resize_ratio
+            ry *= resize_ratio
+            ballon_mask = cv2.resize(ballon_mask, (int(resize_ratio * ballon_mask.shape[1]), int(resize_ratio * ballon_mask.shape[0])))
 
-                region.angle %= 360
-                if region.angle > 0 and region.angle <= 90:
-                    ry = abs(ballon_mask.shape[1] * region_angle_sin)
-                elif region.angle > 90 and region.angle <= 180:
-                    rx = abs(ballon_mask.shape[1] * region_angle_cos)
-                    ry = rotated_ballon_mask.shape[0]
-                elif region.angle > 180 and region.angle <= 270:
-                    ry = abs(ballon_mask.shape[0] * region_angle_cos)
-                    rx = rotated_ballon_mask.shape[1]
-                else:
-                    rx = abs(ballon_mask.shape[0] * region_angle_sin)
-                ballon_mask = rotated_ballon_mask
+        # new region bbox
+        region_x, region_y, region_w, region_h = cv2.boundingRect(cv2.findNonZero(ballon_mask))
 
-            line_width = sum(word_lengths) + delimiter_len * (len(word_lengths) - 1)
-            region_area = line_width * line_height + delimiter_len * (len(words) - 1) * line_height
-            area_ratio = ballon_area / region_area
-            resize_ratio = 1
-            # if ballon_area is smaller than 2*region_area
-            if area_ratio < ballonarea_thresh:
-                # resize so that it is 2*region_area
-                resize_ratio = ballonarea_thresh / area_ratio
-                ballon_area = int(resize_ratio * ballon_area) # = ballonarea_thresh * line_area
-                resize_ratio = min(np.sqrt(resize_ratio), (1/downscale_constraint)**2)
-                rx *= resize_ratio
-                ry *= resize_ratio
-                ballon_mask = cv2.resize(ballon_mask, (int(resize_ratio * ballon_mask.shape[1]), int(resize_ratio * ballon_mask.shape[0])))
+        font_size_multiplier = max(region_w / (base_length + 2*sw), downscale_constraint)
+        if font_size_multiplier < 1:
+            font_size = int(font_size * font_size_multiplier)
+            font_size, sw, line_height, delimiter_len, base_length, word_lengths = calculate_font_values(font_size * font_size_multiplier, words)
 
-            # new region bbox
-            region_x, region_y, region_w, region_h = cv2.boundingRect(cv2.findNonZero(ballon_mask))
+        textlines = layout_lines_aligncenter(ballon_mask, words, word_lengths, delimiter_len, line_height, delimiter=delimiter)
 
-            font_size_multiplier = max(region_w / (base_length + 2*sw), downscale_constraint)
-            if font_size_multiplier < 1:
-                font_size = int(font_size * font_size_multiplier)
-                font_size, sw, line_height, delimiter_len, base_length, word_lengths = calculate_font_values(font_size * font_size_multiplier, words)
+        line_cy = np.array([line.pos_y for line in textlines]).mean() + line_height / 2
+        region_cy = region_y + region_h / 2
+        y_offset = int(round(np.clip(region_cy - line_cy, -line_height, line_height)))
 
-            textlines = layout_lines_aligncenter(ballon_mask, words, word_lengths, delimiter_len, line_height, delimiter=delimiter)
+        lines_x1, lines_x2 = [], []
+        for line in textlines:
+            lines_x1.append(line.pos_x)
+            lines_x2.append(max(line.pos_x, 0) + line.length)
+        lines_x1 = np.array(lines_x1)
+        lines_x2 = np.array(lines_x2)
+        canvas_x1, canvas_x2 = lines_x1.min() - sw, lines_x2.max() + sw
+        canvas_y1, canvas_y2 = textlines[0].pos_y - sw, textlines[-1].pos_y + line_height + sw
+        canvas_h = int(canvas_y2 - canvas_y1)
+        canvas_w = int(canvas_x2 - canvas_x1)
+        lines_map = np.zeros_like(ballon_mask, dtype=np.uint8)
+        for line in textlines:
+            # line.pos_y += y_offset
+            cv2.rectangle(lines_map, (line.pos_x - sw, line.pos_y + y_offset), (line.pos_x + line.length + sw, line.pos_y + line_height), 255, -1)
+            line.pos_x -= canvas_x1
+            line.pos_y -= canvas_y1
 
-            line_cy = np.array([line.pos_y for line in textlines]).mean() + line_height / 2
-            region_cy = region_y + region_h / 2
-            y_offset = int(round(np.clip(region_cy - line_cy, -line_height, line_height)))
+        textlines_image = render_lines(textlines, canvas_h, canvas_w, font_size, sw, font_color, stroke_color)
+        rel_cx = ((canvas_x1 + canvas_x2) / 2 - rx) / resize_ratio
+        rel_cy = ((canvas_y1 + canvas_y2) / 2 - ry + y_offset) / resize_ratio
 
-            lines_x1, lines_x2 = [], []
-            for line in textlines:
-                lines_x1.append(line.pos_x)
-                lines_x2.append(max(line.pos_x, 0) + line.length)
-            lines_x1 = np.array(lines_x1)
-            lines_x2 = np.array(lines_x2)
-            canvas_x1, canvas_x2 = lines_x1.min() - sw, lines_x2.max() + sw
-            canvas_y1, canvas_y2 = textlines[0].pos_y - sw, textlines[-1].pos_y + line_height + sw
-            canvas_h = int(canvas_y2 - canvas_y1)
-            canvas_w = int(canvas_x2 - canvas_x1)
-            lines_map = np.zeros_like(ballon_mask, dtype=np.uint8)
-            for line in textlines:
-                # line.pos_y += y_offset
-                cv2.rectangle(lines_map, (line.pos_x - sw, line.pos_y + y_offset), (line.pos_x + line.length + sw, line.pos_y + line_height), 255, -1)
-                line.pos_x -= canvas_x1
-                line.pos_y -= canvas_y1
+        lines_area = np.sum(lines_map)
+        lines_area += (max(0, region_y - canvas_y1) + max(0, canvas_y2 - region_h - region_y)) * canvas_w * 255 \
+                        + (max(0, region_x - canvas_x1) + max(0, canvas_x2 - region_w - region_x)) * canvas_h * 255
 
-            textlines_image = render_lines(textlines, canvas_h, canvas_w, font_size, sw, font_color, stroke_color)
-            rel_cx = ((canvas_x1 + canvas_x2) / 2 - rx) / resize_ratio
-            rel_cy = ((canvas_y1 + canvas_y2) / 2 - ry + y_offset) / resize_ratio
+        valid_lines_ratio = lines_area / np.sum(cv2.bitwise_and(lines_map, ballon_mask))
+        if valid_lines_ratio > 1: # text bbox > ballon area
+            resize_ratio = min(resize_ratio * valid_lines_ratio, (1 / downscale_constraint) ** 2)
 
-            lines_area = np.sum(lines_map)
-            lines_area += (max(0, region_y - canvas_y1) + max(0, canvas_y2 - region_h - region_y)) * canvas_w * 255 \
-                          + (max(0, region_x - canvas_x1) + max(0, canvas_x2 - region_w - region_x)) * canvas_h * 255
+        if rotated:
+            rcx = rel_cx * region_angle_cos - rel_cy * region_angle_sin
+            rcy = rel_cx * region_angle_sin + rel_cy * region_angle_cos
+            rel_cx = rcx
+            rel_cy = rcy
+            textlines_image = textlines_image.rotate(-region.angle, expand=True, resample=Image.BILINEAR)
+            textlines_image = textlines_image.crop(textlines_image.getbbox())
 
-            valid_lines_ratio = lines_area / np.sum(cv2.bitwise_and(lines_map, ballon_mask))
-            if valid_lines_ratio > 1: # text bbox > ballon area
-                resize_ratio = min(resize_ratio * valid_lines_ratio, (1 / downscale_constraint) ** 2)
+        abs_cx = rel_cx + xyxy[0]
+        abs_cy = rel_cy + xyxy[1]
 
-            if rotated:
-                rcx = rel_cx * region_angle_cos - rel_cy * region_angle_sin
-                rcy = rel_cx * region_angle_sin + rel_cy * region_angle_cos
-                rel_cx = rcx
-                rel_cy = rcy
-                textlines_image = textlines_image.rotate(-region.angle, expand=True, resample=Image.BILINEAR)
-                textlines_image = textlines_image.crop(textlines_image.getbbox())
-
-            abs_cx = rel_cx + xyxy[0]
-            abs_cy = rel_cy + xyxy[1]
-
-            if resize_ratio != 1:
-                textlines_image = textlines_image.resize((int(textlines_image.width / resize_ratio), int(textlines_image.height / resize_ratio)))
-            abs_x = int(abs_cx - textlines_image.width / 2)
-            abs_y = int(abs_cy - textlines_image.height / 2)
-            img_pil.paste(textlines_image, (abs_x, abs_y), mask=textlines_image)
-            # cv2.imshow('ballon_region', ballon_region)
-            # cv2.imshow('cropped', original_img[xyxy[1]:xyxy[3], xyxy[0]:xyxy[2]])
-            # cv2.imshow('raw_lines', np.array(raw_lines))
-            # cv2.waitKey(0)
-
-        # else: # older method
-        #     min_bbox = region.min_rect(rotate_back=False)[0]
-        #     bx, by = min_bbox[0]
-        #     bw, bh = min_bbox[2] - min_bbox[0]
-        #     cx, cy = bx + bw / 2, by + bh / 2
-        #     base_length = max(base_length, bw)
-
-        #     pos_x, pos_y = 0, 0
-        #     line = Textline(words[0], 0, 0, wordlengths[0])
-        #     lines = [line]
-        #     for word, wl in zip(words[1:], wordlengths[1:]):
-        #         added_len = int(delimiter_len + wl + line.length)
-        #         if added_len > base_length:
-        #             pos_y += line_height
-        #             line = Textline(word, 0, pos_y, wl)
-        #             lines.append(line)
-        #         else:
-        #             line.text = line.text + ' ' + word
-        #             line.length = added_len
-        #     last_line = lines[-1]
-        #     canvas_h = last_line.pos_y + line_height
-        #     canvas_w = int(base_length)
-
-        #     for line in lines:
-        #         line.pos_x = int((base_length - line.length) / 2) if align_center else 0
-        #     textlines_image = render_lines(lines, canvas_h, canvas_w, font, sw, font_color, stroke_color)
-
-        #     if abs(region.angle) > 3:
-        #         textlines_image = textlines_image.rotate(-region.angle, expand=True)
-        #     im_w, im_h = textlines_image.size
-        #     scale = max(min(bh / im_h * size_tol, bw / im_w * size_tol), downscale_constraint)
-        #     if scale < 1:
-        #         textlines_image = textlines_image.resize((int(im_w*scale), int(im_h*scale)))
-
-        #     im_w, im_h = textlines_image.size
-        #     paste_x, paste_y = int(cx - im_w / 2), int(cy - im_h / 2)
-
-        #     pilimg.paste(textlines_image, (paste_x, paste_y), mask=textlines_image)
+        if resize_ratio != 1:
+            textlines_image = textlines_image.resize((int(textlines_image.width / resize_ratio), int(textlines_image.height / resize_ratio)))
+        abs_x = int(abs_cx - textlines_image.width / 2)
+        abs_y = int(abs_cy - textlines_image.height / 2)
+        img_pil.paste(textlines_image, (abs_x, abs_y), mask=textlines_image)
+        # cv2.imshow('ballon_region', ballon_region)
+        # cv2.imshow('cropped', original_img[xyxy[1]:xyxy[3], xyxy[0]:xyxy[2]])
+        # cv2.imshow('raw_lines', np.array(raw_lines))
+        # cv2.waitKey(0)
 
     return np.array(img_pil)
