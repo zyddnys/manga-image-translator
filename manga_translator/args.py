@@ -1,6 +1,5 @@
 import argparse
 import os
-import glob
 
 from .detection import DETECTORS
 from .ocr import OCRS
@@ -15,7 +14,7 @@ def path(string):
     if not string:
         return ''
     s = os.path.expanduser(string)
-    if not glob.glob(s):
+    if not os.path.exists(s):
         raise argparse.ArgumentTypeError(f'No such file or directory: "{string}"')
     return s
 

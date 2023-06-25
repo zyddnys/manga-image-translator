@@ -11,7 +11,6 @@ import torch
 import time
 import logging
 import numpy as np
-import glob
 from PIL import Image
 from typing import List
 from aiohttp import web
@@ -101,10 +100,9 @@ class MangaTranslator():
         """
         path = os.path.expanduser(path)
         # expand path patterns such as *
-        expanded_paths = glob.glob(path)
-        if not expanded_paths:
+        if not path:
             raise FileNotFoundError(path)
-        expanded_paths = natural_sort(expanded_paths)
+        path = os.path.abspath(path)
         dest = os.path.abspath(os.path.expanduser(dest)) if dest else ''
         params = params or {}
 
@@ -116,55 +114,52 @@ class MangaTranslator():
             elif params.get('format') != 'jpg':
                 raise ValueError('--save-quality of lower than 100 is only supported for .jpg files')
 
-        for path in expanded_paths:
-            path = os.path.abspath(path)
-
-            if os.path.isfile(path):
-                # Determine destination file path
-                if not dest:
-                    # Use the same folder as the source
-                    p, _ = os.path.splitext(path)
-                    _dest = f'{p}-translated.{file_ext}'
-                elif not os.path.basename(dest):
-                    p, _ = os.path.splitext(os.path.basename(path))
-                    # If the folders differ use the original filename from the source
-                    if os.path.dirname(path) != dest:
-                        _dest = os.path.join(dest, f'{p}.{file_ext}')
-                    else:
-                        _dest = os.path.join(dest, f'{p}-translated.{file_ext}')
+        if os.path.isfile(path):
+            # Determine destination file path
+            if not dest:
+                # Use the same folder as the source
+                p, _ = os.path.splitext(path)
+                _dest = f'{p}-translated.{file_ext}'
+            elif not os.path.basename(dest):
+                p, _ = os.path.splitext(os.path.basename(path))
+                # If the folders differ use the original filename from the source
+                if os.path.dirname(path) != dest:
+                    _dest = os.path.join(dest, f'{p}.{file_ext}')
                 else:
-                    p, _ = os.path.splitext(dest)
-                    _dest = f'{p}.{file_ext}'
-                await self._translate_file(path, _dest, params)
+                    _dest = os.path.join(dest, f'{p}-translated.{file_ext}')
+            else:
+                p, _ = os.path.splitext(dest)
+                _dest = f'{p}.{file_ext}'
+            await self._translate_file(path, _dest, params)
 
-            elif os.path.isdir(path):
-                # Determine destination folder path
-                if path[-1] == '\\' or path[-1] == '/':
-                    path = path[:-1]
-                _dest = dest or path + '-translated'
-                if os.path.exists(_dest) and not os.path.isdir(_dest):
-                    raise FileExistsError(_dest)
+        elif os.path.isdir(path):
+            # Determine destination folder path
+            if path[-1] == '\\' or path[-1] == '/':
+                path = path[:-1]
+            _dest = dest or path + '-translated'
+            if os.path.exists(_dest) and not os.path.isdir(_dest):
+                raise FileExistsError(_dest)
 
-                translated_count = 0
-                for root, subdirs, files in os.walk(path):
-                    files = natural_sort(files)
-                    dest_root = replace_prefix(root, path, _dest)
-                    os.makedirs(dest_root, exist_ok=True)
-                    for f in files:
-                        if f.lower() == '.thumb':
-                            continue
+            translated_count = 0
+            for root, subdirs, files in os.walk(path):
+                files = natural_sort(files)
+                dest_root = replace_prefix(root, path, _dest)
+                os.makedirs(dest_root, exist_ok=True)
+                for f in files:
+                    if f.lower() == '.thumb':
+                        continue
 
-                        file_path = os.path.join(root, f)
-                        output_dest = replace_prefix(file_path, path, _dest)
-                        p, _ = os.path.splitext(output_dest)
-                        output_dest = f'{p}.{file_ext}'
+                    file_path = os.path.join(root, f)
+                    output_dest = replace_prefix(file_path, path, _dest)
+                    p, _ = os.path.splitext(output_dest)
+                    output_dest = f'{p}.{file_ext}'
 
-                        if await self._translate_file(file_path, output_dest, params):
-                            translated_count += 1
-                if translated_count == 0:
-                    logger.info('No untranslated files found')
-                else:
-                    logger.info(f'Done. Translated {translated_count} image{"" if translated_count == 1 else "s"}')
+                    if await self._translate_file(file_path, output_dest, params):
+                        translated_count += 1
+            if translated_count == 0:
+                logger.info('No untranslated files found')
+            else:
+                logger.info(f'Done. Translated {translated_count} image{"" if translated_count == 1 else "s"}')
 
     async def _translate_file(self, path: str, dest: str, params: dict):
         if not params.get('overwrite') and os.path.exists(dest):
