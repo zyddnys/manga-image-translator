@@ -111,12 +111,12 @@ class TextBlock(object):
         y1 = self.lines[..., 1].min()
         x2 = self.lines[..., 0].max()
         y2 = self.lines[..., 1].max()
-        return [x1, y1, x2, y2]
+        return np.array([x1, y1, x2, y2]).astype(np.int32)
 
     @cached_property
     def xywh(self):
         x1, y1, x2, y2 = self.xyxy
-        return [x1, y1, x2-x1, y2-y1]
+        return np.array([x1, y1, x2-x1, y2-y1]).astype(np.int32)
 
     @cached_property
     def center(self) -> np.ndarray:

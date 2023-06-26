@@ -10,14 +10,13 @@ class CommonUpscaler(InfererModule):
     async def upscale(self, image_batch: List[Image.Image], upscale_ratio: float) -> List[Image.Image]:
         if upscale_ratio == 1:
             return image_batch
-        if isinstance(self._VALID_UPSCALE_RATIOS, str) :
-            if self._VALID_UPSCALE_RATIOS.startswith('<=') :
-                max_ratio = float(self._VALID_UPSCALE_RATIOS[2:])
-                if upscale_ratio > max_ratio :
-                    self.logger.warn(f'Changed upscale ratio {upscale_ratio} to closest supported value: {max_ratio}')
-                    upscale_ratio = max_ratio
+        if isinstance(self._VALID_UPSCALE_RATIOS, str) and self._VALID_UPSCALE_RATIOS.startswith('<='):
+            max_ratio = float(self._VALID_UPSCALE_RATIOS[2:])
+            if upscale_ratio > max_ratio:
+                self.logger.warn(f'Changed upscale ratio {upscale_ratio} to closest supported value: {max_ratio}')
+                upscale_ratio = max_ratio
         elif self._VALID_UPSCALE_RATIOS and upscale_ratio not in self._VALID_UPSCALE_RATIOS:
-            new_upscale_ratio = min(self._VALID_UPSCALE_RATIOS, key = lambda x: abs(x - upscale_ratio))
+            new_upscale_ratio = min(self._VALID_UPSCALE_RATIOS, key=lambda x: abs(x - upscale_ratio))
             self.logger.warn(f'Changed upscale ratio {upscale_ratio} to closest supported value: {new_upscale_ratio}')
             upscale_ratio = new_upscale_ratio
         return await self._upscale(image_batch, upscale_ratio)
@@ -34,4 +33,14 @@ class OfflineUpscaler(CommonUpscaler, ModelWrapper):
 
     @abstractmethod
     async def _infer(self, image_batch: List[Image.Image], upscale_ratio: float) -> List[Image.Image]:
+        """
+        Perform the actual upscaling of the images.
+
+        Args:
+            image_batch: The list of images to upscale.
+            upscale_ratio: The upscale ratio to use.
+
+        Returns:
+            The list of upscaled images.
+        """
         pass

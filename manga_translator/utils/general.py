@@ -329,7 +329,7 @@ class Quadrilateral(object):
         self.bg_g = bg_g
         self.bg_b = bg_b
         self.assigned_direction: str = None
-        self.textlines: list[Quadrilateral] = []
+        self.textlines: List[Quadrilateral] = []
 
     @functools.cached_property
     def structure(self) -> List[np.ndarray]:
@@ -496,7 +496,7 @@ class Quadrilateral(object):
         return self.distance_impl(other, rho)# + 1000 * abs(self.angle - other.angle)
 
     def distance_impl(self, other, rho = 0.5) -> float:
-        assert self.assigned_direction == other.assigned_direction
+        # assert self.assigned_direction == other.assigned_direction
         #return gjk_distance(self.points, other.points)
         # b1 = self.aabb
         # b2 = b2.aabb

@@ -31,7 +31,7 @@ async def dispatch(args: Namespace):
             raise Exception('No input image was supplied. Use -i <image_path>')
         translator = MangaTranslator(args_dict)
         if args.mode == 'demo':
-            if len(args.input) != 1:
+            if len(args.input) != 1 or not os.path.isfile(args.input[0]):
                 raise FileNotFoundError(f'Invalid single image file path for demo mode: "{" ".join(args.input)}". Use `-m batch`.')
             dest = os.path.join(BASE_PATH, 'result/final.png')
             args.overwrite = True # Do overwrite result/final.png file

@@ -11,7 +11,6 @@ import torch
 import time
 import logging
 import numpy as np
-import glob
 from PIL import Image
 from typing import List
 from aiohttp import web
@@ -35,6 +34,7 @@ from .utils import (
     is_url,
     natural_sort,
     sort_regions,
+    bubble_handel
 )
 
 from .detection import DETECTORS, dispatch as dispatch_detection, prepare as prepare_detection
@@ -51,7 +51,7 @@ from .translators import (
     dispatch as dispatch_translation,
     prepare as prepare_translation,
 )
-from .colorization import dispatch as dispatch_colorization, prepare as preparse_colorization
+from .colorization import dispatch as dispatch_colorization, prepare as prepare_colorization
 from .rendering import dispatch as dispatch_rendering, dispatch_eng_render
 from .save import save_result
 
@@ -78,7 +78,7 @@ class MangaTranslator():
 
         params = params or {}
         # Use environment variables to save thresholds for use in ocr
-        self.ignore_bubble=int(params.get('ignore_bubble', 0))
+        self.only_bubble=params.get('only_bubble', False)
         self.verbose = params.get('verbose', False)
         self.ignore_errors = params.get('ignore_errors', False)
 
@@ -101,10 +101,9 @@ class MangaTranslator():
         """
         path = os.path.expanduser(path)
         # expand path patterns such as *
-        expanded_paths = glob.glob(path)
-        if not expanded_paths:
+        if not path:
             raise FileNotFoundError(path)
-        expanded_paths = natural_sort(expanded_paths)
+        path = os.path.abspath(path)
         dest = os.path.abspath(os.path.expanduser(dest)) if dest else ''
         params = params or {}
 
@@ -116,55 +115,52 @@ class MangaTranslator():
             elif params.get('format') != 'jpg':
                 raise ValueError('--save-quality of lower than 100 is only supported for .jpg files')
 
-        for path in expanded_paths:
-            path = os.path.abspath(path)
-
-            if os.path.isfile(path):
-                # Determine destination file path
-                if not dest:
-                    # Use the same folder as the source
-                    p, _ = os.path.splitext(path)
-                    _dest = f'{p}-translated.{file_ext}'
-                elif not os.path.basename(dest):
-                    p, _ = os.path.splitext(os.path.basename(path))
-                    # If the folders differ use the original filename from the source
-                    if os.path.dirname(path) != dest:
-                        _dest = os.path.join(dest, f'{p}.{file_ext}')
-                    else:
-                        _dest = os.path.join(dest, f'{p}-translated.{file_ext}')
+        if os.path.isfile(path):
+            # Determine destination file path
+            if not dest:
+                # Use the same folder as the source
+                p, _ = os.path.splitext(path)
+                _dest = f'{p}-translated.{file_ext}'
+            elif not os.path.basename(dest):
+                p, _ = os.path.splitext(os.path.basename(path))
+                # If the folders differ use the original filename from the source
+                if os.path.dirname(path) != dest:
+                    _dest = os.path.join(dest, f'{p}.{file_ext}')
                 else:
-                    p, _ = os.path.splitext(dest)
-                    _dest = f'{p}.{file_ext}'
-                await self._translate_file(path, _dest, params)
+                    _dest = os.path.join(dest, f'{p}-translated.{file_ext}')
+            else:
+                p, _ = os.path.splitext(dest)
+                _dest = f'{p}.{file_ext}'
+            await self._translate_file(path, _dest, params)
 
-            elif os.path.isdir(path):
-                # Determine destination folder path
-                if path[-1] == '\\' or path[-1] == '/':
-                    path = path[:-1]
-                _dest = dest or path + '-translated'
-                if os.path.exists(_dest) and not os.path.isdir(_dest):
-                    raise FileExistsError(_dest)
+        elif os.path.isdir(path):
+            # Determine destination folder path
+            if path[-1] == '\\' or path[-1] == '/':
+                path = path[:-1]
+            _dest = dest or path + '-translated'
+            if os.path.exists(_dest) and not os.path.isdir(_dest):
+                raise FileExistsError(_dest)
 
-                translated_count = 0
-                for root, subdirs, files in os.walk(path):
-                    files = natural_sort(files)
-                    dest_root = replace_prefix(root, path, _dest)
-                    os.makedirs(dest_root, exist_ok=True)
-                    for f in files:
-                        if f.lower() == '.thumb':
-                            continue
+            translated_count = 0
+            for root, subdirs, files in os.walk(path):
+                files = natural_sort(files)
+                dest_root = replace_prefix(root, path, _dest)
+                os.makedirs(dest_root, exist_ok=True)
+                for f in files:
+                    if f.lower() == '.thumb':
+                        continue
 
-                        file_path = os.path.join(root, f)
-                        output_dest = replace_prefix(file_path, path, _dest)
-                        p, _ = os.path.splitext(output_dest)
-                        output_dest = f'{p}.{file_ext}'
+                    file_path = os.path.join(root, f)
+                    output_dest = replace_prefix(file_path, path, _dest)
+                    p, _ = os.path.splitext(output_dest)
+                    output_dest = f'{p}.{file_ext}'
 
-                        if await self._translate_file(file_path, output_dest, params):
-                            translated_count += 1
-                if translated_count == 0:
-                    logger.info('No untranslated files found')
-                else:
-                    logger.info(f'Done. Translated {translated_count} image{"" if translated_count == 1 else "s"}')
+                    if await self._translate_file(file_path, output_dest, params):
+                        translated_count += 1
+            if translated_count == 0:
+                logger.info('No untranslated files found')
+            else:
+                logger.info(f'Done. Translated {translated_count} image{"" if translated_count == 1 else "s"}')
 
     async def _translate_file(self, path: str, dest: str, params: dict):
         if not params.get('overwrite') and os.path.exists(dest):
@@ -252,7 +248,7 @@ class MangaTranslator():
                 await prepare_inpainting(ctx.inpainter, self.device)
                 await prepare_translation(ctx.translator)
                 if ctx.colorizer:
-                    await preparse_colorization(ctx.colorizer)
+                    await prepare_colorization(ctx.colorizer)
 
                 # translate
                 return await self._translate(ctx)
@@ -352,9 +348,10 @@ class MangaTranslator():
         if self.verbose:
             bboxes = visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions)
             cv2.imwrite(self._result_path('bboxes.png'), bboxes)
-
-        await self._report_progress('translating')
         ctx.text_regions = await self._run_text_translation(ctx)
+        if self.only_bubble:
+            ctx.text_regions=bubble_handel(ctx.img_rgb[:],ctx.text_regions,self.verbose)
+        await self._report_progress('translating')
 
         if not ctx.text_regions:
             await self._report_progress('error-translating', True)
@@ -372,7 +369,6 @@ class MangaTranslator():
 
         await self._report_progress('inpainting')
         ctx.img_inpainted = await self._run_inpainting(ctx)
-
         if self.verbose:
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR))
 
@@ -400,7 +396,7 @@ class MangaTranslator():
                                         self.device, self.verbose)
 
     async def _run_ocr(self, ctx: Context):
-        textlines = await dispatch_ocr(ctx.ocr, ctx.img_rgb, ctx.textlines, self.device, self.verbose, self.ignore_bubble)
+        textlines = await dispatch_ocr(ctx.ocr, ctx.img_rgb, ctx.textlines, self.device, self.verbose)
 
         # Filter out regions by original text
         new_textlines = []
@@ -450,7 +446,7 @@ class MangaTranslator():
         return new_text_regions
 
     async def _run_mask_refinement(self, ctx: Context):
-        return await dispatch_mask_refinement(ctx.text_regions, ctx.img_rgb, ctx.mask_raw, 'fit_text', self.verbose,self.ignore_bubble)
+        return await dispatch_mask_refinement(ctx.text_regions, ctx.img_rgb, ctx.mask_raw, 'fit_text', self.verbose)
 
     async def _run_inpainting(self, ctx: Context):
         return await dispatch_inpainting(ctx.inpainter, ctx.img_rgb, ctx.mask, ctx.inpainting_size, self.using_cuda, self.verbose)
