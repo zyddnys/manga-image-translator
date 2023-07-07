@@ -1,5 +1,4 @@
 import re
-from omegaconf import OmegaConf
 import openai
 import openai.error
 import asyncio
@@ -33,7 +32,7 @@ class GPT3Translator(CommonTranslator):
         'UKR': 'Ukrainian',
         'VIN': 'Vietnamese',
     }
-    _INVALID_REPEAT_COUNT = 2 # repeat 2 times at most if invalid translation was returned
+    _INVALID_REPEAT_COUNT = 2 # repeat up to 2 times if "invalid" translation was detected
     _MAX_REQUESTS_PER_MINUTE = 20
     _RETRY_ATTEMPTS = 3 # Number of times to retry an errored request before giving up
     _CONFIG_KEY = 'gpt3'
@@ -118,7 +117,7 @@ class GPT3Translator(CommonTranslator):
                 started = time.time()
                 while not request_task.done():
                     await asyncio.sleep(0.1)
-                    if time.time() - started > 30: # Server takes too long to respond
+                    if time.time() - started > 40 + (timeout_attempt * 20): # Server takes too long to respond
                         if timeout_attempt >= 3:
                             raise Exception('openai servers did not respond quickly enough.')
                         timeout_attempt += 1
