@@ -4,13 +4,16 @@ package ws;
 
 message NewTask {
   string id = 1;
-  bytes source_image = 2;
+
+  string source_image = 2;
 
   string target_language = 3;
   string detector = 4;
   string direction = 5;
   string translator = 6;
   string size = 7;
+
+  string translation_mask = 8;
 }
 
 message Status {
@@ -20,7 +23,8 @@ message Status {
 
 message FinishTask {
   string id = 1;
-  bytes translation_mask = 2;
+  bool success = 2;
+  bool has_translation_mask = 3;
 }
 
 message WebSocketMessage {
