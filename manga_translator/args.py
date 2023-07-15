@@ -113,6 +113,7 @@ parser.add_argument('--det-gamma-correct', action='store_true', help='Applies ga
 parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to extend text skeleton to form bounding box')
 parser.add_argument('--box-threshold', default=0.7, type=float, help='Threshold for bbox generation')
 parser.add_argument('--text-threshold', default=0.5, type=float, help='Threshold for text detection')
+parser.add_argument('--min-text-length', default=0, type=int, help='Minimum text length of a text region')
 parser.add_argument('--inpainting-size', default=2048, type=int, help='Size of image used for inpainting (too large will result in OOM)')
 parser.add_argument('--colorization-size', default=1024, type=int, help='Size of image used for colorization. Set to -1 to use full image size')
 parser.add_argument('--font-size', default=None, type=int, help='Use fixed font size for rendering')

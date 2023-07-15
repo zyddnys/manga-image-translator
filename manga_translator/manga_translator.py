@@ -413,6 +413,7 @@ class MangaTranslator():
 
     async def _run_textline_merge(self, ctx: Context):
         text_regions = await dispatch_textline_merge(ctx.textlines, *ctx.img_rgb.shape[:2], verbose=self.verbose)
+        text_regions = [region for region in text_regions if len(''.join(region.text)) >= ctx.min_text_length]
 
         # Sort ctd (comic text detector) regions left to right. Otherwise right to left.
         # Sorting will improve text translation quality.
