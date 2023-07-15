@@ -828,7 +828,8 @@ class MangaTranslatorWS(MangaTranslator):
             from aiohttp import ClientSession
             async with ClientSession() as session:
                 logger_conn = logger.getChild('connection')
-                logger_conn.setLevel(logging.DEBUG)
+                if self.verbose:
+                    logger_conn.setLevel(logging.DEBUG)
                 async for websocket in websockets.connect(
                     self.url,
                     extra_headers={'x-secret': self.secret},
