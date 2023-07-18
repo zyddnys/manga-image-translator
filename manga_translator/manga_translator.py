@@ -870,6 +870,7 @@ class MangaTranslatorWS(MangaTranslator):
 
         output = await super()._run_text_rendering(ctx)
         render_mask[np.sum(ctx.img_rgb != output, axis=2) > 0] = 1
+        render_mask = render_mask.astype(np.uint8)
         ctx.render_mask = render_mask
         if self.verbose:
             cv2.imwrite(self._result_path('ws_render_in.png'), cv2.cvtColor(ctx.img_rgb, cv2.COLOR_RGB2BGR))
