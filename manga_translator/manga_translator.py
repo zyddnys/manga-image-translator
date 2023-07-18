@@ -689,7 +689,7 @@ class MangaTranslatorWS(MangaTranslator):
         from threading import Thread
         import io
         import aioshutil
-        import aiofiles
+        from aiofiles import os
         import websockets
         from .server import ws_pb2
 
@@ -736,7 +736,7 @@ class MangaTranslatorWS(MangaTranslator):
 
             if self.verbose:
                 await aioshutil.rmtree(f'result/{task.id}', ignore_errors=True)
-                await aiofiles.os.makedirs(f'result/{task.id}', exist_ok=True)
+                await os.makedirs(f'result/{task.id}', exist_ok=True)
 
             params = {
                 'target_lang': task.target_language,
