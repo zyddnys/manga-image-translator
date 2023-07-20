@@ -1,5 +1,4 @@
 import os
-import cv2
 import torch
 import numpy as np
 from PIL import Image
@@ -43,15 +42,19 @@ class MangaColorizationV2(OfflineColorizer):
     async def _infer(self, image: Image.Image, colorization_size: int, apply_denoise=True, denoise_sigma=25) -> Image.Image:
         # Size has to be multiple of 32
         img = np.array(image.convert('RGBA'))
-        image_width = img.shape[1]
-        size = image_width - (image_width % 32)
+        max_size = min(*img.shape[:2])
+        max_size -= max_size % 32
         if colorization_size >= 0:
-            size = min(size, colorization_size - (colorization_size % 32))
+            size = min(max_size, colorization_size - (colorization_size % 32))
+        else:
+            # size<=576 gives best results
+            size = min(max_size, 576)
 
         if apply_denoise:
-            img = self.denoiser.get_denoised_image(img / 255, sigma=denoise_sigma)
+            img = self.denoiser.get_denoised_image(img, sigma=denoise_sigma)
 
         img, current_pad = resize_pad(img, size)
+
         transform = ToTensor()
         current_image = transform(img).unsqueeze(0).to(self.device)
         current_hint = torch.zeros(1, 4, current_image.shape[2], current_image.shape[3]).float().to(self.device)

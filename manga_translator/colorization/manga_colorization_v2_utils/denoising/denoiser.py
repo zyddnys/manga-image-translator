@@ -92,7 +92,7 @@ class FFDNetDenoiser:
         else:
             dtype = torch.FloatTensor
 
-        imnoisy = imorig.clone()
+        imnoisy = imorig#.clone()
 
 
         with torch.no_grad():
@@ -100,18 +100,18 @@ class FFDNetDenoiser:
             nsigma = torch.FloatTensor([cur_sigma]).type(dtype)
 
 
-        # Estimate noise and subtract it to the input image
+        # Estimate noise and subtract it from the input image
         im_noise_estim = self.model(imnoisy, nsigma)
-        outim = torch.clamp(imnoisy-im_noise_estim, 0., 1.)
+        outim = torch.clamp(imnoisy - im_noise_estim, 0., 1.)
 
         if expanded_h:
-            imorig = imorig[:, :, :-1, :]
+            # imorig = imorig[:, :, :-1, :]
             outim = outim[:, :, :-1, :]
-            imnoisy = imnoisy[:, :, :-1, :]
+            # imnoisy = imnoisy[:, :, :-1, :]
 
         if expanded_w:
-            imorig = imorig[:, :, :, :-1]
+            # imorig = imorig[:, :, :, :-1]
             outim = outim[:, :, :, :-1]
-            imnoisy = imnoisy[:, :, :, :-1]
+            # imnoisy = imnoisy[:, :, :, :-1]
         
         return variable_to_cv2_image(outim)
