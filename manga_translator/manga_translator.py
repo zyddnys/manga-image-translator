@@ -384,7 +384,7 @@ class MangaTranslator():
         return ctx
 
     async def _run_colorizer(self, ctx: Context):
-        return await dispatch_colorization(ctx.colorizer, ctx.input, ctx.colorization_size, self.device)
+        return await dispatch_colorization(ctx.colorizer, device=self.device, image=ctx.input, **ctx)
 
     async def _run_upscaling(self, ctx: Context):
         return (await dispatch_upscaling(ctx.upscaler, [ctx.img_colorized], ctx.upscale_ratio, self.device))[0]

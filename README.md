@@ -351,10 +351,13 @@ VIN: Vietnames
 --unclip-ratio UNCLIP_RATIO                  How much to extend text skeleton to form bounding box
 --box-threshold BOX_THRESHOLD                Threshold for bbox generation
 --text-threshold TEXT_THRESHOLD              Threshold for text detection
+--min-text-length MIN_TEXT_LENGTH            Minimum text length of a text region
 --inpainting-size INPAINTING_SIZE            Size of image used for inpainting (too large will
                                              result in OOM)
 --colorization-size COLORIZATION_SIZE        Size of image used for colorization. Set to -1 to use
                                              full image size
+--denoise-sigma DENOISE_SIGMA                Used by colorizer and affects color strength, range
+                                             from 0 to 255 (default 30). -1 turns it off.
 --font-size FONT_SIZE                        Use fixed font size for rendering
 --font-size-offset FONT_SIZE_OFFSET          Offset font size by a given amount, positive number
                                              increase font size and vice versa
@@ -388,14 +391,12 @@ VIN: Vietnames
 --ws-url WS_URL                              Server URL for WebSocket mode
 --save-quality SAVE_QUALITY                  Quality of saved JPEG image, range from 0 to 100 with
                                              100 being best
---ignore-bubble {Numbers from 1 to 50}       The threshold for ignoring text in non bubble areas, with
-                                             valid values ranging from 1 to 50, does not ignore others.
-                                             Recommendation 5 to 10. If it is too small, normal bubble
-                                             areas may be ignored, and if it is too large, non bubble
-                                             areas may be considered normal bubbles
-                                             For example, --ignore-bubble 5
-
-
+--ignore-bubble IGNORE_BUBBLE                The threshold for ignoring text in non bubble areas,
+                                             with valid values ranging from 1 to 50, does not ignore
+                                             others. Recommendation 5 to 10. If it is too small,
+                                             normal bubble areas may be ignored, and if it is too
+                                             large, non bubble areas may be considered normal
+                                             bubbles
 ```
 
 <!-- Auto generated end -->

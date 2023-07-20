@@ -21,8 +21,8 @@ async def prepare(key: str):
     if isinstance(upscaler, OfflineColorizer):
         await upscaler.download()
 
-async def dispatch(key: str, image: Image.Image, colorization_size: int = 1024, device: str = 'cpu') -> Image.Image:
+async def dispatch(key: str, device: str = 'cpu', **kwargs) -> Image.Image:
     colorizer = get_colorizer(key)
     if isinstance(colorizer, OfflineColorizer):
         await colorizer.load(device)
-    return await colorizer.colorize(image, colorization_size)
+    return await colorizer.colorize(**kwargs)

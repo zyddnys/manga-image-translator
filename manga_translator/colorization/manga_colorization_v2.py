@@ -39,18 +39,18 @@ class MangaColorizationV2(OfflineColorizer):
         del self.colorizer
         del self.denoiser
 
-    async def _infer(self, image: Image.Image, colorization_size: int, apply_denoise=True, denoise_sigma=25) -> Image.Image:
+    async def _infer(self, image: Image.Image, colorization_size: int, denoise_sigma=25, **kwargs) -> Image.Image:
         # Size has to be multiple of 32
         img = np.array(image.convert('RGBA'))
         max_size = min(*img.shape[:2])
         max_size -= max_size % 32
-        if colorization_size >= 0:
+        if colorization_size > 0:
             size = min(max_size, colorization_size - (colorization_size % 32))
         else:
             # size<=576 gives best results
             size = min(max_size, 576)
 
-        if apply_denoise:
+        if 0 <= denoise_sigma and denoise_sigma <= 255:
             img = self.denoiser.get_denoised_image(img, sigma=denoise_sigma)
 
         img, current_pad = resize_pad(img, size)
