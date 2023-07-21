@@ -2,9 +2,8 @@ import os
 from typing import List
 import cv2
 import numpy as np
-# from functools import reduce
 
-from .text_mask_utils import complete_mask_fill, filter_masks, complete_mask
+from .text_mask_utils import complete_mask_fill, complete_mask
 from ..utils import TextBlock, Quadrilateral
 from ..utils.bubble import is_ignore
 
@@ -18,23 +17,18 @@ async def dispatch(text_regions: List[TextBlock], raw_image: np.ndarray, raw_mas
         for l in region.lines:
             a = Quadrilateral(l, '', 0)
             bboxes_resized.append((a.aabb.x // 2, a.aabb.y // 2, a.aabb.w // 2, a.aabb.h // 2))
-    mask_ccs, cc2textline_assignment = filter_masks(mask_resized, bboxes_resized)
-    if mask_ccs:
-        # mask_filtered = reduce(cv2.bitwise_or, mask_ccs)
-        # cv2.imwrite(f'result/mask_filtered.png', mask_filtered)
-        #cv2.imwrite(f'result/{task_id}/mask_filtered_img.png', overlay_mask(img_resized_2, mask_filtered))
-        if method == 'fit_text':
-            final_mask = complete_mask(img_resized, mask_ccs, bboxes_resized, cc2textline_assignment)
-        else:
-            final_mask = complete_mask_fill(img_resized, mask_ccs, bboxes_resized, cc2textline_assignment)
-        #cv2.imwrite(f'result/{task_id}/mask.png', final_mask)
-        #cv2.imwrite(f'result/{task_id}/mask_img.png', overlay_mask(img_resized_2, final_mask))
+
+    final_mask = complete_mask(img_resized, mask_resized, bboxes_resized) if method == 'fit_text' else complete_mask_fill(bboxes_resized)
+    if final_mask is None:
+        final_mask = np.zeros((raw_image.shape[0], raw_image.shape[1]), dtype = np.uint8)
+    else:
         final_mask = cv2.resize(final_mask, (raw_image.shape[1], raw_image.shape[0]), interpolation = cv2.INTER_LINEAR)
         final_mask[final_mask > 0] = 255
-    else:
-        final_mask = np.zeros((raw_image.shape[0], raw_image.shape[1]), dtype = np.uint8)
 
-    if ignore_bubble<1 or ignore_bubble>50:
+    # cv2.imwrite(f'result/{task_id}/mask.png', final_mask)
+    # cv2.imwrite(f'result/{task_id}/mask_img.png', overlay_mask(img_resized_2, final_mask))
+
+    if ignore_bubble < 1 or ignore_bubble > 50:
         return final_mask
 
     # bubble
@@ -52,4 +46,5 @@ async def dispatch(text_regions: List[TextBlock], raw_image: np.ndarray, raw_mas
         textblock=cv2.bitwise_and(raw_image, raw_image, mask=temp_mask)
         if is_ignore(textblock, ignore_bubble):
             cv2.drawContours(final_mask, [cnt], -1, 0, -1)
+
     return final_mask

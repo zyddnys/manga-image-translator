@@ -866,11 +866,10 @@ class MangaTranslatorWS(MangaTranslator):
         await future
 
     async def _run_text_rendering(self, ctx: Context):
-        render_mask = np.where(ctx.mask < 127, 0, 1)[:, :, None]
+        render_mask = (ctx.mask < 127).astype(np.uint8)[:, :, None]
 
         output = await super()._run_text_rendering(ctx)
         render_mask[np.sum(ctx.img_rgb != output, axis=2) > 0] = 1
-        render_mask = render_mask.astype(np.uint8)
         ctx.render_mask = render_mask
         if self.verbose:
             cv2.imwrite(self._result_path('ws_render_in.png'), cv2.cvtColor(ctx.img_rgb, cv2.COLOR_RGB2BGR))

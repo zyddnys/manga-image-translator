@@ -89,14 +89,36 @@ def rotate_image(image, angle):
     return result, (diff_i, diff_j)
 
 def add_color(bw_char_map, color, stroke_char_map, stroke_color):
-    fg = np.zeros((bw_char_map.shape[0], bw_char_map.shape[1], 4), dtype = np.uint8)
     if bw_char_map.size == 0:
-        fg = np.zeros((bw_char_map.shape[0], bw_char_map.shape[1], 3), dtype = np.uint8)
-        return fg.astype(np.uint8)
+        fg = np.zeros((bw_char_map.shape[0], bw_char_map.shape[1], 4), dtype = np.uint8)
+        return fg
+    
+    # print(bw_char_map.shape, stroke_char_map.shape)
+    # import matplotlib.pyplot as plt
+    # x1, y1, w1, h1 = cv2.boundingRect(bw_char_map)
+    # x2, y2, w2, h2 = cv2.boundingRect(stroke_char_map)
+    # fig, ax = plt.subplots(1, 2)
+    # ax[0].imshow(bw_char_map)
+    # ax[1].imshow(stroke_char_map)
+    # # draw bounding boxes
+    # rect1 = plt.Rectangle((x1, y1), w1, h1, fill=False, color='red')
+    # rect2 = plt.Rectangle((x2, y2), w2, h2, fill=False, color='blue')
+    # ax[0].add_patch(rect1)
+    # ax[0].add_patch(rect2)
+    # rect1 = plt.Rectangle((x1, y1), w1, h1, fill=False, color='red')
+    # rect2 = plt.Rectangle((x2, y2), w2, h2, fill=False, color='blue')
+    # ax[1].add_patch(rect1)
+    # ax[1].add_patch(rect2)
+    # plt.show()
+
+    # since bg rect is always larger than fg rect, we can just use the bg rect
+    x, y, w, h = cv2.boundingRect(stroke_char_map)
+
+    fg = np.zeros((h, w, 4), dtype = np.uint8)
     fg[:,:,0] = color[0]
     fg[:,:,1] = color[1]
     fg[:,:,2] = color[2]
-    fg[:,:,3] = bw_char_map
+    fg[:,:,3] = bw_char_map[y:y+h, x:x+w]
 
     bg = np.zeros((stroke_char_map.shape[0], stroke_char_map.shape[1], 4), dtype = np.uint8)
     bg[:,:,0] = stroke_color[0]
@@ -106,7 +128,8 @@ def add_color(bw_char_map, color, stroke_char_map, stroke_color):
 
     fg_alpha = fg[:, :, 3] / 255.0
     bg_alpha = 1.0 - fg_alpha
-    bg[:, :, :] = (fg_alpha[:, :, np.newaxis] * fg[:, :, :] + bg_alpha[:, :, np.newaxis] * bg[:, :, :])
+    bg[y:y+h, x:x+w, :] = (fg_alpha[:, :, np.newaxis] * fg[:, :, :] + bg_alpha[:, :, np.newaxis] * bg[y:y+h, x:x+w, :])
+
     #alpha_char_map = cv2.add(bw_char_map, stroke_char_map)
     #alpha_char_map[alpha_char_map > 0] = 255
     return bg#, alpha_char_map
@@ -264,7 +287,7 @@ def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_
         glyph_border.stroke(stroker, destroy=True)
         blyph = glyph_border.to_bitmap(freetype.FT_RENDER_MODE_NORMAL, freetype.Vector(0,0), True)
         bitmap_b = blyph.bitmap
-        bitmap_border = np.array(bitmap_b.buffer, dtype = np.uint8).reshape(bitmap_b.rows,bitmap_b.width)
+        bitmap_border = np.array(bitmap_b.buffer, dtype = np.uint8).reshape(bitmap_b.rows, bitmap_b.width)
         canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width] = cv2.add(canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width], bitmap_border)
     return char_offset_y
 

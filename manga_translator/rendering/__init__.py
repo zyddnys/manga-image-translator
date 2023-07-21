@@ -4,6 +4,7 @@ import numpy as np
 from typing import List
 from shapely import affinity
 from shapely.geometry import Polygon
+from tqdm import tqdm
 
 # from .ballon_extractor import extract_ballon_region
 from . import text_render
@@ -107,14 +108,14 @@ async def dispatch(
     # TODO: Maybe remove intersections
 
     # Render text
-    for region, dst_points in zip(text_regions, dst_points_list):
+    for region, dst_points in tqdm(zip(text_regions, dst_points_list), '[render]', total=len(text_regions)):
         if render_mask is not None:
             # set render_mask to 1 for the region that is inside dst_points
             cv2.fillConvexPoly(render_mask, dst_points.astype(np.int32), 1)
 
-        logger.info(f'text: {region.get_text()}')
-        logger.info(f' trans: {region.translation}')
-        logger.info(f' font_size: {region.font_size}')
+        # logger.info(f'text: {region.get_text()}')
+        # logger.info(f' trans: {region.translation}')
+        # logger.info(f' font_size: {region.font_size}')
 
         img = render(img, region, dst_points, region.alignment)
     return img
@@ -169,10 +170,11 @@ def render(
     #src_pts[:, 1] = np.clip(np.round(src_pts[:, 1]), 0, enlarged_h * 2)
 
     M, _ = cv2.findHomography(src_points, dst_points, cv2.RANSAC, 5.0)
-    rgba_region = np.clip(cv2.warpPerspective(box, M, (img.shape[1], img.shape[0]), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0), 0, 255)
-    canvas_region = rgba_region[:, :, 0: 3]
-    mask_region = rgba_region[:, :, 3: 4].astype(np.float32) / 255.0
-    img = np.clip((img.astype(np.float32) * (1 - mask_region) + canvas_region.astype(np.float32) * mask_region), 0, 255).astype(np.uint8)
+    rgba_region = cv2.warpPerspective(box, M, (img.shape[1], img.shape[0]), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    x, y, w, h = cv2.boundingRect(dst_points.astype(np.int32))
+    canvas_region = rgba_region[y:y+h, x:x+w, :3]
+    mask_region = rgba_region[y:y+h, x:x+w, 3:4].astype(np.float32) / 255.0
+    img[y:y+h, x:x+w] = np.clip((img[y:y+h, x:x+w].astype(np.float32) * (1 - mask_region) + canvas_region.astype(np.float32) * mask_region), 0, 255).astype(np.uint8)
     return img
 
 async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, text_regions: List[TextBlock], font_path: str = '') -> np.ndarray:

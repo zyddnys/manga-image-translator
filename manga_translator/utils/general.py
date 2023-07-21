@@ -789,7 +789,7 @@ def color_difference(rgb1: List, rgb2: List) -> float:
     # https://en.wikipedia.org/wiki/Color_difference#CIE76
     color1 = np.array(rgb1, dtype=np.uint8).reshape(1, 1, 3)
     color2 = np.array(rgb2, dtype=np.uint8).reshape(1, 1, 3)
-    diff = cv2.cvtColor(color1, cv2.COLOR_RGB2LAB).astype(np.float64) - cv2.cvtColor(color2, cv2.COLOR_RGB2LAB).astype(np.float64)
+    diff = cv2.cvtColor(color1, cv2.COLOR_RGB2LAB).astype(np.float32) - cv2.cvtColor(color2, cv2.COLOR_RGB2LAB).astype(np.float32)
     diff[..., 0] *= 0.392
     diff = np.linalg.norm(diff, axis=2) 
     return diff.item()
