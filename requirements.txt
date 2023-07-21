@@ -38,3 +38,5 @@ python-dotenv
 nest-asyncio
 marshmallow
 cython
+aioshutil
+aiofiles
