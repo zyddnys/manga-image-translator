@@ -881,7 +881,7 @@ class MangaTranslatorWS(MangaTranslator):
                     ctx.event_loop
                 )
             )
-            self.task_lock.acquire()
+            await self.task_lock.acquire()
             self._task_id = task_id
             self._websocket = websocket
             return result
