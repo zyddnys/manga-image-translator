@@ -69,6 +69,12 @@ class TranslatorChain():
                 raise ValueError(f'Invalid choice: %s (choose from %s)' % (lang, ', '.join(map(repr, VALID_LANGUAGES))))
             self.chain.append((trans, lang))
         self.translators, self.langs = list(zip(*self.chain))
+    
+    def has_offline(self) -> bool:
+        """
+        Returns True if the chain contains offline translators.
+        """
+        return any(translator in OFFLINE_TRANSLATORS for translator in self.translators)
 
     def is_none(self) -> bool :
         return self.translators[0] == 'none'

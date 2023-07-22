@@ -695,6 +695,7 @@ class MangaTranslatorWS(MangaTranslator):
         from .server import ws_pb2
 
         self._server_loop = asyncio.new_event_loop()
+        self.task_lock = asyncio.Lock()
 
         async def send_and_yield(websocket, msg):
             # send message and yield control to the event loop (to actually send the message)
@@ -714,9 +715,8 @@ class MangaTranslatorWS(MangaTranslator):
 
         self.add_progress_hook(sync_state)
 
-        task_lock = asyncio.Lock()
         async def translate(task_id, websocket, image, params):
-            async with task_lock:
+            async with self.task_lock:
                 self._task_id = task_id
                 self._websocket = websocket
                 result = await self.translate(image, params)
@@ -745,6 +745,7 @@ class MangaTranslatorWS(MangaTranslator):
                 'direction': task.direction,
                 'translator': task.translator,
                 'size': task.size,
+                'event_loop': asyncio.get_event_loop(),
             }
 
             logger_task.info(f'-- Downloading image from {task.source_image}')
@@ -865,6 +866,25 @@ class MangaTranslatorWS(MangaTranslator):
 
         # create a future that is never done
         await future
+
+    async def _run_text_translation(self, ctx: Context):
+        coroutine = super()._run_text_translation(ctx)
+        if ctx.translator.has_offline():
+            return await coroutine
+        else:
+            task_id = self._task_id
+            websocket = self._websocket
+            self.task_lock.release()
+            result = await asyncio.wrap_future(
+                asyncio.run_coroutine_threadsafe(
+                    coroutine,
+                    ctx.event_loop
+                )
+            )
+            self.task_lock.acquire()
+            self._task_id = task_id
+            self._websocket = websocket
+            return result
 
     async def _run_text_rendering(self, ctx: Context):
         render_mask = (ctx.mask < 127).astype(np.uint8)[:, :, None]
