@@ -22,6 +22,7 @@ from .utils import (
     LANGAUGE_ORIENTATION_PRESETS,
     ModelWrapper,
     Context,
+    PriorityLock,
     load_image,
     dump_image,
     replace_prefix,
@@ -695,7 +696,8 @@ class MangaTranslatorWS(MangaTranslator):
         from .server import ws_pb2
 
         self._server_loop = asyncio.new_event_loop()
-        self.task_lock = asyncio.Lock()
+        self.task_lock = PriorityLock()
+        self.counter = 0
 
         async def send_and_yield(websocket, msg):
             # send message and yield control to the event loop (to actually send the message)
@@ -716,7 +718,7 @@ class MangaTranslatorWS(MangaTranslator):
         self.add_progress_hook(sync_state)
 
         async def translate(task_id, websocket, image, params):
-            async with self.task_lock:
+            async with self.task_lock((1<<31) - params['ws_count']):
                 self._task_id = task_id
                 self._websocket = websocket
                 result = await self.translate(image, params)
@@ -745,8 +747,10 @@ class MangaTranslatorWS(MangaTranslator):
                 'direction': task.direction,
                 'translator': task.translator,
                 'size': task.size,
-                'event_loop': asyncio.get_event_loop(),
+                'ws_event_loop': asyncio.get_event_loop(),
+                'ws_count': self.counter,
             }
+            self.counter += 1
 
             logger_task.info(f'-- Downloading image from {task.source_image}')
             await server_send_status(websocket, task.id, 'downloading')
@@ -874,14 +878,14 @@ class MangaTranslatorWS(MangaTranslator):
         else:
             task_id = self._task_id
             websocket = self._websocket
-            self.task_lock.release()
+            await self.task_lock.release()
             result = await asyncio.wrap_future(
                 asyncio.run_coroutine_threadsafe(
                     coroutine,
-                    ctx.event_loop
+                    ctx.ws_event_loop
                 )
             )
-            await self.task_lock.acquire()
+            await self.task_lock.acquire((1<<30) - ctx.ws_count)
             self._task_id = task_id
             self._websocket = websocket
             return result
