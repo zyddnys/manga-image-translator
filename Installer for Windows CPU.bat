@@ -7,4 +7,3 @@ conda activate manga-image-translator
 pip3 install torch torchvision torchaudio
 pip install -r requirements.txt
 conda install -c conda-forge pydensecrf
-pause
