@@ -2,5 +2,6 @@
 @rem Change the path to the activate.bat file
 F:
 call F:\1\Scripts\activate.bat
+conda activate manga-image-translator
 call cmd
 pause
