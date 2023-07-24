@@ -4,4 +4,3 @@ F:
 call F:\1\Scripts\activate.bat
 call conda activate manga-image-translator
 call cmd
-pause
