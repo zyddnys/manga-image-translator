@@ -1,6 +1,8 @@
 import asyncio
 import base64
 import io
+import random
+import string
 import cv2
 from omegaconf import OmegaConf
 import py3langid as langid
@@ -15,6 +17,8 @@ from PIL import Image
 from typing import List, Tuple
 from aiohttp import web
 from marshmallow import Schema, fields, ValidationError
+
+from manga_translator.utils.threading import Throttler
 
 from .args import DEFAULT_ARGS
 from .utils import (
@@ -684,6 +688,12 @@ class MangaTranslatorWS(MangaTranslator):
         self.url = params.get('ws_url')
         self.secret = params.get('ws_secret', os.getenv('WS_SECRET', ''))
         self.ignore_errors = params.get('ignore_errors', True)
+
+        # random string to identify client
+        # don't remove this: sometimes a client will create multiple connections,
+        # which i have no idea why, but this will prevent that
+        self._client_id = ''.join(random.choices(string.ascii_letters + string.digits, k=14))
+
         self._task_id = None
         self._websocket = None
 
@@ -699,10 +709,13 @@ class MangaTranslatorWS(MangaTranslator):
         self.task_lock = PriorityLock()
         self.counter = 0
 
-        async def send_and_yield(websocket, msg):
+        async def _send_and_yield(websocket, msg):
             # send message and yield control to the event loop (to actually send the message)
             await websocket.send(msg)
             await asyncio.sleep(0)
+
+        send_throttler = Throttler(0.2)
+        send_and_yield = send_throttler.wrap(_send_and_yield)
 
         async def sync_state(state, finished):
             if self._websocket is None:
@@ -724,6 +737,7 @@ class MangaTranslatorWS(MangaTranslator):
                 result = await self.translate(image, params)
                 self._task_id = None
                 self._websocket = None
+            await send_throttler.flush()
             return result
         
         async def server_send_status(websocket, task_id, status):
@@ -838,7 +852,10 @@ class MangaTranslatorWS(MangaTranslator):
                     logger_conn.setLevel(logging.DEBUG)
                 async for websocket in websockets.connect(
                     self.url,
-                    extra_headers={'x-secret': self.secret},
+                    extra_headers={
+                        'x-secret': self.secret,
+                        'x-client-id': self.client_id,
+                    },
                     max_size=1_000_000,
                     logger=logger_conn
                 ):
