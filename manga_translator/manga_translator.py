@@ -681,18 +681,12 @@ class MangaTranslatorWeb(MangaTranslator):
 
 
 class MangaTranslatorWS(MangaTranslator):
-
-
     def __init__(self, params: dict = None):
         super().__init__(params)
         self.url = params.get('ws_url')
         self.secret = params.get('ws_secret', os.getenv('WS_SECRET', ''))
+        self.client_id = os.getenv('WS_CLIENT_ID', '')
         self.ignore_errors = params.get('ignore_errors', True)
-
-        # random string to identify client
-        # don't remove this: sometimes a client will create multiple connections,
-        # which i have no idea why, but this will prevent that
-        self._client_id = ''.join(random.choices(string.ascii_letters + string.digits, k=14))
 
         self._task_id = None
         self._websocket = None
@@ -854,7 +848,7 @@ class MangaTranslatorWS(MangaTranslator):
                     self.url,
                     extra_headers={
                         'x-secret': self.secret,
-                        'x-client-id': self._client_id,
+                        'x-client-id': self.client_id,
                     },
                     max_size=1_000_000,
                     logger=logger_conn
@@ -872,6 +866,7 @@ class MangaTranslatorWS(MangaTranslator):
 
                     except Exception as e:
                         logger.error(f'{e.__class__.__name__}: {e}', exc_info=e if self.verbose else None)
+                        websocket.close()
 
         def server_thread(future, main_loop, server_loop):
             asyncio.set_event_loop(server_loop)
