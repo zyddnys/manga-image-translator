@@ -854,7 +854,7 @@ class MangaTranslatorWS(MangaTranslator):
                     self.url,
                     extra_headers={
                         'x-secret': self.secret,
-                        'x-client-id': self.client_id,
+                        'x-client-id': self._client_id,
                     },
                     max_size=1_000_000,
                     logger=logger_conn
