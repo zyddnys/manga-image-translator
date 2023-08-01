@@ -30,7 +30,7 @@ GPU server is not cheap, please consider to donate to us.
 
 ## Online Demo
 
-Official Demo (by zyddnys): <https://touhou.ai/imgtrans/>\
+Official Demo (by zyddnys): <https://cotrans.touhou.ai/>
 Browser Userscript (by QiroNT): <https://greasyfork.org/scripts/437569>
 
 - Note this may not work sometimes due to stupid google gcp kept restarting my instance.
