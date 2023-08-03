@@ -730,7 +730,6 @@ class MangaTranslatorWS(MangaTranslator):
                 result = await self.translate(image, params)
                 self._task_id = None
                 self._websocket = None
-            await send_throttler.flush()
             return result
         
         async def server_send_status(websocket, task_id, status):
@@ -792,6 +791,7 @@ class MangaTranslatorWS(MangaTranslator):
                     main_loop
                 )
             )
+            await send_throttler.flush()
             
             output: Image.Image = translation_dict.result
             if output is not None:
