@@ -685,7 +685,6 @@ class MangaTranslatorWS(MangaTranslator):
         super().__init__(params)
         self.url = params.get('ws_url')
         self.secret = params.get('ws_secret', os.getenv('WS_SECRET', ''))
-        self.client_id = os.getenv('WS_CLIENT_ID', '')
         self.ignore_errors = params.get('ignore_errors', True)
 
         self._task_id = None
@@ -848,7 +847,6 @@ class MangaTranslatorWS(MangaTranslator):
                     self.url,
                     extra_headers={
                         'x-secret': self.secret,
-                        'x-client-id': self.client_id,
                     },
                     max_size=1_000_000,
                     logger=logger_conn
@@ -866,7 +864,6 @@ class MangaTranslatorWS(MangaTranslator):
 
                     except Exception as e:
                         logger.error(f'{e.__class__.__name__}: {e}', exc_info=e if self.verbose else None)
-                        websocket.close()
 
         def server_thread(future, main_loop, server_loop):
             asyncio.set_event_loop(server_loop)
