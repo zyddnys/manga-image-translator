@@ -867,8 +867,10 @@ class MangaTranslatorWS(MangaTranslator):
 
         def server_thread(future, main_loop, server_loop):
             asyncio.set_event_loop(server_loop)
-            server_loop.run_until_complete(async_server_thread(main_loop))
-            future.set_result(None)
+            try:
+                server_loop.run_until_complete(async_server_thread(main_loop))
+            finally:
+                future.set_result(None)
 
         future = asyncio.Future()
         Thread(
