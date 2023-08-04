@@ -51,7 +51,7 @@ $ git clone https://github.com/zyddnys/manga-image-translator.git
 # Install the dependencies
 $ pip install -r requirements.txt
 
-$ pip install git+https://github.com/lucasb-eyer/pydensecrf.git
+$ pip install git+https://github.com/kodalli/pydensecrf.git
 ```
 
 The models will be downloaded into `./models` at runtime.
