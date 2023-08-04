@@ -153,7 +153,7 @@ class GPT3Translator(CommonTranslator):
         return translations
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
-        response = openai.Completion.create(
+        response = await openai.Completion.acreate(
             model='text-davinci-003',
             prompt=prompt,
             max_tokens=self._MAX_TOKENS // 2, # Assuming that half of the tokens are used for the query
@@ -217,7 +217,7 @@ class GPT35TurboTranslator(GPT3Translator):
             messages.insert(1, {'role': 'user', 'content': self.chat_sample[to_lang][0]})
             messages.insert(2, {'role': 'assistant', 'content': self.chat_sample[to_lang][1]})
 
-        response = openai.ChatCompletion.create(
+        response = await openai.ChatCompletion.acreate(
             model='gpt-3.5-turbo-0613',
             messages=messages,
             max_tokens=self._MAX_TOKENS // 2,
@@ -250,7 +250,7 @@ class GPT4Translator(GPT35TurboTranslator):
             messages.insert(1, {'role': 'user', 'content': self._CHAT_SAMPLE[to_lang][0]})
             messages.insert(2, {'role': 'assistant', 'content': self._CHAT_SAMPLE[to_lang][1]})
 
-        response = openai.ChatCompletion.create(
+        response = await openai.ChatCompletion.acreate(
             model='gpt-4-0613',
             messages=messages,
             max_tokens=self._MAX_TOKENS // 2,
