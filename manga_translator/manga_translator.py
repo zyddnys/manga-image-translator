@@ -838,8 +838,9 @@ class MangaTranslatorWS(MangaTranslator):
                 logger_task.info(f'-- Task finished')
 
         async def async_server_thread(main_loop):
-            from aiohttp import ClientSession
-            async with ClientSession() as session:
+            from aiohttp import ClientSession, ClientTimeout
+            timeout = ClientTimeout(total=30)
+            async with ClientSession(timeout=timeout) as session:
                 logger_conn = logger.getChild('connection')
                 if self.verbose:
                     logger_conn.setLevel(logging.DEBUG)
