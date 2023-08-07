@@ -228,13 +228,14 @@ top_p: 1
 
 # The prompt being feed into ChatGPT before the text to translate.
 # Use {to_lang} to indicate where the target language name should be inserted.
-# Tokens used in this example: 62+
+# Tokens used in this example: 57+
 chat_system_template: >
-  You are a professional translation engine,
-  please translate the text into a colloquial, elegant and fluent content,
-  without referencing machine translations.
-  You must only translate the text content, never interpret it.
-  If there's any issue in the text, output the text as is.
+  You are a professional translation engine, 
+  please translate the story into a colloquial, 
+  elegant and fluent content, 
+  without referencing machine translations. 
+  You must only translate the story, never interpret it.
+  If there is any issue in the text, output it as is.
 
   Translate to {to_lang}.
 
@@ -242,24 +243,21 @@ chat_system_template: >
 # In a [prompt, response] format, keyed by the target language name.
 #
 # Generally, samples should include some examples of translation preferences, and ideally
-# some names of characters it's likely to encounter. Like the "ちゃん" -> "酱" preference,
-# and the "ぼっちちゃん" -> "小孤独" name as shown below.
+# some names of characters it's likely to encounter.
 #
 # If you'd like to disable this feature, just set this to an empty list.
 chat_sample:
-  Simplified Chinese: # Tokens used in this example: 161 + 171
-    - <|1|>二人のちゅーを 目撃した ぼっちちゃん
-      <|2|>ふたりさん
-      <|3|>大好きなお友達には あいさつ代わりに ちゅーするんだって
-      <|4|>アイス あげた
-      <|5|>喜多ちゃんとは どどど どういった ご関係なのでしようか...
-      <|6|>テレビで見た！
-    - <|1|>小孤独目击了两人的接吻
-      <|2|>二里酱
-      <|3|>我听说人们会把亲吻作为与喜爱的朋友打招呼的方式
-      <|4|>我给了她冰激凌
-      <|5|>喜多酱和你是怎么样的关系啊...
-      <|6|>我在电视上看到的！
+  Simplified Chinese: # Tokens used in this example: 77 + 73
+    - 恥ずかしい… 目立ちたくない… 私が消えたい…
+      --------------------------------
+      きみ… 大丈夫⁉
+      --------------------------------
+      なんだこいつ 空気読めて ないのか…？
+    - 好尴尬…我不想引人注目…我想消失…
+      --------------------------------
+      你…没事吧⁉
+      --------------------------------
+      这家伙怎么看不懂气氛的…？
 
 # Overwrite configs for a specific model.
 # For now the list is: gpt3, gpt35, gpt4
