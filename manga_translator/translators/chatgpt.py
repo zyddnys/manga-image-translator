@@ -34,7 +34,10 @@ class GPT3Translator(CommonTranslator):
     }
     _INVALID_REPEAT_COUNT = 2 # repeat up to 2 times if "invalid" translation was detected
     _MAX_REQUESTS_PER_MINUTE = 20
+    _TIMEOUT = 40 # Seconds to wait for a response from the server before retrying
     _RETRY_ATTEMPTS = 3 # Number of times to retry an errored request before giving up
+    _TIMEOUT_RETRY_ATTEMPTS = 3 # Number of times to retry a timed out request before giving up
+    _RATELIMIT_RETRY_ATTEMPTS = 3 # Number of times to retry a ratelimited request before giving up
     _CONFIG_KEY = 'gpt3'
 
     _MAX_TOKENS = 4096
@@ -124,8 +127,9 @@ class GPT3Translator(CommonTranslator):
                 started = time.time()
                 while not request_task.done():
                     await asyncio.sleep(0.1)
-                    if time.time() - started > 40 + (timeout_attempt * 20): # Server takes too long to respond
-                        if timeout_attempt >= 3:
+                    if time.time() - started > self._TIMEOUT + (timeout_attempt * self._TIMEOUT / 2):
+                        # Server takes too long to respond
+                        if timeout_attempt >= self._TIMEOUT_RETRY_ATTEMPTS:
                             raise Exception('openai servers did not respond quickly enough.')
                         timeout_attempt += 1
                         self.logger.warn(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
@@ -137,7 +141,7 @@ class GPT3Translator(CommonTranslator):
                     break
                 except openai.error.RateLimitError: # Server returned ratelimit response
                     ratelimit_attempt += 1
-                    if ratelimit_attempt >= 3:
+                    if ratelimit_attempt >= self._RATELIMIT_RETRY_ATTEMPTS:
                         raise
                     self.logger.warn(f'Restarting request due to ratelimiting by openai servers. Attempt: {ratelimit_attempt}')
                     await asyncio.sleep(2)
