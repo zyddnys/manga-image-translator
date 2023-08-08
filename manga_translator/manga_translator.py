@@ -854,6 +854,7 @@ class MangaTranslatorWS(MangaTranslator):
                     max_size=1_000_000,
                     logger=logger_conn
                 ):
+                    bg_tasks = set()
                     try:
                         logger.info('-- Connected to websocket server')
 
@@ -863,10 +864,17 @@ class MangaTranslatorWS(MangaTranslator):
                             msg.ParseFromString(raw)
                             if msg.WhichOneof('message') == 'new_task':
                                 task = msg.new_task
-                                asyncio.create_task(server_process(main_loop, session, websocket, task))
+                                bg_task = asyncio.create_task(server_process(main_loop, session, websocket, task))
+                                bg_tasks.add(bg_task)
+                                bg_task.add_done_callback(bg_tasks.discard)
 
                     except Exception as e:
                         logger.error(f'{e.__class__.__name__}: {e}', exc_info=e if self.verbose else None)
+
+                    finally:
+                        logger.info('-- Disconnected from websocket server')
+                        for bg_task in bg_tasks:
+                            bg_task.cancel()
 
         def server_thread(future, main_loop, server_loop):
             asyncio.set_event_loop(server_loop)
