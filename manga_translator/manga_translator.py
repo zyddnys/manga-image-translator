@@ -442,8 +442,10 @@ class MangaTranslator():
         # Filter out regions by their translations
         new_text_regions = []
         for region in ctx.text_regions:
+            # TODO: Maybe print reasons for filtering
             if not ctx.translator.is_none() and (region.translation.isnumeric() \
-                or (ctx.filter_text and re.search(ctx.filter_text, region.translation))):
+                or (ctx.filter_text and re.search(ctx.filter_text, region.translation))
+                or (region.get_text().lower().strip() == region.translation.lower().strip())):
                 if region.translation.strip():
                     logger.info(f'Filtered out: {region.translation}')
             else:
@@ -685,7 +687,6 @@ class MangaTranslatorWS(MangaTranslator):
         super().__init__(params)
         self.url = params.get('ws_url')
         self.secret = params.get('ws_secret', os.getenv('WS_SECRET', ''))
-        self.client_id = os.getenv('WS_CLIENT_ID', '')
         self.ignore_errors = params.get('ignore_errors', True)
 
         self._task_id = None
@@ -731,7 +732,6 @@ class MangaTranslatorWS(MangaTranslator):
                 result = await self.translate(image, params)
                 self._task_id = None
                 self._websocket = None
-            await send_throttler.flush()
             return result
         
         async def server_send_status(websocket, task_id, status):
@@ -793,6 +793,7 @@ class MangaTranslatorWS(MangaTranslator):
                     main_loop
                 )
             )
+            await send_throttler.flush()
             
             output: Image.Image = translation_dict.result
             if output is not None:
@@ -839,8 +840,9 @@ class MangaTranslatorWS(MangaTranslator):
                 logger_task.info(f'-- Task finished')
 
         async def async_server_thread(main_loop):
-            from aiohttp import ClientSession
-            async with ClientSession() as session:
+            from aiohttp import ClientSession, ClientTimeout
+            timeout = ClientTimeout(total=30)
+            async with ClientSession(timeout=timeout) as session:
                 logger_conn = logger.getChild('connection')
                 if self.verbose:
                     logger_conn.setLevel(logging.DEBUG)
@@ -848,11 +850,11 @@ class MangaTranslatorWS(MangaTranslator):
                     self.url,
                     extra_headers={
                         'x-secret': self.secret,
-                        'x-client-id': self.client_id,
                     },
                     max_size=1_000_000,
                     logger=logger_conn
                 ):
+                    bg_tasks = set()
                     try:
                         logger.info('-- Connected to websocket server')
 
@@ -862,16 +864,24 @@ class MangaTranslatorWS(MangaTranslator):
                             msg.ParseFromString(raw)
                             if msg.WhichOneof('message') == 'new_task':
                                 task = msg.new_task
-                                asyncio.create_task(server_process(main_loop, session, websocket, task))
+                                bg_task = asyncio.create_task(server_process(main_loop, session, websocket, task))
+                                bg_tasks.add(bg_task)
+                                bg_task.add_done_callback(bg_tasks.discard)
 
                     except Exception as e:
                         logger.error(f'{e.__class__.__name__}: {e}', exc_info=e if self.verbose else None)
-                        websocket.close()
+
+                    finally:
+                        logger.info('-- Disconnected from websocket server')
+                        for bg_task in bg_tasks:
+                            bg_task.cancel()
 
         def server_thread(future, main_loop, server_loop):
             asyncio.set_event_loop(server_loop)
-            server_loop.run_until_complete(async_server_thread(main_loop))
-            future.set_result(None)
+            try:
+                server_loop.run_until_complete(async_server_thread(main_loop))
+            finally:
+                future.set_result(None)
 
         future = asyncio.Future()
         Thread(
