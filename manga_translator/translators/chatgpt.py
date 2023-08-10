@@ -81,18 +81,15 @@ class GPT3Translator(CommonTranslator):
         prompt = ''
 
         if self._INCLUDE_TEMPLATE:
-            prompt += self.prompt_template.format(to_lang=to_lang) + '\n'
+            prompt += self.prompt_template.format(to_lang=to_lang)
 
         if self._RETURN_PROMPT:
-            prompt += '\nOriginal:\n'
+            prompt += '\nOriginal:'
 
+        i_offset = 0
         for i, query in enumerate(queries):
             if i > 0:
-                # this separator is actually only one token, but it's very very long, yeah...
-                prompt += '\n--------------------------------\n'
-
-            # replace separator in query to a shorter one, this is also only one token
-            prompt += re.sub(r'----------------+', '----------------', query)
+                prompt += f'\n<|{i+1-i_offset}|>{query}'
 
             # If prompt is growing too large and theres still a lot of text left
             # split off the rest of the queries into new prompts.
@@ -100,12 +97,14 @@ class GPT3Translator(CommonTranslator):
             # TODO: potentially add summarizations from special requests as context information
             if self._MAX_TOKENS * 2 and len(''.join(queries[i+1:])) > self._MAX_TOKENS:
                 if self._RETURN_PROMPT:
-                    prompt += '\n\nTranslated:\n'
-                yield prompt
+                    prompt += '\n<|1|>'
+                yield prompt.lstrip()
                 prompt = self.prompt_template.format(to_lang=to_lang)
+                # Restart counting at 1
+                i_offset = i + 1
 
         if self._RETURN_PROMPT:
-            prompt += '\n\nTranslated:\n'
+            prompt += '\n<|1|>'
 
         yield prompt.lstrip()
 
@@ -154,7 +153,7 @@ class GPT3Translator(CommonTranslator):
                     await asyncio.sleep(1)
 
             self.logger.debug('-- GPT Response --\n' + response)
-            new_translations = re.split(r'--------------------------------', response)
+            new_translations = re.split(r'<\|\d+\|>', response)[1:]
             translations.extend([t.strip() for t in new_translations])
 
         self.logger.debug(translations)
@@ -194,20 +193,16 @@ class GPT35TurboTranslator(GPT3Translator):
         'Translate to {to_lang}.'
     )
     _CHAT_SAMPLE = {
-        'Simplified Chinese': [ # Token: 77 + 73
+        'Simplified Chinese': [ # Token: 88 + 84
             (
-                '恥ずかしい… 目立ちたくない… 私が消えたい…\n'
-                '--------------------------------\n'
-                'きみ… 大丈夫⁉\n'
-                '--------------------------------\n'
-                'なんだこいつ 空気読めて ないのか…？'
+                '<|1|>恥ずかしい… 目立ちたくない… 私が消えたい…\n'
+                '<|2|>きみ… 大丈夫⁉\n'
+                '<|3|>なんだこいつ 空気読めて ないのか…？'
             ),
             (
-                '好尴尬…我不想引人注目…我想消失…\n'
-                '--------------------------------\n'
-                '你…没事吧⁉\n'
-                '--------------------------------\n'
-                '这家伙怎么看不懂气氛的…？'
+                '<|1|>好尴尬…我不想引人注目…我想消失…\n'
+                '<|2|>你…没事吧⁉\n'
+                '<|3|>这家伙怎么看不懂气氛的…？'
             ),
         ]
     }

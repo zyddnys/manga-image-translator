@@ -247,17 +247,13 @@ chat_system_template: >
 #
 # If you'd like to disable this feature, just set this to an empty list.
 chat_sample:
-  Simplified Chinese: # Tokens used in this example: 77 + 73
-    - 恥ずかしい… 目立ちたくない… 私が消えたい…
-      --------------------------------
-      きみ… 大丈夫⁉
-      --------------------------------
-      なんだこいつ 空気読めて ないのか…？
-    - 好尴尬…我不想引人注目…我想消失…
-      --------------------------------
-      你…没事吧⁉
-      --------------------------------
-      这家伙怎么看不懂气氛的…？
+  Simplified Chinese: # Tokens used in this example: 88 + 84
+    - <|1|>恥ずかしい… 目立ちたくない… 私が消えたい…
+      <|2|>きみ… 大丈夫⁉
+      <|3|>なんだこいつ 空気読めて ないのか…？
+    - <|1|>好尴尬…我不想引人注目…我想消失…
+      <|2|>你…没事吧⁉
+      <|3|>这家伙怎么看不懂气氛的…？
 
 # Overwrite configs for a specific model.
 # For now the list is: gpt3, gpt35, gpt4
