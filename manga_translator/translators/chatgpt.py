@@ -88,8 +88,7 @@ class GPT3Translator(CommonTranslator):
 
         i_offset = 0
         for i, query in enumerate(queries):
-            if i > 0:
-                prompt += f'\n<|{i+1-i_offset}|>{query}'
+            prompt += f'\n<|{i+1-i_offset}|>{query}'
 
             # If prompt is growing too large and theres still a lot of text left
             # split off the rest of the queries into new prompts.
