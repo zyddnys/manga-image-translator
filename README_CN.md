@@ -61,6 +61,7 @@ $ pip install git+https://github.com/kodalli/pydensecrf.git
 | youdao         | ✔️      |         | 需要 `YOUDAO_APP_KEY` 和 `YOUDAO_SECRET_KEY`     |
 | baidu          | ✔️      |         | 需要 `BAIDU_APP_ID` 和 `BAIDU_SECRET_KEY`        |
 | deepl          | ✔️      |         | 需要 `DEEPL_AUTH_KEY`                             |
+| caiyun          | ✔️      |         | 需要 `CAIYUN_TOKEN`                             |
 | gpt3           | ✔️      |         | Implements text-davinci-003. Requires `OPENAI_API_KEY`|
 | gpt3.5         | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`   |
 | gpt4           | ✔️      |         | Implements gpt-4. Requires `OPENAI_API_KEY`           |
