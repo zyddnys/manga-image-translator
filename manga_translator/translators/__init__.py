@@ -6,6 +6,7 @@ from .google import GoogleTranslator
 from .youdao import YoudaoTranslator
 from .deepl import DeeplTranslator
 from .papago import PapagoTranslator
+from .caiyun import CaiyunTranslator
 from .chatgpt import GPT3Translator, GPT35TurboTranslator, GPT4Translator
 from .nllb import NLLBTranslator, NLLBBigTranslator
 from .sugoi import JparacrawlTranslator, JparacrawlBigTranslator, SugoiTranslator
@@ -31,6 +32,7 @@ TRANSLATORS = {
     'baidu': BaiduTranslator,
     'deepl': DeeplTranslator,
     'papago': PapagoTranslator,
+    'caiyun': CaiyunTranslator,
     'gpt3': GPT3Translator,
     'gpt3.5': GPT35TurboTranslator,
     'gpt4': GPT4Translator,
