@@ -181,6 +181,7 @@ Then you can find the translation result in `result/` directory, e.g. using Ngin
 | youdao     | ✔️      |         | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`      |
 | baidu      | ✔️      |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`         |
 | deepl      | ✔️      |         | Requires `DEEPL_AUTH_KEY`                              |
+| caiyun      | ✔️      |         | Requires `CAIYUN_TOKEN`                              |
 | gpt3       | ✔️      |         | Implements text-davinci-003. Requires `OPENAI_API_KEY` |
 | gpt3.5     | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`    |
 | gpt4       | ✔️      |         | Implements gpt-4. Requires `OPENAI_API_KEY`            |
