@@ -3,12 +3,12 @@ import py3langid as langid
 
 from .common import OfflineTranslator
 
+# https://github.com/facebookresearch/flores/blob/main/flores200/README.md
 ISO_639_1_TO_FLORES_200 = {
     'zh': 'zho_Hans',
     'ja': 'jpn_Jpan',
     'en': 'eng_Latn',
     'kn': 'kor_Hang',
-    'vi': 'vie_Latn',
     'cs': 'ces_Latn',
     'nl': 'nld_Latn',
     'fr': 'fra_Latn',
@@ -20,8 +20,10 @@ ISO_639_1_TO_FLORES_200 = {
     'ro': 'ron_Latn',
     'ru': 'rus_Cyrl',
     'es': 'spa_Latn',
-    'uk': 'ukr_Cyrl',
     'tr': 'tur_Latn',
+    'uk': 'ukr_Cyrl',
+    'vi': 'vie_Latn',
+    'ar': 'arb_Arab',
 }
 
 class NLLBTranslator(OfflineTranslator):
@@ -31,7 +33,6 @@ class NLLBTranslator(OfflineTranslator):
         'JPN': 'jpn_Jpan',
         'ENG': 'eng_Latn',
         'KOR': 'kor_Hang',
-        'VIN': 'vie_Latn',
         'CSY': 'ces_Latn',
         'NLD': 'nld_Latn',
         'FRA': 'fra_Latn',
@@ -44,6 +45,9 @@ class NLLBTranslator(OfflineTranslator):
         'RUS': 'rus_Cyrl',
         'ESP': 'spa_Latn',
         'TRK': 'tur_Latn',
+        'UKR': 'Ukrainian',
+        'VIN': 'vie_Latn',
+        'ARA': 'arb_Arab',
     }
     _TRANSLATOR_MODEL = 'facebook/nllb-200-distilled-600M'
 

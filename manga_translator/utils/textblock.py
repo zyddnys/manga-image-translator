@@ -244,6 +244,9 @@ class TextBlock(object):
     def get_translation_for_rendering(self):
         text = self.translation
         if self.direction.endswith('r'):
+            # The render direction is right to left so left-to-right
+            # text/number chunks need to be reversed to look normal.
+
             text_list = list(text)
             l2r_idx = -1
 
@@ -258,7 +261,7 @@ class TextBlock(object):
                     if l2r_idx < 0:
                         l2r_idx = i
                 elif l2r_idx >= 0 and i - l2r_idx > 1:
-                    # Reverse non-left-to-right characters for correct rendering
+                    # Reverse left-to-right characters for correct rendering
                     reverse_sublist(text_list, l2r_idx, i)
                     l2r_idx = -1
             if l2r_idx >= 0 and i - l2r_idx > 1:
