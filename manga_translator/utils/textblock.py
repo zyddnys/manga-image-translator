@@ -5,7 +5,7 @@ from shapely.geometry import Polygon, MultiPoint
 from functools import cached_property
 import copy
 
-from .general import color_difference
+from .general import color_difference, is_right_to_left_char, count_valuable_text
 # from ..detection.ctd_utils.utils.imgproc_utils import union_area, xywh2xyxypoly
 
 # LANG_LIST = ['eng', 'ja', 'unknown']
@@ -30,7 +30,9 @@ LANGAUGE_ORIENTATION_PRESETS = {
     'RUS': 'h',
     'ESP': 'h',
     'TRK': 'h',
+    'UKR': 'h',
     'VIN': 'h',
+    'ARA': 'hr', # horizontal right to left
 }
 
 class TextBlock(object):
@@ -239,6 +241,32 @@ class TextBlock(object):
             return self.text
         return ' '.join(self.text).strip()
 
+    def get_translation_for_rendering(self):
+        text = self.translation
+        if self.direction.endswith('r'):
+            text_list = list(text)
+            l2r_idx = -1
+
+            def reverse_sublist(l, i1, i2):
+                delta = i2 - i1
+                for j1 in range(i1, i2 - delta // 2):
+                    j2 = i2 - (j1 - i1) - 1
+                    l[j1], l[j2] = l[j2], l[j1]
+
+            for i, c in enumerate(text):
+                if not is_right_to_left_char(c) and count_valuable_text(c) > 0:
+                    if l2r_idx < 0:
+                        l2r_idx = i
+                elif l2r_idx >= 0 and i - l2r_idx > 1:
+                    # Reverse non-left-to-right characters for correct rendering
+                    reverse_sublist(text_list, l2r_idx, i)
+                    l2r_idx = -1
+            if l2r_idx >= 0 and i - l2r_idx > 1:
+                reverse_sublist(text_list, l2r_idx, len(text_list))
+
+            text = ''.join(text_list)
+        return text
+
     def set_font_colors(self, fg_colors, bg_colors, accumulate=True):
         self.accumulate_color = accumulate
         num_lines = len(self.lines) if accumulate and len(self.lines) > 0 else 1
@@ -269,9 +297,9 @@ class TextBlock(object):
     @property
     def direction(self):
         """Render direction determined through used language or aspect ratio."""
-        if self._direction not in ('h', 'v'):
+        if self._direction not in ('h', 'v', 'hr', 'vr'):
             d = LANGAUGE_ORIENTATION_PRESETS.get(self.target_lang)
-            if d in ('h', 'v'):
+            if d in ('h', 'v', 'hr', 'vr'):
                 return d
 
             if self.aspect_ratio < 1:
@@ -282,22 +310,24 @@ class TextBlock(object):
 
     @property
     def vertical(self):
-        return self.direction == 'v'
+        return self.direction.startswith('v')
 
     @property
     def horizontal(self):
-        return self.direction == 'h'
+        return self.direction.startswith('h')
 
     @property
     def alignment(self):
-        """Render alignment determined through used language."""
+        """Render alignment(/gravity) determined through used language."""
         if self._alignment in ('left', 'center', 'right'):
             return self._alignment
         if len(self.lines) == 1:
             return 'center'
 
-        if LANGAUGE_ORIENTATION_PRESETS.get(self.target_lang) == 'h':
+        if self.direction == 'h':
             return 'center'
+        elif self.direction == 'hr':
+            return 'right'
         else:
             return 'left'
 

@@ -474,7 +474,7 @@ def put_char_horizontal(font_size: int, cdpt: str, pen_l: Tuple[int, int], canva
         canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width] = cv2.add(canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width], bitmap_border)
     return char_offset_x
 
-def put_text_horizontal(font_size: int, text: str, width: int, alignment: str, fg: Tuple[int, int, int], bg: Tuple[int, int, int]):
+def put_text_horizontal(font_size: int, text: str, width: int, alignment: str, reversed_direction: bool, fg: Tuple[int, int, int], bg: Tuple[int, int, int]):
     text = compact_special_symbols(text)
     bg_size = int(max(font_size * 0.07, 1)) if bg is not None else 0
     spacing_y = int(font_size * 0.2)
@@ -492,18 +492,32 @@ def put_text_horizontal(font_size: int, text: str, width: int, alignment: str, f
 
     # pen (x, y)
     pen_orig = [font_size + bg_size, font_size + bg_size]
+    if reversed_direction:
+        pen_orig[0] = canvas_w - bg_size - 10
 
     # write stuff
     for line_text, line_width in zip(line_text_list, line_width_list):
         pen_line = pen_orig.copy()
         if alignment == 'center':
-            pen_line[0] += (max(line_width_list) - line_width) // 2
-        elif alignment == 'right':
+            pen_line[0] += (max(line_width_list) - line_width) // 2 * (-1 if reversed_direction else 1)
+        elif alignment == 'right' and not reversed_direction:
             pen_line[0] += max(line_width_list) - line_width
+        elif alignment == 'left' and reversed_direction:
+            pen_line[0] -= max(line_width_list) - line_width
+            pen_line[0] = max(line_width, pen_line[0])
+        # print((line_width, pen_line[0], canvas_w))
+        # print(0, pen_line, line_text)
 
         for c in line_text:
+            if reversed_direction:
+                cdpt, rot_degree = CJK_Compatibility_Forms_translate(c, 0)
+                glyph = get_char_glyph(cdpt, font_size, 0)
+                offset_x = glyph.metrics.horiAdvance >> 6
+                pen_line[0] -= offset_x
+            # print(1, pen_line, c)
             offset_x = put_char_horizontal(font_size, c, pen_line, canvas_text, canvas_border, border_size=bg_size)
-            pen_line[0] += offset_x
+            if not reversed_direction:
+                pen_line[0] += offset_x
         pen_orig[1] += spacing_y + font_size
 
     # colorize

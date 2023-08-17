@@ -57,8 +57,8 @@ VALID_TRANSLATORS = [
     'jparacrawl',
     'jparacrawl_big',
     'm2m100',
-    'm2m100_big'
-    ]
+    'm2m100_big',
+]
 
 MAX_ONGOING_TASKS = 1
 MAX_IMAGE_SIZE_PX = 8000**2

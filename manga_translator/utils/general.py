@@ -119,6 +119,19 @@ def count_valuable_text(text) -> int:
     # return sum([1 for ch in text if re.search(r'\w', ch)])
     return sum([1 for ch in text if not is_punctuation(ch) and not is_control(ch) and not is_whitespace(ch)])
 
+def is_right_to_left_char(ch):
+    """Checks whether the char belongs to a right to left alphabet."""
+    # Arabic (from https://stackoverflow.com/a/49346768)
+    if ('\u0600' <= ch <= '\u06FF' or
+        '\u0750' <= ch <= '\u077F' or
+        '\u08A0' <= ch <= '\u08FF' or
+        '\uFB50' <= ch <= '\uFDFF' or
+        '\uFE70' <= ch <= '\uFEFF' or
+        '\U00010E60' <= ch <= '\U00010E7F' or
+        '\U0001EE00' <= ch <= '\U0001EEFF'):
+        return True
+    return False
+
 def replace_prefix(s: str, old: str, new: str):
     if s.startswith(old):
         s = new + s[len(old):]

@@ -40,3 +40,4 @@ marshmallow
 cython
 aioshutil
 aiofiles
+arabic-reshaper

@@ -117,14 +117,13 @@ async def dispatch(
         # logger.info(f' trans: {region.translation}')
         # logger.info(f' font_size: {region.font_size}')
 
-        img = render(img, region, dst_points, region.alignment)
+        img = render(img, region, dst_points)
     return img
 
 def render(
     img,
     region: TextBlock,
     dst_points,
-    alignment: str,
 ):
     fg, bg = region.get_font_colors()
     fg, bg = fg_bg_compare(fg, bg)
@@ -134,21 +133,22 @@ def render(
     norm_v = np.linalg.norm(middle_pts[:, 2] - middle_pts[:, 0], axis=1)
     r_orig = np.mean(norm_h / norm_v)
 
-    if region.direction == 'h':
+    if region.horizontal:
         temp_box = text_render.put_text_horizontal(
             region.font_size,
-            region.translation,
+            region.get_translation_for_rendering(),
             round(norm_h[0]),
-            alignment,
+            region.alignment,
+            region.direction == 'hr',
             fg,
             bg,
         )
     else:
         temp_box = text_render.put_text_vertical(
             region.font_size,
-            region.translation,
+            region.get_translation_for_rendering(),
             round(norm_v[0]),
-            alignment,
+            region.alignment,
             fg,
             bg,
         )

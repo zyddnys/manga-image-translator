@@ -31,6 +31,7 @@ VALID_LANGUAGES = {
     'TRK': 'Turkish',
     'UKR': 'Ukrainian',
     'VIN': 'Vietnamese',
+    'ARA': 'Arabic',
 }
 
 ISO_639_1_TO_VALID_LANGUAGES = {
@@ -52,6 +53,8 @@ ISO_639_1_TO_VALID_LANGUAGES = {
     'es': 'ESP',
     'tr': 'TRK',
     'uk': 'UKR',
+    'vi': 'VIN',
+    'ar': 'ARA',
 }
 
 class InvalidServerResponse(Exception):
@@ -192,6 +195,10 @@ class CommonTranslator(InfererModule):
                 break
 
         translations = [self._clean_translation_output(q, r) for q, r in zip(queries, translations)]
+
+        if to_lang == 'ARA':
+            import arabic_reshaper
+            translations = [arabic_reshaper.reshape(t) for t in translations]
 
         # Merge with the queries without text
         for i, trans in enumerate(translations):

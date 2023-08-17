@@ -95,6 +95,7 @@ RUS: Russian
 ESP: Spanish
 TRK: Turkish
 VIN: Vietnames
+ARA: Arabic
 ```
 
 <!-- Auto generated start (See devscripts/make_readme.py) -->
@@ -109,7 +110,7 @@ VIN: Vietnames
                                              image folder if using batch mode
 -o, --dest DEST                              Path to the destination folder for translated images in
                                              batch mode
--l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN}
+-l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA}
                                              Destination language
 -v, --verbose                                Print debug info and save intermediate images in result
                                              folder
