@@ -152,7 +152,7 @@ class TextBlock(object):
         min_bbox = np.array([[min_x, min_y, max_x, min_y, max_x, max_y, min_x, max_y]])
         if self.angle != 0:
             min_bbox = rotate_polygons(self.center, min_bbox, -self.angle)
-        return min_bbox.reshape(-1, 4, 2).astype(np.int64)
+        return min_bbox.clip(0).reshape(-1, 4, 2).astype(np.int64)
 
     @cached_property
     def polygon_aspect_ratio(self) -> float:
