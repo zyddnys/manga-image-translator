@@ -24,21 +24,23 @@ text_template = '''
 '''
 
 save_tempaltes = {
-    'xcf': '( gimp-xcf-save RUN-NONINTERACTIVE image inpainting "{out_file}" "{out_file}" )',
-    'psd': '( file-psd-save RUN-NONINTERACTIVE image inpainting "{out_file}" "{out_file}" 0 0 )',
-    'pdf': '( file-pdf-save RUN-NONINTERACTIVE image inpainting "{out_file}" "{out_file}" TRUE TRUE TRUE )',
+    'xcf': '( gimp-xcf-save RUN-NONINTERACTIVE image background_layer "{out_file}" "{out_file}" )',
+    'psd': '( file-psd-save RUN-NONINTERACTIVE image background_layer "{out_file}" "{out_file}" 0 0 )',
+    'pdf': '( file-pdf-save RUN-NONINTERACTIVE image background_layer "{out_file}" "{out_file}" TRUE TRUE TRUE )',
 }
+
+create_mask = '( inpainting ( car ( gimp-file-load-layer RUN-NONINTERACTIVE image "{mask_file}" ) ) )'
+rename_mask = '( gimp-image-add-layer image inpainting 0 ) ( gimp-item-set-name inpainting "mask" )'
 
 script_template = '''
 ( let* (
             ( image ( car ( gimp-file-load RUN-NONINTERACTIVE "{input_file}" "{input_file}" ) ) )
             ( layer-list (gimp-image-get-layers image))
             ( background_layer (car layer-list))
-            ( inpainting ( car ( gimp-file-load-layer RUN-NONINTERACTIVE image "{mask_file}" ) ) )
+            {create_mask}
             {text_init}
         )
-    ( gimp-image-add-layer image inpainting 0 )
-    ( gimp-item-set-name inpainting "mask" )
+    {rename_mask}
     ( gimp-item-set-name background_layer "original image" )
     {text}
     {save}
@@ -49,10 +51,13 @@ def gimp_render(out_file, ctx: Context):
     input_file = tempfile.NamedTemporaryFile(suffix='.png')
     mask_file = tempfile.NamedTemporaryFile(suffix='.png')
 
-    ctx.input.save(input_file.name)
-    cv2.imwrite(mask_file.name, ctx.gimp_mask)
-
     extension = out_file.split('.')[-1]
+
+    ctx.input.save(input_file.name)
+    if ctx.gimp_mask is not None:
+        cv2.imwrite(mask_file.name, ctx.gimp_mask)
+    else:
+        ctx.text_regions = []
 
     text_init = ''.join([text_init_template.format(
         text=text_region.translation.replace('"', '\\"'), text_size=text_region.font_size, n=n
@@ -67,8 +72,10 @@ def gimp_render(out_file, ctx: Context):
         ) for n, text_region in enumerate(ctx.text_regions)])
 
     full_script = script_template.format(
-        input_file=input_file.name, mask_file=mask_file.name, text_init=text_init, text=text,
-        extension=extension, save=save_tempaltes[extension].format(out_file=out_file)
+        input_file=input_file.name, text_init=text_init, text=text,
+        extension=extension, save=save_tempaltes[extension].format(out_file=out_file),
+        create_mask=(create_mask.format(mask_file=mask_file.name) if ctx.gimp_mask is not None else ''),
+        rename_mask=(rename_mask if ctx.gimp_mask is not None else '')
     )
 
     subprocess.run(['gimp', '-i', '-b', full_script])
