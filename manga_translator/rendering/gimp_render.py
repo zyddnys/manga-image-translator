@@ -5,14 +5,14 @@ import cv2
 
 from ..utils import Context
 
+DEFAULT_FONT = 'Sans-serif'
+
 alignment_to_justification = {'left': 'TEXT-JUSTIFY-LEFT', 'right': 'TEXT-JUSTIFY-RIGHT', 'center': 'TEXT-JUSTIFY-CENTER'}
+direction_to_base_direction = {'h': 'TEXT-DIRECTION-LTR', 'v': 'TEXT-DIRECTION-TTB-LTR-UPRIGHT', 'hr': 'TEXT-DIRECTION-RTL', 'vr': 'TEXT-DIRECTION-TTB-RTL-UPRIGHT'}
 
-text_init_template = '''
-            ( text{n} ( car ( gimp-text-layer-new image "{text}" "Noto Sans" {text_size} 0 ) ) )
-'''
-
-# text rotation was buggy so I left it out
-#    ( gimp-item-transform-rotate text{n} {angle} TRUE 0 0 )
+text_init_template = '( text{n} ( car ( gimp-text-layer-new image "{text}" "{default_font}" {text_size} 0 ) ) )'
+font_template = '( gimp-text-layer-set-font text{n} "{font}" )'
+angle_template = '( gimp-item-transform-rotate text{n} {angle} TRUE 0 0 )'
 
 text_template = '''
     ( gimp-image-add-layer image text{n} 0 )
@@ -20,7 +20,13 @@ text_template = '''
     ( gimp-item-set-name text{n} "{name}" )
     ( gimp-layer-set-offsets text{n} {position} )
     ( gimp-text-layer-resize text{n} {size} )
+    ( gimp-text-layer-set-language text{n} "{language}" )
+    ( gimp-text-layer-set-letter-spacing text{n} {letter_spacing} )
+    ( gimp-text-layer-set-line-spacing text{n} {line_spacing} )
+    ( gimp-text-layer-set-base-direction text{n} {base_direction} )
     ( gimp-text-layer-set-justification text{n} {justify} )
+    {font}
+    {angle}
 '''
 
 save_tempaltes = {
@@ -60,24 +66,38 @@ def gimp_render(out_file, ctx: Context):
         ctx.text_regions = []
 
     text_init = ''.join([text_init_template.format(
-        text=text_region.translation.replace('"', '\\"'), text_size=text_region.font_size, n=n
+            n=n,
+            text=text_region.translation.replace('"', '\\"'),
+            text_size=text_region.font_size,
+            default_font=DEFAULT_FONT+(' Bold' if text_region.bold else '')+(' Italic' if text_region.italic else '')
         ) for n, text_region in enumerate(ctx.text_regions)])
 
     text = ''.join([text_template.format(
-        n=n, color=' '.join([str(value) for value in text_region.fg_colors]),
-        name=' '.join(text_region.text), position=str(text_region.xywh[0])+' '+str(text_region.xywh[1]),
-        size=str(text_region.xywh[2])+' '+str(text_region.xywh[3]),
-        justify=alignment_to_justification[text_region.alignment],
-        angle=math.radians(text_region.angle),
+            n=n,
+            color=' '.join([str(value) for value in text_region.fg_colors]),
+            name=' '.join(text_region.text),
+            position=str(text_region.xywh[0])+' '+str(text_region.xywh[1]),
+            size=str(text_region.xywh[2])+' '+str(text_region.xywh[3]),
+            justify=alignment_to_justification[text_region.alignment],
+            font=font_template.format(n=n, font=text_region.font_family) if text_region.font_family != '' else '',
+            angle=angle_template.formt(n=n, angle=math.radians(text_region.angle)) if abs(text_region.angle) > 10 else '',
+            language=text_region.target_lang,
+            line_spacing=text_region.line_spacing,
+            letter_spacing=text_region.letter_spacing,
+            base_direction=direction_to_base_direction[text_region.direction],
         ) for n, text_region in enumerate(ctx.text_regions)])
 
     full_script = script_template.format(
-        input_file=input_file.name, text_init=text_init, text=text,
-        extension=extension, save=save_tempaltes[extension].format(out_file=out_file),
+        input_file=input_file.name,
+        text_init=text_init,
+        text=text,
+        extension=extension,
+        save=save_tempaltes[extension].format(out_file=out_file),
         create_mask=(create_mask.format(mask_file=mask_file.name) if ctx.gimp_mask is not None else ''),
-        rename_mask=(rename_mask if ctx.gimp_mask is not None else '')
+        rename_mask=(rename_mask if ctx.gimp_mask is not None else ''),
     )
 
     subprocess.run(['gimp', '-i', '-b', full_script])
+
     input_file.close()
     mask_file.close()
