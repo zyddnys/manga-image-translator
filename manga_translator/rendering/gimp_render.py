@@ -95,7 +95,7 @@ def gimp_render(out_file, ctx: Context):
         text_init=text_init,
         text=text,
         extension=extension,
-        save=save_tempaltes[extension].format(out_file=out_file),
+        save=save_tempaltes[extension].format(out_file=out_file.replace('\\', '\\\\')),
         create_mask=(create_mask.format(mask_file=mask_file) if ctx.gimp_mask is not None else ''),
         rename_mask=(rename_mask if ctx.gimp_mask is not None else ''),
     )
@@ -103,7 +103,7 @@ def gimp_render(out_file, ctx: Context):
     executable = 'gimp'
     if platform.system() == 'Windows':
         gimp_dir = os.getenv('LOCALAPPDATA')+'\\Programs\\GIMP 2\\bin\\'
-        executables = glob.glob(gimp_dir+'gimp-2.*.exe')
+        executables = glob.glob(gimp_dir+'gimp-console-2.*.exe')
         if len(executables) == 0:
             print('error: gimp not found in directory:', gimp_dir)
             return
