@@ -57,14 +57,14 @@ script_template = '''
 )'''
 
 def gimp_render(out_file, ctx: Context):
-    input_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
-    mask_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+    input_file = '.gimp_input.png'
+    mask_file = '.gimp_mask.png'
 
     extension = out_file.split('.')[-1]
 
-    ctx.input.save(input_file.name)
+    ctx.input.save(input_file)
     if ctx.gimp_mask is not None:
-        cv2.imwrite(mask_file.name, ctx.gimp_mask)
+        cv2.imwrite(mask_file, ctx.gimp_mask)
     else:
         ctx.text_regions = []
 
@@ -91,12 +91,12 @@ def gimp_render(out_file, ctx: Context):
         ) for n, text_region in enumerate(ctx.text_regions)])
 
     full_script = script_template.format(
-        input_file=input_file.name,
+        input_file=input_file,
         text_init=text_init,
         text=text,
         extension=extension,
         save=save_tempaltes[extension].format(out_file=out_file),
-        create_mask=(create_mask.format(mask_file=mask_file.name) if ctx.gimp_mask is not None else ''),
+        create_mask=(create_mask.format(mask_file=mask_file) if ctx.gimp_mask is not None else ''),
         rename_mask=(rename_mask if ctx.gimp_mask is not None else ''),
     )
 
@@ -111,7 +111,5 @@ def gimp_render(out_file, ctx: Context):
     
     subprocess.run([executable, '-i', '-b', full_script])
 
-    input_file.close()
-    mask_file.close()
-    os.unlink(input_file.name)
-    os.unlink(mask_file.name)
+    os.unlink(input_file)
+    os.unlink(mask_file)
