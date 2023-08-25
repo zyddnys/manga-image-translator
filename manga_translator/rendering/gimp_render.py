@@ -2,6 +2,9 @@ import tempfile
 import subprocess
 import math
 import cv2
+import platform
+import glob
+import os
 
 from ..utils import Context
 
@@ -97,7 +100,16 @@ def gimp_render(out_file, ctx: Context):
         rename_mask=(rename_mask if ctx.gimp_mask is not None else ''),
     )
 
-    subprocess.run(['gimp', '-i', '-b', full_script])
+    executable = 'gimp'
+    if platform.system == 'Windows':
+        gimp_dir = os.getenv('LOCALAPPDATA')+'\\Programs\\GIMP 2\\bin\\'
+        executables = glob.glob(gimp_dir+'gimp-2.*.exe')
+        if len(executables) == 0:
+            print('error: gimp not found in directory:', gimp_dir)
+            return
+        executable = executables[0]
+    
+    subprocess.run([executable, '-i', '-b', full_script])
 
     input_file.close()
     mask_file.close()
