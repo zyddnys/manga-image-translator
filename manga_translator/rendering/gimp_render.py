@@ -57,8 +57,8 @@ script_template = '''
 )'''
 
 def gimp_render(out_file, ctx: Context):
-    input_file = tempfile.NamedTemporaryFile(suffix='.png')
-    mask_file = tempfile.NamedTemporaryFile(suffix='.png')
+    input_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+    mask_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
 
     extension = out_file.split('.')[-1]
 
@@ -113,3 +113,5 @@ def gimp_render(out_file, ctx: Context):
 
     input_file.close()
     mask_file.close()
+    os.unlink(input_file.name)
+    os.unlink(mask_file.name)
