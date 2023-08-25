@@ -101,7 +101,7 @@ def gimp_render(out_file, ctx: Context):
     )
 
     executable = 'gimp'
-    if platform.system == 'Windows':
+    if platform.system() == 'Windows':
         gimp_dir = os.getenv('LOCALAPPDATA')+'\\Programs\\GIMP 2\\bin\\'
         executables = glob.glob(gimp_dir+'gimp-2.*.exe')
         if len(executables) == 0:
