@@ -62,7 +62,7 @@ def gimp_render(out_file, ctx: Context):
 
     extension = out_file.split('.')[-1]
 
-    ctx.input.save(input_file)
+    ctx.upscaled.save(input_file)
     if ctx.gimp_mask is not None:
         cv2.imwrite(mask_file, ctx.gimp_mask)
     else:
