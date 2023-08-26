@@ -83,7 +83,7 @@ def gimp_render(out_file, ctx: Context):
             size=str(text_region.xywh[2])+' '+str(text_region.xywh[3]),
             justify=alignment_to_justification[text_region.alignment],
             font=font_template.format(n=n, font=text_region.font_family) if text_region.font_family != '' else '',
-            angle=angle_template.formt(n=n, angle=math.radians(text_region.angle)) if abs(text_region.angle) > 10 else '',
+            angle=angle_template.format(n=n, angle=math.radians(text_region.angle)) if abs(text_region.angle) > 10 else '',
             language=text_region.target_lang,
             line_spacing=text_region.line_spacing,
             letter_spacing=text_region.letter_spacing,
