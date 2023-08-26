@@ -57,8 +57,8 @@ script_template = '''
 )'''
 
 def gimp_render(out_file, ctx: Context):
-    input_file = '.gimp_input.png'
-    mask_file = '.gimp_mask.png'
+    input_file = os.path.join(tempfile.gettempdir(), '.gimp_input.png')
+    mask_file = os.path.join(tempfile.gettempdir(), '.gimp_mask.png')
 
     extension = out_file.split('.')[-1]
 
