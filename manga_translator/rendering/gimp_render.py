@@ -91,12 +91,12 @@ def gimp_render(out_file, ctx: Context):
         ) for n, text_region in enumerate(ctx.text_regions)])
 
     full_script = script_template.format(
-        input_file=input_file,
+        input_file=input_file.replace('\\', '\\\\'),
         text_init=text_init,
         text=text,
         extension=extension,
         save=save_tempaltes[extension].format(out_file=out_file.replace('\\', '\\\\')),
-        create_mask=(create_mask.format(mask_file=mask_file) if ctx.gimp_mask is not None else ''),
+        create_mask=(create_mask.format(mask_file=mask_file.replace('\\', '\\\\')) if ctx.gimp_mask is not None else ''),
         rename_mask=(rename_mask if ctx.gimp_mask is not None else ''),
     )
 
