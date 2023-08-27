@@ -466,7 +466,7 @@ def render_textblock_list_eng(
         base_length_word = words[max(enumerate(word_lengths), key = lambda x: x[1])[0]]
         lines_needed = len(region.translation) / len(base_length_word)
         lines_available = abs(xyxy[3] - xyxy[1]) // line_height + 1
-        font_size_multiplier = max(min(region_w / (base_length + 2*sw), lines_available * 0.8 / lines_needed), downscale_constraint)
+        font_size_multiplier = max(min(region_w / (base_length + 2*sw), lines_available / lines_needed), downscale_constraint)
         # print(region.translation, font_size, font_size_multiplier, int(font_size * font_size_multiplier))
         if font_size_multiplier < 1:
             font_size = int(font_size * font_size_multiplier)
