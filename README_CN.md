@@ -115,7 +115,7 @@ ARA: Arabic
                                              Destination language
 -v, --verbose                                Print debug info and save intermediate images in result
                                              folder
--f, --format {png,webp,jpg}                  Output format of the translation.
+-f, --format {png,webp,jpg,xcf,psd,pdf}      Output format of the translation.
 --detector {default,ctd,craft,none}          Text detector used for creating a text mask from an
                                              image, DO NOT use craft for manga, it's not designed
                                              for it
@@ -189,6 +189,7 @@ ARA: Arabic
                                              inpainted images, plus copies of the original for
                                              reference
 --font-path FONT_PATH                        Path to font file
+--gimp-font FONT_FAMILY                      Font family to use for gimp rendering.
 --host HOST                                  Used by web module to decide which host to attach to
 --port PORT                                  Used by web module to decide which port to attach to
 --nonce NONCE                                Used by web module as secret for securing internal web

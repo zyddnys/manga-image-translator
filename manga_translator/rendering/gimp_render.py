@@ -8,6 +8,7 @@ import os
 
 from ..utils import Context
 
+# convert alignment/direction to gimp's values
 alignment_to_justification = {'left': 'TEXT-JUSTIFY-LEFT', 'right': 'TEXT-JUSTIFY-RIGHT', 'center': 'TEXT-JUSTIFY-CENTER'}
 direction_to_base_direction = {'h': 'TEXT-DIRECTION-LTR', 'v': 'TEXT-DIRECTION-TTB-LTR-UPRIGHT', 'hr': 'TEXT-DIRECTION-RTL', 'vr': 'TEXT-DIRECTION-TTB-RTL-UPRIGHT'}
 
@@ -61,6 +62,9 @@ def gimp_render(out_file, ctx: Context):
     extension = out_file.split('.')[-1]
 
     ctx.upscaled.save(input_file)
+    
+    # If there is no text on the page, gimp_mask will be None and there is no
+    # need to add it as a layer.
     if ctx.gimp_mask is not None:
         cv2.imwrite(mask_file, ctx.gimp_mask)
     else:
@@ -81,6 +85,7 @@ def gimp_render(out_file, ctx: Context):
             size=str(text_region.xywh[2])+' '+str(text_region.xywh[3]),
             justify=alignment_to_justification[text_region.alignment],
             font=font_template.format(n=n, font=text_region.font_family) if text_region.font_family != '' else '',
+            # rotated text is weird in gimp so we don't do it unless it's over 10 degrees
             angle=angle_template.format(n=n, angle=math.radians(text_region.angle)) if abs(text_region.angle) > 10 else '',
             language=text_region.target_lang,
             line_spacing=text_region.line_spacing,
@@ -88,6 +93,7 @@ def gimp_render(out_file, ctx: Context):
             base_direction=direction_to_base_direction[text_region.direction],
         ) for n, text_region in enumerate(ctx.text_regions)])
 
+    # scheme script to be ran by gimp
     full_script = script_template.format(
         input_file=input_file.replace('\\', '\\\\'),
         text_init=text_init,
@@ -106,7 +112,7 @@ def gimp_render(out_file, ctx: Context):
             print('error: gimp not found in directory:', gimp_dir)
             return
         executable = executables[0]
-    
+
     subprocess.run([executable, '-i', '-b', full_script])
 
     os.unlink(input_file)
