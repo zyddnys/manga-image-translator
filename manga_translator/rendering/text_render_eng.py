@@ -463,10 +463,14 @@ def render_textblock_list_eng(
         # new region bbox
         region_x, region_y, region_w, region_h = cv2.boundingRect(cv2.findNonZero(ballon_mask))
 
-        font_size_multiplier = max(region_w / (base_length + 2*sw), downscale_constraint)
+        base_length_word = words[max(enumerate(word_lengths), key = lambda x: x[1])[0]]
+        lines_needed = len(region.translation) / len(base_length_word)
+        lines_available = abs(xyxy[3] - xyxy[1]) // line_height + 1
+        font_size_multiplier = max(min(region_w / (base_length + 2*sw), lines_available * 0.7 / lines_needed), downscale_constraint)
+        # print(region.translation, font_size, font_size_multiplier, int(font_size * font_size_multiplier))
         if font_size_multiplier < 1:
             font_size = int(font_size * font_size_multiplier)
-            font_size, sw, line_height, delimiter_len, base_length, word_lengths = calculate_font_values(font_size * font_size_multiplier, words)
+            font_size, sw, line_height, delimiter_len, base_length, word_lengths = calculate_font_values(font_size, words)
 
         textlines = layout_lines_aligncenter(ballon_mask, words, word_lengths, delimiter_len, line_height, delimiter=delimiter)
 
