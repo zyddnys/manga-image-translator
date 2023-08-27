@@ -8,8 +8,6 @@ import os
 
 from ..utils import Context
 
-DEFAULT_FONT = 'Sans-serif'
-
 alignment_to_justification = {'left': 'TEXT-JUSTIFY-LEFT', 'right': 'TEXT-JUSTIFY-RIGHT', 'center': 'TEXT-JUSTIFY-CENTER'}
 direction_to_base_direction = {'h': 'TEXT-DIRECTION-LTR', 'v': 'TEXT-DIRECTION-TTB-LTR-UPRIGHT', 'hr': 'TEXT-DIRECTION-RTL', 'vr': 'TEXT-DIRECTION-TTB-RTL-UPRIGHT'}
 
@@ -72,7 +70,7 @@ def gimp_render(out_file, ctx: Context):
             n=n,
             text=text_region.translation.replace('"', '\\"'),
             text_size=text_region.font_size,
-            default_font=DEFAULT_FONT+(' Bold' if text_region.bold else '')+(' Italic' if text_region.italic else '')
+            default_font=ctx.gimp_font+(' Bold' if text_region.bold else '')+(' Italic' if text_region.italic else '')
         ) for n, text_region in enumerate(ctx.text_regions)])
 
     text = ''.join([text_template.format(

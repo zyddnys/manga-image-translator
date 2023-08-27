@@ -145,6 +145,7 @@ g.add_argument('--save-text-file', default='', type=str, help='Like --save-text 
 parser.add_argument('--filter-text', default=None, type=str, help='Filter regions by their text with a regex. Example usage: --text-filter ".*badtext.*"')
 parser.add_argument('--prep-manual', action='store_true', help='Prepare for manual typesetting by outputting blank, inpainted images, plus copies of the original for reference')
 parser.add_argument('--font-path', default='', type=file_path, help='Path to font file')
+parser.add_argument('--gimp-font', default='Sans-serif', type=str, help='Font family to use for gimp rendering.')
 parser.add_argument('--host', default='127.0.0.1', type=str, help='Used by web module to decide which host to attach to')
 parser.add_argument('--port', default=5003, type=int, help='Used by web module to decide which port to attach to')
 parser.add_argument('--nonce', default=os.getenv('MT_WEB_NONCE', ''), type=str, help='Used by web module as secret for securing internal web server communication')
