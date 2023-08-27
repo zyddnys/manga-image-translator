@@ -408,7 +408,7 @@ class MangaTranslator():
             text = textline.text
             if text.isnumeric() \
                 or (ctx.filter_text and re.search(ctx.filter_text, text)) \
-                or count_valuable_text(text) <= 1 \
+                or count_valuable_text(text) < 1 \
                 or is_url(text):
                 if text.strip():
                     logger.info(f'Filtered out: {text}')
