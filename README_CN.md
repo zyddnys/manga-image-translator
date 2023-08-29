@@ -127,7 +127,7 @@ ARA: Arabic
 --upscale-ratio {1,2,3,4,8,16,32}            Image upscale ratio applied before detection. Can
                                              improve text detection.
 --colorizer {mc2}                            Colorization model to use.
---translator {google,youdao,baidu,deepl,papago,gpt3,gpt3.5,gpt4,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
+--translator {google,youdao,baidu,deepl,papago,caiyun,gpt3,gpt3.5,gpt4,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
                                              Language translator to use
 --translator-chain TRANSLATOR_CHAIN          Output of one translator goes in another. Example:
                                              --translator-chain "google:JPN;sugoi:ENG".
@@ -139,8 +139,10 @@ ARA: Arabic
 --use-cuda                                   Turn on/off cuda
 --use-cuda-limited                           Turn on/off cuda (excluding offline translator)
 --model-dir MODEL_DIR                        Model directory (by default ./models in project root)
---retries RETRIES                            Retry attempts on encountered error. -1 means infinite
+--attempts ATTEMPTS                          Retry attempts on encountered error. -1 means infinite
                                              times.
+--ignore-errors                              Skip image on encountered error.
+--overwrite                                  Overwrite already translated images in batch mode.
 --revert-upscaling                           Downscales the previously upscaled image after
                                              translation back to original size (Use with --upscale-
                                              ratio).

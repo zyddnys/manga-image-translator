@@ -38,7 +38,6 @@ async def dispatch(args: Namespace):
             await translator.translate_path(args.input[0], dest, args_dict)
         else: # batch
             dest = args.dest
-            args.overwrite = False
             for path in natural_sort(args.input):
                 await translator.translate_path(path, dest, args_dict)
 

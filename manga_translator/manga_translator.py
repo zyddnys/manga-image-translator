@@ -162,7 +162,7 @@ class MangaTranslator():
                     if await self._translate_file(file_path, output_dest, params):
                         translated_count += 1
             if translated_count == 0:
-                logger.info('No untranslated files found')
+                logger.info('No further untranslated files found. Use --overwrite to write over existing translations.')
             else:
                 logger.info(f'Done. Translated {translated_count} image{"" if translated_count == 1 else "s"}')
 
@@ -182,31 +182,23 @@ class MangaTranslator():
             return False
 
         translation_dict = await self.translate(img, params)
-
-        # If no text was found save intermediate image product
-        result = None
-        if translation_dict.result is not None:
-            result = translation_dict.result
-        elif translation_dict.upscaled:
-            result = translation_dict.upscaled
-        else:
-            result = img
-
-        if translation_dict.save_text or translation_dict.save_text_file or translation_dict.prep_manual:
-            if translation_dict.prep_manual:
-                # Save original image next to translated
-                p, ext = os.path.splitext(dest)
-                img_filename = p + '-orig' + ext
-                img_path = os.path.join(os.path.dirname(dest), img_filename)
-                img.save(img_path, quality=translation_dict.save_quality)
-            if translation_dict.text_regions:
-                self._save_text_to_file(dest, translation_dict)
+        result = translation_dict.result
 
         # Save result
         if result:
             logger.info(f'Saving "{dest}"')
             save_result(result, dest, translation_dict)
             await self._report_progress('saved', True)
+
+            if translation_dict.save_text or translation_dict.save_text_file or translation_dict.prep_manual:
+                if translation_dict.prep_manual:
+                    # Save original image next to translated
+                    p, ext = os.path.splitext(dest)
+                    img_filename = p + '-orig' + ext
+                    img_path = os.path.join(os.path.dirname(dest), img_filename)
+                    img.save(img_path, quality=translation_dict.save_quality)
+                if translation_dict.text_regions:
+                    self._save_text_to_file(dest, translation_dict)
         else:
             return False
         return True
@@ -238,10 +230,10 @@ class MangaTranslator():
         ctx.result = None
 
         attempts = 0
-        while ctx.retries == -1 or attempts < ctx.retries + 1:
+        while ctx.attempts == -1 or attempts < ctx.attempts + 1:
             if attempts > 0:
                 logger.info(f'Retrying translation! Attempt {attempts}'
-                            + (f' of {ctx.retries}' if ctx.retries != -1 else ''))
+                            + (f' of {ctx.attempts}' if ctx.attempts != -1 else ''))
             try:
                 # preload and download models (not strictly necessary, remove to lazy load)
                 logger.info('Loading models')
@@ -263,7 +255,7 @@ class MangaTranslator():
                     await self._report_progress('error-lang', True)
                 else:
                     await self._report_progress('error', True)
-                if not self.ignore_errors and not (ctx.retries == -1 or attempts < ctx.retries):
+                if not self.ignore_errors and not (ctx.attempts == -1 or attempts < ctx.attempts):
                     raise
                 else:
                     logger.error(f'{e.__class__.__name__}: {e}',
@@ -333,6 +325,8 @@ class MangaTranslator():
 
         if not ctx.textlines:
             await self._report_progress('skip-no-regions', True)
+            # If no text was found result is intermediate image product
+            ctx.result = ctx.upscaled
             return ctx
         if self.verbose:
             img_bbox_raw = np.copy(ctx.img_rgb)
@@ -344,6 +338,8 @@ class MangaTranslator():
         ctx.textlines = await self._run_ocr(ctx)
         if not ctx.textlines:
             await self._report_progress('skip-no-text', True)
+            # If no text was found result is intermediate image product
+            ctx.result = ctx.upscaled
             return ctx
 
         await self._report_progress('textline_merge')
