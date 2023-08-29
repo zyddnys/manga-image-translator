@@ -369,6 +369,8 @@ class MangaTranslator():
         await self._report_progress('inpainting')
         ctx.img_inpainted = await self._run_inpainting(ctx)
 
+        ctx.gimp_mask = np.dstack((cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR), ctx.mask))
+
         if self.verbose:
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR))
 
