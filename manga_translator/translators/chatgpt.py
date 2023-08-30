@@ -153,7 +153,10 @@ class GPT3Translator(CommonTranslator):
                     await asyncio.sleep(1)
 
             self.logger.debug('-- GPT Response --\n' + response)
-            new_translations = re.split(r'<\|\d+\|>', response)[1:]
+            new_translations = re.split(r'<\|\d+\|>', response)
+            # When there only one query chatgpt likes to exclude the <|1|>
+            if not new_translations[0].strip():
+                new_translations = new_translations[1:]
             translations.extend([t.strip() for t in new_translations])
 
         self.logger.debug(translations)
