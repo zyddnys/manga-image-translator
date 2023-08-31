@@ -194,7 +194,7 @@ class CommonTranslator(InfererModule):
             if not untranslated_indices:
                 break
 
-        translations = [self._clean_translation_output(q, r) for q, r in zip(queries, translations)]
+        translations = [self._clean_translation_output(q, r, to_lang) for q, r in zip(queries, translations)]
 
         if to_lang == 'ARA':
             import arabic_reshaper
@@ -203,6 +203,9 @@ class CommonTranslator(InfererModule):
         # Merge with the queries without text
         for i, trans in enumerate(translations):
             final_translations[query_indices[i]] = trans
+
+        for i, (q, t) in enumerate(zip(queries, final_translations)):
+            self.logger.info(f'{i}: {q} => {t}')
 
         if use_mtpe:
             final_translations = await self.mtpe_adapter.dispatch(queries, final_translations)
@@ -240,7 +243,7 @@ class CommonTranslator(InfererModule):
         """
         return query
 
-    def _clean_translation_output(self, query: str, trans: str) -> str:
+    def _clean_translation_output(self, query: str, trans: str, to_lang: str) -> str:
         """
         Tries to spot and skim down invalid translations.
         """
@@ -249,14 +252,16 @@ class CommonTranslator(InfererModule):
 
         # '  ' -> ' '
         trans = re.sub(r'\s+', r' ', trans)
-        # 'text .' -> 'text.'
-        trans = re.sub(r'(?<=[.,;!?\w])\s+([.,;!?])', r'\1', trans)
         # 'text.text' -> 'text. text'
         trans = re.sub(r'(?<![.,;!?])([.,;!?])(?=\w)', r'\1 ', trans)
         # ' ! ! . . ' -> ' !!.. '
         trans = re.sub(r'([.,;!?])\s+(?=[.,;!?]|$)', r'\1', trans)
-        # ' ... text' -> ' ...text'
-        trans = re.sub(r'((?:\s|^)\.+)\s+(?=\w)', r'\1', trans)
+
+        if to_lang != 'ARA':
+            # 'text .' -> 'text.'
+            trans = re.sub(r'(?<=[.,;!?\w])\s+([.,;!?])', r'\1', trans)
+            # ' ... text' -> ' ...text'
+            trans = re.sub(r'((?:\s|^)\.+)\s+(?=\w)', r'\1', trans)
 
         seq = repeating_sequence(trans.lower())
 

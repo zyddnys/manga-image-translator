@@ -1,8 +1,6 @@
 import asyncio
 import base64
 import io
-import random
-import string
 import cv2
 from omegaconf import OmegaConf
 import py3langid as langid
@@ -302,12 +300,14 @@ class MangaTranslator():
 
     async def _translate(self, ctx: Context) -> Context:
 
+        # -- Colorization
         if ctx.colorizer:
             await self._report_progress('colorizing')
             ctx.img_colorized = await self._run_colorizer(ctx)
         else:
             ctx.img_colorized = ctx.input
 
+        # -- Upscaling
         # The default text detector doesn't work very well on smaller images, might want to
         # consider adding automatic upscaling on certain kinds of small images.
         if ctx.upscale_ratio:
@@ -318,6 +318,7 @@ class MangaTranslator():
 
         ctx.img_rgb, ctx.img_alpha = load_image(ctx.upscaled)
 
+        # -- Detection
         await self._report_progress('detection')
         ctx.textlines, ctx.mask_raw, ctx.mask = await self._run_detection(ctx)
         if self.verbose:
@@ -334,6 +335,7 @@ class MangaTranslator():
                 cv2.polylines(img_bbox_raw, [txtln.pts], True, color=(255, 0, 0), thickness=2)
             cv2.imwrite(self._result_path('bboxes_unfiltered.png'), cv2.cvtColor(img_bbox_raw, cv2.COLOR_RGB2BGR))
 
+        # -- OCR
         await self._report_progress('ocr')
         ctx.textlines = await self._run_ocr(ctx)
         if not ctx.textlines:
@@ -342,6 +344,7 @@ class MangaTranslator():
             ctx.result = ctx.upscaled
             return ctx
 
+        # -- Textline merge
         await self._report_progress('textline_merge')
         ctx.text_regions = await self._run_textline_merge(ctx)
 
@@ -349,6 +352,7 @@ class MangaTranslator():
             bboxes = visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions)
             cv2.imwrite(self._result_path('bboxes.png'), bboxes)
 
+        # -- Translation
         await self._report_progress('translating')
         ctx.text_regions = await self._run_text_translation(ctx)
 
@@ -356,7 +360,8 @@ class MangaTranslator():
             await self._report_progress('error-translating', True)
             return ctx
 
-        # Delayed mask refinement to take advantage of the region filtering done after ocr and translation
+        # -- Mask refinement
+        # (Delayed to take advantage of the region filtering done after ocr and translation)
         if ctx.mask is None:
             await self._report_progress('mask-generation')
             ctx.mask = await self._run_mask_refinement(ctx)
@@ -366,6 +371,7 @@ class MangaTranslator():
             cv2.imwrite(self._result_path('inpaint_input.png'), cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
             cv2.imwrite(self._result_path('mask_final.png'), ctx.mask)
 
+        # -- Inpainting
         await self._report_progress('inpainting')
         ctx.img_inpainted = await self._run_inpainting(ctx)
 
@@ -374,6 +380,7 @@ class MangaTranslator():
         if self.verbose:
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR))
 
+        # -- Rendering
         await self._report_progress('rendering')
         ctx.img_rendered = await self._run_text_rendering(ctx)
 
@@ -459,7 +466,7 @@ class MangaTranslator():
     async def _run_text_rendering(self, ctx: Context):
         if ctx.renderer == 'none':
             output = ctx.img_inpainted
-        # manga2eng currently only supports horizontal rendering
+        # manga2eng currently only supports horizontal left to right rendering
         elif ctx.renderer == 'manga2eng' and ctx.text_regions and LANGAUGE_ORIENTATION_PRESETS.get(ctx.text_regions[0].target_lang) == 'h':
             output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, ctx.font_path)
         else:
