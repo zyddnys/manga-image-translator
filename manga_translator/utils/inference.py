@@ -247,6 +247,13 @@ class ModelWrapper(ABC):
 
                 self._grant_execute_permissions(map_key)
 
+                # Remove temporary files
+                try:
+                    os.remove(download_path)
+                    shutil.rmtree(extracted_path)
+                except Exception:
+                    pass
+
             print()
             self._on_download_finished(map_key)
 
