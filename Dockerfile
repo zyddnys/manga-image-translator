@@ -2,10 +2,11 @@ FROM pytorch/pytorch:latest
 
 WORKDIR /app
 
+RUN apt-get update
+RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y install tzdata
 # Assume root to install required dependencies
-RUN apt-get update && \
-    apt-get install -y git g++ ffmpeg libsm6 libxext6 libvulkan-dev && \
-    pip install git+https://github.com/lucasb-eyer/pydensecrf.git
+RUN apt-get install -y git g++ ffmpeg libsm6 libxext6 libvulkan-dev && \
+    pip install git+https://github.com/kodalli/pydensecrf.git
 
 # Install pip dependencies
 
