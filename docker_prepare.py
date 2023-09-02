@@ -15,7 +15,10 @@ async def download(dict):
       await inst.download()
 
 async def main():
-  await download(['sugoi', 'm2m100_big'])
+  await download({
+    k: v for k, v in TRANSLATORS.items() 
+      if k in ['sugoi', 'm2m100_big']
+  })
   await download(DETECTORS)
   await download(OCRS)
   await download({
