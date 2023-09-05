@@ -30,7 +30,7 @@
 	  			<div id="t-area"><h2>Translation</h2></div>
 	  		</div>
 	  		<div>
-	  			<button type="button" class="button" name="submit" onclick="finish()">Submit</button>
+	  			<button type="button" id="submit-button" class="button" disabled="disabled" name="submit" onclick="finish()">None</button>
 	  		</div>
 	  	</div>
 
@@ -135,9 +135,14 @@ function previewFile(file) {
   }
 }
 
+let submitButton = document.getElementById("submit-button")
+
 function uploadFile(file, i) {
 
   // ch_images.value = ch_images.value + file.name
+  submitButton.setAttribute("disabled", "disabled")
+  submitButton.innerHTML = "Uploading"
+
 
   var url = '/manual-translate'
   var xhr = new XMLHttpRequest()
@@ -175,6 +180,10 @@ function uploadFile(file, i) {
 
       	// console.log(obj.trans_result[i-1].s)
       }
+	  
+	  submitButton.removeAttribute("disabled")
+	  submitButton.innerHTML = "Submit"
+
     }
     else if (xhr.readyState == 4 && xhr.status != 200) {
       // Error. Inform the user
@@ -189,6 +198,10 @@ function uploadFile(file, i) {
 }
 
 function finish() {
+	
+	submitButton.setAttribute("disabled", "disabled")
+	submitButton.innerHTML = "Running"
+
 	var inputs = document.getElementsByTagName("input")
 
 	var trans_result = []
@@ -222,14 +235,15 @@ function finish() {
 	xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8")
 
 	xhr.addEventListener('readystatechange', function(e) {
-	if (xhr.readyState == 4 && xhr.status == 200) {
-	  var img = document.getElementsByTagName("img")[0]
-	  img.src = "/result/"+task_id
-	}
-	else if (xhr.readyState == 4 && xhr.status != 200) {
-	  // Error. Inform the user
-	  alert("Request failed!")
-	}
+		if (xhr.readyState == 4 && xhr.status == 200) {
+			var img = document.getElementsByTagName("img")[0]
+			img.src = "/result/"+task_id
+		}
+		else if (xhr.readyState == 4 && xhr.status != 200) {
+			// Error. Inform the user
+			alert("Request failed!")
+		}
+		submitButton.innerHTML = "Done"
 	})
 
 
