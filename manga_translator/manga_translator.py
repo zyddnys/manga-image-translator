@@ -663,8 +663,8 @@ class MangaTranslatorWeb(MangaTranslator):
             requests.post(f'http://{self.host}:{self.port}/request-manual-internal', json={
                 'task_id': self._task_id,
                 'nonce': self.nonce,
-                'texts': [r.get_text() for r in ctx.text_regions],
-                'translations': [r.translation for r in ctx.text_regions],
+                'texts': [r.get_text() for r in text_regions],
+                'translations': [r.translation for r in text_regions],
             }, timeout=20)
 
             # wait for at most 1 hour for manual translation
@@ -679,12 +679,15 @@ class MangaTranslatorWeb(MangaTranslator):
                     if isinstance(manual_translations, str):
                         if manual_translations == 'error':
                             return []
-                    for i, (region, translation) in enumerate(zip(text_regions, manual_translations)):
+                    i = 0
+                    for translation in manual_translations:
                         if not translation.strip():
                             text_regions.pop(i)
+                            i = i - 1
                         else:
-                            region.translation = translation
-                            region.target_lang = ctx.translator.langs[-1]
+                            text_regions[i].translation = translation
+                            text_regions[i].target_lang = ctx.translator.langs[-1]
+                        i = i + 1
                     break
                 await asyncio.sleep(0.1)
         return text_regions
