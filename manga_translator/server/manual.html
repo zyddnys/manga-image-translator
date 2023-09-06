@@ -153,6 +153,8 @@ function uploadFile(file, i) {
   // Update progress (can be used to show progress indicator)
   xhr.upload.addEventListener("progress", function(e) {
     updateProgress(i, (e.loaded * 100.0 / e.total) || 100)
+	if (e.loaded == e.total)
+		submitButton.innerHTML = "Processing"
   })
 
   xhr.addEventListener('readystatechange', function(e) {

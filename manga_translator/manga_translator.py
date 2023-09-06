@@ -679,9 +679,12 @@ class MangaTranslatorWeb(MangaTranslator):
                     if isinstance(manual_translations, str):
                         if manual_translations == 'error':
                             return []
-                    for region, translation in zip(text_regions, manual_translations):
-                        region.translation = translation
-                        region.target_lang = ctx.translator.langs[-1]
+                    for i, (region, translation) in enumerate(zip(text_regions, manual_translations)):
+                        if not translation.strip():
+                            text_regions.pop(i)
+                        else:
+                            region.translation = translation
+                            region.target_lang = ctx.translator.langs[-1]
                     break
                 await asyncio.sleep(0.1)
         return text_regions
