@@ -436,6 +436,7 @@ async def manual_translate_async(request):
     task_id = crypto_utils.rand_bytes(16).hex()
     print(f'New `manual-translate` task {task_id}')
     os.makedirs(f'result/{task_id}/', exist_ok=True)
+    img = img.convert('RGB')
     img.save(f'result/{task_id}/input.jpg')
     now = time.time()
     QUEUE.append(task_id)
