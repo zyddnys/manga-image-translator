@@ -170,7 +170,7 @@ function uploadFile(file, i) {
       var sArea = document.getElementById('s-area')
       var tArea = document.getElementById('t-area')
 
-      for (var i = 0; i < obj.trans_result.length; i++) {
+      for (var i = 0; obj.trans_result != null && i < obj.trans_result.length; i++) {
       	var input_s =  document.createElement("input")
       	var input_t =  document.createElement("input")
 
