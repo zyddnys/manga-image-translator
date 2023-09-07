@@ -131,6 +131,11 @@ async def result_async(request):
     mime = mimetypes.guess_type(filepath)[0] or 'application/octet-stream'
     return web.Response(body=stream.getvalue(), content_type=mime)
 
+@routes.get("/result-type")
+async def file_type_async(request):
+    global FORMAT
+    return web.Response(text=f'{FORMAT}')
+
 @routes.get("/queue-size")
 async def queue_size_async(request):
     return web.json_response({'size' : len(QUEUE)})

@@ -7,6 +7,10 @@
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/picnic">
 	<style type="text/css">
 		#drop-area { border: 2px dashed #ccc; border-radius: 20px; width: 100%; margin: 50px auto; padding: 20px; } #drop-area.highlight { border-color: purple; } p { margin-top: 0; } .my-form { margin-bottom: 10px; } #gallery { text-align: center;} #gallery img { width: 95%; margin-bottom: 10px; vertical-align: middle; } .btn { display: inline-block; padding: 10px; background: #ccc; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; } .btn:hover { background: #ddd; } #fileElem { display: none; }
+		.no-drag-select {
+			user-drag: none;
+			user-select: none;
+		}
 	</style>
 </head>
 <body>
@@ -37,14 +41,13 @@
 
 	  	<div>	
 			<div id="drop-area">
-			  <div id="gallery"></div>
 			  <form class="my-form" name="upload_images">
 			    <p>Upload image by dragging and dropping images onto the dashed region</p>
 			    <input type="file" id="fileElem" accept="image/*" onchange="handleFiles(this.files)">
 			    <label class="btn" for="fileElem">Select some files</label>
 			  </form>
 			  <progress id="progress-bar" max=100 value=0 style="width:100%"></progress>
-
+			  <div id="gallery"></div>
 			</div>
 	  	</div>
 
@@ -132,6 +135,7 @@ function previewFile(file) {
   reader.onloadend = function() {
     let img = document.createElement('img')
     img.src = reader.result
+	img.classList.add('no-drag-select')
     document.getElementById('gallery').appendChild(img)
   }
 }
@@ -182,6 +186,28 @@ function reset() {
 
 	var img = document.getElementsByTagName("img")[0]
 	img.remove()
+}
+
+function downloadImageAndReset(path) {
+	const url = "/result-type"
+	const xhr = new XMLHttpRequest()
+	xhr.open('GET', url, true)
+	xhr.addEventListener('readystatechange', function (e) {
+		if (xhr.readyState == 4 && xhr.status == 200) {
+			// I'm aware this looks stupid as hell but it seems like
+			// the only way to do this
+			const a = document.createElement('a')
+			a.href = path
+			a.download = "result."+xhr.responseText
+			document.body.appendChild(a)
+			a.click()
+			document.body.removeChild(a)
+
+			reset()
+		}
+	})
+	xhr.send(null)	
+
 }
 
 function uploadFile(file, i) {
@@ -293,17 +319,27 @@ function submit() {
 	xhr.addEventListener('readystatechange', function(e) {
 		if (xhr.readyState == 4 && xhr.status == 200) {
 			var img = document.getElementsByTagName("img")[0]
-			img.src = "/result/"+task_id
+			img.src = "/result/" + task_id
+			img.onclick = (function (task_id) {
+				return function () {
+					downloadImageAndReset("/result/" + task_id)
+				};
+			})(task_id)
 		}
 		else if (xhr.readyState == 4 && xhr.status != 200) {
 			// Error. Inform the user
 			alert("Request failed!")
 		}
-		submitButton.innerHTML = "Done"
+		submitButton.removeAttribute("disabled")
+		submitButton.innerHTML = "Download Image"
+		submitButton.onclick = (function(task_id) { return function() {
+			downloadImageAndReset("/result/" + task_id)
+		};})(task_id)
 
 		resetButton.removeAttribute("disabled")
 		resetButton.innerHTML = "Reset"
 		resetButton.onclick = reset
+
 	})
 
 
