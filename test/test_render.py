@@ -34,16 +34,18 @@ async def test_default_renderer():
         ),
         TextBlock(
             [[[410, 10], [900, 10], [410, 800], [900, 800]]],
-            translation='aaaaaa bbbbbbbbbbbb cccc' \
-                'dddddddddddddddddddddddddddddddddddddddddddddddddddd eeeeeeeeeeeeee fff' \
-                'dddddddddddddddddddddddddddddddddddddddddddddddddddd fff' \
-                'dddddddddddddddddddddddddddddddddddddddddddddddddddd'
+            translation=#'aaaaaa bbbbbbbbbbbb cccc' \
+                # 'dddddddddddddddddddddddddddddddddddddddddddddddddddd eeeeeeeeeeeeee fff' \
+                # 'dddddddddddddddddddddddddddddddddddddddddddddddddddd fff' \
+                # 'dddddddddddddddddddddddddddddddddddddddddddddddddddd ' \
+                'normal english sentences can be hyphenated! ' \
+                'Pneumonoultramicroscopicsilicovolcanoconiosis'
         ),
     ]
     for region in regions:
         region.target_lang = 'ENG'
         region.set_font_colors([255, 255, 255], [200, 200, 200])
-        region.font_size = 40
+        region.font_size = 100
 
-    img_rendered = await dispatch_rendering(img, regions)
+    img_rendered = await dispatch_rendering(img, regions, hyphenate=False)
     save_result('default1.png', img_rendered, regions)

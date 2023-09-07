@@ -471,7 +471,7 @@ class MangaTranslator():
             output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, ctx.font_path)
         else:
             output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, ctx.font_path, ctx.font_size, ctx.font_size_offset,
-                                              ctx.font_size_minimum, ctx.render_mask)
+                                              ctx.font_size_minimum, not ctx.no_hyphenation, ctx.render_mask)
         return output
 
     def _result_path(self, path: str) -> str:

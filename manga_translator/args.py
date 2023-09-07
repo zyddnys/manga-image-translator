@@ -136,6 +136,7 @@ g = parser.add_mutually_exclusive_group()
 g.add_argument('--uppercase', action='store_true', help='Change text to uppercase')
 g.add_argument('--lowercase', action='store_true', help='Change text to lowercase')
 
+parser.add_argument('--no-hyphenation', action='store_true', help='If renderer should be splitting up words using a hyphen character (-)')
 parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some additional typesetting. Ignores some other argument options')
 parser.add_argument('--gpt-config', type=file_path, help='Path to GPT config file, more info in README')
 parser.add_argument('--mtpe', action='store_true', help='Turn on/off machine translation post editing (MTPE) on the command line (works only on linux right now)')
@@ -154,7 +155,7 @@ parser.add_argument('--nonce', default=os.getenv('MT_WEB_NONCE', ''), type=str, 
 # parser.add_argument('--log-web', action='store_true', help='Used by web module to decide if web logs should be surfaced')
 parser.add_argument('--ws-url', default='ws://localhost:5000', type=str, help='Server URL for WebSocket mode')
 parser.add_argument('--save-quality', default=100, type=int, help='Quality of saved JPEG image, range from 0 to 100 with 100 being best')
-parser.add_argument('--ignore-bubble', default=0, type=int, help='The threshold for ignoring text in non bubble areas, with valid values ranging from 1 to 50, does not ignore others. Recommendation 5 to 10. If it is too small, normal bubble areas may be ignored, and if it is too large, non bubble areas may be considered normal bubbles')
+parser.add_argument('--ignore-bubble', default=0, type=int, help='The threshold for ignoring text in non bubble areas, with valid values ranging from 1 to 50, does not ignore others. Recommendation 5 to 10. If it is too low, normal bubble areas may be ignored, and if it is too large, non bubble areas may be considered normal bubbles')
 
 # Generares dict with a default value for each argument
 DEFAULT_ARGS = vars(parser.parse_args([]))

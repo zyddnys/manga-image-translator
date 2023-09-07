@@ -17,7 +17,7 @@ from ..utils import (
     rotate_polygons,
 )
 
-logger = get_logger('rendering')
+logger = get_logger('render')
 
 def parse_font_paths(path: str, default: List[str] = None) -> List[str]:
     if path:
@@ -96,6 +96,7 @@ async def dispatch(
     font_size_fixed: int = None,
     font_size_offset: int = 0,
     font_size_minimum: int = 0,
+    hyphenate: bool = True,
     render_mask: np.ndarray = None,
     ) -> np.ndarray:
 
@@ -117,13 +118,14 @@ async def dispatch(
         # logger.info(f' trans: {region.translation}')
         # logger.info(f' font_size: {region.font_size}')
 
-        img = render(img, region, dst_points)
+        img = render(img, region, dst_points, hyphenate)
     return img
 
 def render(
     img,
     region: TextBlock,
     dst_points,
+    hyphenate,
 ):
     fg, bg = region.get_font_colors()
     fg, bg = fg_bg_compare(fg, bg)
@@ -138,10 +140,13 @@ def render(
             region.font_size,
             region.get_translation_for_rendering(),
             round(norm_h[0]),
+            round(norm_v[0]),
             region.alignment,
             region.direction == 'hr',
             fg,
             bg,
+            region.target_lang,
+            hyphenate,
         )
     else:
         temp_box = text_render.put_text_vertical(

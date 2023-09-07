@@ -38,6 +38,7 @@ VALID_LANGUAGES = {
     'TRK': 'Turkish',
     'UKR': 'Ukrainian',
     'VIN': 'Vietnamese',
+    'ARA': 'Arabic',
 }
 # Whitelists
 VALID_DETECTORS = set(['default', 'ctd'])
@@ -50,8 +51,6 @@ VALID_TRANSLATORS = [
     'papago',
     'caiyun',
     'gpt3.5',
-    'none',
-    'original',
     'nllb',
     'nllb_big',
     'sugoi',
@@ -59,6 +58,8 @@ VALID_TRANSLATORS = [
     'jparacrawl_big',
     'm2m100',
     'm2m100_big',
+    'none',
+    'original',
 ]
 
 MAX_ONGOING_TASKS = 1
