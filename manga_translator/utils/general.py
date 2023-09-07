@@ -257,13 +257,15 @@ def load_image(img: Image.Image):
     else:
         return np.array(img.convert('RGB')), None
 
-def dump_image(img: np.ndarray, alpha_ch: Image.Image = None):
+def dump_image(img_pil: Image.Image, img: np.ndarray, alpha_ch: Image.Image = None):
     if alpha_ch is not None:
         if img.shape[2] != 4 :
             img = np.concatenate([img.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
     else:
         img = img.astype(np.uint8)
-    return Image.fromarray(img)
+    result = img_pil.copy()
+    result.paste(img)
+    return result
 
 def resize_keep_aspect(img, size):
     ratio = (float(size)/max(img.shape[0], img.shape[1]))

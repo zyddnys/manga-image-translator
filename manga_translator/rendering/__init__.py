@@ -113,11 +113,6 @@ async def dispatch(
         if render_mask is not None:
             # set render_mask to 1 for the region that is inside dst_points
             cv2.fillConvexPoly(render_mask, dst_points.astype(np.int32), 1)
-
-        # logger.info(f'text: {region.get_text()}')
-        # logger.info(f' trans: {region.translation}')
-        # logger.info(f' font_size: {region.font_size}')
-
         img = render(img, region, dst_points, hyphenate)
     return img
 
