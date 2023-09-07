@@ -434,6 +434,23 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
         line_width = 0
         hyphenation_idx = 0
 
+    def get_present_syllables_range(line_idx, word_pos):
+        while word_pos < 0:
+            word_pos += len(line_words_list[line_idx])
+        word_idx = line_words_list[line_idx][word_pos]
+        syl_start_idx = 0
+        syl_end_idx = len(syllables[word_idx])
+        if line_idx > 0 and word_pos == 0 and line_words_list[line_idx - 1][-1] == word_idx:
+            syl_start_idx = hyphenation_idx_list[line_idx - 1]
+        if line_idx < len(line_words_list) - 1 and word_pos == len(line_words_list[line_idx]) - 1 \
+            and line_words_list[line_idx + 1][0] == word_idx:
+            syl_end_idx = hyphenation_idx_list[line_idx]
+        return syl_start_idx, syl_end_idx
+
+    def get_present_syllables(line_idx, word_pos):
+        syl_start_idx, syl_end_idx = get_present_syllables_range(line_idx, word_pos)
+        return syllables[line_words_list[line_idx][word_pos]][syl_start_idx:syl_end_idx]
+
 
     # Step 1:
     # Arrange words without hyphenating unless neccessary
@@ -536,8 +553,46 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
             else:
                 line_idx += 1
 
-
+    
     # Step 3
+    # Move single char syllables on the left up and those on the right down
+
+    line_idx = 0
+    while line_idx < len(line_words_list) - 1:
+        line_words1 = line_words_list[line_idx]
+        line_words2 = line_words_list[line_idx + 1]
+        merged_word_idx = -1
+
+        if line_words1[-1] == line_words2[0]:
+            word1_text = ''.join(get_present_syllables(line_idx, -1))
+            word2_text = ''.join(get_present_syllables(line_idx + 1, 0))
+            if len(word2_text) == 1:
+                merged_word_idx = line_words1[-1]
+                line_words2.pop(0)
+                word2_width = get_string_width(font_size, word2_text)
+                line_width_list[line_idx] += word2_width
+                line_width_list[line_idx + 1] -= word2_width + whitespace_offset_x
+            elif len(word1_text) == 1:
+                merged_word_idx = line_words1[-1]
+                line_words1.pop(-1)
+                word1_width = get_string_width(font_size, word1_text)
+                line_width_list[line_idx] -= word1_width + whitespace_offset_x
+                line_width_list[line_idx + 1] += word1_width
+
+        if len(line_words1) == 0:
+            line_words_list.pop(line_idx)
+            line_width_list.pop(line_idx)
+            hyphenation_idx_list.pop(line_idx)
+        elif len(line_words2) == 0:
+            line_words_list.pop(line_idx + 1)
+            line_width_list.pop(line_idx + 1)
+            hyphenation_idx_list.pop(line_idx)
+        # We dont want all single letters to be merged
+        elif line_idx >= len(line_words_list) - 1 or line_words_list[line_idx + 1] != merged_word_idx:
+            line_idx += 1
+
+
+    # Step 4
     # Assemble line_text_list
 
     use_hyphen_chars = hyphenate and hyphenator and max_width > 3 * font_size
@@ -546,12 +601,7 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
     for i, line in enumerate(line_words_list):
         line_text = ''
         for j, word_idx in enumerate(line):
-            syl_start_idx = 0
-            syl_end_idx = len(syllables[word_idx])
-            if i > 0 and j == 0 and line_words_list[i - 1][-1] == word_idx:
-                syl_start_idx = hyphenation_idx_list[i - 1]
-            if i < len(line_words_list) - 1 and j == len(line) - 1 and line_words_list[i + 1][0] == word_idx:
-                syl_end_idx = hyphenation_idx_list[i]
+            syl_start_idx, syl_end_idx = get_present_syllables_range(i, j)
             current_syllables = syllables[word_idx][syl_start_idx:syl_end_idx]
             line_text += ''.join(current_syllables)
             if j < len(line) - 1:
@@ -560,6 +610,7 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
                 line_text += '-'
                 # hyphen_offset was ignored in previous steps
                 line_width_list[i] += hyphen_offset_x
+        # print(line_text, get_string_width(font_size, line_text), line_width_list[i])
         line_text_list.append(line_text)
 
     return line_text_list, line_width_list
