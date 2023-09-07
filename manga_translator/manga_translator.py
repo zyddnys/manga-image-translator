@@ -359,6 +359,9 @@ class MangaTranslator():
         if not ctx.text_regions:
             await self._report_progress('error-translating', True)
             return ctx
+        elif ctx.text_regions == 'cancel':
+            await self._report_progress('cancelled', True)
+            return ctx
 
         # -- Mask refinement
         # (Delayed to take advantage of the region filtering done after ocr and translation)
@@ -504,6 +507,8 @@ class MangaTranslator():
             'skip-no-regions':      'No text regions! - Skipping',
             'skip-no-text':         'No text regions with text! - Skipping',
             'error-translating':    'Text translator returned empty queries',
+            'error-translating':    'Text translator returned empty queries',
+            'cancelled'        :    'Image translation cancelled',
         }
         LOG_MESSAGES_ERROR = {
             # 'error-lang':           'Target language not supported by chosen translator',
@@ -689,6 +694,8 @@ class MangaTranslatorWeb(MangaTranslator):
                             text_regions[i].target_lang = ctx.translator.langs[-1]
                         i = i + 1
                     break
+                elif 'cancel' in ret:
+                    return 'cancel'
                 await asyncio.sleep(0.1)
         return text_regions
 

@@ -7,6 +7,10 @@
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/picnic">
 	<style type="text/css">
 		#drop-area { border: 2px dashed #ccc; border-radius: 20px; width: 100%; margin: 50px auto; padding: 20px; } #drop-area.highlight { border-color: purple; } p { margin-top: 0; } .my-form { margin-bottom: 10px; } #gallery { text-align: center;} #gallery img { width: 95%; margin-bottom: 10px; vertical-align: middle; } .btn { display: inline-block; padding: 10px; background: #ccc; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; } .btn:hover { background: #ddd; } #fileElem { display: none; }
+		.no-drag-select {
+			user-drag: none;
+			user-select: none;
+		}
 	</style>
 </head>
 <body>
@@ -30,20 +34,20 @@
 	  			<div id="t-area"><h2>Translation</h2></div>
 	  		</div>
 	  		<div>
-	  			<button type="button" id="submit-button" class="button" disabled="disabled" name="submit" onclick="finish()">None</button>
+	  			<button type="button" id="submit-button" class="button" disabled="disabled" name="submit" onclick="submit()">Waiting for Image</button>
+	  			<button type="button" id="reset-button" class="button" disabled="disabled" name="reset" onclick="fullReset()">Reset</button>
 	  		</div>
 	  	</div>
 
 	  	<div>	
 			<div id="drop-area">
-			  <div id="gallery"></div>
 			  <form class="my-form" name="upload_images">
 			    <p>Upload image by dragging and dropping images onto the dashed region</p>
 			    <input type="file" id="fileElem" accept="image/*" onchange="handleFiles(this.files)">
 			    <label class="btn" for="fileElem">Select some files</label>
 			  </form>
 			  <progress id="progress-bar" max=100 value=0 style="width:100%"></progress>
-
+			  <div id="gallery"></div>
 			</div>
 	  	</div>
 
@@ -131,17 +135,89 @@ function previewFile(file) {
   reader.onloadend = function() {
     let img = document.createElement('img')
     img.src = reader.result
+	img.classList.add('no-drag-select')
     document.getElementById('gallery').appendChild(img)
   }
 }
 
 let submitButton = document.getElementById("submit-button")
+let resetButton = document.getElementById("reset-button")
+
+function fullReset() {
+	var url = '/cancel-manual-request'
+	var xhr = new XMLHttpRequest()
+	xhr.open('POST', url, true)
+	xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8")
+
+	xhr.addEventListener('readystatechange', function (e) {
+		if (xhr.readyState == 4 && xhr.status == 200) {
+			reset()
+		}
+	})
+	xhr.send(JSON.stringify({
+		"task_id": task_id,
+	}))
+}
+
+function reset() {
+	var s_area = document.getElementById('s-area')
+	for (var i = s_area.children.length - 1; i >= 0; --i) {
+		var child = s_area.children[i]
+		if (child.tagName == "INPUT") {
+			child.remove()
+		}
+	}
+	var t_area = document.getElementById('t-area')
+	for (var i = t_area.children.length - 1; i >= 0; --i) {
+		var child = t_area.children[i]
+		if (child.tagName == "INPUT") {
+			child.remove()
+		}
+	}
+
+	progressBar.value = 0
+	submitButton.innerHTML = "Waiting for Image"
+	submitButton.onclick = null
+	submitButton.setAttribute("disabled", "disabled")
+
+	resetButton.innerHTML = "No Image"
+	resetButton.onclick = fullReset
+	resetButton.setAttribute("disabled", "disabled")
+
+	var img = document.getElementsByTagName("img")[0]
+	img.remove()
+}
+
+function downloadImageAndReset(path) {
+	const url = "/result-type"
+	const xhr = new XMLHttpRequest()
+	xhr.open('GET', url, true)
+	xhr.addEventListener('readystatechange', function (e) {
+		if (xhr.readyState == 4 && xhr.status == 200) {
+			// I'm aware this looks stupid as hell but it seems like
+			// the only way to do this
+			const a = document.createElement('a')
+			a.href = path
+			a.download = "result."+xhr.responseText
+			document.body.appendChild(a)
+			a.click()
+			document.body.removeChild(a)
+
+			reset()
+		}
+	})
+	xhr.send(null)	
+
+}
 
 function uploadFile(file, i) {
 
   // ch_images.value = ch_images.value + file.name
   submitButton.setAttribute("disabled", "disabled")
   submitButton.innerHTML = "Uploading"
+
+  resetButton.innerHTML = "Waiting"
+  resetButton.setAttribute("disabled", "disabled")
 
 
   var url = '/manual-translate'
@@ -185,7 +261,10 @@ function uploadFile(file, i) {
 	  
 	  submitButton.removeAttribute("disabled")
 	  submitButton.innerHTML = "Submit"
-
+	  submitButton.onclick = submit
+	  
+	  resetButton.removeAttribute("disabled")
+	  resetButton.innerHTML = "Reset"
     }
     else if (xhr.readyState == 4 && xhr.status != 200) {
       // Error. Inform the user
@@ -199,10 +278,13 @@ function uploadFile(file, i) {
   xhr.send(formData)
 }
 
-function finish() {
+function submit() {
 	
 	submitButton.setAttribute("disabled", "disabled")
 	submitButton.innerHTML = "Running"
+
+	resetButton.setAttribute("disabled", "disabled")
+	resetButton.innerHTML = "Waiting"
 
 	var inputs = document.getElementsByTagName("input")
 
@@ -219,7 +301,6 @@ function finish() {
 
 		j++
 		k++
-		console.log("j = "+j)
 	}
 
 	var postData = {
@@ -232,20 +313,33 @@ function finish() {
 
 	var url = '/post-manual-result'
 	var xhr = new XMLHttpRequest()
-	var formData = new FormData()
 	xhr.open('POST', url, true)
 	xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8")
 
 	xhr.addEventListener('readystatechange', function(e) {
 		if (xhr.readyState == 4 && xhr.status == 200) {
 			var img = document.getElementsByTagName("img")[0]
-			img.src = "/result/"+task_id
+			img.src = "/result/" + task_id
+			img.onclick = (function (task_id) {
+				return function () {
+					downloadImageAndReset("/result/" + task_id)
+				};
+			})(task_id)
 		}
 		else if (xhr.readyState == 4 && xhr.status != 200) {
 			// Error. Inform the user
 			alert("Request failed!")
 		}
-		submitButton.innerHTML = "Done"
+		submitButton.removeAttribute("disabled")
+		submitButton.innerHTML = "Download Image"
+		submitButton.onclick = (function(task_id) { return function() {
+			downloadImageAndReset("/result/" + task_id)
+		};})(task_id)
+
+		resetButton.removeAttribute("disabled")
+		resetButton.innerHTML = "Reset"
+		resetButton.onclick = reset
+
 	})
 
 
