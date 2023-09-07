@@ -286,6 +286,26 @@ async def manual_trans_task(task_id, texts, translations):
         TASK_DATA[task_id]['trans_result'] = []
         print('Manual translation complete')
 
+@routes.post("/cancel-manual-request")
+async def cancel_manual_translation(request):
+    rqjson = (await request.json())
+    if 'task_id' in rqjson:
+        task_id = rqjson['task_id']
+        if task_id in TASK_DATA:
+            TASK_DATA[task_id]['cancel'] = ' '
+            while True:
+                await asyncio.sleep(0.1)
+                if TASK_STATES[task_id]['info'].startswith('error'):
+                    ret = web.json_response({'task_id': task_id, 'status': 'error'})
+                    break
+                if TASK_STATES[task_id]['finished']:
+                    ret = web.json_response({'task_id': task_id, 'status': 'cancelled'})
+                    break
+            del TASK_STATES[task_id]
+            del TASK_DATA[task_id]
+            return ret
+    return web.json_response({})
+
 @routes.post("/post-manual-result")
 async def post_translation_result(request):
     rqjson = (await request.json())
@@ -329,6 +349,8 @@ async def get_translation_internal(request):
         if task_id in TASK_DATA:
             if 'trans_result' in TASK_DATA[task_id]:
                 return web.json_response({'result': TASK_DATA[task_id]['trans_result']})
+            elif 'cancel' in TASK_DATA[task_id]:
+                return web.json_response({'cancel':''})
     return web.json_response({})
 
 @routes.get("/task-state")
