@@ -258,13 +258,13 @@ def load_image(img: Image.Image):
         return np.array(img.convert('RGB')), None
 
 def dump_image(img_pil: Image.Image, img: np.ndarray, alpha_ch: Image.Image = None):
-    # if alpha_ch is not None:
-    #     if img.shape[2] != 4 :
-    #         img = np.concatenate([img.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
-    # else:
-    img = img.astype(np.uint8)
-    result = img_pil.copy()
-    result.paste(Image.fromarray(img))
+    if alpha_ch is not None:
+        if img.shape[2] != 4 :
+            img = np.concatenate([img.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
+    else:
+        img = img.astype(np.uint8)
+    result = img_pil.convert('RGBA')
+    result.paste(Image.fromarray(img), mask = alpha_ch)
     return result
 
 def resize_keep_aspect(img, size):
