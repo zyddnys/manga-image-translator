@@ -22,7 +22,7 @@
 
 ## 在线版
 
-官方演示站 (由 zyddnys 维护)： <https://touhou.ai/imgtrans/>\
+官方演示站 (由 zyddnys 维护)： <https://cotrans.touhou.ai/>\
 镜像站 (由 Eidenz 维护): <https://manga.eidenz.com/>\
 浏览器脚本 (由 QiroNT 维护): <https://greasyfork.org/scripts/437569>
 
