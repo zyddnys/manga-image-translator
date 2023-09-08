@@ -1,4 +1,3 @@
-import os
 from typing import List
 import cv2
 import numpy as np
@@ -24,9 +23,6 @@ async def dispatch(text_regions: List[TextBlock], raw_image: np.ndarray, raw_mas
     else:
         final_mask = cv2.resize(final_mask, (raw_image.shape[1], raw_image.shape[0]), interpolation = cv2.INTER_LINEAR)
         final_mask[final_mask > 0] = 255
-
-    # cv2.imwrite(f'result/{task_id}/mask.png', final_mask)
-    # cv2.imwrite(f'result/{task_id}/mask_img.png', overlay_mask(img_resized_2, final_mask))
 
     if ignore_bubble < 1 or ignore_bubble > 50:
         return final_mask

@@ -61,6 +61,7 @@ $ pip install git+https://github.com/kodalli/pydensecrf.git
 | youdao         | ✔️      |         | 需要 `YOUDAO_APP_KEY` 和 `YOUDAO_SECRET_KEY`     |
 | baidu          | ✔️      |         | 需要 `BAIDU_APP_ID` 和 `BAIDU_SECRET_KEY`        |
 | deepl          | ✔️      |         | 需要 `DEEPL_AUTH_KEY`                             |
+| caiyun          | ✔️      |         | 需要 `CAIYUN_TOKEN`                             |
 | gpt3           | ✔️      |         | Implements text-davinci-003. Requires `OPENAI_API_KEY`|
 | gpt3.5         | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`   |
 | gpt4           | ✔️      |         | Implements gpt-4. Requires `OPENAI_API_KEY`           |
@@ -95,6 +96,7 @@ RUS: Russian
 ESP: Spanish
 TRK: Turkish
 VIN: Vietnames
+ARA: Arabic
 ```
 
 <!-- Auto generated start (See devscripts/make_readme.py) -->
@@ -109,11 +111,11 @@ VIN: Vietnames
                                              image folder if using batch mode
 -o, --dest DEST                              Path to the destination folder for translated images in
                                              batch mode
--l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN}
+-l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA}
                                              Destination language
 -v, --verbose                                Print debug info and save intermediate images in result
                                              folder
--f, --format {png,webp,jpg}                  Output format of the translation.
+-f, --format {png,webp,jpg,xcf,psd,pdf}      Output format of the translation.
 --detector {default,ctd,craft,none}          Text detector used for creating a text mask from an
                                              image, DO NOT use craft for manga, it's not designed
                                              for it
@@ -125,7 +127,7 @@ VIN: Vietnames
 --upscale-ratio {1,2,3,4,8,16,32}            Image upscale ratio applied before detection. Can
                                              improve text detection.
 --colorizer {mc2}                            Colorization model to use.
---translator {google,youdao,baidu,deepl,papago,gpt3,gpt3.5,gpt4,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
+--translator {google,youdao,baidu,deepl,papago,caiyun,gpt3,gpt3.5,gpt4,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
                                              Language translator to use
 --translator-chain TRANSLATOR_CHAIN          Output of one translator goes in another. Example:
                                              --translator-chain "google:JPN;sugoi:ENG".
@@ -137,8 +139,10 @@ VIN: Vietnames
 --use-cuda                                   Turn on/off cuda
 --use-cuda-limited                           Turn on/off cuda (excluding offline translator)
 --model-dir MODEL_DIR                        Model directory (by default ./models in project root)
---retries RETRIES                            Retry attempts on encountered error. -1 means infinite
+--attempts ATTEMPTS                          Retry attempts on encountered error. -1 means infinite
                                              times.
+--ignore-errors                              Skip image on encountered error.
+--overwrite                                  Overwrite already translated images in batch mode.
 --revert-upscaling                           Downscales the previously upscaled image after
                                              translation back to original size (Use with --upscale-
                                              ratio).
@@ -187,6 +191,7 @@ VIN: Vietnames
                                              inpainted images, plus copies of the original for
                                              reference
 --font-path FONT_PATH                        Path to font file
+--gimp-font FONT_FAMILY                      Font family to use for gimp rendering.
 --host HOST                                  Used by web module to decide which host to attach to
 --port PORT                                  Used by web module to decide which port to attach to
 --nonce NONCE                                Used by web module as secret for securing internal web

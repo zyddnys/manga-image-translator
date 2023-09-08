@@ -38,6 +38,7 @@ VALID_LANGUAGES = {
     'TRK': 'Turkish',
     'UKR': 'Ukrainian',
     'VIN': 'Vietnamese',
+    'ARA': 'Arabic',
 }
 # Whitelists
 VALID_DETECTORS = set(['default', 'ctd'])
@@ -48,17 +49,18 @@ VALID_TRANSLATORS = [
     'google',
     'deepl',
     'papago',
+    'caiyun',
     'gpt3.5',
-    'none',
-    'original',
     'nllb',
     'nllb_big',
     'sugoi',
     'jparacrawl',
     'jparacrawl_big',
     'm2m100',
-    'm2m100_big'
-    ]
+    'm2m100_big',
+    'none',
+    'original',
+]
 
 MAX_ONGOING_TASKS = 1
 MAX_IMAGE_SIZE_PX = 8000**2
@@ -129,6 +131,11 @@ async def result_async(request):
         stream.write(f.read())
     mime = mimetypes.guess_type(filepath)[0] or 'application/octet-stream'
     return web.Response(body=stream.getvalue(), content_type=mime)
+
+@routes.get("/result-type")
+async def file_type_async(request):
+    global FORMAT
+    return web.Response(text=f'{FORMAT}')
 
 @routes.get("/queue-size")
 async def queue_size_async(request):
@@ -285,6 +292,26 @@ async def manual_trans_task(task_id, texts, translations):
         TASK_DATA[task_id]['trans_result'] = []
         print('Manual translation complete')
 
+@routes.post("/cancel-manual-request")
+async def cancel_manual_translation(request):
+    rqjson = (await request.json())
+    if 'task_id' in rqjson:
+        task_id = rqjson['task_id']
+        if task_id in TASK_DATA:
+            TASK_DATA[task_id]['cancel'] = ' '
+            while True:
+                await asyncio.sleep(0.1)
+                if TASK_STATES[task_id]['info'].startswith('error'):
+                    ret = web.json_response({'task_id': task_id, 'status': 'error'})
+                    break
+                if TASK_STATES[task_id]['finished']:
+                    ret = web.json_response({'task_id': task_id, 'status': 'cancelled'})
+                    break
+            del TASK_STATES[task_id]
+            del TASK_DATA[task_id]
+            return ret
+    return web.json_response({})
+
 @routes.post("/post-manual-result")
 async def post_translation_result(request):
     rqjson = (await request.json())
@@ -328,6 +355,8 @@ async def get_translation_internal(request):
         if task_id in TASK_DATA:
             if 'trans_result' in TASK_DATA[task_id]:
                 return web.json_response({'result': TASK_DATA[task_id]['trans_result']})
+            elif 'cancel' in TASK_DATA[task_id]:
+                return web.json_response({'cancel':''})
     return web.json_response({})
 
 @routes.get("/task-state")
@@ -435,6 +464,7 @@ async def manual_translate_async(request):
     task_id = crypto_utils.rand_bytes(16).hex()
     print(f'New `manual-translate` task {task_id}')
     os.makedirs(f'result/{task_id}/', exist_ok=True)
+    img = img.convert('RGB')
     img.save(f'result/{task_id}/input.jpg')
     now = time.time()
     QUEUE.append(task_id)

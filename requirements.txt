@@ -40,3 +40,6 @@ marshmallow
 cython
 aioshutil
 aiofiles
+arabic-reshaper
+pyhyphen
+langcodes

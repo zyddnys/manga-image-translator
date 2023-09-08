@@ -31,6 +31,7 @@ class GPT3Translator(CommonTranslator):
         'TRK': 'Turkish',
         'UKR': 'Ukrainian',
         'VIN': 'Vietnamese',
+        'ARA': 'Arabic',
     }
     _INVALID_REPEAT_COUNT = 2 # repeat up to 2 times if "invalid" translation was detected
     _MAX_REQUESTS_PER_MINUTE = 20
@@ -152,7 +153,10 @@ class GPT3Translator(CommonTranslator):
                     await asyncio.sleep(1)
 
             self.logger.debug('-- GPT Response --\n' + response)
-            new_translations = re.split(r'<\|\d+\|>', response)[1:]
+            new_translations = re.split(r'<\|\d+\|>', response)
+            # When there is only one query chatgpt likes to exclude the <|1|>
+            if not new_translations[0].strip():
+                new_translations = new_translations[1:]
             translations.extend([t.strip() for t in new_translations])
 
         self.logger.debug(translations)

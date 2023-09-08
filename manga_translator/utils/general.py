@@ -119,6 +119,19 @@ def count_valuable_text(text) -> int:
     # return sum([1 for ch in text if re.search(r'\w', ch)])
     return sum([1 for ch in text if not is_punctuation(ch) and not is_control(ch) and not is_whitespace(ch)])
 
+def is_right_to_left_char(ch):
+    """Checks whether the char belongs to a right to left alphabet."""
+    # Arabic (from https://stackoverflow.com/a/49346768)
+    if ('\u0600' <= ch <= '\u06FF' or
+        '\u0750' <= ch <= '\u077F' or
+        '\u08A0' <= ch <= '\u08FF' or
+        '\uFB50' <= ch <= '\uFDFF' or
+        '\uFE70' <= ch <= '\uFEFF' or
+        '\U00010E60' <= ch <= '\U00010E7F' or
+        '\U0001EE00' <= ch <= '\U0001EEFF'):
+        return True
+    return False
+
 def replace_prefix(s: str, old: str, new: str):
     if s.startswith(old):
         s = new + s[len(old):]
@@ -244,13 +257,15 @@ def load_image(img: Image.Image):
     else:
         return np.array(img.convert('RGB')), None
 
-def dump_image(img: np.ndarray, alpha_ch: Image.Image = None):
+def dump_image(img_pil: Image.Image, img: np.ndarray, alpha_ch: Image.Image = None):
     if alpha_ch is not None:
         if img.shape[2] != 4 :
             img = np.concatenate([img.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
     else:
         img = img.astype(np.uint8)
-    return Image.fromarray(img)
+    result = img_pil.convert('RGBA')
+    result.paste(Image.fromarray(img), mask = alpha_ch)
+    return result
 
 def resize_keep_aspect(img, size):
     ratio = (float(size)/max(img.shape[0], img.shape[1]))
