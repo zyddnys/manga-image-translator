@@ -335,6 +335,10 @@ class Quadrilateral(object):
     """
     def __init__(self, pts: np.ndarray, text: str, prob: float, fg_r: int = 0, fg_g: int = 0, fg_b: int = 0, bg_r: int = 0, bg_g: int = 0, bg_b: int = 0):
         self.pts = pts
+        # Sort coordinates to start at the top left and go clockwise
+        self.pts = self.pts[np.argsort(self.pts[:,1])]
+        self.pts = self.pts[[*np.argsort(self.pts[:2,0]), *np.argsort(self.pts[2:,0])[::-1] + 2]]
+
         self.text = text
         self.prob = prob
         self.fg_r = fg_r
