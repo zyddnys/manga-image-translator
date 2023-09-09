@@ -1,5 +1,6 @@
 import re
 import openai
+import litellm
 import openai.error
 import asyncio
 import time
@@ -248,7 +249,7 @@ class GPT35TurboTranslator(GPT3Translator):
             messages.insert(1, {'role': 'user', 'content': self.chat_sample[to_lang][0]})
             messages.insert(2, {'role': 'assistant', 'content': self.chat_sample[to_lang][1]})
 
-        response = await openai.ChatCompletion.acreate(
+        response = await litellm.acompletion(
             model='gpt-3.5-turbo-0613',
             messages=messages,
             max_tokens=self._MAX_TOKENS // 2,
@@ -281,7 +282,7 @@ class GPT4Translator(GPT35TurboTranslator):
             messages.insert(1, {'role': 'user', 'content': self._CHAT_SAMPLE[to_lang][0]})
             messages.insert(2, {'role': 'assistant', 'content': self._CHAT_SAMPLE[to_lang][1]})
 
-        response = await openai.ChatCompletion.acreate(
+        response = await litellm.acompletion(
             model='gpt-4-0613',
             messages=messages,
             max_tokens=self._MAX_TOKENS // 2,
