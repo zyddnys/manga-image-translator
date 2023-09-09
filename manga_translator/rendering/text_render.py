@@ -511,7 +511,7 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
                 # A bit messy but were basically trying to only use the syllables on the current line
                 if first_word and word_idx == line_words1[-1]:
                     syl_start_idx = hyphenation_idx_list[line_idx]
-                    if line_idx < len(line_width_list) - 2 and word_idx == line_width_list[line_idx + 2][0]:
+                    if line_idx < len(line_width_list) - 2 and word_idx == line_words_list[line_idx + 2][0]:
                         syl_end_idx = hyphenation_idx_list[line_idx + 1]
                     else:
                         syl_end_idx = len(syllables[word_idx])

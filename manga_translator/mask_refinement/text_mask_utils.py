@@ -163,7 +163,7 @@ def complete_mask(img: np.ndarray, mask: np.ndarray, textlines: List[Tuple[int, 
         # cv2.imshow('img', image_resize(img_region, height = 800))
         cc_region = refine_mask(img_region, cc_region)
         # cv2.imshow('cc after', image_resize(cc_region, height = 800))
-        cv2.waitKey(0)
+        # cv2.waitKey(0)
         cc[y1: y1 + h1, x1: x1 + w1] = cc_region
         # cc = cv2.dilate(cc, kern)
         x2, y2, w2, h2 = extend_rect(x1, y1, w1, h1, img.shape[1], img.shape[0], -(-dilate_size // 2))
