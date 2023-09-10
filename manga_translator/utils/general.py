@@ -263,7 +263,7 @@ def dump_image(img_pil: Image.Image, img: np.ndarray, alpha_ch: Image.Image = No
             img = np.concatenate([img.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
     else:
         img = img.astype(np.uint8)
-    result = img_pil.convert('RGBA')
+    result = img_pil.convert('RGBA').resize((img.shape[1], img.shape[0]))
     result.paste(Image.fromarray(img), mask = alpha_ch)
     return result
 
