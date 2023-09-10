@@ -610,6 +610,8 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
                 line_text += '-'
                 # hyphen_offset was ignored in previous steps
                 line_width_list[i] += hyphen_offset_x
+        # Shouldnt be needed but there is apparently still a bug somewhere (#458)
+        line_width_list[i] = get_string_width(font_size, line_text)
         # print(line_text, get_string_width(font_size, line_text), line_width_list[i])
         line_text_list.append(line_text)
 
