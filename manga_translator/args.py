@@ -90,7 +90,7 @@ parser.add_argument('--detector', default='default', type=str, choices=DETECTORS
 parser.add_argument('--ocr', default='48px_ctc', type=str, choices=OCRS, help='Optical character recognition (OCR) model to use')
 parser.add_argument('--inpainter', default='lama_mpe', type=str, choices=INPAINTERS, help='Inpainting model to use')
 parser.add_argument('--upscaler', default='esrgan', type=str, choices=UPSCALERS, help='Upscaler to use. --upscale-ratio has to be set for it to take effect')
-parser.add_argument('--upscale-ratio', default=None, type=int, choices=[1, 2, 3, 4, 8, 16, 32], help='Image upscale ratio applied before detection. Can improve text detection.')
+parser.add_argument('--upscale-ratio', default=None, type=int, help='Image upscale ratio applied before detection. Can improve text detection.')
 parser.add_argument('--colorizer', default=None, type=str, choices=COLORIZERS, help='Colorization model to use.')
 
 g = parser.add_mutually_exclusive_group()

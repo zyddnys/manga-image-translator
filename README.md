@@ -329,7 +329,7 @@ ARA: Arabic
                                              Inpainting model to use
 --upscaler {waifu2x,esrgan,4xultrasharp}     Upscaler to use. --upscale-ratio has to be set for it
                                              to take effect
---upscale-ratio {1,2,3,4,8,16,32}            Image upscale ratio applied before detection. Can
+--upscale-ratio UPSCALE_RATIO                Image upscale ratio applied before detection. Can
                                              improve text detection.
 --colorizer {mc2}                            Colorization model to use.
 --translator {google,youdao,baidu,deepl,papago,caiyun,gpt3,gpt3.5,gpt4,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
@@ -382,6 +382,8 @@ ARA: Arabic
 --align-right                                Align rendered text right
 --uppercase                                  Change text to uppercase
 --lowercase                                  Change text to lowercase
+--no-hyphenation                             If renderer should be splitting up words using a hyphen
+                                             character (-)
 --manga2eng                                  Render english text translated from manga with some
                                              additional typesetting. Ignores some other argument
                                              options
@@ -396,7 +398,7 @@ ARA: Arabic
                                              inpainted images, plus copies of the original for
                                              reference
 --font-path FONT_PATH                        Path to font file
---gimp-font FONT_FAMILY                      Font family to use for gimp rendering.
+--gimp-font GIMP_FONT                        Font family to use for gimp rendering.
 --host HOST                                  Used by web module to decide which host to attach to
 --port PORT                                  Used by web module to decide which port to attach to
 --nonce NONCE                                Used by web module as secret for securing internal web
@@ -406,7 +408,7 @@ ARA: Arabic
                                              100 being best
 --ignore-bubble IGNORE_BUBBLE                The threshold for ignoring text in non bubble areas,
                                              with valid values ranging from 1 to 50, does not ignore
-                                             others. Recommendation 5 to 10. If it is too small,
+                                             others. Recommendation 5 to 10. If it is too low,
                                              normal bubble areas may be ignored, and if it is too
                                              large, non bubble areas may be considered normal
                                              bubbles
