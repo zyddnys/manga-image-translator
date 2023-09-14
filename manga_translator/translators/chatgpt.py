@@ -31,6 +31,9 @@ class GPT3Translator(CommonTranslator):
         'TRK': 'Turkish',
         'UKR': 'Ukrainian',
         'VIN': 'Vietnamese',
+        'CNR': 'Montenegrin',
+        'SRP': 'Serbian',
+        'HRV': 'Croatian',
         'ARA': 'Arabic',
     }
     _INVALID_REPEAT_COUNT = 2 # repeat up to 2 times if "invalid" translation was detected
