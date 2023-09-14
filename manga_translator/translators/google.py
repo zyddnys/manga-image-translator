@@ -98,6 +98,8 @@ class GoogleTranslator(CommonTranslator):
         'UKR': 'uk',
         'VIN': 'vi',
         'ARA': 'ar',
+        'SRP': 'sr',
+        'HRV': 'hr'
     }
 
     def __init__(self, service_urls=DEFAULT_CLIENT_SERVICE_URLS, user_agent=DEFAULT_USER_AGENT,

@@ -32,6 +32,9 @@ VALID_LANGUAGES = {
     'UKR': 'Ukrainian',
     'VIN': 'Vietnamese',
     'ARA': 'Arabic',
+    'CNR': 'Montenegrin',
+    'SRP': 'Serbian',
+    'HRV': 'Croatian'
 }
 
 ISO_639_1_TO_VALID_LANGUAGES = {
@@ -55,6 +58,9 @@ ISO_639_1_TO_VALID_LANGUAGES = {
     'uk': 'UKR',
     'vi': 'VIN',
     'ar': 'ARA',
+    'cnr': 'CNR',
+    'sr': 'SRP',
+    'hr': 'HRV'
 }
 
 class InvalidServerResponse(Exception):
