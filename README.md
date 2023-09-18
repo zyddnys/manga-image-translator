@@ -327,7 +327,7 @@ HRV: Croatian
                                              image folder if using batch mode
 -o, --dest DEST                              Path to the destination folder for translated images in
                                              batch mode
--l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA}
+-l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA,CNR,SRP,HRV}
                                              Destination language
 -v, --verbose                                Print debug info and save intermediate images in result
                                              folder
@@ -340,7 +340,7 @@ HRV: Croatian
                                              Inpainting model to use
 --upscaler {waifu2x,esrgan,4xultrasharp}     Upscaler to use. --upscale-ratio has to be set for it
                                              to take effect
---upscale-ratio {1,2,3,4,8,16,32}            Image upscale ratio applied before detection. Can
+--upscale-ratio UPSCALE_RATIO                Image upscale ratio applied before detection. Can
                                              improve text detection.
 --colorizer {mc2}                            Colorization model to use.
 --translator {google,youdao,baidu,deepl,papago,caiyun,gpt3,gpt3.5,gpt4,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
@@ -385,7 +385,9 @@ HRV: Croatian
 --font-size-offset FONT_SIZE_OFFSET          Offset font size by a given amount, positive number
                                              increase font size and vice versa
 --font-size-minimum FONT_SIZE_MINIMUM        Minimum output font size. Default is
-                                             image_sides_sum/150
+                                             image_sides_sum/200
+--font-color FONT_COLOR                      Overwrite the text color detected by the OCR model. Use
+                                             hex string without the "#" such as FFFFFF for white.
 --force-horizontal                           Force text to be rendered horizontally
 --force-vertical                             Force text to be rendered vertically
 --align-left                                 Align rendered text left
@@ -393,6 +395,8 @@ HRV: Croatian
 --align-right                                Align rendered text right
 --uppercase                                  Change text to uppercase
 --lowercase                                  Change text to lowercase
+--no-hyphenation                             If renderer should be splitting up words using a hyphen
+                                             character (-)
 --manga2eng                                  Render english text translated from manga with some
                                              additional typesetting. Ignores some other argument
                                              options
@@ -407,7 +411,7 @@ HRV: Croatian
                                              inpainted images, plus copies of the original for
                                              reference
 --font-path FONT_PATH                        Path to font file
---gimp-font FONT_FAMILY                      Font family to use for gimp rendering.
+--gimp-font GIMP_FONT                        Font family to use for gimp rendering.
 --host HOST                                  Used by web module to decide which host to attach to
 --port PORT                                  Used by web module to decide which port to attach to
 --nonce NONCE                                Used by web module as secret for securing internal web
@@ -417,7 +421,7 @@ HRV: Croatian
                                              100 being best
 --ignore-bubble IGNORE_BUBBLE                The threshold for ignoring text in non bubble areas,
                                              with valid values ranging from 1 to 50, does not ignore
-                                             others. Recommendation 5 to 10. If it is too small,
+                                             others. Recommendation 5 to 10. If it is too low,
                                              normal bubble areas may be ignored, and if it is too
                                              large, non bubble areas may be considered normal
                                              bubbles

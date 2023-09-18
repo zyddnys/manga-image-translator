@@ -5,7 +5,7 @@ from shapely.geometry import Polygon, MultiPoint
 from functools import cached_property
 import copy
 
-from .general import color_difference, is_right_to_left_char, count_valuable_text
+from .generic import color_difference, is_right_to_left_char, count_valuable_text
 # from ..detection.ctd_utils.utils.imgproc_utils import union_area, xywh2xyxypoly
 
 # LANG_LIST = ['eng', 'ja', 'unknown']
