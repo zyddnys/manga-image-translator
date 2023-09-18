@@ -121,7 +121,7 @@ parser.add_argument('--colorization-size', default=576, type=int, help='Size of 
 parser.add_argument('--denoise-sigma', default=30, type=int, help='Used by colorizer and affects color strength, range from 0 to 255 (default 30). -1 turns it off.')
 parser.add_argument('--font-size', default=None, type=int, help='Use fixed font size for rendering')
 parser.add_argument('--font-size-offset', default=0, type=int, help='Offset font size by a given amount, positive number increase font size and vice versa')
-parser.add_argument('--font-size-minimum', default=-1, type=int, help='Minimum output font size. Default is image_sides_sum/150')
+parser.add_argument('--font-size-minimum', default=-1, type=int, help='Minimum output font size. Default is image_sides_sum/200')
 
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--force-horizontal', action='store_true', help='Force text to be rendered horizontally')

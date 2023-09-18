@@ -36,7 +36,7 @@ def fg_bg_compare(fg, bg):
 def resize_regions_to_font_size(img: np.ndarray, text_regions: List[TextBlock], font_size_fixed: int, font_size_offset: int, font_size_minimum: int):
     if font_size_minimum == -1:
         # Automatically determine font_size by image size
-        font_size_minimum = round((img.shape[0] + img.shape[1]) / 150)
+        font_size_minimum = round((img.shape[0] + img.shape[1]) / 200)
     logger.debug(f'font_size_minimum {font_size_minimum}')
 
     dst_points_list = []
