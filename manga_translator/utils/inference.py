@@ -9,7 +9,7 @@ import filecmp
 from abc import ABC, abstractmethod
 from functools import cached_property
 
-from .general import (
+from .generic import (
     BASE_PATH,
     download_url_with_progressbar,
     prompt_yes_no,
