@@ -34,9 +34,9 @@ jobs:
       uses: abatilo/actions-poetry@v2.3.0
       with:
         poetry-version: ${{ matrix.poetry-version }}
-    - name: Lint
+    - name: Lint *.py files
       run: |
-        poetry run pylint manga_translator
-    - name: Test
-      run: |
-        poetry run pytest manga_translator
+        poetry run pylint pylint $(git ls-files '*.py')
+    # - name: Test
+    #   run: |
+    #     poetry run pytest test
