@@ -80,7 +80,7 @@ def gimp_render(out_file, ctx: Context):
     text = ''.join([text_template.format(
             n=n,
             color=' '.join([str(value) for value in text_region.fg_colors]),
-            name=' '.join(text_region.text),
+            name=' '.join(text_region.text).replace('"', '\\"'),
             position=str(text_region.xywh[0])+' '+str(text_region.xywh[1]),
             size=str(text_region.xywh[2])+' '+str(text_region.xywh[3]),
             justify=alignment_to_justification[text_region.alignment],

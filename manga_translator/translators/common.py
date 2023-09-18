@@ -160,6 +160,9 @@ class CommonTranslator(InfererModule):
             else:
                 final_translations.append(None)
                 query_indices.append(i)
+
+        # Removing queries without text, causes a mismatch between the query_indices and the queries list, for strings not matching \w
+        queries_old = queries
         queries = [queries[i] for i in query_indices]
 
         translations = [''] * len(queries)
@@ -210,7 +213,8 @@ class CommonTranslator(InfererModule):
         for i, trans in enumerate(translations):
             final_translations[query_indices[i]] = trans
 
-        for i, (q, t) in enumerate(zip(queries, final_translations)):
+        # Reuse the old queries list for logging
+        for i, (q, t) in enumerate(zip(queries_old, final_translations)):
             self.logger.info(f'{i}: {q} => {t}')
 
         if use_mtpe:
