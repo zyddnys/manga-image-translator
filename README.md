@@ -54,6 +54,15 @@ $ pip install -r requirements.txt
 $ pip install git+https://github.com/kodalli/pydensecrf.git
 ```
 
+poetry
+
+```bash
+git clone https://github.com/zyddnys/manga-image-translator.git
+cd manga-image-translator
+poetry shell
+poetry install
+```
+
 The models will be downloaded into `./models` at runtime.
 
 #### If you are on windows
