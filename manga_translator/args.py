@@ -122,6 +122,7 @@ parser.add_argument('--denoise-sigma', default=30, type=int, help='Used by color
 parser.add_argument('--font-size', default=None, type=int, help='Use fixed font size for rendering')
 parser.add_argument('--font-size-offset', default=0, type=int, help='Offset font size by a given amount, positive number increase font size and vice versa')
 parser.add_argument('--font-size-minimum', default=-1, type=int, help='Minimum output font size. Default is image_sides_sum/200')
+parser.add_argument('--font-color', default=None, type=str, help='Overwrite the text color detected by the OCR model. Use hex string without the "#" such as FFFFFF for white.')
 
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--force-horizontal', action='store_true', help='Force text to be rendered horizontally')

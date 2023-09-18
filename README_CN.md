@@ -113,7 +113,7 @@ HRV: Croatian
                                              image folder if using batch mode
 -o, --dest DEST                              Path to the destination folder for translated images in
                                              batch mode
--l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA}
+-l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA,CNR,SRP,HRV}
                                              Destination language
 -v, --verbose                                Print debug info and save intermediate images in result
                                              folder
@@ -171,7 +171,9 @@ HRV: Croatian
 --font-size-offset FONT_SIZE_OFFSET          Offset font size by a given amount, positive number
                                              increase font size and vice versa
 --font-size-minimum FONT_SIZE_MINIMUM        Minimum output font size. Default is
-                                             image_sides_sum/150
+                                             image_sides_sum/200
+--font-color FONT_COLOR                      Overwrite the text color detected by the OCR model. Use
+                                             hex string without the "#" such as FFFFFF for white.
 --force-horizontal                           Force text to be rendered horizontally
 --force-vertical                             Force text to be rendered vertically
 --align-left                                 Align rendered text left

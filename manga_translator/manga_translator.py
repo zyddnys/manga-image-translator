@@ -33,6 +33,7 @@ from .utils import (
     remove_file_logger,
     count_valuable_text,
     rgb2hex,
+    hex2rgb,
     get_color_name,
     is_url,
     natural_sort,
@@ -298,6 +299,12 @@ class MangaTranslator():
         if ctx.filter_text:
             ctx.filter_text = re.compile(ctx.filter_text)
 
+        if ctx.font_color:
+            try:
+                ctx.font_color = hex2rgb(ctx.font_color)
+            except:
+                raise Exception(f'Invalid --font-color value: {ctx.font_color}. Use a hex value such as FF0000')
+
     async def _translate(self, ctx: Context) -> Context:
 
         # -- Colorization
@@ -421,12 +428,18 @@ class MangaTranslator():
                 if text.strip():
                     logger.info(f'Filtered out: {text}')
             else:
+                if ctx.font_color:
+                    textline.fg_r, textline.fg_g, textline.fg_b = ctx.font_color
                 new_textlines.append(textline)
         return new_textlines
 
     async def _run_textline_merge(self, ctx: Context):
         text_regions = await dispatch_textline_merge(ctx.textlines, ctx.img_rgb.shape[1], ctx.img_rgb.shape[0], verbose=self.verbose)
         text_regions = [region for region in text_regions if len(''.join(region.text)) >= ctx.min_text_length]
+
+        for region in text_regions:
+            if ctx.font_color:
+                region.accumulate_color = False
 
         # Sort ctd (comic text detector) regions left to right. Otherwise right to left.
         # Sorting will improve text translation quality.

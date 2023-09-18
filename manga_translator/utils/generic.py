@@ -816,8 +816,9 @@ def color_difference(rgb1: List, rgb2: List) -> float:
 def rgb2hex(r,g,b):
     return "#{:02x}{:02x}{:02x}".format(r,g,b)
 
-def hex2rgb(hexcode):
-    return tuple(map(ord,hexcode[1:].decode('hex')))
+def hex2rgb(h):
+    h = h.lstrip('#')
+    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
 
 def get_color_name(rgb: List[int]) -> str:
         try:
