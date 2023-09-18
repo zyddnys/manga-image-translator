@@ -39,8 +39,6 @@ Browser Userscript (by QiroNT): <https://greasyfork.org/scripts/437569>
 
 ## Installation
 
-pip
-
 ```bash
 # First, you need to have Python(>=3.8) installed on your system
 # The latest version often does not work with some pytorch libraries yet
@@ -54,14 +52,6 @@ $ git clone https://github.com/zyddnys/manga-image-translator.git
 $ pip install -r requirements.txt
 
 $ pip install git+https://github.com/kodalli/pydensecrf.git
-```
-
-poetry
-
-```bash
-git clone https://github.com/zyddnys/manga-image-translator.git
-cd manga-image-translator
-poetry install
 ```
 
 The models will be downloaded into `./models` at runtime.
