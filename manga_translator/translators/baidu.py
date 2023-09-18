@@ -33,6 +33,8 @@ class BaiduTranslator(CommonTranslator):
         'ROM': 'rom',
         'RUS': 'ru',
         'ESP': 'spa',
+        'SRP': 'srp',
+        'HRV': 'hrv'
     }
     _INVALID_REPEAT_COUNT = 1
 

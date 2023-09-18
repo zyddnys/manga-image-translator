@@ -301,6 +301,8 @@ TRK: Turkish
 UKR: Ukrainian
 VIN: Vietnames
 ARA: Arabic
+SRP: Serbian
+HRV: Croatian
 ```
 
 <!-- Auto generated start (See devscripts/make_readme.py) -->
