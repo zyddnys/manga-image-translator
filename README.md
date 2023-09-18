@@ -39,8 +39,6 @@ Browser Userscript (by QiroNT): <https://greasyfork.org/scripts/437569>
 
 ## Installation
 
-pip
-
 ```bash
 # First, you need to have Python(>=3.8) installed on your system
 # The latest version often does not work with some pytorch libraries yet
