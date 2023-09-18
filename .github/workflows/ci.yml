@@ -36,7 +36,7 @@ jobs:
         poetry-version: ${{ matrix.poetry-version }}
     - name: Lint *.py files
       run: |
-        poetry run pylint pylint $(git ls-files '*.py')
+        poetry run pylint $(git ls-files '*.py')
     # - name: Test
     #   run: |
     #     poetry run pytest test
