@@ -34,6 +34,11 @@ jobs:
       uses: abatilo/actions-poetry@v2.3.0
       with:
         poetry-version: ${{ matrix.poetry-version }}
+
+    - name: Install dependencies
+      run: |
+        poetry install --only main,test
+        
     - name: Lint *.py files
       run: |
         poetry run pylint $(git ls-files '*.py')
