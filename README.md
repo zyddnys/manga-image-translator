@@ -61,6 +61,7 @@ poetry
 ```bash
 git clone https://github.com/zyddnys/manga-image-translator.git
 cd manga-image-translator
+poetry shell
 poetry install
 ```
 

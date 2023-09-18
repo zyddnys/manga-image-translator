@@ -62,7 +62,13 @@ pydensecrf = { git = "https://github.com/kodalli/pydensecrf.git" }
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.25.2"
+
+[tool.poetry.group.test.dependencies]
 pylint = "^2.17.5"
+pytest-sugar = "^0.9.6"
+pytest-xdist = "^3.3.1"
+pytest = "^7.2.2"
+pytest-asyncio = "^0.21.1"
 
 
 [tool.isort]
@@ -80,3 +86,8 @@ c-extension-no-member
 additional-builtins = "display"
 output-format = "colorized"
 generated-members = ["torch.*", "cv2.*"]
+
+[tool.pytest.ini_options]
+addopts = "-ra -v -p no:faulthandler"
+minversion = "6.0"
+testpaths = ["test"]
