@@ -116,4 +116,7 @@ def gimp_render(out_file, ctx: Context):
     subprocess.run([executable, '-i', '-b', full_script])
 
     os.unlink(input_file)
-    os.unlink(mask_file)
+    
+    # Deleting file only if it exists
+    if os.path.exists(mask_file):
+        os.unlink(mask_file)
