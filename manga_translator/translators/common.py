@@ -34,7 +34,8 @@ VALID_LANGUAGES = {
     'ARA': 'Arabic',
     'CNR': 'Montenegrin',
     'SRP': 'Serbian',
-    'HRV': 'Croatian'
+    'HRV': 'Croatian',
+    'THA': 'Thai'
 }
 
 ISO_639_1_TO_VALID_LANGUAGES = {
@@ -60,7 +61,8 @@ ISO_639_1_TO_VALID_LANGUAGES = {
     'ar': 'ARA',
     'cnr': 'CNR',
     'sr': 'SRP',
-    'hr': 'HRV'
+    'hr': 'HRV',
+    'th': 'THA'
 }
 
 class InvalidServerResponse(Exception):

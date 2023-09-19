@@ -33,6 +33,7 @@ class YoudaoTranslator(CommonTranslator):
         'RUS': 'ru',
         'ESP': 'es',
         'TRK': 'tr',
+        'THA': 'th'
     }
     _API_URL = 'https://openapi.youdao.com/api'
 

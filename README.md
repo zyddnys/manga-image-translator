@@ -303,6 +303,7 @@ VIN: Vietnames
 ARA: Arabic
 SRP: Serbian
 HRV: Croatian
+THA: Thai
 ```
 
 <!-- Auto generated start (See devscripts/make_readme.py) -->
@@ -318,7 +319,7 @@ HRV: Croatian
                                              image folder if using batch mode
 -o, --dest DEST                              Path to the destination folder for translated images in
                                              batch mode
--l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA,CNR,SRP,HRV}
+-l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA,CNR,SRP,HRV,THA}
                                              Destination language
 -v, --verbose                                Print debug info and save intermediate images in result
                                              folder

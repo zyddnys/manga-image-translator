@@ -99,7 +99,8 @@ class GoogleTranslator(CommonTranslator):
         'VIN': 'vi',
         'ARA': 'ar',
         'SRP': 'sr',
-        'HRV': 'hr'
+        'HRV': 'hr',
+        'THA': 'th'
     }
 
     def __init__(self, service_urls=DEFAULT_CLIENT_SERVICE_URLS, user_agent=DEFAULT_USER_AGENT,
