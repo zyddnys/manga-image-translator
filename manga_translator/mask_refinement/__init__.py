@@ -11,13 +11,13 @@ async def dispatch(text_regions: List[TextBlock], raw_image: np.ndarray, raw_mas
     mask_resized = cv2.resize(raw_mask, (raw_image.shape[1] // 2, raw_image.shape[0] // 2), interpolation = cv2.INTER_LINEAR)
 
     mask_resized[mask_resized > 0] = 255
-    bboxes_resized = []
+    textlines = []
     for region in text_regions:
         for l in region.lines:
-            a = Quadrilateral(l, '', 0)
-            bboxes_resized.append((a.aabb.x // 2, a.aabb.y // 2, a.aabb.w // 2, a.aabb.h // 2))
+            q = Quadrilateral(l / 2, '', 0)
+            textlines.append(q)
 
-    final_mask = complete_mask(img_resized, mask_resized, bboxes_resized) if method == 'fit_text' else complete_mask_fill(bboxes_resized)
+    final_mask = complete_mask(img_resized, mask_resized, textlines) if method == 'fit_text' else complete_mask_fill([txtln.aabb.xywh for txtln in textlines])
     if final_mask is None:
         final_mask = np.zeros((raw_image.shape[0], raw_image.shape[1]), dtype = np.uint8)
     else:

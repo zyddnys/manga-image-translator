@@ -13,6 +13,8 @@ import re
 import einops
 import unicodedata
 import json
+from shapely import affinity
+from shapely.geometry import Polygon
 
 try:
     functools.cached_property
@@ -304,6 +306,12 @@ def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
     # return the resized image
     return resized
 
+def resize_polygon(pts, xfact, yfact, origin='center'):
+    poly = Polygon(pts)
+    poly = affinity.scale(poly, xfact=xfact, yfact=yfact, origin=origin)
+    dst_points = np.array(poly.exterior.coords[:4])
+    return dst_points
+
 class BBox(object):
     def __init__(self, x: int, y: int, w: int, h: int, text: str, prob: float, fg_r: int = 0, fg_g: int = 0, fg_b: int = 0, bg_r: int = 0, bg_g: int = 0, bg_b: int = 0):
         self.x = x
@@ -328,6 +336,10 @@ class BBox(object):
     def to_points(self):
         tl, tr, br, bl = np.array([self.x, self.y]), np.array([self.x + self.w, self.y]), np.array([self.x + self.w, self.y+ self.h]), np.array([self.x, self.y + self.h])
         return tl, tr, br, bl
+
+    @property
+    def xywh(self):
+        return np.array([self.x, self.y, self.w, self.h], dtype=np.int32)
 
 class Quadrilateral(object):
     """
@@ -565,6 +577,9 @@ class Quadrilateral(object):
                 return dist(self.pts[0][0], self.pts[0][1], other.pts[0][0], other.pts[0][1])
             else:
                 return dist(self.pts[2][0], self.pts[2][1], other.pts[2][0], other.pts[2][1])
+
+    def resize(self, new_pts: np.ndarray):
+        return Quadrilateral(new_pts, self.text, self.prob, *self.fg_colors, *self.bg_colors)
 
 def dist(x1, y1, x2, y2):
     return np.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2))
