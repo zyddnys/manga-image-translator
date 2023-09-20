@@ -464,9 +464,9 @@ class MangaTranslator():
         new_text_regions = []
         for region in ctx.text_regions:
             # TODO: Maybe print reasons for filtering
-            if not ctx.translator.is_none() and (region.translation.isnumeric() \
-                or (ctx.filter_text and re.search(ctx.filter_text, region.translation))
-                or (region.get_text().lower().strip() == region.translation.lower().strip())):
+            if not ctx.translator == 'none' and (region.translation.isnumeric() \
+                or ctx.filter_text and re.search(ctx.filter_text, region.translation)
+                or not ctx.translator == 'original' and region.get_text().lower().strip() == region.translation.lower().strip()):
                 if region.translation.strip():
                     logger.info(f'Filtered out: {region.translation}')
             else:
@@ -519,7 +519,6 @@ class MangaTranslator():
         LOG_MESSAGES_SKIP = {
             'skip-no-regions':      'No text regions! - Skipping',
             'skip-no-text':         'No text regions with text! - Skipping',
-            'error-translating':    'Text translator returned empty queries',
             'error-translating':    'Text translator returned empty queries',
             'cancelled'        :    'Image translation cancelled',
         }

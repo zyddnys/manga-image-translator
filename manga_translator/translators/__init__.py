@@ -78,8 +78,10 @@ class TranslatorChain():
         """
         return any(translator in OFFLINE_TRANSLATORS for translator in self.translators)
 
-    def is_none(self) -> bool :
-        return self.translators[0] == 'none'
+    def __eq__(self, __o: object) -> bool:
+        if type(__o) is str:
+            return __o == self.translators[0]
+        return super.__eq__(self, __o)
 
 async def prepare(chain: TranslatorChain):
     for key, tgt_lang in chain.chain:
