@@ -11,5 +11,6 @@ DEEPL_AUTH_KEY = os.getenv('DEEPL_AUTH_KEY', 'ff0adcf6-f119-6fcf-d084-d51a2df9aa
 # openai
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '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')
 OPENAI_HTTP_PROXY = os.getenv('OPENAI_HTTP_PROXY') # TODO: Replace with --proxy
+OPENAI_API_BASE = os.getenv('OPENAI_API_BASE', 'http://api.openai.com/v1')
 
 CAIYUN_TOKEN = ''
