@@ -464,7 +464,7 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
 
         current_width = whitespace_offset_x if line_width > 0 else 0
 
-        if line_width + current_width + word_widths[i] <= max_width:# + font_size:
+        if line_width + current_width + word_widths[i] <= max_width + hyphen_offset_x:
             line_words.append(i)
             line_width += current_width + word_widths[i]
             i += 1
@@ -595,7 +595,7 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
     # Step 4
     # Assemble line_text_list
 
-    use_hyphen_chars = hyphenate and hyphenator and max_width > 3 * font_size
+    use_hyphen_chars = hyphenate and hyphenator and max_width > font_size and len(words) > 1
 
     line_text_list = []
     for i, line in enumerate(line_words_list):
@@ -604,15 +604,21 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
             syl_start_idx, syl_end_idx = get_present_syllables_range(i, j)
             current_syllables = syllables[word_idx][syl_start_idx:syl_end_idx]
             line_text += ''.join(current_syllables)
-            if j < len(line) - 1:
+            if j == 0 and i > 0 and line_text_list[-1][-1] == '-' and line_text[0] == '-':
+                line_text = line_text[1:]
+                line_width_list[i] -= hyphen_offset_x
+            if j < len(line) - 1 and len(line_text) > 0:
                 line_text += ' '
-            elif use_hyphen_chars and syl_end_idx != len(syllables[word_idx]) and line_text[-1] != '-':
+            elif use_hyphen_chars and syl_end_idx != len(syllables[word_idx]) and len(words[word_idx]) > 3 and line_text[-1] != '-':
                 line_text += '-'
                 # hyphen_offset was ignored in previous steps
                 line_width_list[i] += hyphen_offset_x
-        # Shouldnt be needed but there is apparently still a bug somewhere (#458)
-        line_width_list[i] = get_string_width(font_size, line_text)
+
         # print(line_text, get_string_width(font_size, line_text), line_width_list[i])
+        # assert(line_width_list[i] == get_string_width(font_size, line_text))
+
+        # Shouldnt be needed but there is apparently still a bug somewhere (See #458)
+        line_width_list[i] = get_string_width(font_size, line_text)
         line_text_list.append(line_text)
 
     return line_text_list, line_width_list

@@ -384,8 +384,10 @@ def render_textblock_list_eng(
     def update_enlarged_xyxy(region):
         region.enlarged_xyxy = region.xyxy.copy()
         w_diff, h_diff = ((region.xywh[2:] * region.enlarge_ratio) - region.xywh[2:].astype(np.float64)) // 2
-        region.enlarged_xyxy[:2] -= int(w_diff)
-        region.enlarged_xyxy[2:] += int(h_diff)
+        region.enlarged_xyxy[0] -= w_diff
+        region.enlarged_xyxy[2] += w_diff
+        region.enlarged_xyxy[1] -= h_diff
+        region.enlarged_xyxy[3] += h_diff
 
     # Adjust enlarge ratios relative to each other to reduce intersections
     for region in text_regions:
@@ -404,13 +406,13 @@ def render_textblock_list_eng(
                 d = rect_distance(*region.xyxy, *region2.xyxy)
                 l1 = (region.xywh[2] + region.xywh[3]) / 2
                 l2 = (region2.xywh[2] + region2.xywh[3]) / 2
-                region.enlarge_ratio = d / l1 + 1
-                region2.enlarge_ratio = d / l2 + 1
+                region.enlarge_ratio = d / (2 * l1) + 1
+                region2.enlarge_ratio = d / (2 * l2) + 1
                 update_enlarged_xyxy(region)
                 update_enlarged_xyxy(region2)
                 # print('Reducing enlarge ratio to prevent intersection')
-                # print(region.translation, region.enlarged_xyxy)
-                # print('>->', region2.translation, region2.enlarged_xyxy)
+                # print(region.translation, region.enlarged_xyxy, region.enlarge_ratio)
+                # print('>->', region2.translation, region2.enlarged_xyxy, region2.enlarge_ratio)
 
     for region in text_regions:
         words = seg_eng(region.translation)

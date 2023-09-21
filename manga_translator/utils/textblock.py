@@ -4,6 +4,7 @@ from typing import List, Tuple
 from shapely.geometry import Polygon, MultiPoint
 from functools import cached_property
 import copy
+import re
 
 from .generic import color_difference, is_right_to_left_char, count_valuable_text
 # from ..detection.ctd_utils.utils.imgproc_utils import union_area, xywh2xyxypoly
@@ -32,7 +33,7 @@ LANGAUGE_ORIENTATION_PRESETS = {
     'TRK': 'h',
     'UKR': 'h',
     'VIN': 'h',
-    'ARA': 'hr', # horizontal right to left
+    'ARA': 'hr', # horizontal reversed (right to left)
 }
 
 class TextBlock(object):
@@ -269,6 +270,28 @@ class TextBlock(object):
 
             text = ''.join(text_list)
         return text
+
+    @property
+    def is_bulleted_list(self):
+        """
+        A determining factor of whether we should be sticking to the strict per textline
+        text distribution when rendering.
+        """
+        if len(self.text) <= 1:
+            return False
+
+        bullet_regexes = [
+            r'[^\w\s]', # ○ ... ○ ...
+            r'[\d]+\.', # 1. ... 2. ...
+        ]
+        bullet_type_idx = -1
+        for line_text in self.text:
+            for i, breg in enumerate(bullet_regexes):
+                if re.search(r'(?:[\n]|^)((?:' + breg + r')[\s]*)', line_text):
+                    if bullet_type_idx >= 0 and bullet_type_idx != i:
+                        return False
+                    bullet_type_idx = i
+        return bullet_type_idx >= 0
 
     def set_font_colors(self, fg_colors, bg_colors, accumulate=True):
         self.accumulate_color = accumulate
