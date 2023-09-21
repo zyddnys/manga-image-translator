@@ -645,13 +645,16 @@ def distance_point_lineseg(p: np.ndarray, p1: np.ndarray, p2: np.ndarray):
     return np.sqrt(dx * dx + dy * dy)
 
 
-def quadrilateral_can_merge_region(a: Quadrilateral, b: Quadrilateral, ratio = 1.9, discard_connection_gap = 5, char_gap_tolerance = 0.6, char_gap_tolerance2 = 1.5, font_size_ratio_tol = 1.5, aspect_ratio_tol = 2) -> bool:
+def quadrilateral_can_merge_region(a: Quadrilateral, b: Quadrilateral, ratio = 1.9, discard_connection_gap = 2, char_gap_tolerance = 0.6, char_gap_tolerance2 = 1.5, font_size_ratio_tol = 1.5, aspect_ratio_tol = 2) -> bool:
     b1 = a.aabb
     b2 = b.aabb
     char_size = min(a.font_size, b.font_size)
     x1, y1, w1, h1 = b1.x, b1.y, b1.w, b1.h
     x2, y2, w2, h2 = b2.x, b2.y, b2.w, b2.h
-    dist = rect_distance(x1, y1, x1 + w1, y1 + h1, x2, y2, x2 + w2, y2 + h2)
+    # dist = rect_distance(x1, y1, x1 + w1, y1 + h1, x2, y2, x2 + w2, y2 + h2)
+    p1 = Polygon(a.pts)
+    p2 = Polygon(b.pts)
+    dist = p1.distance(p2)
     if dist > discard_connection_gap * char_size:
         return False
     if max(a.font_size, b.font_size) / char_size > font_size_ratio_tol:

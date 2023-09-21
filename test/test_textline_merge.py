@@ -332,6 +332,23 @@ async def test_merge_image8():
         [[ 236, 1384], [ 259, 1385], [ 258, 1563], [ 234, 1562]],
         [[871, 131], [893, 131], [893, 308], [871, 308]],
     ]
-    # print((await generate_combinations(lines, width, height))[0])
     expected_combinations = [[0, 1], [2], [3], [4, 14], [5, 18], [6, 9], [7, 22], [8, 21], [10, 13, 19, 23], [11], [12, 16], [15], [17, 20, 24]]
     await run_test(lines, expected_combinations, width, height, '8.png')
+
+@pytest.mark.asyncio
+async def test_merge_image9():
+    width, height = 1158, 1637
+    lines = [
+        [[ 527,  957], [ 646,  933], [ 685, 1129], [ 565, 1153]],
+        [[  0,  89], [112,  73], [142, 311], [ 14, 327]],
+        [[ 866,  824], [ 967,  803], [1010, 1006], [ 909, 1027]],
+        [[ 213,  791], [ 327,  771], [ 373, 1028], [ 258, 1048]],
+        [[ 969, 1483], [1008, 1475], [1033, 1609], [ 996, 1616]],
+        [[484,  20], [553,  20], [556, 334], [488, 334]],
+        [[550,  20], [617,  22], [605, 369], [539, 367]],
+        [[1018,   20], [1080,   21], [1075,  426], [1013,  425]],
+        [[1080,    9], [1148,    9], [1152,  464], [1083,  464]],
+    ]
+    # print((await generate_combinations(lines, width, height))[0])
+    expected_combinations = [[0], [2], [3], [1], [4], [5, 6], [7, 8]]
+    await run_test(lines, expected_combinations, width, height, '9.png')
