@@ -3,7 +3,6 @@ from typing import List, Callable, Tuple
 import numpy as np
 import cv2
 import functools
-from shapely.geometry import Polygon, MultiPoint
 from PIL import Image
 import tqdm
 import requests
@@ -14,7 +13,7 @@ import einops
 import unicodedata
 import json
 from shapely import affinity
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, MultiPoint
 
 try:
     functools.cached_property
@@ -383,11 +382,11 @@ class Quadrilateral(object):
 
     @property
     def fg_colors(self):
-        return self.fg_r, self.fg_g, self.fg_b
+        return np.array([self.fg_r, self.fg_g, self.fg_b])
 
     @property
     def bg_colors(self):
-        return self.bg_r, self.bg_g, self.bg_b
+        return np.array([self.bg_r, self.bg_g, self.bg_b])
 
     @functools.cached_property
     def aspect_ratio(self) -> float:
@@ -578,8 +577,21 @@ class Quadrilateral(object):
             else:
                 return dist(self.pts[2][0], self.pts[2][1], other.pts[2][0], other.pts[2][1])
 
-    def resize(self, new_pts: np.ndarray):
+    def copy(self, new_pts: np.ndarray):
         return Quadrilateral(new_pts, self.text, self.prob, *self.fg_colors, *self.bg_colors)
+
+# def merge_quadrilaterals(q1: Quadrilateral, q2: Quadrilateral):
+#     min_rect = np.array(Polygon([*q1.pts, *q2.pts]).minimum_rotated_rectangle.exterior.coords[:4])
+#     if q1.centroid[0] < q2.centroid[0] or q1.centroid[1] < q1.centroid[1]:
+#         text = q1.text + ' ' + q2.text
+#         # if q1.centroid[0] < q2.centroid[0]:
+#         #     min_rect = np.array([q1.pts[0], q2.pts[1], q2.pts[2], q1.pts[3]])
+#     else:
+#         text = q2.text + ' ' + q1.text
+#     prob = (q1.prob + q2.prob) / 2
+#     fg_colors = (q1.fg_colors + q2.fg_colors) // 2
+#     bg_colors = (q1.bg_colors + q2.bg_colors) // 2
+#     return Quadrilateral(min_rect, text, prob, *fg_colors, *bg_colors)
 
 def dist(x1, y1, x2, y2):
     return np.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2))

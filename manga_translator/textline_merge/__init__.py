@@ -3,6 +3,7 @@ import numpy as np
 from typing import List, Set
 from collections import Counter
 import networkx as nx
+from shapely.geometry import Polygon
 
 from ..utils import TextBlock, Quadrilateral, quadrilateral_can_merge_region
 
@@ -52,13 +53,18 @@ def split_text_region(
     distances_mean = np.mean(distances_sorted)
     std_threshold = max(0.3 * fontsize + 5, 5)
 
+    b1, b2 = bboxes[edges[0][0]], bboxes[edges[0][1]]
+    max_poly_distance = Polygon(b1.pts).distance(Polygon(b2.pts))
+    max_centroid_alignment = min(abs(b1.centroid[0] - b2.centroid[0]), abs(b1.centroid[1] - b2.centroid[1]))
+
     # print(edges)
     # print(f'std: {distances_std} < thrshold: {std_threshold}, mean: {distances_mean}')
 
     if (distances_sorted[0] <= distances_mean + distances_std * sigma \
             or distances_sorted[0] <= fontsize * (1 + gamma) \
-            or distances_sorted[0] - distances_sorted[1] < distances_std * sigma \
-            ) and distances_std < std_threshold:
+            or distances_sorted[0] - distances_sorted[1] < distances_std * sigma) \
+            and (distances_std < std_threshold \
+            or max_poly_distance == 0 and max_centroid_alignment < 5):
         return [set(connected_region_indices)]
     else:
         # (split_u, split_v, _) = edges[0]
@@ -100,11 +106,27 @@ def split_text_region(
 #     return box
 
 def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height):
+    # step 0: merge quadrilaterals that belong to the same textline
+    # u = 0
+    # removed_counter = 0
+    # while u < len(bboxes) - 1 - removed_counter:
+    #     v = u
+    #     while v < len(bboxes) - removed_counter:
+    #         if quadrilateral_can_merge_region(bboxes[u], bboxes[v], aspect_ratio_tol=1.1, font_size_ratio_tol=1,
+    #                                         char_gap_tolerance=1, char_gap_tolerance2=3, discard_connection_gap=0) \
+    #            and abs(bboxes[u].centroid[0] - bboxes[v].centroid[0]) < 5 or abs(bboxes[u].centroid[1] - bboxes[v].centroid[1]) < 5:
+    #                 bboxes[u] = merge_quadrilaterals(bboxes[u], bboxes[v])
+    #                 removed_counter += 1
+    #                 bboxes.pop(v)
+    #         else:
+    #             v += 1
+    #     u += 1
+
+    # step 1: divide into multiple text region candidates
     G = nx.Graph()
     for i, box in enumerate(bboxes):
         G.add_node(i, box=box)
 
-    # step 1: divide into multiple text region candidates
     for ((u, ubox), (v, vbox)) in itertools.combinations(enumerate(bboxes), 2):
         # if quadrilateral_can_merge_region_coarse(ubox, vbox):
         if quadrilateral_can_merge_region(ubox, vbox, aspect_ratio_tol=1.3, font_size_ratio_tol=2,
@@ -149,9 +171,9 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height):
 
         # sort textlines
         if majority_dir == 'h':
-            nodes = sorted(nodes, key=lambda x: bboxes[x].aabb.y + bboxes[x].aabb.h // 2)
+            nodes = sorted(nodes, key=lambda x: bboxes[x].centroid[1])
         elif majority_dir == 'v':
-            nodes = sorted(nodes, key=lambda x: -(bboxes[x].aabb.x + bboxes[x].aabb.w))
+            nodes = sorted(nodes, key=lambda x: -bboxes[x].centroid[0])
         txtlns = np.array(bboxes)[nodes]
 
         # yield overall bbox and sorted indices
