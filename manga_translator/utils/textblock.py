@@ -100,6 +100,7 @@ class TextBlock(object):
         self.default_stroke_width = default_stroke_width
         self.font_weight = font_weight
         self.accumulate_color = accumulate_color
+        self.adjust_bg_color = True
 
         self.opacity = opacity
         self.shadow_radius = shadow_radius
@@ -283,6 +284,7 @@ class TextBlock(object):
         bullet_regexes = [
             r'[^\w\s]', # ○ ... ○ ...
             r'[\d]+\.', # 1. ... 2. ...
+            r'[QA]:', # Q: ... A: ...
         ]
         bullet_type_idx = -1
         for line_text in self.text:
@@ -305,6 +307,7 @@ class TextBlock(object):
 
     def get_font_colors(self, bgr=False):
         num_lines = len(self.lines)
+
         frgb = np.array(self.fg_colors)
         brgb = np.array(self.bg_colors)
         if self.accumulate_color:
@@ -312,13 +315,18 @@ class TextBlock(object):
                 frgb = (frgb / num_lines).astype(np.int32)
                 brgb = (brgb / num_lines).astype(np.int32)
                 if bgr:
-                    return frgb[::-1], brgb[::-1]
+                    frgb, brgb = frgb[::-1], brgb[::-1]
                 else:
-                    return frgb, brgb
+                    frgb, brgb = frgb, brgb
             else:
                 return [0, 0, 0], [0, 0, 0]
-        else:
-            return frgb, brgb
+
+        if self.adjust_bg_color:
+            fg_avg = np.mean(frgb)
+            if color_difference(frgb, brgb) < 30:
+                brgb = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
+
+        return frgb, brgb
 
     @property
     def direction(self):

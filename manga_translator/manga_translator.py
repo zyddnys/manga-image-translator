@@ -300,8 +300,10 @@ class MangaTranslator():
             ctx.filter_text = re.compile(ctx.filter_text)
 
         if ctx.font_color:
+            colors = ctx.font_color.split(':')
             try:
-                ctx.font_color = hex2rgb(ctx.font_color)
+                ctx.font_color_fg = hex2rgb(colors[0])
+                ctx.font_color_bg = hex2rgb(colors[1]) if len(colors) > 1 else None
             except:
                 raise Exception(f'Invalid --font-color value: {ctx.font_color}. Use a hex value such as FF0000')
 
@@ -430,8 +432,10 @@ class MangaTranslator():
                 if text.strip():
                     logger.info(f'Filtered out: {text}')
             else:
-                if ctx.font_color:
-                    textline.fg_r, textline.fg_g, textline.fg_b = ctx.font_color
+                if ctx.font_color_fg:
+                    textline.fg_r, textline.fg_g, textline.fg_b = ctx.font_color_fg
+                if ctx.font_color_bg:
+                    textline.bg_r, textline.bg_g, textline.bg_b = ctx.font_color_bg
                 new_textlines.append(textline)
         return new_textlines
 
@@ -440,8 +444,10 @@ class MangaTranslator():
         text_regions = [region for region in text_regions if len(''.join(region.text)) >= ctx.min_text_length]
 
         for region in text_regions:
-            if ctx.font_color:
+            if ctx.font_color_fg or ctx.font_color_bg:
                 region.accumulate_color = False
+                if ctx.font_color_bg:
+                    region.adjust_bg_color = False
 
         # Sort ctd (comic text detector) regions left to right. Otherwise right to left.
         # Sorting will improve text translation quality.
