@@ -365,9 +365,11 @@ class MangaTranslator():
 
         if not ctx.text_regions:
             await self._report_progress('error-translating', True)
+            ctx.result = ctx.upscaled
             return ctx
         elif ctx.text_regions == 'cancel':
             await self._report_progress('cancelled', True)
+            ctx.result = ctx.upscaled
             return ctx
 
         # -- Mask refinement
