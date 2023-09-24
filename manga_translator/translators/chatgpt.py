@@ -6,7 +6,7 @@ import time
 from typing import List, Dict
 
 from .common import CommonTranslator, MissingAPIKeyException
-from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY
+from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE
 
 CONFIG = None
 
@@ -53,6 +53,7 @@ class GPT3Translator(CommonTranslator):
     def __init__(self):
         super().__init__()
         openai.api_key = openai.api_key or OPENAI_API_KEY
+        openai.api_base = OPENAI_API_BASE
         if not openai.api_key:
             raise MissingAPIKeyException('Please set the OPENAI_API_KEY environment variable before using the chatgpt translator.')
         if OPENAI_HTTP_PROXY:
