@@ -59,10 +59,12 @@ def split_text_region(
 
     # print(edges)
     # print(f'std: {distances_std} < thrshold: {std_threshold}, mean: {distances_mean}')
+    # print(f'{distances_sorted[0]} <= {distances_mean + distances_std * sigma}' \
+    #         f' or {distances_sorted[0]} <= {fontsize * (1 + gamma)}' \
+    #         f' or {distances_sorted[0] - distances_sorted[1]} < {distances_std * sigma}')
 
     if (distances_sorted[0] <= distances_mean + distances_std * sigma \
-            or distances_sorted[0] <= fontsize * (1 + gamma) \
-            or distances_sorted[0] - distances_sorted[1] < distances_std * sigma) \
+            or distances_sorted[0] <= fontsize * (1 + gamma)) \
             and (distances_std < std_threshold \
             or max_poly_distance == 0 and max_centroid_alignment < 5):
         return [set(connected_region_indices)]

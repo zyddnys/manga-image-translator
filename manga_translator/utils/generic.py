@@ -594,7 +594,7 @@ class Quadrilateral(object):
 #     return Quadrilateral(min_rect, text, prob, *fg_colors, *bg_colors)
 
 def dist(x1, y1, x2, y2):
-    return np.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2))
+    return np.sqrt((x1 - x2)**2 + (y1 - y2)**2)
 
 def rect_distance(x1, y1, x1b, y1b, x2, y2, x2b, y2b):
     left = x2b < x1
