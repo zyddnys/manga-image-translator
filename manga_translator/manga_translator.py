@@ -167,7 +167,7 @@ class MangaTranslator():
 
     async def _translate_file(self, path: str, dest: str, params: dict):
         if not params.get('overwrite') and os.path.exists(dest):
-            logger.info(f'Skipping as already translated: {dest}')
+            logger.info(f'Skipping as already translated: "{dest}". Use --overwrite to overwrite existing translations.')
             await self._report_progress('saved', True)
             return True
         logger.info(f'Translating: "{path}"')
