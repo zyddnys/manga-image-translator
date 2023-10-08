@@ -435,7 +435,7 @@ THA: Thai
 
 Requirements:
 
-- Docker (version 19.03+ required for CUDA / GPU accelaration)
+- Docker (version 19.03+ required for CUDA / GPU acceleration)
 - Docker Compose (Optional if you want to use files in the `demo/doc` folder)
 - Nvidia Container Runtime (Optional if you want to use CUDA)
 
