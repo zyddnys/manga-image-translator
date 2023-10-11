@@ -466,6 +466,8 @@ def render_textblock_list_eng(
         region_x, region_y, region_w, region_h = cv2.boundingRect(cv2.findNonZero(ballon_mask))
 
         base_length_word = words[max(enumerate(word_lengths), key = lambda x: x[1])[0]]
+        if len(base_length_word) == 0 :
+            continue
         lines_needed = len(region.translation) / len(base_length_word)
         lines_available = abs(xyxy[3] - xyxy[1]) // line_height + 1
         font_size_multiplier = max(min(region_w / (base_length + 2*sw), lines_available / lines_needed), downscale_constraint)
