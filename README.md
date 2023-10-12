@@ -49,6 +49,10 @@ Python 3.10.6
 # Clone this repo
 $ git clone https://github.com/zyddnys/manga-image-translator.git
 
+# For --use-cuda option go to https://pytorch.org/ and follow
+# pytorch installation instructions.
+# Add `--upgrade --force-reinstall` to the pip command to overwrite the currently installed pytorch version.
+
 # Install the dependencies
 $ pip install -r requirements.txt
 
@@ -75,7 +79,6 @@ as some pip dependencies will not compile without it.
 
 To use [cuda](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64)
 on windows install the correct pytorch version as instructed on <https://pytorch.org/>.  
-Add `--upgrade --force-reinstall` to the pip command to overwrite the currently installed pytorch version.
 
 Also, if you have trouble installing pydensecrf with the command above you can install the pre-compiled wheels with `pip install https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf`.
 
