@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import freetype
 import functools
+from pathlib import Path
 from typing import Tuple, Optional, List
 from hyphen import Hyphenator
 from hyphen.dictools import LANGUAGES as HYPHENATOR_LANGUAGES
@@ -147,7 +148,9 @@ font_cache = {}
 def get_cached_font(path: str) -> freetype.Face:
     path = path.replace('\\', '/')
     if not font_cache.get(path):
-        font_cache[path] = freetype.Face(path)
+        # To circumvent a bug with non ascii paths in windows use memory fonts
+        # https://github.com/rougier/freetype-py/issues/157#issuecomment-1683713726
+        font_cache[path] = freetype.Face(Path(path).open('rb'))
     return font_cache[path]
 
 def set_font(font_path: str):
