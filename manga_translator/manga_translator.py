@@ -89,7 +89,7 @@ class MangaTranslator():
         self._cuda_limited_memory = params.get('use_cuda_limited', False)
         if self._cuda_limited_memory and not self.using_cuda:
             self.device = 'cuda'
-        if True:#self.using_cuda and not torch.cuda.is_available():
+        if self.using_cuda and not torch.cuda.is_available():
             raise Exception(
                 'CUDA compatible device could not be found in torch whilst --use-cuda args was set.\n' \
                 'Is the correct pytorch version installed? (See https://pytorch.org/)')

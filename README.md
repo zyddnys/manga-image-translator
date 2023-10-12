@@ -50,8 +50,8 @@ Python 3.10.6
 $ git clone https://github.com/zyddnys/manga-image-translator.git
 
 # For --use-cuda option go to https://pytorch.org/ and follow
-# pytorch installation instructions.
-# Add `--upgrade --force-reinstall` to the pip command to overwrite the currently installed pytorch version.
+# pytorch installation instructions. Add `--upgrade --force-reinstall`
+# to the pip command to overwrite the currently installed pytorch version.
 
 # Install the dependencies
 $ pip install -r requirements.txt
