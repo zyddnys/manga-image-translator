@@ -70,7 +70,7 @@ poetry install
 
 The models will be downloaded into `./models` at runtime.
 
-#### If you are on windows
+#### Additional instructions for **Windows**
 
 Before you start the pip install, first install Microsoft C++ Build Tools ([Download](https://visualstudio.microsoft.com/vs/),
 [Instructions](https://stackoverflow.com/questions/40504552/how-to-install-visual-c-build-tools))
@@ -84,36 +84,31 @@ Also, if you have trouble installing pydensecrf with the command above you can i
 
 ## Usage
 
-#### Demo mode (default)
+#### Batch mode (default)
+
+```bash
+# use `--use-cuda` for speedup if you have a compatible NVIDIA GPU.
+# use `--target-lang <language_code>` to specify a target language.
+# use `--inpainter=none` to disable inpainting.
+# use `--translator=none` if you only want to use inpainting (blank bubbles)
+# replace <path> with the path to the image folder or file.
+$ python -m manga_translator -v --translator=google -l ENG -i <path>
+# results can be found under `<path_to_image_folder>-translated`.
+```
+
+#### Demo mode
 
 ```bash
 # saves singular image into /result folder for demonstration purposes
-# `--use-cuda` is optional, if you have a compatible NVIDIA GPU, you can use it.
-# use `--use-cuda-limited` to defer vram expensive language translations to the cpu
-# use `--inpainter=none` to disable inpainting.
-# use `--translator=<translator>` to specify a translator.
-# use `--translator=none` if you only want to use inpainting (blank bubbles)
-# use `--target-lang <language_code>` to specify a target language.
-# if you are not getting good result for small images you can try specifying an upscaler to enlarge and enhance the image to improve detection
-# replace <path_to_image_file> with the path to the image file.
-$ python -m manga_translator -v --use-cuda --translator=google -l ENG -i <path_to_image_file>
+# use `--mode demo` to enable demo translation.
+# replace <path> with the path to the image file.
+$ python -m manga_translator --mode demo -v --translator=google -l ENG -i <path>
 # result can be found in `result/`.
-```
-
-#### Batch mode
-
-```bash
-# same options as above.
-# use `--mode batch` to enable batch translation.
-# replace <path_to_image_folder> with the path to the image folder.
-$ python -m manga_translator -v --mode batch --use-cuda --translator=google -l ENG -i <path_to_image_folder>
-# results can be found in `<path_to_image_folder>-translated/`.
 ```
 
 #### Web Mode
 
 ```bash
-# same options as above.
 # use `--mode web` to start a web server.
 $ python -m manga_translator -v --mode web --use-cuda
 # the demo will be serving on http://127.0.0.1:5003
@@ -433,6 +428,12 @@ THA: Thai
 ```
 
 <!-- Auto generated end -->
+
+## Tips to improve translation quality
+- Using `--detector ctd` can increase the amount of text lines detected
+- Small resolutions can sometimes trip up the detector, which is not so good at picking up irregular text sizes. To circumvent this you can use an upscaler by specifying `--upscale-ratio 2` or any other value
+- If the text being rendered is too small to read specify `--font-size-minimum 30` for instance or use the `--manga2eng` renderer that will try to adapt to detected textbubbles
+- Specify a font with `--font-path fonts/anime_ace_3.ttf` for example
 
 ## Docker
 
