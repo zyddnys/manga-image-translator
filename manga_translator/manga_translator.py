@@ -163,8 +163,8 @@ class MangaTranslator():
 
                     file_path = os.path.join(root, f)
                     output_dest = replace_prefix(file_path, path, _dest)
-                    p, _ = os.path.splitext(output_dest)
-                    output_dest = f'{p}.{file_ext}'
+                    p, ext = os.path.splitext(output_dest)
+                    output_dest = f'{p}.{file_ext or ext[1:]}'
 
                     if await self.translate_file(file_path, output_dest, params):
                         translated_count += 1

@@ -151,7 +151,7 @@ g.add_argument('--lowercase', action='store_true', help='Change text to lowercas
 parser.add_argument('--no-hyphenation', action='store_true', help='If renderer should be splitting up words using a hyphen character (-)')
 parser.add_argument('--manga2eng', action='store_true', help='Render english text translated from manga with some additional typesetting. Ignores some other argument options')
 parser.add_argument('--gpt-config', type=file_path, help='Path to GPT config file, more info in README')
-parser.add_argument('--mtpe', action='store_true', help='Turn on/off machine translation post editing (MTPE) on the command line (works only on linux right now)')
+parser.add_argument('--use-mtpe', action='store_true', help='Turn on/off machine translation post editing (MTPE) on the command line (works only on linux right now)')
 
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--save-text', action='store_true', help='Save extracted text and translations into a text file.')
