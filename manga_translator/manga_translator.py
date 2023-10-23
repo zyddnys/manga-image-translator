@@ -12,7 +12,7 @@ import time
 import logging
 import numpy as np
 from PIL import Image
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from aiohttp import web
 from marshmallow import Schema, fields, ValidationError
 
@@ -31,11 +31,10 @@ from .utils import (
     visualize_textblocks,
     add_file_logger,
     remove_file_logger,
-    count_valuable_text,
+    is_valuable_text,
     rgb2hex,
     hex2rgb,
     get_color_name,
-    is_url,
     natural_sort,
     sort_regions,
 )
@@ -80,7 +79,17 @@ class MangaTranslator():
         self._add_logger_hook()
 
         params = params or {}
-        # Use environment variables to save thresholds for use in ocr
+        self.parse_init_params(params)
+        self.result_sub_folder = ''
+
+        # The flag below controls whether to allow TF32 on matmul. This flag defaults to False
+        # in PyTorch 1.12 and later.
+        torch.backends.cuda.matmul.allow_tf32 = True
+
+        # The flag below controls whether to allow TF32 on cuDNN. This flag defaults to True.
+        torch.backends.cudnn.allow_tf32 = True
+
+    def parse_init_params(self, params: dict):
         self.ignore_bubble=int(params.get('ignore_bubble', 0))
         self.verbose = params.get('verbose', False)
         self.ignore_errors = params.get('ignore_errors', False)
@@ -93,15 +102,8 @@ class MangaTranslator():
             raise Exception(
                 'CUDA compatible device could not be found in torch whilst --use-cuda args was set.\n' \
                 'Is the correct pytorch version installed? (See https://pytorch.org/)')
-
-        self.result_sub_folder = ''
-
-        # The flag below controls whether to allow TF32 on matmul. This flag defaults to False
-        # in PyTorch 1.12 and later.
-        torch.backends.cuda.matmul.allow_tf32 = True
-
-        # The flag below controls whether to allow TF32 on cuDNN. This flag defaults to True.
-        torch.backends.cudnn.allow_tf32 = True
+        if params.get('model_dir'):
+            ModelWrapper._MODEL_DIR = params.get('model_dir')
 
     @property
     def using_cuda(self):
@@ -111,16 +113,14 @@ class MangaTranslator():
         """
         Translates an image or folder (recursively) specified through the path.
         """
-        path = os.path.expanduser(path)
-        # expand path patterns such as *
-        if not path:
+        if not os.path.exists(path):
             raise FileNotFoundError(path)
-        path = os.path.abspath(path)
+        path = os.path.abspath(os.path.expanduser(path))
         dest = os.path.abspath(os.path.expanduser(dest)) if dest else ''
         params = params or {}
 
         # Handle format
-        file_ext = params.get('format') or 'png'
+        file_ext = params.get('format')
         if params.get('save_quality', 100) < 100:
             if not params.get('format'):
                 file_ext = 'jpg'
@@ -131,19 +131,19 @@ class MangaTranslator():
             # Determine destination file path
             if not dest:
                 # Use the same folder as the source
-                p, _ = os.path.splitext(path)
-                _dest = f'{p}-translated.{file_ext}'
+                p, ext = os.path.splitext(path)
+                _dest = f'{p}-translated.{file_ext or ext[1:]}'
             elif not os.path.basename(dest):
-                p, _ = os.path.splitext(os.path.basename(path))
+                p, ext = os.path.splitext(os.path.basename(path))
                 # If the folders differ use the original filename from the source
                 if os.path.dirname(path) != dest:
-                    _dest = os.path.join(dest, f'{p}.{file_ext}')
+                    _dest = os.path.join(dest, f'{p}.{file_ext or ext[1:]}')
                 else:
-                    _dest = os.path.join(dest, f'{p}-translated.{file_ext}')
+                    _dest = os.path.join(dest, f'{p}-translated.{file_ext or ext[1:]}')
             else:
-                p, _ = os.path.splitext(dest)
-                _dest = f'{p}.{file_ext}'
-            await self._translate_file(path, _dest, params)
+                p, ext = os.path.splitext(dest)
+                _dest = f'{p}.{file_ext or ext[1:]}'
+            await self.translate_file(path, _dest, params)
 
         elif os.path.isdir(path):
             # Determine destination folder path
@@ -167,75 +167,25 @@ class MangaTranslator():
                     p, _ = os.path.splitext(output_dest)
                     output_dest = f'{p}.{file_ext}'
 
-                    if await self._translate_file(file_path, output_dest, params):
+                    if await self.translate_file(file_path, output_dest, params):
                         translated_count += 1
             if translated_count == 0:
                 logger.info('No further untranslated files found. Use --overwrite to write over existing translations.')
             else:
                 logger.info(f'Done. Translated {translated_count} image{"" if translated_count == 1 else "s"}')
 
-    async def _translate_file(self, path: str, dest: str, params: dict):
+    async def translate_file(self, path: str, dest: str, params: dict):
         if not params.get('overwrite') and os.path.exists(dest):
             logger.info(f'Skipping as already translated: "{dest}". Use --overwrite to overwrite existing translations.')
             await self._report_progress('saved', True)
             return True
+
         logger.info(f'Translating: "{path}"')
-
-        try:
-            img = Image.open(path)
-            img.verify()
-            img = Image.open(path)
-        except Exception:
-            logger.warn(f'Failed to open image: {path}')
-            return False
-
-        translation_dict = await self.translate(img, params)
-        result = translation_dict.result
-
-        # Save result
-        if result:
-            logger.info(f'Saving "{dest}"')
-            save_result(result, dest, translation_dict)
-            await self._report_progress('saved', True)
-
-            if translation_dict.save_text or translation_dict.save_text_file or translation_dict.prep_manual:
-                if translation_dict.prep_manual:
-                    # Save original image next to translated
-                    p, ext = os.path.splitext(dest)
-                    img_filename = p + '-orig' + ext
-                    img_path = os.path.join(os.path.dirname(dest), img_filename)
-                    img.save(img_path, quality=translation_dict.save_quality)
-                if translation_dict.text_regions:
-                    self._save_text_to_file(dest, translation_dict)
-        else:
-            return False
-        return True
-
-    async def translate(self, image: Image.Image, params: dict = None) -> Context:
-        """
-        Translates a PIL image from a manga. Returns dict with result and intermediates of translation.
-        Default params are taken from args.py.
-
-        ```py
-        translation_dict = await translator.translate(image)
-        result = translation_dict.result
-        ```
-        """
-        # TODO: Take list of images to speed up batch processing
 
         # Turn dict to context to make values also accessible through params.<property>
         params = params or {}
         ctx = Context(**params)
         self._preprocess_params(ctx)
-
-        if ctx.gpt_config:
-            from .translators import chatgpt
-            chatgpt.CONFIG = OmegaConf.load(ctx.gpt_config)
-        if ctx.model_dir:
-            ModelWrapper._MODEL_DIR = ctx.model_dir
-
-        ctx.input = image
-        ctx.result = None
 
         attempts = 0
         while ctx.attempts == -1 or attempts < ctx.attempts + 1:
@@ -243,19 +193,8 @@ class MangaTranslator():
                 logger.info(f'Retrying translation! Attempt {attempts}'
                             + (f' of {ctx.attempts}' if ctx.attempts != -1 else ''))
             try:
-                # preload and download models (not strictly necessary, remove to lazy load)
-                logger.info('Loading models')
-                if ctx.upscale_ratio:
-                    await prepare_upscaling(ctx.upscaler)
-                await prepare_detection(ctx.detector)
-                await prepare_ocr(ctx.ocr, self.device)
-                await prepare_inpainting(ctx.inpainter, self.device)
-                await prepare_translation(ctx.translator)
-                if ctx.colorizer:
-                    await prepare_colorization(ctx.colorizer)
+                return await self._translate_file(path, dest, ctx)
 
-                # translate
-                return await self._translate(ctx)
             except TranslationInterrupt:
                 break
             except Exception as e:
@@ -269,10 +208,94 @@ class MangaTranslator():
                     logger.error(f'{e.__class__.__name__}: {e}',
                                  exc_info=e if self.verbose else None)
             attempts += 1
-        return ctx
+        return False
+
+    async def _translate_file(self, path: str, dest: str, ctx: Context):
+        if path.endswith('.txt'):
+            with open(path, 'r') as f:
+                queries = f.read().split('\n')
+            translated_sentences = \
+                await dispatch_translation(ctx.translator, queries, ctx.use_mtpe, ctx,
+                                           'cpu' if self._cuda_limited_memory else self.device)
+            p, ext = os.path.splitext(dest)
+            if ext != '.txt':
+                dest = p + '.txt'
+            logger.info(f'Saving "{dest}"')
+            with open(dest, 'w') as f:
+                f.write('\n'.join(translated_sentences))
+            return True
+
+        # TODO: Add .gif handler
+
+        else: # Treat as image
+            try:
+                img = Image.open(path)
+                img.verify()
+                img = Image.open(path)
+            except Exception:
+                logger.warn(f'Failed to open image: {path}')
+                return False
+
+            ctx = await self.translate(img, ctx)
+            result = ctx.result
+
+            # Save result
+            if result:
+                logger.info(f'Saving "{dest}"')
+                save_result(result, dest, ctx)
+                await self._report_progress('saved', True)
+
+                if ctx.save_text or ctx.save_text_file or ctx.prep_manual:
+                    if ctx.prep_manual:
+                        # Save original image next to translated
+                        p, ext = os.path.splitext(dest)
+                        img_filename = p + '-orig' + ext
+                        img_path = os.path.join(os.path.dirname(dest), img_filename)
+                        img.save(img_path, quality=ctx.save_quality)
+                    if ctx.text_regions:
+                        self._save_text_to_file(dest, ctx)
+                return True
+        return False
+
+    async def translate(self, image: Image.Image, params: Union[dict, Context] = None) -> Context:
+        """
+        Translates a PIL image from a manga. Returns dict with result and intermediates of translation.
+        Default params are taken from args.py.
+
+        ```py
+        translation_dict = await translator.translate(image)
+        result = translation_dict.result
+        ```
+        """
+        # TODO: Take list of images to speed up batch processing
+
+        if not isinstance(params, Context):
+            params = params or {}
+            ctx = Context(**params)
+            self._preprocess_params(ctx)
+        else:
+            ctx = params
+
+        ctx.input = image
+        ctx.result = None
+
+        # preload and download models (not strictly necessary, remove to lazy load)
+        logger.info('Loading models')
+        if ctx.upscale_ratio:
+            await prepare_upscaling(ctx.upscaler)
+        await prepare_detection(ctx.detector)
+        await prepare_ocr(ctx.ocr, self.device)
+        await prepare_inpainting(ctx.inpainter, self.device)
+        await prepare_translation(ctx.translator)
+        if ctx.colorizer:
+            await prepare_colorization(ctx.colorizer)
+
+        # translate
+        return await self._translate(ctx)
 
     def _preprocess_params(self, ctx: Context):
         # params auto completion
+        # TODO: Move args into ctx.args and only calculate once, or just copy into ctx
         for arg in DEFAULT_ARGS:
             ctx.setdefault(arg, DEFAULT_ARGS[arg])
 
@@ -304,6 +327,8 @@ class MangaTranslator():
             ctx.translator = ctx.translator_chain
         else:
             ctx.translator = TranslatorChain(f'{ctx.translator}:{ctx.target_lang}')
+        if ctx.gpt_config:
+            ctx.gpt_config = OmegaConf.load(ctx.gpt_config)
 
         if ctx.filter_text:
             ctx.filter_text = re.compile(ctx.filter_text)
@@ -434,10 +459,8 @@ class MangaTranslator():
         new_textlines = []
         for textline in textlines:
             text = textline.text
-            if text.isnumeric() \
-                or (ctx.filter_text and re.search(ctx.filter_text, text)) \
-                or count_valuable_text(text) < 1 \
-                or is_url(text):
+            if (ctx.filter_text and re.search(ctx.filter_text, text)) \
+                or not is_valuable_text(text):
                 if text.strip():
                     logger.info(f'Filtered out: {text}')
             else:
@@ -465,7 +488,7 @@ class MangaTranslator():
 
     async def _run_text_translation(self, ctx: Context):
         translated_sentences = await dispatch_translation(ctx.translator, [region.get_text() for region in ctx.text_regions], ctx.use_mtpe,
-                                                          'cpu' if self._cuda_limited_memory else self.device)
+                                                          ctx, 'cpu' if self._cuda_limited_memory else self.device)
 
         for region, translation in zip(ctx.text_regions, translated_sentences):
             if ctx.uppercase:

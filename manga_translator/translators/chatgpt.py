@@ -1,5 +1,4 @@
 import re
-import openai
 import requests
 import litellm
 import litellm.exceptions
@@ -9,8 +8,6 @@ from typing import List, Dict
 
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE
-
-CONFIG = None
 
 class GPT3Translator(CommonTranslator):
     _LANGUAGE_CODE_MAP = {
@@ -67,12 +64,15 @@ class GPT3Translator(CommonTranslator):
             litellm.client_session = session
         self.token_count = 0
         self.token_count_last = 0
+        self.config = None
+
+    def parse_args(self, args):
+        self.config = args.gpt_config
 
     def _config_get(self, key: str, default=None):
-        global CONFIG
-        if CONFIG is None:
+        if not self.config:
             return default
-        return CONFIG.get(self._CONFIG_KEY + '.' + key, CONFIG.get(key, default))
+        return self.config.get(self._CONFIG_KEY + '.' + key, self.config.get(key, default))
 
     @property
     def prompt_template(self) -> str:

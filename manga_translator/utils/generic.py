@@ -116,9 +116,18 @@ def is_punctuation(ch):
         return True
     return False
 
-def count_valuable_text(text) -> int:
-    # return sum([1 for ch in text if re.search(r'\w', ch)])
-    return sum([1 for ch in text if not is_punctuation(ch) and not is_control(ch) and not is_whitespace(ch)])
+def is_valuable_char(ch):
+    # return re.search(r'[^\d\W]', ch)
+    return not is_punctuation(ch) and not is_control(ch) and not is_whitespace(ch) and not ch.isnumeric()
+
+def is_valuable_text(text):
+    for ch in text:
+        if is_valuable_char(ch):
+            return True
+    return False
+
+def count_valuable_text(text: str) -> int:
+    return sum([1 for ch in text if is_valuable_char(ch)])
 
 def is_right_to_left_char(ch):
     """Checks whether the char belongs to a right to left alphabet."""

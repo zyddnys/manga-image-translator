@@ -97,7 +97,7 @@ parser.add_argument('--detector', default='default', type=str, choices=DETECTORS
 parser.add_argument('--ocr', default='48px_ctc', type=str, choices=OCRS, help='Optical character recognition (OCR) model to use')
 parser.add_argument('--inpainter', default='lama_mpe', type=str, choices=INPAINTERS, help='Inpainting model to use')
 parser.add_argument('--upscaler', default='esrgan', type=str, choices=UPSCALERS, help='Upscaler to use. --upscale-ratio has to be set for it to take effect')
-parser.add_argument('--upscale-ratio', default=None, type=int, help='Image upscale ratio applied before detection. Can improve text detection.')
+parser.add_argument('--upscale-ratio', default=None, type=float, help='Image upscale ratio applied before detection. Can improve text detection.')
 parser.add_argument('--colorizer', default=None, type=str, choices=COLORIZERS, help='Colorization model to use.')
 
 g = parser.add_mutually_exclusive_group()
@@ -109,7 +109,7 @@ g = parser.add_mutually_exclusive_group()
 g.add_argument('--use-cuda', action='store_true', help='Turn on/off cuda')
 g.add_argument('--use-cuda-limited', action='store_true', help='Turn on/off cuda (excluding offline translator)')
 
-parser.add_argument('--model-dir', default=None, type=str, help='Model directory (by default ./models in project root)')
+parser.add_argument('--model-dir', default=None, type=dir_path, help='Model directory (by default ./models in project root)')
 parser.add_argument('--attempts', default=0, type=int, help='Retry attempts on encountered error. -1 means infinite times.')
 parser.add_argument('--ignore-errors', action='store_true', help='Skip image on encountered error.')
 parser.add_argument('--overwrite', action='store_true', help='Overwrite already translated images in batch mode.')

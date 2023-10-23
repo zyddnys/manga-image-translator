@@ -6,7 +6,7 @@ from functools import cached_property
 import copy
 import re
 
-from .generic import color_difference, is_right_to_left_char, count_valuable_text
+from .generic import color_difference, is_right_to_left_char, is_valuable_char
 # from ..detection.ctd_utils.utils.imgproc_utils import union_area, xywh2xyxypoly
 
 # LANG_LIST = ['eng', 'ja', 'unknown']
@@ -259,7 +259,7 @@ class TextBlock(object):
                     l[j1], l[j2] = l[j2], l[j1]
 
             for i, c in enumerate(text):
-                if not is_right_to_left_char(c) and count_valuable_text(c) > 0:
+                if not is_right_to_left_char(c) and is_valuable_char(c):
                     if l2r_idx < 0:
                         l2r_idx = i
                 elif l2r_idx >= 0 and i - l2r_idx > 1:
