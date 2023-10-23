@@ -93,6 +93,16 @@ parser.add_argument('-o', '--dest', default='', type=str, help='Path to the dest
 parser.add_argument('-l', '--target-lang', default='CHS', type=str, choices=VALID_LANGUAGES, help='Destination language')
 parser.add_argument('-v', '--verbose', action='store_true', help='Print debug info and save intermediate images in result folder')
 parser.add_argument('-f', '--format', default=None, choices=OUTPUT_FORMATS, help='Output format of the translation.')
+parser.add_argument('--attempts', default=0, type=int, help='Retry attempts on encountered error. -1 means infinite times.')
+parser.add_argument('--ignore-errors', action='store_true', help='Skip image on encountered error.')
+parser.add_argument('--overwrite', action='store_true', help='Overwrite already translated images in batch mode.')
+parser.add_argument('--skip-no-text', action='store_true', help='Skip image without text (Will not be saved).')
+parser.add_argument('--model-dir', default=None, type=dir_path, help='Model directory (by default ./models in project root)')
+
+g = parser.add_mutually_exclusive_group()
+g.add_argument('--use-cuda', action='store_true', help='Turn on/off cuda')
+g.add_argument('--use-cuda-limited', action='store_true', help='Turn on/off cuda (excluding offline translator)')
+
 parser.add_argument('--detector', default='default', type=str, choices=DETECTORS, help='Text detector used for creating a text mask from an image, DO NOT use craft for manga, it\'s not designed for it')
 parser.add_argument('--ocr', default='48px_ctc', type=str, choices=OCRS, help='Optical character recognition (OCR) model to use')
 parser.add_argument('--inpainter', default='lama_mpe', type=str, choices=INPAINTERS, help='Inpainting model to use')
@@ -105,15 +115,6 @@ g.add_argument('--translator', default='google', type=str, choices=TRANSLATORS, 
 g.add_argument('--translator-chain', default=None, type=translator_chain, help='Output of one translator goes in another. Example: --translator-chain "google:JPN;sugoi:ENG".')
 g.add_argument('--selective-translation', default=None, type=translator_chain, help='Select a translator based on detected language in image. Note the first translation service acts as default if the language isnt defined. Example: --translator-chain "google:JPN;sugoi:ENG".')
 
-g = parser.add_mutually_exclusive_group()
-g.add_argument('--use-cuda', action='store_true', help='Turn on/off cuda')
-g.add_argument('--use-cuda-limited', action='store_true', help='Turn on/off cuda (excluding offline translator)')
-
-parser.add_argument('--model-dir', default=None, type=dir_path, help='Model directory (by default ./models in project root)')
-parser.add_argument('--attempts', default=0, type=int, help='Retry attempts on encountered error. -1 means infinite times.')
-parser.add_argument('--ignore-errors', action='store_true', help='Skip image on encountered error.')
-parser.add_argument('--overwrite', action='store_true', help='Overwrite already translated images in batch mode.')
-parser.add_argument('--skip-no-text', action='store_true', help='Skip image without text (Will not be saved).')
 parser.add_argument('--revert-upscaling', action='store_true', help='Downscales the previously upscaled image after translation back to original size (Use with --upscale-ratio).')
 parser.add_argument('--detection-size', default=1536, type=int, help='Size of image used for detection')
 parser.add_argument('--det-rotate', action='store_true', help='Rotate the image for detection. Might improve detection.')
@@ -127,6 +128,8 @@ parser.add_argument('--min-text-length', default=0, type=int, help='Minimum text
 parser.add_argument('--inpainting-size', default=2048, type=int, help='Size of image used for inpainting (too large will result in OOM)')
 parser.add_argument('--colorization-size', default=576, type=int, help='Size of image used for colorization. Set to -1 to use full image size')
 parser.add_argument('--denoise-sigma', default=30, type=int, help='Used by colorizer and affects color strength, range from 0 to 255 (default 30). -1 turns it off.')
+parser.add_argument('--mask-dilation-offset', default=0, type=int, help='By how much to extend the text mask to remove left-over text pixels of the original image.')
+
 parser.add_argument('--font-size', default=None, type=int, help='Use fixed font size for rendering')
 parser.add_argument('--font-size-offset', default=0, type=int, help='Offset font size by a given amount, positive number increase font size and vice versa')
 parser.add_argument('--font-size-minimum', default=-1, type=int, help='Minimum output font size. Default is image_sides_sum/200')

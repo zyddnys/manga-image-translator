@@ -49,10 +49,11 @@ class Model32pxOCR(OfflineOCR):
 
     async def _unload(self):
         del self.model
-    
-    async def _infer(self, image: np.ndarray, textlines: List[Quadrilateral], verbose: bool = False, ignore_bubble: int = 0) -> List[TextBlock]:
+
+    async def _infer(self, image: np.ndarray, textlines: List[Quadrilateral], args: dict, verbose: bool = False) -> List[TextBlock]:
         text_height = 32
         max_chunk_size = 16
+        ignore_bubble = args.get('ignore_bubble', 0)
 
         quadrilaterals = list(self._generate_text_direction(textlines))
         region_imgs = [q.get_transformed_region(image, d, text_height) for q, d in quadrilaterals]

@@ -119,6 +119,14 @@ THA: Thai
 -v, --verbose                                Print debug info and save intermediate images in result
                                              folder
 -f, --format {png,webp,jpg,xcf,psd,pdf}      Output format of the translation.
+--attempts ATTEMPTS                          Retry attempts on encountered error. -1 means infinite
+                                             times.
+--ignore-errors                              Skip image on encountered error.
+--overwrite                                  Overwrite already translated images in batch mode.
+--skip-no-text                               Skip image without text (Will not be saved).
+--model-dir MODEL_DIR                        Model directory (by default ./models in project root)
+--use-cuda                                   Turn on/off cuda
+--use-cuda-limited                           Turn on/off cuda (excluding offline translator)
 --detector {default,ctd,craft,none}          Text detector used for creating a text mask from an
                                              image, DO NOT use craft for manga, it's not designed
                                              for it
@@ -139,14 +147,6 @@ THA: Thai
                                              image. Note the first translation service acts as
                                              default if the language isnt defined. Example:
                                              --translator-chain "google:JPN;sugoi:ENG".
---use-cuda                                   Turn on/off cuda
---use-cuda-limited                           Turn on/off cuda (excluding offline translator)
---model-dir MODEL_DIR                        Model directory (by default ./models in project root)
---attempts ATTEMPTS                          Retry attempts on encountered error. -1 means infinite
-                                             times.
---ignore-errors                              Skip image on encountered error.
---overwrite                                  Overwrite already translated images in batch mode.
---skip-no-text                               Skip image without text (Will not be saved).
 --revert-upscaling                           Downscales the previously upscaled image after
                                              translation back to original size (Use with --upscale-
                                              ratio).
@@ -169,6 +169,8 @@ THA: Thai
                                              full image size
 --denoise-sigma DENOISE_SIGMA                Used by colorizer and affects color strength, range
                                              from 0 to 255 (default 30). -1 turns it off.
+--mask-dilation-offset MASK_DILATION_OFFSET  By how much to extend the text mask to remove left-over
+                                             text pixels of the original image.
 --font-size FONT_SIZE                        Use fixed font size for rendering
 --font-size-offset FONT_SIZE_OFFSET          Offset font size by a given amount, positive number
                                              increase font size and vice versa

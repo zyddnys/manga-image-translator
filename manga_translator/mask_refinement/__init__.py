@@ -6,7 +6,7 @@ from .text_mask_utils import complete_mask_fill, complete_mask
 from ..utils import TextBlock, Quadrilateral
 from ..utils.bubble import is_ignore
 
-async def dispatch(text_regions: List[TextBlock], raw_image: np.ndarray, raw_mask: np.ndarray, method: str = 'fit_text', verbose: bool = False, ignore_bubble: int = 0) -> np.ndarray:
+async def dispatch(text_regions: List[TextBlock], raw_image: np.ndarray, raw_mask: np.ndarray, method: str = 'fit_text', dilation_offset: int = 0, ignore_bubble: int = 0, verbose: bool = False) -> np.ndarray:
     # Larger sized mask images will probably have crisper and thinner mask segments due to being able to fit the text pixels better
     # so we dont want to size them down as much to not loose information
     scale_factor = max(min((raw_mask.shape[0] - raw_image.shape[0] / 3) / raw_mask.shape[0], 1), 0.5)
@@ -21,7 +21,7 @@ async def dispatch(text_regions: List[TextBlock], raw_image: np.ndarray, raw_mas
             q = Quadrilateral(l * scale_factor, '', 0)
             textlines.append(q)
 
-    final_mask = complete_mask(img_resized, mask_resized, textlines) if method == 'fit_text' else complete_mask_fill([txtln.aabb.xywh for txtln in textlines])
+    final_mask = complete_mask(img_resized, mask_resized, textlines, dilation_offset=dilation_offset) if method == 'fit_text' else complete_mask_fill([txtln.aabb.xywh for txtln in textlines])
     if final_mask is None:
         final_mask = np.zeros((raw_image.shape[0], raw_image.shape[1]), dtype = np.uint8)
     else:

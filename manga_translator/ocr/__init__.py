@@ -26,8 +26,9 @@ async def prepare(ocr_key: str, device: str = 'cpu'):
         await ocr.download()
         await ocr.load(device)
 
-async def dispatch(ocr_key: str, image: np.ndarray, regions: List[Quadrilateral], device: str = 'cpu', verbose: bool = False,ignore_bubble: int = 0) -> List[Quadrilateral]:
+async def dispatch(ocr_key: str, image: np.ndarray, regions: List[Quadrilateral], args = None, device: str = 'cpu', verbose: bool = False) -> List[Quadrilateral]:
     ocr = get_ocr(ocr_key)
     if isinstance(ocr, OfflineOCR):
         await ocr.load(device)
-    return await ocr.recognize(image, regions, verbose, ignore_bubble)
+    args = args or {}
+    return await ocr.recognize(image, regions, args, verbose)

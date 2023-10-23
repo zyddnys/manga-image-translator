@@ -90,7 +90,6 @@ class MangaTranslator():
         torch.backends.cudnn.allow_tf32 = True
 
     def parse_init_params(self, params: dict):
-        self.ignore_bubble=int(params.get('ignore_bubble', 0))
         self.verbose = params.get('verbose', False)
         self.ignore_errors = params.get('ignore_errors', False)
 
@@ -456,7 +455,7 @@ class MangaTranslator():
                                         self.device, self.verbose)
 
     async def _run_ocr(self, ctx: Context):
-        textlines = await dispatch_ocr(ctx.ocr, ctx.img_rgb, ctx.textlines, self.device, self.verbose, self.ignore_bubble)
+        textlines = await dispatch_ocr(ctx.ocr, ctx.img_rgb, ctx.textlines, ctx, self.device, self.verbose)
 
         # Filter out regions by original text
         new_textlines = []
@@ -517,7 +516,7 @@ class MangaTranslator():
         return new_text_regions
 
     async def _run_mask_refinement(self, ctx: Context):
-        return await dispatch_mask_refinement(ctx.text_regions, ctx.img_rgb, ctx.mask_raw, 'fit_text', self.verbose,self.ignore_bubble)
+        return await dispatch_mask_refinement(ctx.text_regions, ctx.img_rgb, ctx.mask_raw, 'fit_text', ctx.mask_dilation_offset, ctx.ignore_bubble, self.verbose)
 
     async def _run_inpainting(self, ctx: Context):
         return await dispatch_inpainting(ctx.inpainter, ctx.img_rgb, ctx.mask, ctx.inpainting_size, self.using_cuda, self.verbose)
