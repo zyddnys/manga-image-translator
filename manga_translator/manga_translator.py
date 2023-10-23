@@ -240,6 +240,9 @@ class MangaTranslator():
             result = ctx.result
 
             # Save result
+            if ctx.skip_no_text and not ctx.text_regions:
+                logger.debug('Not saving due to --skip-no-text')
+                return True
             if result:
                 logger.info(f'Saving "{dest}"')
                 save_result(result, dest, ctx)

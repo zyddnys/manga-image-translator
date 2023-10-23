@@ -146,6 +146,7 @@ THA: Thai
                                              times.
 --ignore-errors                              Skip image on encountered error.
 --overwrite                                  Overwrite already translated images in batch mode.
+--skip-no-text                               Skip image without text (Will not be saved).
 --revert-upscaling                           Downscales the previously upscaled image after
                                              translation back to original size (Use with --upscale-
                                              ratio).
@@ -173,8 +174,10 @@ THA: Thai
                                              increase font size and vice versa
 --font-size-minimum FONT_SIZE_MINIMUM        Minimum output font size. Default is
                                              image_sides_sum/200
---font-color FONT_COLOR                      Overwrite the text color detected by the OCR model. Use
-                                             hex string without the "#" such as FFFFFF for white.
+--font-color FONT_COLOR                      Overwrite the text fg/bg color detected by the OCR
+                                             model. Use hex string without the "#" such as FFFFFF
+                                             for a white foreground or FFFFFF:000000 to also have a
+                                             black background around the text.
 --force-horizontal                           Force text to be rendered horizontally
 --force-vertical                             Force text to be rendered vertically
 --align-left                                 Align rendered text left

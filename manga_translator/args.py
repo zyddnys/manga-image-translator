@@ -113,6 +113,7 @@ parser.add_argument('--model-dir', default=None, type=dir_path, help='Model dire
 parser.add_argument('--attempts', default=0, type=int, help='Retry attempts on encountered error. -1 means infinite times.')
 parser.add_argument('--ignore-errors', action='store_true', help='Skip image on encountered error.')
 parser.add_argument('--overwrite', action='store_true', help='Overwrite already translated images in batch mode.')
+parser.add_argument('--skip-no-text', action='store_true', help='Skip image without text (Will not be saved).')
 parser.add_argument('--revert-upscaling', action='store_true', help='Downscales the previously upscaled image after translation back to original size (Use with --upscale-ratio).')
 parser.add_argument('--detection-size', default=1536, type=int, help='Size of image used for detection')
 parser.add_argument('--det-rotate', action='store_true', help='Rotate the image for detection. Might improve detection.')
