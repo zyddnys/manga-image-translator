@@ -26,7 +26,8 @@ ISO_639_1_TO_FLORES_200 = {
     'ar': 'arb_Arab',
     'sr': 'srp_Cyrl',
     'hr': 'hrv_Latn',
-    'th': 'tha_Thai'
+    'th': 'tha_Thai',
+    'id': 'ind_Latn'
 }
 
 class NLLBTranslator(OfflineTranslator):
@@ -53,7 +54,8 @@ class NLLBTranslator(OfflineTranslator):
         'ARA': 'arb_Arab',
         'SRP': 'srp_Cyrl',
         'HRV': 'hrv_Latn',
-        'THA': 'tha_Thai'
+        'THA': 'tha_Thai',
+        'IND': 'ind_Latn'
     }
     _TRANSLATOR_MODEL = 'facebook/nllb-200-distilled-600M'
 

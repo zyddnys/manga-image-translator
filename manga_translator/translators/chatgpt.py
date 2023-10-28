@@ -34,7 +34,8 @@ class GPT3Translator(CommonTranslator):
         'SRP': 'Serbian',
         'HRV': 'Croatian',
         'ARA': 'Arabic',
-        'THA': 'Thai'
+        'THA': 'Thai',
+        'IND': 'Indonesian'
     }
     _INVALID_REPEAT_COUNT = 2 # repeat up to 2 times if "invalid" translation was detected
     _MAX_REQUESTS_PER_MINUTE = 20

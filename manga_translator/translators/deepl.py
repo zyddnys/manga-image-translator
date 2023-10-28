@@ -20,6 +20,7 @@ class DeeplTranslator(CommonTranslator):
         'ROM': 'RO',
         'RUS': 'RU',
         'ESP': 'ES',
+        'IND': 'ID'
     }
 
     def __init__(self):

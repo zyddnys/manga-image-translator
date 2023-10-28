@@ -35,7 +35,8 @@ VALID_LANGUAGES = {
     'CNR': 'Montenegrin',
     'SRP': 'Serbian',
     'HRV': 'Croatian',
-    'THA': 'Thai'
+    'THA': 'Thai',
+    'IND': 'Indonesian'
 }
 
 ISO_639_1_TO_VALID_LANGUAGES = {
@@ -62,7 +63,8 @@ ISO_639_1_TO_VALID_LANGUAGES = {
     'cnr': 'CNR',
     'sr': 'SRP',
     'hr': 'HRV',
-    'th': 'THA'
+    'th': 'THA',
+    'id': 'Indonesian'
 }
 
 class InvalidServerResponse(Exception):
