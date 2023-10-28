@@ -28,6 +28,11 @@ GPU server is not cheap, please consider to donate to us.
 - Patreon: <https://www.patreon.com/voilelabs>
 - 爱发电: <https://afdian.net/@voilelabs>
 
+  ### Thanks To All Our Contributors :
+  <a href="https://github.com/zyddnys/manga-image-translator/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=zyddnys/manga-image-translator" />
+</a>
+
 ## Online Demo
 
 Official Demo (by zyddnys): <https://touhou.ai/imgtrans/>\
