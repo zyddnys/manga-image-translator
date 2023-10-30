@@ -64,7 +64,7 @@ ISO_639_1_TO_VALID_LANGUAGES = {
     'sr': 'SRP',
     'hr': 'HRV',
     'th': 'THA',
-    'id': 'Indonesian'
+    'id': 'IND'
 }
 
 class InvalidServerResponse(Exception):
