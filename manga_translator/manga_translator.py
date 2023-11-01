@@ -1055,7 +1055,7 @@ class MangaTranslatorAPI(MangaTranslator):
             if run_until_state and run_until_state == state and not finished:
                 raise TranslationInterrupt()
 
-        # self.add_progress_hook(hook)
+        #self.add_progress_hook(hook)
 
         @routes.post("/get_text")
         async def text_api(req):
@@ -1148,7 +1148,9 @@ class MangaTranslatorAPI(MangaTranslator):
 
             retval, buffer = cv2.imencode('.' + overlay_ext, overlay)
             jpg_as_text = base64.b64encode(buffer)
-            color1, color2 = text_regions[i].get_font_colors()
+            text_region = text_regions[i]
+            text_region.adjust_bg_color = False
+            color1, color2 = text_region.get_font_colors()
             background = jpg_as_text.decode("utf-8")
 
             results.append({
@@ -1157,11 +1159,10 @@ class MangaTranslatorAPI(MangaTranslator):
                 'minY': int(minY),
                 'maxX': int(maxX),
                 'maxY': int(maxY),
-                # todo: why isnt it workking
-                # 'textColor': {
-                #     'fg': color1.tolist(),
-                #     'bg': color2.tolist()
-                # },
+                'textColor': {
+                     'fg': color1.tolist(),
+                     'bg': color2.tolist()
+                },
                 'language': langid.classify(text_regions[i].get_text())[0],
                 'background': "data:image/"+overlay_ext+";base64," + background
             })
