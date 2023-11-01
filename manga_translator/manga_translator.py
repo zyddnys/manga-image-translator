@@ -1165,7 +1165,7 @@ class MangaTranslatorAPI(MangaTranslator):
                 'language': langid.classify(text_regions[i].get_text())[0],
                 'background': "data:image/"+overlay_ext+";base64," + background
             })
-        return web.json_response({'images': [results]})
+        return web.json_response({'details': results, 'img': None})
 
     class PostSchema(Schema):
         target_language = fields.Str(required=False, validate=lambda a: a.upper() in VALID_LANGUAGES)
