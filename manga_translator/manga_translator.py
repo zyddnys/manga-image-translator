@@ -405,6 +405,8 @@ class MangaTranslator():
         # -- Translation
         await self._report_progress('translating')
         ctx.text_regions = await self._run_text_translation(ctx)
+        await self._report_progress('after-translating')
+
 
         if not ctx.text_regions:
             await self._report_progress('error-translating', True)
@@ -1063,6 +1065,7 @@ class MangaTranslatorAPI(MangaTranslator):
             except Exception as e:
                 print(e)
             try:
+                # todo make cancellable
                 response = await handler(request)
             except:
                 response = web.json_response({'error': "Internal Server Error", 'status': 500},
@@ -1109,34 +1112,34 @@ class MangaTranslatorAPI(MangaTranslator):
         routes = web.RouteTableDef()
         run_until_state = ''
 
-        def hook(state, finished):
+        async def hook(state, finished):
             if run_until_state and run_until_state == state and not finished:
                 raise TranslationInterrupt()
 
-        # self.add_progress_hook(hook)
+        self.add_progress_hook(hook)
 
         @routes.post("/get_text")
         async def text_api(req):
             nonlocal run_until_state
-            run_until_state = 'ocr'
+            run_until_state = 'translating'
             return await self.err_handling(self.run_translate, req, self.format_translate)
 
         @routes.post("/translate")
         async def translate_api(req):
             nonlocal run_until_state
-            run_until_state = 'translating'
+            run_until_state = 'after-translating'
             return await self.err_handling(self.run_translate, req, self.format_translate)
 
         @routes.post("/inpaint_translate")
         async def inpaint_translate_api(req):
             nonlocal run_until_state
-            run_until_state = 'inpainting'
+            run_until_state = 'rendering'
             return await self.err_handling(self.run_translate, req, self.format_translate)
 
         @routes.post("/colorize_translate")
         async def colorize_translate_api(req):
             nonlocal run_until_state
-            run_until_state = 'colorize'
+            run_until_state = 'rendering'
             return await self.err_handling(self.run_translate, req, self.format_translate, True)
 
         # #@routes.post("/file")
