@@ -134,7 +134,7 @@ $ python -m manga_translator -v --mode api --use-cuda
 ```
 Api is accepting json(post) and multipart.
 <br>
-Api endpoints are `/colorize_translate`, `/inpaint_translate`, `/translate`, `/get_text`, `/colorize_translate`.
+Api endpoints are `/colorize_translate`, `/inpaint_translate`, `/translate`, `/get_text`.
 <br>
 Valid arguments for the api are:
 ```

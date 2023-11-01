@@ -18,7 +18,7 @@ from marshmallow import Schema, fields, ValidationError
 
 from manga_translator.utils.threading import Throttler
 
-from .args import DEFAULT_ARGS
+from .args import DEFAULT_ARGS, translator_chain
 from .utils import (
     BASE_PATH,
     LANGAUGE_ORIENTATION_PRESETS,
@@ -40,7 +40,7 @@ from .utils import (
 )
 
 from .detection import DETECTORS, dispatch as dispatch_detection, prepare as prepare_detection
-from .upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
+from .upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling, UPSCALERS
 from .ocr import OCRS, dispatch as dispatch_ocr, prepare as prepare_ocr
 from .textline_merge import dispatch as dispatch_textline_merge
 from .mask_refinement import dispatch as dispatch_mask_refinement
@@ -1041,7 +1041,7 @@ class MangaTranslatorAPI(MangaTranslator):
 
         img.verify()
         img = Image.open(io.BytesIO(content))
-        if img.width * img.height > 8000**2:
+        if img.width * img.height > 8000 ** 2:
             raise ValidationError("to large")
         return img
 
@@ -1054,7 +1054,8 @@ class MangaTranslatorAPI(MangaTranslator):
         def hook(state, finished):
             if run_until_state and run_until_state == state and not finished:
                 raise TranslationInterrupt()
-        self.add_progress_hook(hook)
+
+        # self.add_progress_hook(hook)
 
         @routes.post("/get_text")
         async def text_api(req):
@@ -1104,7 +1105,8 @@ class MangaTranslatorAPI(MangaTranslator):
                     data['translator_chain'] = translator_chain(data['translator_chain'])
                 if 'selective_translation' in data:
                     data['selective_translation'] = translator_chain(data['selective_translation'])
-                self._preprocess_params(data)
+                ctx = Context(**dict(self.params, **data))
+                self._preprocess_params(ctx)
                 if data.get('image') is None and data.get('base64Images') is None and data.get('url') is None:
                     return web.json_response({'error': "Missing input", 'status': 422})
                 fil = await self.get_file(data.get('image'), data.get('base64Images'), data.get('url'))
@@ -1114,8 +1116,11 @@ class MangaTranslatorAPI(MangaTranslator):
                     del data['base64Images']
                 if 'url' in data:
                     del data['url']
-                loaded_data = await func(dict(self.params, **data), fil)
-                return format(loaded_data)
+                try:
+                    await func(ctx, fil)
+                except TranslationInterrupt:
+                    done = True
+                return format(ctx)
             else:
                 return web.json_response({'error': "Wrong content type: " + req.content_type, 'status': 415},
                                          status=415)
@@ -1126,43 +1131,50 @@ class MangaTranslatorAPI(MangaTranslator):
             print(e)
             return web.json_response({'error': "Input invalid", 'status': 422}, status=422)
 
-
     def format_translate(self, ctx: Context):
         text_regions = ctx.text_regions
         inpaint = ctx.img_inpainted
         results = []
         for i, blk in enumerate(text_regions):
             minX, minY, maxX, maxY = blk.xyxy
-            trans = text_regions[i].translations
+            trans = {key: value[i] for key, value in ctx['translations'].items()}
             trans["originalText"] = text_regions[i].get_text()
+
             overlay = inpaint[minY:maxY, minX:maxX]
-            retval, buffer = cv2.imencode('.jpg', overlay)
+            if 'overlay_ext' in ctx:
+                overlay_ext = ctx['overlay_ext']
+            else:
+                overlay_ext = 'jpg'
+
+            retval, buffer = cv2.imencode('.' + overlay_ext, overlay)
             jpg_as_text = base64.b64encode(buffer)
             color1, color2 = text_regions[i].get_font_colors()
             background = jpg_as_text.decode("utf-8")
+
             results.append({
-                'values': trans,
+                'text': trans,
                 'minX': int(minX),
                 'minY': int(minY),
                 'maxX': int(maxX),
                 'maxY': int(maxY),
+                # todo: why isnt it workking
+                # 'textColor': {
+                #     'fg': color1.tolist(),
+                #     'bg': color2.tolist()
+                # },
                 'language': langid.classify(text_regions[i].get_text())[0],
-                'textColor': {
-                    'fg': color1.tolist(),
-                    'bg': color2.tolist()
-                },
-                'background': "data:image/jpg;base64," + background
+                'background': "data:image/"+overlay_ext+";base64," + background
             })
         return web.json_response({'images': [results]})
 
     class PostSchema(Schema):
-        target_language = fields.Str(required=False, validate=lambda a: a.upper() not in VALID_LANGUAGES)
-        detector = fields.Str(required=False, validate=lambda a: a.lower() not in DETECTORS)
-        ocr = fields.Str(required=False, validate=lambda a: a.lower() not in OCRS)
-        inpainter = fields.Str(required=False, validate=lambda a: a.lower() not in INPAINTERS)
-        upscaler = fields.Str(required=False, validate=lambda a: a.lower() not in UPSCALERS)
-        translator = fields.Str(required=False, validate=lambda a: a.lower() not in TRANSLATORS)
-        direction = fields.Str(required=False, validate=lambda a: a.lower() not in {'auto', 'h', 'v'})
+        target_language = fields.Str(required=False, validate=lambda a: a.upper() in VALID_LANGUAGES)
+        detector = fields.Str(required=False, validate=lambda a: a.lower() in DETECTORS)
+        ocr = fields.Str(required=False, validate=lambda a: a.lower() in OCRS)
+        inpainter = fields.Str(required=False, validate=lambda a: a.lower() in INPAINTERS)
+        upscaler = fields.Str(required=False, validate=lambda a: a.lower() in UPSCALERS)
+        translator = fields.Str(required=False, validate=lambda a: a.lower() in TRANSLATORS)
+        direction = fields.Str(required=False, validate=lambda a: a.lower() in {'auto', 'h', 'v'})
         upscale_ratio = fields.Integer(required=False)
         translator_chain = fields.Str(required=False)
         selective_translation = fields.Str(required=False)
@@ -1185,6 +1197,7 @@ class MangaTranslatorAPI(MangaTranslator):
         filter_text = fields.String(required=False)
 
         # api specific
+        overlay_ext = fields.Str(required=False)
         base64Images = fields.Raw(required=False)
         image = fields.Raw(required=False)
         url = fields.Raw(required=False)
