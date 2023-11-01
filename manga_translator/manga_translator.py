@@ -1076,10 +1076,10 @@ class MangaTranslatorAPI(MangaTranslator):
             return await self.err_handling(self.run_translate, req, self.format_translate)
 
         @routes.post("/colorize_translate")
-        async def inpaint_translate_api(req):
+        async def colorize_translate_api(req):
             nonlocal run_until_state
             run_until_state = 'colorize'
-            return await self.err_handling(self.run_translate, req, self.format_translate)
+            return await self.err_handling(self.run_translate, req, self.format_translate, True)
 
         # #@routes.post("/file")
         # async def file_api(req):
@@ -1092,7 +1092,7 @@ class MangaTranslatorAPI(MangaTranslator):
     async def run_translate(self, translation_params, img):
         return await self.translate(img, translation_params)
 
-    async def err_handling(self, func, req, format):
+    async def err_handling(self, func, req, format, ri=False):
         try:
             if req.content_type == 'application/json' or req.content_type == 'multipart/form-data':
                 if req.content_type == 'application/json':
@@ -1120,7 +1120,7 @@ class MangaTranslatorAPI(MangaTranslator):
                     await func(ctx, fil)
                 except TranslationInterrupt:
                     done = True
-                return format(ctx)
+                return format(ctx, ri)
             else:
                 return web.json_response({'error': "Wrong content type: " + req.content_type, 'status': 415},
                                          status=415)
@@ -1131,20 +1131,20 @@ class MangaTranslatorAPI(MangaTranslator):
             print(e)
             return web.json_response({'error': "Input invalid", 'status': 422}, status=422)
 
-    def format_translate(self, ctx: Context):
+    def format_translate(self, ctx: Context, return_image: bool):
         text_regions = ctx.text_regions
         inpaint = ctx.img_inpainted
         results = []
+        if 'overlay_ext' in ctx:
+            overlay_ext = ctx['overlay_ext']
+        else:
+            overlay_ext = 'jpg'
         for i, blk in enumerate(text_regions):
             minX, minY, maxX, maxY = blk.xyxy
             trans = {key: value[i] for key, value in ctx['translations'].items()}
             trans["originalText"] = text_regions[i].get_text()
 
             overlay = inpaint[minY:maxY, minX:maxX]
-            if 'overlay_ext' in ctx:
-                overlay_ext = ctx['overlay_ext']
-            else:
-                overlay_ext = 'jpg'
 
             retval, buffer = cv2.imencode('.' + overlay_ext, overlay)
             jpg_as_text = base64.b64encode(buffer)
@@ -1160,13 +1160,19 @@ class MangaTranslatorAPI(MangaTranslator):
                 'maxX': int(maxX),
                 'maxY': int(maxY),
                 'textColor': {
-                     'fg': color1.tolist(),
-                     'bg': color2.tolist()
+                    'fg': color1.tolist(),
+                    'bg': color2.tolist()
                 },
                 'language': langid.classify(text_regions[i].get_text())[0],
-                'background': "data:image/"+overlay_ext+";base64," + background
+                'background': "data:image/" + overlay_ext + ";base64," + background
             })
-        return web.json_response({'details': results, 'img': None})
+        if return_image:
+            retval, buffer = cv2.imencode('.' + overlay_ext, ctx.img_colorized)
+            jpg_as_text = base64.b64encode(buffer)
+            img = jpg_as_text.decode("utf-8")
+        else:
+            img = None
+        return web.json_response({'details': results, 'img': img})
 
     class PostSchema(Schema):
         target_language = fields.Str(required=False, validate=lambda a: a.upper() in VALID_LANGUAGES)
