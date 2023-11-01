@@ -1116,15 +1116,33 @@ class MangaTranslatorAPI(MangaTranslator):
                     del data['base64Images']
                 if 'url' in data:
                     del data['url']
+                attempts = 0
+                while ctx.attempts == -1 or attempts <= ctx.attempts:
+                    if attempts > 0:
+                        logger.info(f'Retrying translation! Attempt {attempts}' + (
+                            f' of {ctx.attempts}' if ctx.attempts != -1 else ''))
+                    try:
+                        await func(ctx, fil)
+                        break
+                    except TranslationInterrupt:
+                        break
+                    except Exception as e:
+                        print(e)
+                    attempts += 1
+                if ctx.attempts != -1 and attempts > ctx.attempts:
+                    return web.json_response({'error': "Internal Server Error", 'status': 500},
+                                             status=500)
                 try:
-                    await func(ctx, fil)
-                except TranslationInterrupt:
-                    done = True
-                return format(ctx, ri)
+                    return format(ctx, ri)
+                except Exception as e:
+                    print(e)
+                    return web.json_response({'error': "Failed to format", 'status': 500},
+                                             status=500)
             else:
                 return web.json_response({'error': "Wrong content type: " + req.content_type, 'status': 415},
                                          status=415)
-        except ValueError:
+        except ValueError as e:
+            print(e)
             return web.json_response({'error': "Wrong input type", 'status': 422}, status=422)
 
         except ValidationError as e:
@@ -1141,17 +1159,22 @@ class MangaTranslatorAPI(MangaTranslator):
             overlay_ext = 'jpg'
         for i, blk in enumerate(text_regions):
             minX, minY, maxX, maxY = blk.xyxy
-            trans = {key: value[i] for key, value in ctx['translations'].items()}
+            if 'translations' in ctx:
+                trans = {key: value[i] for key, value in ctx['translations'].items()}
+            else:
+                trans = {}
             trans["originalText"] = text_regions[i].get_text()
+            if inpaint is not None:
+                overlay = inpaint[minY:maxY, minX:maxX]
 
-            overlay = inpaint[minY:maxY, minX:maxX]
-
-            retval, buffer = cv2.imencode('.' + overlay_ext, overlay)
-            jpg_as_text = base64.b64encode(buffer)
+                retval, buffer = cv2.imencode('.' + overlay_ext, overlay)
+                jpg_as_text = base64.b64encode(buffer)
+                background = "data:image/" + overlay_ext + ";base64," + jpg_as_text.decode("utf-8")
+            else:
+                background = None
             text_region = text_regions[i]
             text_region.adjust_bg_color = False
             color1, color2 = text_region.get_font_colors()
-            background = jpg_as_text.decode("utf-8")
 
             results.append({
                 'text': trans,
@@ -1164,12 +1187,14 @@ class MangaTranslatorAPI(MangaTranslator):
                     'bg': color2.tolist()
                 },
                 'language': langid.classify(text_regions[i].get_text())[0],
-                'background': "data:image/" + overlay_ext + ";base64," + background
+                'background': background
             })
         if return_image:
             retval, buffer = cv2.imencode('.' + overlay_ext, ctx.img_colorized)
+        if return_image and ctx.img_colorized is not None:
+            retval, buffer = cv2.imencode('.' + overlay_ext, np.array(ctx.img_colorized))
             jpg_as_text = base64.b64encode(buffer)
-            img = jpg_as_text.decode("utf-8")
+            img = "data:image/" + overlay_ext + ";base64," + jpg_as_text.decode("utf-8")
         else:
             img = None
         return web.json_response({'details': results, 'img': img})
