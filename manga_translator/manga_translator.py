@@ -1189,8 +1189,6 @@ class MangaTranslatorAPI(MangaTranslator):
                 'language': langid.classify(text_regions[i].get_text())[0],
                 'background': background
             })
-        if return_image:
-            retval, buffer = cv2.imencode('.' + overlay_ext, ctx.img_colorized)
         if return_image and ctx.img_colorized is not None:
             retval, buffer = cv2.imencode('.' + overlay_ext, np.array(ctx.img_colorized))
             jpg_as_text = base64.b64encode(buffer)
