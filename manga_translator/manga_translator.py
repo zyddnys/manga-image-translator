@@ -1060,19 +1060,25 @@ class MangaTranslatorAPI(MangaTranslator):
         async def text_api(req):
             nonlocal run_until_state
             run_until_state = 'ocr'
-            return await self.err_handling(self.texts_exec, req, self.format_translate)
+            return await self.err_handling(self.run_translate, req, self.format_translate)
 
         @routes.post("/translate")
         async def translate_api(req):
             nonlocal run_until_state
             run_until_state = 'translating'
-            return await self.err_handling(self.translate_exec, req, self.format_translate)
+            return await self.err_handling(self.run_translate, req, self.format_translate)
 
         @routes.post("/inpaint_translate")
         async def inpaint_translate_api(req):
             nonlocal run_until_state
             run_until_state = 'inpainting'
-            return await self.err_handling(self.inpaint_translate_exec, req, self.format_translate)
+            return await self.err_handling(self.run_translate, req, self.format_translate)
+
+        @routes.post("/colorize_translate")
+        async def inpaint_translate_api(req):
+            nonlocal run_until_state
+            run_until_state = 'colorize'
+            return await self.err_handling(self.run_translate, req, self.format_translate)
 
         # #@routes.post("/file")
         # async def file_api(req):
@@ -1082,16 +1088,7 @@ class MangaTranslatorAPI(MangaTranslator):
         app.add_routes(routes)
         web.run_app(app, host=self.host, port=self.port)
 
-    async def texts_exec(self, translation_params, img):
-        return await self.translate(img, translation_params)
-
-    async def translate_exec(self, translation_params, img):
-        return await self.translate(img, translation_params)
-
-    async def inpaint_translate_exec(self, translation_params, img):
-        return await self.translate(img, translation_params)
-
-    async def file_exec(self, translation_params, img):
+    async def run_translate(self, translation_params, img):
         return await self.translate(img, translation_params)
 
     async def err_handling(self, func, req, format):
@@ -1103,6 +1100,11 @@ class MangaTranslatorAPI(MangaTranslator):
                     d = await req.post()
                 schema = self.PostSchema()
                 data = schema.load(d)
+                if 'translator_chain' in data:
+                    data['translator_chain'] = translator_chain(data['translator_chain'])
+                if 'selective_translation' in data:
+                    data['selective_translation'] = translator_chain(data['selective_translation'])
+                self._preprocess_params(data)
                 if data.get('image') is None and data.get('base64Images') is None and data.get('url') is None:
                     return web.json_response({'error': "Missing input", 'status': 422})
                 fil = await self.get_file(data.get('image'), data.get('base64Images'), data.get('url'))
@@ -1131,21 +1133,20 @@ class MangaTranslatorAPI(MangaTranslator):
         results = []
         for i, blk in enumerate(text_regions):
             minX, minY, maxX, maxY = blk.xyxy
-            text = text_regions[i].get_text()
-            trans = text_regions[i].translation
+            trans = text_regions[i].translations
+            trans["originalText"] = text_regions[i].get_text()
             overlay = inpaint[minY:maxY, minX:maxX]
             retval, buffer = cv2.imencode('.jpg', overlay)
             jpg_as_text = base64.b64encode(buffer)
             color1, color2 = text_regions[i].get_font_colors()
             background = jpg_as_text.decode("utf-8")
             results.append({
-                'originalText': text,
+                'values': trans,
                 'minX': int(minX),
                 'minY': int(minY),
                 'maxX': int(maxX),
                 'maxY': int(maxY),
-                'language': langid.classify(text)[0],
-                'translatedText': trans,
+                'language': langid.classify(text_regions[i].get_text())[0],
                 'textColor': {
                     'fg': color1.tolist(),
                     'bg': color2.tolist()
@@ -1155,28 +1156,39 @@ class MangaTranslatorAPI(MangaTranslator):
         return web.json_response({'images': [results]})
 
     class PostSchema(Schema):
-        size = fields.Str(required=False, validate=lambda a: a.upper() not in ['S', 'M', 'L', 'X'])
-        translator = fields.Str(required=False,
-                                validate=lambda a: a.lower() not in TRANSLATORS)
-        target_language = fields.Str(required=False,
-                                     validate=lambda a: a.upper() not in VALID_LANGUAGES)
+        target_language = fields.Str(required=False, validate=lambda a: a.upper() not in VALID_LANGUAGES)
         detector = fields.Str(required=False, validate=lambda a: a.lower() not in DETECTORS)
-        direction = fields.Str(required=False,
-                               validate=lambda a: a.lower() not in set(['auto', 'h', 'v']))
-        inpainter = fields.Str(required=False,
-                               validate=lambda a: a.lower() not in INPAINTERS)
         ocr = fields.Str(required=False, validate=lambda a: a.lower() not in OCRS)
+        inpainter = fields.Str(required=False, validate=lambda a: a.lower() not in INPAINTERS)
+        upscaler = fields.Str(required=False, validate=lambda a: a.lower() not in UPSCALERS)
+        translator = fields.Str(required=False, validate=lambda a: a.lower() not in TRANSLATORS)
+        direction = fields.Str(required=False, validate=lambda a: a.lower() not in {'auto', 'h', 'v'})
         upscale_ratio = fields.Integer(required=False)
+        translator_chain = fields.Str(required=False)
+        selective_translation = fields.Str(required=False)
+        attempts = fields.Integer(required=False)
+        detection_size = fields.Integer(required=False)
         text_threshold = fields.Float(required=False)
         box_threshold = fields.Float(required=False)
         unclip_ratio = fields.Float(required=False)
         inpainting_size = fields.Integer(required=False)
-        font_size_offset = fields.Integer(required=False)
-        text_mag_ratio = fields.Integer(required=False)
-        det_rearrange_max_batches = fields.Integer(required=False)
-        manga2eng = fields.Boolean(required=False)
+        det_rotate = fields.Bool(required=False)
+        det_auto_rotate = fields.Bool(required=False)
+        det_invert = fields.Bool(required=False)
+        det_gamma_correct = fields.Bool(required=False)
+        min_text_length = fields.Integer(required=False)
+        colorization_size = fields.Integer(required=False)
+        denoise_sigma = fields.Integer(required=False)
+        mask_dilation_offset = fields.Integer(required=False)
+        ignore_bubble = fields.Integer(required=False)
+        gpt_config = fields.String(required=False)
+        filter_text = fields.String(required=False)
+
+        # api specific
         base64Images = fields.Raw(required=False)
         image = fields.Raw(required=False)
         url = fields.Raw(required=False)
+
+        # no functionality except preventing errors when given
         fingerprint = fields.Raw(required=False)
         clientUuid = fields.Raw(required=False)
