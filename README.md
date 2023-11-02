@@ -123,7 +123,57 @@ $ python -m manga_translator -v --mode web --use-cuda
 
 Manual translation replaces machine translation with human translators.
 Basic manual translation demo can be found at <http://127.0.0.1:5003/manual> when using web mode.
+<details closed>
+<summary>API V2</summary>
+<br>
 
+```bash
+# use `--mode api` to start a web server.
+$ python -m manga_translator -v --mode api --use-cuda
+# the api will be serving on http://127.0.0.1:5003
+```
+Api is accepting json(post) and multipart.
+<br>
+Api endpoints are `/colorize_translate`, `/inpaint_translate`, `/translate`, `/get_text`.
+<br>
+Valid arguments for the api are:
+```
+// These are taken from args.py. For more info see README.md
+detector: String
+ocr: String
+inpainter: String
+upscaler: String
+translator: String 
+target_language: String
+upscale_ratio: Integer
+translator_chain: String
+selective_translation: String
+attempts: Integer
+detection_size: Integer // 1024 => 'S', 1536 => 'M', 2048 => 'L', 2560 => 'X'
+text_threshold: Float
+box_threshold: Float
+unclip_ratio: Float
+inpainting_size: Integer
+det_rotate: Bool
+det_auto_rotate: Bool
+det_invert: Bool
+det_gamma_correct: Bool
+min_text_length: Integer
+colorization_size: Integer
+denoise_sigma: Integer
+mask_dilation_offset: Integer
+ignore_bubble: Integer
+gpt_config: String
+filter_text: String
+overlay_type: String
+
+// These are api specific args
+direction: String // {'auto', 'h', 'v'}
+base64Images: String //Image in base64 format
+image: Multipart // image upload from multipart
+url: String // an url string
+```
+</details>
 <details closed>
 <summary>API</summary>
 <br>
