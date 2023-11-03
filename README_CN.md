@@ -114,7 +114,7 @@ THA: Thai
                                              image folder if using batch mode
 -o, --dest DEST                              Path to the destination folder for translated images in
                                              batch mode
--l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA,CNR,SRP,HRV,THA}
+-l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA,CNR,SRP,HRV,THA,IND}
                                              Destination language
 -v, --verbose                                Print debug info and save intermediate images in result
                                              folder
@@ -180,6 +180,8 @@ THA: Thai
                                              model. Use hex string without the "#" such as FFFFFF
                                              for a white foreground or FFFFFF:000000 to also have a
                                              black background around the text.
+--line-spacing LINE_SPACING                  Line spacing is font_size * this value. Default is 0.01
+                                             for horizontal text and 0.2 for vertical.
 --force-horizontal                           Force text to be rendered horizontally
 --force-vertical                             Force text to be rendered vertically
 --align-left                                 Align rendered text left
@@ -193,7 +195,7 @@ THA: Thai
                                              additional typesetting. Ignores some other argument
                                              options
 --gpt-config GPT_CONFIG                      Path to GPT config file, more info in README
---mtpe                                       Turn on/off machine translation post editing (MTPE) on
+--use-mtpe                                   Turn on/off machine translation post editing (MTPE) on
                                              the command line (works only on linux right now)
 --save-text                                  Save extracted text and translations into a text file.
 --save-text-file SAVE_TEXT_FILE              Like --save-text but with a specified file path.

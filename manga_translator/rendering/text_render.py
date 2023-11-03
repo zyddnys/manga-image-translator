@@ -297,10 +297,10 @@ def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_
         canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width] = cv2.add(canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width], bitmap_border)
     return char_offset_y
 
-def put_text_vertical(font_size: int, text: str, h: int, alignment: str, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
+def put_text_vertical(font_size: int, text: str, h: int, alignment: str, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]], line_spacing: int):
     text = compact_special_symbols(text)
     bg_size = int(max(font_size * 0.07, 1)) if bg is not None else 0
-    spacing_x = int(font_size * 0.2)
+    spacing_x = int(font_size * (line_spacing or 0.2))
 
     # make large canvas
     num_char_y = h // font_size
@@ -659,10 +659,10 @@ def put_char_horizontal(font_size: int, cdpt: str, pen_l: Tuple[int, int], canva
 
 def put_text_horizontal(font_size: int, text: str, width: int, height: int, alignment: str,
                         reversed_direction: bool, fg: Tuple[int, int, int], bg: Tuple[int, int, int],
-                        lang: str = 'en_US', hyphenate: bool = True):
+                        lang: str = 'en_US', hyphenate: bool = True, line_spacing: int = 0):
     text = compact_special_symbols(text)
     bg_size = int(max(font_size * 0.07, 1)) if bg is not None else 0
-    spacing_y = int(font_size * 0.2)
+    spacing_y = int(font_size * (line_spacing or 0.01))
 
     # calc
     # print(width)

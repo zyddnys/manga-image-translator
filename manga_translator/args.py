@@ -134,6 +134,7 @@ parser.add_argument('--font-size', default=None, type=int, help='Use fixed font 
 parser.add_argument('--font-size-offset', default=0, type=int, help='Offset font size by a given amount, positive number increase font size and vice versa')
 parser.add_argument('--font-size-minimum', default=-1, type=int, help='Minimum output font size. Default is image_sides_sum/200')
 parser.add_argument('--font-color', default=None, type=str, help='Overwrite the text fg/bg color detected by the OCR model. Use hex string without the "#" such as FFFFFF for a white foreground or FFFFFF:000000 to also have a black background around the text.')
+parser.add_argument('--line-spacing', default=None, type=int, help='Line spacing is font_size * this value. Default is 0.01 for horizontal text and 0.2 for vertical.')
 
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--force-horizontal', action='store_true', help='Force text to be rendered horizontally')

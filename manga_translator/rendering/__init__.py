@@ -98,6 +98,7 @@ async def dispatch(
     font_size_minimum: int = 0,
     hyphenate: bool = True,
     render_mask: np.ndarray = None,
+    line_spacing: int = None
     ) -> np.ndarray:
 
     text_render.set_font(font_path)
@@ -113,7 +114,7 @@ async def dispatch(
         if render_mask is not None:
             # set render_mask to 1 for the region that is inside dst_points
             cv2.fillConvexPoly(render_mask, dst_points.astype(np.int32), 1)
-        img = render(img, region, dst_points, hyphenate)
+        img = render(img, region, dst_points, hyphenate, line_spacing)
     return img
 
 def render(
@@ -121,6 +122,7 @@ def render(
     region: TextBlock,
     dst_points,
     hyphenate,
+    line_spacing,
 ):
     fg, bg = region.get_font_colors()
     fg, bg = fg_bg_compare(fg, bg)
@@ -142,6 +144,7 @@ def render(
             bg,
             region.target_lang,
             hyphenate,
+            line_spacing,
         )
     else:
         temp_box = text_render.put_text_vertical(
@@ -151,6 +154,7 @@ def render(
             region.alignment,
             fg,
             bg,
+            line_spacing,
         )
     h, w, _ = temp_box.shape
     r_temp = w / h
@@ -177,7 +181,7 @@ def render(
     img[y:y+h, x:x+w] = np.clip((img[y:y+h, x:x+w].astype(np.float32) * (1 - mask_region) + canvas_region.astype(np.float32) * mask_region), 0, 255).astype(np.uint8)
     return img
 
-async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, text_regions: List[TextBlock], font_path: str = '') -> np.ndarray:
+async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, text_regions: List[TextBlock], font_path: str = '', line_spacing: int = 0) -> np.ndarray:
     if len(text_regions) == 0:
         return img_canvas
 
@@ -185,4 +189,4 @@ async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, 
         font_path = os.path.join(BASE_PATH, 'fonts/comic shanns 2.ttf')
     text_render.set_font(font_path)
 
-    return render_textblock_list_eng(img_canvas, text_regions, size_tol=1.2, original_img=original_img, downscale_constraint=0.8)
+    return render_textblock_list_eng(img_canvas, text_regions, line_spacing=line_spacing, size_tol=1.2, original_img=original_img, downscale_constraint=0.8)

@@ -542,11 +542,11 @@ class MangaTranslator():
         # manga2eng currently only supports horizontal left to right rendering
         elif ctx.renderer == 'manga2eng' and ctx.text_regions and LANGAUGE_ORIENTATION_PRESETS.get(
                 ctx.text_regions[0].target_lang) == 'h':
-            output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, ctx.font_path)
+            output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, ctx.font_path, ctx.line_spacing)
         else:
             output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, ctx.font_path, ctx.font_size,
                                               ctx.font_size_offset,
-                                              ctx.font_size_minimum, not ctx.no_hyphenation, ctx.render_mask)
+                                              ctx.font_size_minimum, not ctx.no_hyphenation, ctx.render_mask, ctx.line_spacing)
         return output
 
     def _result_path(self, path: str) -> str:
