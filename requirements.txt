@@ -8,7 +8,8 @@ opencv-python
 pyclipper
 shapely
 requests
-oscrypto 
+oscrypto
+cryptography
 freetype-py
 googletrans==4.0.0rc1
 aiohttp
