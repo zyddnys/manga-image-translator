@@ -8,7 +8,7 @@ opencv-python
 pyclipper
 shapely
 requests
-oscrypto
+git+https://github.com/wbond/oscrypto
 cryptography
 freetype-py
 googletrans==4.0.0rc1
