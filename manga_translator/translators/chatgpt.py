@@ -282,7 +282,7 @@ class GPT4Translator(GPT35TurboTranslator):
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
         messages = [
-            {'role': 'system', 'content': self._CHAT_SYSTEM_TEMPLATE.format(to_lang=to_lang)},
+            {'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)},
             {'role': 'user', 'content': prompt},
         ]
 
