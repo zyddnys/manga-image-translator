@@ -1,5 +1,6 @@
 import re
 import requests
+import openai.error
 import litellm
 import litellm.exceptions
 import asyncio
@@ -147,7 +148,7 @@ class GPT3Translator(CommonTranslator):
                 try:
                     response = await request_task
                     break
-                except litellm.exceptions.RateLimitError: # Server returned ratelimit response
+                except litellm.exceptions.RateLimitError or openai.error.RateLimitError: # Server returned ratelimit response
                     ratelimit_attempt += 1
                     if ratelimit_attempt >= self._RATELIMIT_RETRY_ATTEMPTS:
                         raise
