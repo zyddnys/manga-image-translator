@@ -154,7 +154,7 @@ class GPT3Translator(CommonTranslator):
                         raise
                     self.logger.warn(f'Restarting request due to ratelimiting by openai servers. Attempt: {ratelimit_attempt}')
                     await asyncio.sleep(2)
-                except litellm.exceptions.APIError: # Server returned 500 error (probably server load)
+                except litellm.exceptions.APIError or openai.error.APIError: # Server returned 500 error (probably server load)
                     server_error_attempt += 1
                     if server_error_attempt >= self._RETRY_ATTEMPTS:
                         self.logger.error('OpenAI encountered a server error, possibly due to high server load. Use a different translator or try again later.')
