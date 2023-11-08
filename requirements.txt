@@ -44,4 +44,3 @@ aiofiles
 arabic-reshaper
 pyhyphen
 langcodes
-litellm

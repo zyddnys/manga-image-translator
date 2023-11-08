@@ -1,14 +1,14 @@
 import re
-import requests
+import openai
 import openai.error
-import litellm
-import litellm.exceptions
 import asyncio
 import time
 from typing import List, Dict
 
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE
+
+CONFIG = None
 
 class GPT3Translator(CommonTranslator):
     _LANGUAGE_CODE_MAP = {
@@ -53,17 +53,16 @@ class GPT3Translator(CommonTranslator):
 
     def __init__(self):
         super().__init__()
-        litellm.api_key = OPENAI_API_KEY
-        litellm.api_base = OPENAI_API_BASE
-        if not litellm.api_key:
+        openai.api_key = openai.api_key or OPENAI_API_KEY
+        openai.api_base = OPENAI_API_BASE
+        if not openai.api_key:
             raise MissingAPIKeyException('Please set the OPENAI_API_KEY environment variable before using the chatgpt translator.')
         if OPENAI_HTTP_PROXY:
-            session = requests.session()
-            session.proxies = {
+            proxies = {
                 'http': 'http://%s' % OPENAI_HTTP_PROXY,
                 'https': 'http://%s' % OPENAI_HTTP_PROXY
             }
-            litellm.client_session = session
+            openai.proxy = proxies
         self.token_count = 0
         self.token_count_last = 0
         self.config = None
@@ -148,13 +147,13 @@ class GPT3Translator(CommonTranslator):
                 try:
                     response = await request_task
                     break
-                except litellm.exceptions.RateLimitError or openai.error.RateLimitError: # Server returned ratelimit response
+                except openai.error.RateLimitError: # Server returned ratelimit response
                     ratelimit_attempt += 1
                     if ratelimit_attempt >= self._RATELIMIT_RETRY_ATTEMPTS:
                         raise
                     self.logger.warn(f'Restarting request due to ratelimiting by openai servers. Attempt: {ratelimit_attempt}')
                     await asyncio.sleep(2)
-                except litellm.exceptions.APIError or openai.error.APIError: # Server returned 500 error (probably server load)
+                except openai.error.APIError: # Server returned 500 error (probably server load)
                     server_error_attempt += 1
                     if server_error_attempt >= self._RETRY_ATTEMPTS:
                         self.logger.error('OpenAI encountered a server error, possibly due to high server load. Use a different translator or try again later.')
@@ -176,7 +175,7 @@ class GPT3Translator(CommonTranslator):
         return translations
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
-        response = await litellm.acompletion(
+        response = await openai.Completion.acreate(
             model='text-davinci-003',
             prompt=prompt,
             max_tokens=self._MAX_TOKENS // 2, # Assuming that half of the tokens are used for the query
@@ -258,7 +257,7 @@ class GPT35TurboTranslator(GPT3Translator):
             messages.insert(1, {'role': 'user', 'content': self.chat_sample[to_lang][0]})
             messages.insert(2, {'role': 'assistant', 'content': self.chat_sample[to_lang][1]})
 
-        response = await litellm.acompletion(
+        response = await openai.ChatCompletion.acreate(
             model='gpt-3.5-turbo-0613',
             messages=messages,
             max_tokens=self._MAX_TOKENS // 2,
@@ -291,7 +290,7 @@ class GPT4Translator(GPT35TurboTranslator):
             messages.insert(1, {'role': 'user', 'content': self._CHAT_SAMPLE[to_lang][0]})
             messages.insert(2, {'role': 'assistant', 'content': self._CHAT_SAMPLE[to_lang][1]})
 
-        response = await litellm.acompletion(
+        response = await openai.ChatCompletion.acreate(
             model='gpt-4-0613',
             messages=messages,
             max_tokens=self._MAX_TOKENS // 2,
