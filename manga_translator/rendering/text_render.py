@@ -12,6 +12,12 @@ from langcodes import standardize_tag
 
 from ..utils import BASE_PATH, is_punctuation, is_whitespace
 
+try:
+    HYPHENATOR_LANGUAGES.remove('fr')
+    HYPHENATOR_LANGUAGES.append('fr_FR')
+except Exception:
+    pass
+
 CJK_H2V = {
     "‥": "︰",
     "—": "︱",
