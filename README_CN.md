@@ -165,6 +165,8 @@ THA: Thai
 --min-text-length MIN_TEXT_LENGTH            Minimum text length of a text region
 --inpainting-size INPAINTING_SIZE            Size of image used for inpainting (too large will
                                              result in OOM)
+--inpainting-precision INPAINTING_PRECISION  Inpainting precision for lama, 
+                                             use bf16 while you can.
 --colorization-size COLORIZATION_SIZE        Size of image used for colorization. Set to -1 to use
                                              full image size
 --denoise-sigma DENOISE_SIGMA                Used by colorizer and affects color strength, range

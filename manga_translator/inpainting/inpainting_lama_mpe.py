@@ -14,6 +14,14 @@ from torch import Tensor
 from .common import OfflineInpainter
 from ..utils import resize_keep_aspect
 
+
+TORCH_DTYPE_MAP = {
+    'fp32': torch.float32,
+    'fp16': torch.float16,
+    'bf16': torch.bfloat16,
+}
+
+
 class LamaMPEInpainter(OfflineInpainter):
 
     '''
@@ -81,7 +89,20 @@ class LamaMPEInpainter(OfflineInpainter):
             mask_torch = mask_torch.cuda()
         with torch.no_grad():
             img_torch *= (1 - mask_torch)
-            img_inpainted_torch = self.model(img_torch, mask_torch)
+            if not self.use_cuda:
+                img_inpainted_torch = self.model(img_torch, mask_torch)
+            else:
+                # Note: lama's weight shouldn't be convert to fp16 or bf16 otherwise it produces darkened results.
+                # but it can inference under torch.autocast
+                precision = TORCH_DTYPE_MAP[os.environ.get("INPAINTING_PRECISION", "fp32")]
+                
+                if precision == torch.float16:
+                    precision = torch.bfloat16
+                    self.logger.warning('Switch to bf16 due to Lama only compatible with bf16 and fp32.')
+
+                with torch.autocast(device_type="cuda", dtype=precision):
+                    img_inpainted_torch = self.model(img_torch, mask_torch)
+
         if isinstance(self.model, LamaFourier):
             img_inpainted = (img_inpainted_torch.cpu().squeeze_(0).permute(1, 2, 0).numpy() * 255.).astype(np.uint8)
         else:
@@ -578,7 +599,7 @@ class FFCResNetGenerator(nn.Module):
         if rel_pos is None:
             return self.model(masked_img)
         else:
-
+            
             x_l, x_g = self.model[:2](masked_img)
             x_l = x_l.to(torch.float32)
             x_l += rel_pos

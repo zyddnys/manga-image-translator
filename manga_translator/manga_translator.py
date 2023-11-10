@@ -108,6 +108,8 @@ class MangaTranslator():
         if params.get('model_dir'):
             ModelWrapper._MODEL_DIR = params.get('model_dir')
 
+        os.environ['INPAINTING_PRECISION'] = params.get('inpainting_precision', 'fp32')
+
     @property
     def using_cuda(self):
         return self.device.startswith('cuda')
