@@ -399,7 +399,7 @@ THA: Thai
                                              image, DO NOT use craft for manga, it's not designed
                                              for it
 --ocr {32px,48px_ctc}                        Optical character recognition (OCR) model to use
---inpainter {default,lama_mpe,sd,none,original}
+--inpainter {default,lama_large,lama_mpe,sd,none,original}
                                              Inpainting model to use
 --upscaler {waifu2x,esrgan,4xultrasharp}     Upscaler to use. --upscale-ratio has to be set for it
                                              to take effect

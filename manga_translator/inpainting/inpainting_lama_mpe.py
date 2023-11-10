@@ -15,6 +15,11 @@ from .common import OfflineInpainter
 from ..utils import resize_keep_aspect
 
 class LamaMPEInpainter(OfflineInpainter):
+
+    '''
+    Better mark as deprecated and replace with lama large
+    '''
+
     _MODEL_MAPPING = {
         'model': {
             'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/inpainting_lama_mpe.ckpt',
@@ -85,6 +90,24 @@ class LamaMPEInpainter(OfflineInpainter):
             img_inpainted = cv2.resize(img_inpainted, (width, height), interpolation = cv2.INTER_LINEAR)
         ans = img_inpainted * mask_original + img_original * (1 - mask_original)
         return ans
+    
+
+class LamaLargeInpainter(LamaMPEInpainter):
+
+    _MODEL_MAPPING = {
+        'model': {
+            'url': 'https://huggingface.co/dreMaz/AnimeMangaInpainting/resolve/main/lama_large_512px.ckpt',
+            'hash': '11d30fbb3000fb2eceae318b75d9ced9229d99ae990a7f8b3ac35c8d31f2c935',
+            'file': '.',
+        },
+    }
+
+    async def _load(self, device: str):
+        self.model = load_lama_mpe(self._get_file_path('lama_large_512px.ckpt'), device='cpu', use_mpe=False, large_arch=True)
+        self.model.eval()
+        self.use_cuda = device == 'cuda'
+        if self.use_cuda:
+            self.model = self.model.cuda()
 
 
 def set_requires_grad(module, value):
@@ -171,12 +194,10 @@ class FourierUnit(nn.Module):
         r_size = x.size()
         # (batch, c, h, w/2+1, 2)
         fft_dim = (-3, -2, -1) if self.ffc3d else (-2, -1)
-        # x: torch.float16
-        if x.dtype == torch.float16:
-            half = True
+
+        if x.dtype in (torch.float16, torch.bfloat16):
             x = x.type(torch.float32)
-        else:
-            half = False
+
         ffted = torch.fft.rfftn(x, dim=fft_dim, norm=self.fft_norm)
         ffted = torch.stack((ffted.real, ffted.imag), dim=-1)
         ffted = ffted.permute(0, 1, 4, 2, 3).contiguous()  # (batch, c, 2, h, w/2+1)
@@ -196,7 +217,7 @@ class FourierUnit(nn.Module):
 
         ffted = ffted.view((batch, -1, 2,) + ffted.size()[2:]).permute(
             0, 1, 3, 4, 2).contiguous()  # (batch,c, t, h, w/2+1, 2)
-        if ffted.dtype == torch.float16:
+        if ffted.dtype in (torch.float16, torch.bfloat16):
             ffted = ffted.type(torch.float32)
         ffted = torch.complex(ffted[..., 0], ffted[..., 1])
 
@@ -586,9 +607,15 @@ class MPE(nn.Module):
 
 
 class LamaFourier:
-    def __init__(self, build_discriminator=True, use_mpe=False) -> None:
+    def __init__(self, build_discriminator=True, use_mpe=False, large_arch: bool = False) -> None:
         # super().__init__()
+
+        n_blocks = 9
+        if large_arch:
+            n_blocks = 18
+        
         self.generator = FFCResNetGenerator(4, 3, add_out_act='sigmoid', 
+                            n_blocks = n_blocks,
                             init_conv_kwargs={
                             'ratio_gin': 0,
                             'ratio_gout': 0,
@@ -601,9 +628,9 @@ class LamaFourier:
                             'ratio_gin': 0.75,
                             'ratio_gout': 0.75,
                             'enable_lfu': False
-                        }
+                        }, 
                     )
-        self.enable_fp16 = False
+        
         self.discriminator = NLayerDiscriminator() if build_discriminator else None
         self.inpaint_only = False
         if use_mpe:
@@ -759,10 +786,12 @@ class LamaFourier:
 
         return rel_pos, abs_pos, direct
 
-def load_lama_mpe(model_path, device) -> LamaFourier:
-    model = LamaFourier(build_discriminator=False, use_mpe=True)
+
+def load_lama_mpe(model_path, device, use_mpe: bool = True, large_arch: bool = False) -> LamaFourier:
+    model = LamaFourier(build_discriminator=False, use_mpe=use_mpe, large_arch=large_arch)
     sd = torch.load(model_path, map_location = 'cpu')
     model.generator.load_state_dict(sd['gen_state_dict'])
-    model.mpe.load_state_dict(sd['str_state_dict'])
+    if use_mpe:
+        model.mpe.load_state_dict(sd['str_state_dict'])
     model.eval().to(device)
     return model
