@@ -399,7 +399,7 @@ THA: Thai
                                              image, DO NOT use craft for manga, it's not designed
                                              for it
 --ocr {32px,48px_ctc}                        Optical character recognition (OCR) model to use
---inpainter {default,lama_mpe,sd,none,original}
+--inpainter {default,lama_large,lama_mpe,sd,none,original}
                                              Inpainting model to use
 --upscaler {waifu2x,esrgan,4xultrasharp}     Upscaler to use. --upscale-ratio has to be set for it
                                              to take effect
@@ -433,6 +433,8 @@ THA: Thai
 --min-text-length MIN_TEXT_LENGTH            Minimum text length of a text region
 --inpainting-size INPAINTING_SIZE            Size of image used for inpainting (too large will
                                              result in OOM)
+--inpainting-precision INPAINTING_PRECISION  Inpainting precision for lama, 
+                                             use bf16 while you can.
 --colorization-size COLORIZATION_SIZE        Size of image used for colorization. Set to -1 to use
                                              full image size
 --denoise-sigma DENOISE_SIGMA                Used by colorizer and affects color strength, range
