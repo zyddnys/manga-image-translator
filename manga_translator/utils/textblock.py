@@ -58,7 +58,6 @@ class TextBlock(object):
                  alignment: str = 'auto',
                  rich_text: str = "",
                  _bounding_rect: List = None,
-                 accumulate_color = True,
                  default_stroke_width = 0.2,
                  font_weight = 50,
                  target_lang: str = "",
@@ -81,7 +80,6 @@ class TextBlock(object):
 
         self.translation = translation
 
-        # note they're accumulative rgb values of textlines
         self.fg_colors = fg_color
         self.bg_colors = bg_color
 
@@ -99,7 +97,6 @@ class TextBlock(object):
         self._bounding_rect = _bounding_rect
         self.default_stroke_width = default_stroke_width
         self.font_weight = font_weight
-        self.accumulate_color = accumulate_color
         self.adjust_bg_color = True
 
         self.opacity = opacity
@@ -295,31 +292,24 @@ class TextBlock(object):
                     bullet_type_idx = i
         return bullet_type_idx >= 0
 
-    def set_font_colors(self, fg_colors, bg_colors, accumulate=True):
-        self.accumulate_color = accumulate
-        num_lines = len(self.lines) if accumulate and len(self.lines) > 0 else 1
-        # set font color
-        fg_colors = np.array(fg_colors) * num_lines
-        self.fg_colors = fg_colors
-        # set stroke color  
-        bg_colors = np.array(bg_colors) * num_lines
-        self.bg_colors = bg_colors
+    def set_font_colors(self, fg_colors, bg_colors):
+        self.fg_colors = np.array(fg_colors)
+        self.bg_colors = np.array(bg_colors)
+
+    def update_font_colors(self, fg_colors: np.ndarray, bg_colors: np.ndarray):
+        nlines = len(self)
+        if nlines > 0:
+            self.fg_colors += fg_colors / nlines
+            self.bg_colors += bg_colors / nlines
 
     def get_font_colors(self, bgr=False):
-        num_lines = len(self.lines)
 
-        frgb = np.array(self.fg_colors)
-        brgb = np.array(self.bg_colors)
-        if self.accumulate_color:
-            if num_lines > 0:
-                frgb = (frgb / num_lines).astype(np.int32)
-                brgb = (brgb / num_lines).astype(np.int32)
-                if bgr:
-                    frgb, brgb = frgb[::-1], brgb[::-1]
-                else:
-                    frgb, brgb = frgb, brgb
-            else:
-                return [0, 0, 0], [0, 0, 0]
+        frgb = np.array(self.fg_colors).astype(np.int32)
+        brgb = np.array(self.bg_colors).astype(np.int32)
+
+        if bgr:
+            frgb = frgb[::-1]
+            brgb = brgb[::-1]
 
         if self.adjust_bg_color:
             fg_avg = np.mean(frgb)
