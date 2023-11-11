@@ -150,6 +150,10 @@ class Model48pxCTCOCR(OfflineOCR):
                 out_regions.append(cur_region)
 
         if is_quadrilaterals:
+            for region in out_regions :
+                if isinstance(region, TextBlock):
+                    region.fg_colors /= float(len(region.lines))
+                    region.bg_colors /= float(len(region.lines))
             return out_regions
         return textlines
 

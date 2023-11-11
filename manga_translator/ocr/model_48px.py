@@ -25,20 +25,20 @@ from ..utils.bubble import is_ignore
 
 class Model48pxOCR(OfflineOCR):
     _MODEL_MAPPING = {
-        # 'model': {
-        #     'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/ocr.zip',
-        #     'hash': '47405638b96fa2540a5ee841a4cd792f25062c09d9458a973362d40785f95d7a',
-        #     'archive': {
-        #         'ocr.ckpt': '.',
-        #         'alphabet-all-v5.txt': '.',
-        #     },
-        # },
+        'model': {
+            'url': 'https://huggingface.co/zyddnys/manga-image-translator/resolve/main/ocr_ar_48px.ckpt',
+            'hash': '29daa46d080818bb4ab239a518a88338cbccff8f901bef8c9db191a7cb97671d',
+        },
+        'dict': {
+            'url': 'https://huggingface.co/zyddnys/manga-image-translator/resolve/main/alphabet-all-v7.txt',
+            'hash': 'f5722368146aa0fbcc9f4726866e4efc3203318ebb66c811d8cbbe915576538a',
+        },
     }
 
     def __init__(self, *args, **kwargs):
         os.makedirs(self.model_dir, exist_ok=True)
-        if os.path.exists('epoch=0-step=33000.ckpt'):
-            shutil.move('epoch=0-step=33000.ckpt', self._get_file_path('epoch=0-step=33000.ckpt'))
+        if os.path.exists('ocr_ar_48px.ckpt'):
+            shutil.move('ocr_ar_48px.ckpt', self._get_file_path('ocr_ar_48px.ckpt'))
         if os.path.exists('alphabet-all-v7.txt'):
             shutil.move('alphabet-all-v7.txt', self._get_file_path('alphabet-all-v7.txt'))
         super().__init__(*args, **kwargs)
@@ -48,7 +48,7 @@ class Model48pxOCR(OfflineOCR):
             dictionary = [s[:-1] for s in fp.readlines()]
 
         self.model = OCR(dictionary, 768)
-        sd = convert_pl_model(self._get_file_path('epoch=0-step=33000.ckpt'))
+        sd = torch.load(self._get_file_path('ocr_ar_48px.ckpt'))
         self.model.load_state_dict(sd)
         self.model.eval()
         self.use_cuda = device == 'cuda'
@@ -84,10 +84,10 @@ class Model48pxOCR(OfflineOCR):
                 region[i, :, : W, :]=tmp
                 if verbose:
                     os.makedirs('result/ocrs/', exist_ok=True)
-                    # if quadrilaterals[idx][1] == 'v':
-                    #     cv2.imwrite(f'result/ocrs/{ix}.png', cv2.rotate(cv2.cvtColor(region[i, :, :, :], cv2.COLOR_RGB2BGR), cv2.ROTATE_90_CLOCKWISE))
-                    # else:
-                    cv2.imwrite(f'result/ocrs/{ix}.png', cv2.cvtColor(region[i, :, :, :], cv2.COLOR_RGB2BGR))
+                    if quadrilaterals[idx][1] == 'v':
+                        cv2.imwrite(f'result/ocrs/{ix}.png', cv2.rotate(cv2.cvtColor(region[i, :, :, :], cv2.COLOR_RGB2BGR), cv2.ROTATE_90_CLOCKWISE))
+                    else:
+                        cv2.imwrite(f'result/ocrs/{ix}.png', cv2.cvtColor(region[i, :, :, :], cv2.COLOR_RGB2BGR))
                 ix += 1
             image_tensor = (torch.from_numpy(region).float() - 127.5) / 127.5
             image_tensor = einops.rearrange(image_tensor, 'N H W C -> N C H W')
@@ -100,12 +100,6 @@ class Model48pxOCR(OfflineOCR):
                     continue
                 has_fg = (fg_ind_pred[:, 1] > fg_ind_pred[:, 0])
                 has_bg = (bg_ind_pred[:, 1] > bg_ind_pred[:, 0])
-                # fr = (torch.clip(fr.view(-1), 0, 1).mean() * 255).long().item()
-                # fg = (torch.clip(fg.view(-1), 0, 1).mean() * 255).long().item()
-                # fb = (torch.clip(fb.view(-1), 0, 1).mean() * 255).long().item()
-                # br = (torch.clip(br.view(-1), 0, 1).mean() * 255).long().item()
-                # bg = (torch.clip(bg.view(-1), 0, 1).mean() * 255).long().item()
-                # bb = (torch.clip(bb.view(-1), 0, 1).mean() * 255).long().item()
                 seq = []
                 fr = AvgMeter()
                 fg = AvgMeter()
@@ -130,6 +124,10 @@ class Model48pxOCR(OfflineOCR):
                         br(int(c_bg[0] * 255))
                         bg(int(c_bg[1] * 255))
                         bb(int(c_bg[2] * 255))
+                    else :
+                        br(int(c_fg[0] * 255))
+                        bg(int(c_fg[1] * 255))
+                        bb(int(c_fg[2] * 255))
                 txt = ''.join(seq)
                 fr = min(max(int(fr()), 0), 255)
                 fg = min(max(int(fg()), 0), 255)
@@ -156,6 +154,10 @@ class Model48pxOCR(OfflineOCR):
                 out_regions.append(cur_region)
 
         if is_quadrilaterals:
+            for region in out_regions :
+                if isinstance(region, TextBlock):
+                    region.fg_colors /= float(len(region.lines))
+                    region.bg_colors /= float(len(region.lines))
             return out_regions
         return textlines
 

@@ -398,7 +398,7 @@ THA: Thai
 --detector {default,ctd,craft,none}          Text detector used for creating a text mask from an
                                              image, DO NOT use craft for manga, it's not designed
                                              for it
---ocr {32px,48px_ctc}                        Optical character recognition (OCR) model to use
+--ocr {48px,32px,48px_ctc}                   Optical character recognition (OCR) model to use
 --inpainter {default,lama_large,lama_mpe,sd,none,original}
                                              Inpainting model to use
 --upscaler {waifu2x,esrgan,4xultrasharp}     Upscaler to use. --upscale-ratio has to be set for it

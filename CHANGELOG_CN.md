@@ -1,5 +1,9 @@
 # 更新日志 (中文)
 
+### 2023-11-11
+
+1. 添加了新的OCR模型`48px`
+
 ### 2023-05-08
 
 1. 添加了[4x-UltraSharp](https://mega.nz/folder/qZRBmaIY#nIG8KyWFcGNTuMX_XNbJ_g)超分辨率

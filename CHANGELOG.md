@@ -1,5 +1,9 @@
 # Changelogs
 
+### 2023-11-11
+
+1. Added new OCR model `48px`
+
 ### 2023-05-08
 
 1. Added [4x-UltraSharp](https://mega.nz/folder/qZRBmaIY#nIG8KyWFcGNTuMX_XNbJ_g) upscaler
