@@ -492,7 +492,6 @@ class MangaTranslator():
 
         for region in text_regions:
             if ctx.font_color_fg or ctx.font_color_bg:
-                region.accumulate_color = False
                 if ctx.font_color_bg:
                     region.adjust_bg_color = False
 
