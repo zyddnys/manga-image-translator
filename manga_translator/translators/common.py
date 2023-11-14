@@ -4,7 +4,7 @@ import asyncio
 from typing import List, Tuple
 from abc import abstractmethod
 
-from ..utils import InfererModule, ModelWrapper, repeating_sequence
+from ..utils import InfererModule, ModelWrapper, repeating_sequence, is_valuable_text
 
 try:
     import readline
@@ -32,6 +32,11 @@ VALID_LANGUAGES = {
     'UKR': 'Ukrainian',
     'VIN': 'Vietnamese',
     'ARA': 'Arabic',
+    'CNR': 'Montenegrin',
+    'SRP': 'Serbian',
+    'HRV': 'Croatian',
+    'THA': 'Thai',
+    'IND': 'Indonesian'
 }
 
 ISO_639_1_TO_VALID_LANGUAGES = {
@@ -55,6 +60,11 @@ ISO_639_1_TO_VALID_LANGUAGES = {
     'uk': 'UKR',
     'vi': 'VIN',
     'ar': 'ARA',
+    'cnr': 'CNR',
+    'sr': 'SRP',
+    'hr': 'HRV',
+    'th': 'THA',
+    'id': 'IND'
 }
 
 class InvalidServerResponse(Exception):
@@ -149,11 +159,12 @@ class CommonTranslator(InfererModule):
         query_indices = []
         final_translations = []
         for i, query in enumerate(queries):
-            if not re.search(r'\w', query):
+            if not is_valuable_text(query):
                 final_translations.append(queries[i])
             else:
                 final_translations.append(None)
                 query_indices.append(i)
+
         queries = [queries[i] for i in query_indices]
 
         translations = [''] * len(queries)
@@ -200,15 +211,14 @@ class CommonTranslator(InfererModule):
             import arabic_reshaper
             translations = [arabic_reshaper.reshape(t) for t in translations]
 
+        if use_mtpe:
+            translations = await self.mtpe_adapter.dispatch(queries, translations)
+
         # Merge with the queries without text
         for i, trans in enumerate(translations):
             final_translations[query_indices[i]] = trans
+            self.logger.info(f'{i}: {queries[i]} => {trans}')
 
-        for i, (q, t) in enumerate(zip(queries, final_translations)):
-            self.logger.info(f'{i}: {q} => {t}')
-
-        if use_mtpe:
-            final_translations = await self.mtpe_adapter.dispatch(queries, final_translations)
         return final_translations
 
     @abstractmethod

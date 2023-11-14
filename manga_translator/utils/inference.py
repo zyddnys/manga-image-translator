@@ -9,8 +9,9 @@ import filecmp
 from abc import ABC, abstractmethod
 from functools import cached_property
 
-from .general import (
+from .generic import (
     BASE_PATH,
+    Context,
     download_url_with_progressbar,
     prompt_yes_no,
     replace_prefix,
@@ -24,6 +25,10 @@ class InfererModule(ABC):
     def __init__(self):
         self.logger = get_logger(self.__class__.__name__)
         super().__init__()
+
+    def parse_args(self, args: Context):
+        """May be overwritten by super classes to parse commandline arguments"""
+        pass
 
 # class InfererModuleManager(ABC):
 #     _KEY = ''

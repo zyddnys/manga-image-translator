@@ -4,12 +4,19 @@ import cv2
 import numpy as np
 import freetype
 import functools
+from pathlib import Path
 from typing import Tuple, Optional, List
 from hyphen import Hyphenator
 from hyphen.dictools import LANGUAGES as HYPHENATOR_LANGUAGES
 from langcodes import standardize_tag
 
 from ..utils import BASE_PATH, is_punctuation, is_whitespace
+
+try:
+    HYPHENATOR_LANGUAGES.remove('fr')
+    HYPHENATOR_LANGUAGES.append('fr_FR')
+except Exception:
+    pass
 
 CJK_H2V = {
     "‥": "︰",
@@ -147,7 +154,9 @@ font_cache = {}
 def get_cached_font(path: str) -> freetype.Face:
     path = path.replace('\\', '/')
     if not font_cache.get(path):
-        font_cache[path] = freetype.Face(path)
+        # To circumvent a bug with non ascii paths in windows use memory fonts
+        # https://github.com/rougier/freetype-py/issues/157#issuecomment-1683713726
+        font_cache[path] = freetype.Face(Path(path).open('rb'))
     return font_cache[path]
 
 def set_font(font_path: str):
@@ -294,10 +303,10 @@ def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_
         canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width] = cv2.add(canvas_border[pen_border[1]:pen_border[1]+bitmap_b.rows, pen_border[0]:pen_border[0]+bitmap_b.width], bitmap_border)
     return char_offset_y
 
-def put_text_vertical(font_size: int, text: str, h: int, alignment: str, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
+def put_text_vertical(font_size: int, text: str, h: int, alignment: str, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]], line_spacing: int):
     text = compact_special_symbols(text)
     bg_size = int(max(font_size * 0.07, 1)) if bg is not None else 0
-    spacing_x = int(font_size * 0.2)
+    spacing_x = int(font_size * (line_spacing or 0.2))
 
     # make large canvas
     num_char_y = h // font_size
@@ -343,7 +352,10 @@ def select_hyphenator(lang: str):
                 break
         else:
             return None
-    return Hyphenator(lang)
+    try:
+        return Hyphenator(lang)
+    except Exception:
+        return None
 
 # @functools.lru_cache(maxsize = 1024, typed = True)
 def get_char_offset_x(font_size: int, cdpt: str):
@@ -394,8 +406,11 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
     hyphenator = select_hyphenator(language)
     for i, word in enumerate(words):
         new_syls = []
-        if hyphenator:
-            new_syls = hyphenator.syllables(word)
+        if hyphenator and len(word) <= 100:
+            try:
+                new_syls = hyphenator.syllables(word)
+            except Exception:
+                new_syls = []
         if len(new_syls) == 0:
             if len(word) <= 3:
                 new_syls = [word]
@@ -464,7 +479,7 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
 
         current_width = whitespace_offset_x if line_width > 0 else 0
 
-        if line_width + current_width + word_widths[i] <= max_width:# + font_size:
+        if line_width + current_width + word_widths[i] <= max_width + hyphen_offset_x:
             line_words.append(i)
             line_width += current_width + word_widths[i]
             i += 1
@@ -511,7 +526,7 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
                 # A bit messy but were basically trying to only use the syllables on the current line
                 if first_word and word_idx == line_words1[-1]:
                     syl_start_idx = hyphenation_idx_list[line_idx]
-                    if line_idx < len(line_width_list) - 2 and word_idx == line_width_list[line_idx + 2][0]:
+                    if line_idx < len(line_width_list) - 2 and word_idx == line_words_list[line_idx + 2][0]:
                         syl_end_idx = hyphenation_idx_list[line_idx + 1]
                     else:
                         syl_end_idx = len(syllables[word_idx])
@@ -566,16 +581,16 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
         if line_words1[-1] == line_words2[0]:
             word1_text = ''.join(get_present_syllables(line_idx, -1))
             word2_text = ''.join(get_present_syllables(line_idx + 1, 0))
-            if len(word2_text) == 1:
+            word1_width = get_string_width(font_size, word1_text)
+            word2_width = get_string_width(font_size, word2_text)
+            if len(word2_text) == 1 or word2_width < font_size:
                 merged_word_idx = line_words1[-1]
                 line_words2.pop(0)
-                word2_width = get_string_width(font_size, word2_text)
                 line_width_list[line_idx] += word2_width
                 line_width_list[line_idx + 1] -= word2_width + whitespace_offset_x
-            elif len(word1_text) == 1:
+            elif len(word1_text) == 1 or word1_width < font_size:
                 merged_word_idx = line_words1[-1]
                 line_words1.pop(-1)
-                word1_width = get_string_width(font_size, word1_text)
                 line_width_list[line_idx] -= word1_width + whitespace_offset_x
                 line_width_list[line_idx + 1] += word1_width
 
@@ -595,7 +610,7 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
     # Step 4
     # Assemble line_text_list
 
-    use_hyphen_chars = hyphenate and hyphenator and max_width > 3 * font_size
+    use_hyphen_chars = hyphenate and hyphenator and max_width > 1.5 * font_size and len(words) > 1
 
     line_text_list = []
     for i, line in enumerate(line_words_list):
@@ -604,13 +619,22 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
             syl_start_idx, syl_end_idx = get_present_syllables_range(i, j)
             current_syllables = syllables[word_idx][syl_start_idx:syl_end_idx]
             line_text += ''.join(current_syllables)
-            if j < len(line) - 1:
+            if j == 0 and i > 0 and line_text_list[-1][-1] == '-' and line_text[0] == '-':
+                line_text = line_text[1:]
+                line_width_list[i] -= hyphen_offset_x
+            if j < len(line) - 1 and len(line_text) > 0:
                 line_text += ' '
-            elif use_hyphen_chars and syl_end_idx != len(syllables[word_idx]) and line_text[-1] != '-':
+            elif use_hyphen_chars and syl_end_idx != len(syllables[word_idx]) and len(words[word_idx]) > 3 and line_text[-1] != '-' \
+                and not (syl_end_idx < len(syllables[word_idx]) and not re.search(r'\w', syllables[word_idx][syl_end_idx][0])):
                 line_text += '-'
                 # hyphen_offset was ignored in previous steps
                 line_width_list[i] += hyphen_offset_x
+
         # print(line_text, get_string_width(font_size, line_text), line_width_list[i])
+        # assert(line_width_list[i] == get_string_width(font_size, line_text))
+
+        # Shouldnt be needed but there is apparently still a bug somewhere (See #458)
+        line_width_list[i] = get_string_width(font_size, line_text)
         line_text_list.append(line_text)
 
     return line_text_list, line_width_list
@@ -647,10 +671,10 @@ def put_char_horizontal(font_size: int, cdpt: str, pen_l: Tuple[int, int], canva
 
 def put_text_horizontal(font_size: int, text: str, width: int, height: int, alignment: str,
                         reversed_direction: bool, fg: Tuple[int, int, int], bg: Tuple[int, int, int],
-                        lang: str = 'en_US', hyphenate: bool = True):
+                        lang: str = 'en_US', hyphenate: bool = True, line_spacing: int = 0):
     text = compact_special_symbols(text)
     bg_size = int(max(font_size * 0.07, 1)) if bg is not None else 0
-    spacing_y = int(font_size * 0.2)
+    spacing_y = int(font_size * (line_spacing or 0.01))
 
     # calc
     # print(width)

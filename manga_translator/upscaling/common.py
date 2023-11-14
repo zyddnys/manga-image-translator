@@ -5,21 +5,32 @@ from abc import abstractmethod
 from ..utils import InfererModule, ModelWrapper
 
 class CommonUpscaler(InfererModule):
-    _VALID_UPSCALE_RATIOS = None
+    _VALID_UPSCALE_RATIOS = []
 
     async def upscale(self, image_batch: List[Image.Image], upscale_ratio: float) -> List[Image.Image]:
         if upscale_ratio == 1:
             return image_batch
-        if isinstance(self._VALID_UPSCALE_RATIOS, str) and self._VALID_UPSCALE_RATIOS.startswith('<='):
-            max_ratio = float(self._VALID_UPSCALE_RATIOS[2:])
-            if upscale_ratio > max_ratio:
-                self.logger.warn(f'Changed upscale ratio {upscale_ratio} to closest supported value: {max_ratio}')
-                upscale_ratio = max_ratio
-        elif self._VALID_UPSCALE_RATIOS and upscale_ratio not in self._VALID_UPSCALE_RATIOS:
-            new_upscale_ratio = min(self._VALID_UPSCALE_RATIOS, key=lambda x: abs(x - upscale_ratio))
-            self.logger.warn(f'Changed upscale ratio {upscale_ratio} to closest supported value: {new_upscale_ratio}')
-            upscale_ratio = new_upscale_ratio
-        return await self._upscale(image_batch, upscale_ratio)
+
+        self._VALID_UPSCALE_RATIOS.sort()
+        assert(self._VALID_UPSCALE_RATIOS[0] > 1)
+
+        ratio_left = upscale_ratio
+        while ratio_left > 0:
+            ratio = self._VALID_UPSCALE_RATIOS[-1]
+            for valid_ratio in self._VALID_UPSCALE_RATIOS:
+                if ratio_left <= valid_ratio:
+                    ratio = valid_ratio
+                    break
+            ratio_left -= ratio
+            if upscale_ratio > self._VALID_UPSCALE_RATIOS[-1]:
+                self.logger.info(f'Upscaling image by {ratio}; left: {ratio_left}')
+            image_batch = await self._upscale(image_batch, ratio)
+        if ratio_left < 0:
+            downscale_ratio = (ratio + ratio_left) / ratio
+            self.logger.info(f'Downscaling image by {downscale_ratio} to correct upscale ratio')
+            for i, image in enumerate(image_batch):
+                image_batch[i] = image.resize((int(image.size[0] * downscale_ratio), int(image.size[1] * downscale_ratio)))
+        return image_batch
 
     @abstractmethod
     async def _upscale(self, image_batch: List[Image.Image], upscale_ratio: float) -> List[Image.Image]:

@@ -4,8 +4,9 @@ from typing import List, Tuple
 from shapely.geometry import Polygon, MultiPoint
 from functools import cached_property
 import copy
+import re
 
-from .general import color_difference, is_right_to_left_char, count_valuable_text
+from .generic import color_difference, is_right_to_left_char, is_valuable_char
 # from ..detection.ctd_utils.utils.imgproc_utils import union_area, xywh2xyxypoly
 
 # LANG_LIST = ['eng', 'ja', 'unknown']
@@ -32,7 +33,7 @@ LANGAUGE_ORIENTATION_PRESETS = {
     'TRK': 'h',
     'UKR': 'h',
     'VIN': 'h',
-    'ARA': 'hr', # horizontal right to left
+    'ARA': 'hr', # horizontal reversed (right to left)
 }
 
 class TextBlock(object):
@@ -57,7 +58,6 @@ class TextBlock(object):
                  alignment: str = 'auto',
                  rich_text: str = "",
                  _bounding_rect: List = None,
-                 accumulate_color = True,
                  default_stroke_width = 0.2,
                  font_weight = 50,
                  target_lang: str = "",
@@ -80,7 +80,6 @@ class TextBlock(object):
 
         self.translation = translation
 
-        # note they're accumulative rgb values of textlines
         self.fg_colors = fg_color
         self.bg_colors = bg_color
 
@@ -98,7 +97,7 @@ class TextBlock(object):
         self._bounding_rect = _bounding_rect
         self.default_stroke_width = default_stroke_width
         self.font_weight = font_weight
-        self.accumulate_color = accumulate_color
+        self.adjust_bg_color = True
 
         self.opacity = opacity
         self.shadow_radius = shadow_radius
@@ -257,7 +256,7 @@ class TextBlock(object):
                     l[j1], l[j2] = l[j2], l[j1]
 
             for i, c in enumerate(text):
-                if not is_right_to_left_char(c) and count_valuable_text(c) > 0:
+                if not is_right_to_left_char(c) and is_valuable_char(c):
                     if l2r_idx < 0:
                         l2r_idx = i
                 elif l2r_idx >= 0 and i - l2r_idx > 1:
@@ -270,32 +269,54 @@ class TextBlock(object):
             text = ''.join(text_list)
         return text
 
-    def set_font_colors(self, fg_colors, bg_colors, accumulate=True):
-        self.accumulate_color = accumulate
-        num_lines = len(self.lines) if accumulate and len(self.lines) > 0 else 1
-        # set font color
-        fg_colors = np.array(fg_colors) * num_lines
-        self.fg_colors = fg_colors
-        # set stroke color  
-        bg_colors = np.array(bg_colors) * num_lines
-        self.bg_colors = bg_colors
+    @property
+    def is_bulleted_list(self):
+        """
+        A determining factor of whether we should be sticking to the strict per textline
+        text distribution when rendering.
+        """
+        if len(self.text) <= 1:
+            return False
+
+        bullet_regexes = [
+            r'[^\w\s]', # ○ ... ○ ...
+            r'[\d]+\.', # 1. ... 2. ...
+            r'[QA]:', # Q: ... A: ...
+        ]
+        bullet_type_idx = -1
+        for line_text in self.text:
+            for i, breg in enumerate(bullet_regexes):
+                if re.search(r'(?:[\n]|^)((?:' + breg + r')[\s]*)', line_text):
+                    if bullet_type_idx >= 0 and bullet_type_idx != i:
+                        return False
+                    bullet_type_idx = i
+        return bullet_type_idx >= 0
+
+    def set_font_colors(self, fg_colors, bg_colors):
+        self.fg_colors = np.array(fg_colors)
+        self.bg_colors = np.array(bg_colors)
+
+    def update_font_colors(self, fg_colors: np.ndarray, bg_colors: np.ndarray):
+        nlines = len(self)
+        if nlines > 0:
+            self.fg_colors += fg_colors / nlines
+            self.bg_colors += bg_colors / nlines
 
     def get_font_colors(self, bgr=False):
-        num_lines = len(self.lines)
-        frgb = np.array(self.fg_colors)
-        brgb = np.array(self.bg_colors)
-        if self.accumulate_color:
-            if num_lines > 0:
-                frgb = (frgb / num_lines).astype(np.int32)
-                brgb = (brgb / num_lines).astype(np.int32)
-                if bgr:
-                    return frgb[::-1], brgb[::-1]
-                else:
-                    return frgb, brgb
-            else:
-                return [0, 0, 0], [0, 0, 0]
-        else:
-            return frgb, brgb
+
+        frgb = np.array(self.fg_colors).astype(np.int32)
+        brgb = np.array(self.bg_colors).astype(np.int32)
+
+        if bgr:
+            frgb = frgb[::-1]
+            brgb = brgb[::-1]
+
+        if self.adjust_bg_color:
+            fg_avg = np.mean(frgb)
+            if color_difference(frgb, brgb) < 30:
+                brgb = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
+
+        return frgb, brgb
 
     @property
     def direction(self):

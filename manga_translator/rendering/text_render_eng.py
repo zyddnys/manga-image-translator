@@ -52,12 +52,13 @@ def render_lines(
     canvas_w: int,
     font_size: int,
     stroke_width: int,
+    line_spacing: int = 0.01,
     fg: Tuple[int] = (0, 0, 0),
     bg: Tuple[int] = (255, 255, 255)) -> Image.Image:
 
     # bg_size = int(max(font_size * 0.1, 1)) if bg is not None else 0
     bg_size = stroke_width
-    spacing_y = int(font_size * 0.01)
+    spacing_y = int(font_size * (line_spacing or 0.01))
 
     # make large canvas
     canvas_w = max([l.length for l in textlines]) + (font_size + bg_size) * 2
@@ -338,8 +339,7 @@ def render_textblock_list_eng(
     font_color = (0, 0, 0),
     stroke_color = (255, 255, 255),
     delimiter: str = ' ',
-    align_center=True,
-    line_spacing: float = 1.0,
+    line_spacing: int = 0.01,
     stroke_width: float = 0.1,
     size_tol: float = 1.0,
     ballonarea_thresh: float = 2,
@@ -384,8 +384,10 @@ def render_textblock_list_eng(
     def update_enlarged_xyxy(region):
         region.enlarged_xyxy = region.xyxy.copy()
         w_diff, h_diff = ((region.xywh[2:] * region.enlarge_ratio) - region.xywh[2:].astype(np.float64)) // 2
-        region.enlarged_xyxy[:2] -= int(w_diff)
-        region.enlarged_xyxy[2:] += int(h_diff)
+        region.enlarged_xyxy[0] -= w_diff
+        region.enlarged_xyxy[2] += w_diff
+        region.enlarged_xyxy[1] -= h_diff
+        region.enlarged_xyxy[3] += h_diff
 
     # Adjust enlarge ratios relative to each other to reduce intersections
     for region in text_regions:
@@ -404,13 +406,13 @@ def render_textblock_list_eng(
                 d = rect_distance(*region.xyxy, *region2.xyxy)
                 l1 = (region.xywh[2] + region.xywh[3]) / 2
                 l2 = (region2.xywh[2] + region2.xywh[3]) / 2
-                region.enlarge_ratio = d / l1 + 1
-                region2.enlarge_ratio = d / l2 + 1
+                region.enlarge_ratio = d / (2 * l1) + 1
+                region2.enlarge_ratio = d / (2 * l2) + 1
                 update_enlarged_xyxy(region)
                 update_enlarged_xyxy(region2)
                 # print('Reducing enlarge ratio to prevent intersection')
-                # print(region.translation, region.enlarged_xyxy)
-                # print('>->', region2.translation, region2.enlarged_xyxy)
+                # print(region.translation, region.enlarged_xyxy, region.enlarge_ratio)
+                # print('>->', region2.translation, region2.enlarged_xyxy, region2.enlarge_ratio)
 
     for region in text_regions:
         words = seg_eng(region.translation)
@@ -464,6 +466,8 @@ def render_textblock_list_eng(
         region_x, region_y, region_w, region_h = cv2.boundingRect(cv2.findNonZero(ballon_mask))
 
         base_length_word = words[max(enumerate(word_lengths), key = lambda x: x[1])[0]]
+        if len(base_length_word) == 0 :
+            continue
         lines_needed = len(region.translation) / len(base_length_word)
         lines_available = abs(xyxy[3] - xyxy[1]) // line_height + 1
         font_size_multiplier = max(min(region_w / (base_length + 2*sw), lines_available / lines_needed), downscale_constraint)
@@ -495,7 +499,7 @@ def render_textblock_list_eng(
             line.pos_x -= canvas_x1
             line.pos_y -= canvas_y1
 
-        textlines_image = render_lines(textlines, canvas_h, canvas_w, font_size, sw, font_color, stroke_color)
+        textlines_image = render_lines(textlines, canvas_h, canvas_w, font_size, sw, line_spacing, font_color, stroke_color)
         rel_cx = ((canvas_x1 + canvas_x2) / 2 - rx) / resize_ratio
         rel_cy = ((canvas_y1 + canvas_y2) / 2 - ry + y_offset) / resize_ratio
 

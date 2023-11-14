@@ -33,6 +33,10 @@ class M2M100Translator(OfflineTranslator):
         'UKR': '__uk__',
         'VIN': '__vi__',
         'ARA': '__ar__',
+        'SRP': '__sr__',
+        'HRV': '__hr__',
+        'THA': '__th__',
+        'IND': '__id__'
     }
     _MODEL_SUB_DIR = os.path.join(OfflineTranslator._MODEL_SUB_DIR, 'm2m_100')
     _CT2_MODEL_DIR = 'm2m100_418m'

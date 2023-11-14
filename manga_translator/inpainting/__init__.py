@@ -2,13 +2,14 @@ import numpy as np
 
 from .common import CommonInpainter, OfflineInpainter
 from .inpainting_aot import AotInpainter
-from .inpainting_lama_mpe import LamaMPEInpainter
+from .inpainting_lama_mpe import LamaMPEInpainter, LamaLargeInpainter
 from .inpainting_sd import StableDiffusionInpainter
 from .none import NoneInpainter
 from .original import OriginalInpainter
 
 INPAINTERS = {
     'default': AotInpainter,
+    'lama_large': LamaLargeInpainter,
     'lama_mpe': LamaMPEInpainter,
     'sd': StableDiffusionInpainter,
     'none': NoneInpainter,

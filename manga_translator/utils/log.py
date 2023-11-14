@@ -1,7 +1,7 @@
 import logging
 import colorama
 
-from .general import replace_prefix
+from .generic import replace_prefix
 
 ROOT_TAG = 'manga-translator'
 

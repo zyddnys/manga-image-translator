@@ -3,7 +3,6 @@ from typing import List, Callable, Tuple
 import numpy as np
 import cv2
 import functools
-from shapely.geometry import Polygon, MultiPoint
 from PIL import Image
 import tqdm
 import requests
@@ -13,6 +12,8 @@ import re
 import einops
 import unicodedata
 import json
+from shapely import affinity
+from shapely.geometry import Polygon, MultiPoint
 
 try:
     functools.cached_property
@@ -115,9 +116,18 @@ def is_punctuation(ch):
         return True
     return False
 
-def count_valuable_text(text) -> int:
-    # return sum([1 for ch in text if re.search(r'\w', ch)])
-    return sum([1 for ch in text if not is_punctuation(ch) and not is_control(ch) and not is_whitespace(ch)])
+def is_valuable_char(ch):
+    # return re.search(r'[^\d\W]', ch)
+    return not is_punctuation(ch) and not is_control(ch) and not is_whitespace(ch) and not ch.isnumeric()
+
+def is_valuable_text(text):
+    for ch in text:
+        if is_valuable_char(ch):
+            return True
+    return False
+
+def count_valuable_text(text: str) -> int:
+    return sum([1 for ch in text if is_valuable_char(ch)])
 
 def is_right_to_left_char(ch):
     """Checks whether the char belongs to a right to left alphabet."""
@@ -263,7 +273,7 @@ def dump_image(img_pil: Image.Image, img: np.ndarray, alpha_ch: Image.Image = No
             img = np.concatenate([img.astype(np.uint8), np.array(alpha_ch).astype(np.uint8)[..., None]], axis = 2)
     else:
         img = img.astype(np.uint8)
-    result = img_pil.convert('RGBA')
+    result = img_pil.convert('RGBA').resize((img.shape[1], img.shape[0]))
     result.paste(Image.fromarray(img), mask = alpha_ch)
     return result
 
@@ -304,6 +314,12 @@ def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
     # return the resized image
     return resized
 
+def resize_polygon(pts, xfact, yfact, origin='center'):
+    poly = Polygon(pts)
+    poly = affinity.scale(poly, xfact=xfact, yfact=yfact, origin=origin)
+    dst_points = np.array(poly.exterior.coords[:4])
+    return dst_points
+
 class BBox(object):
     def __init__(self, x: int, y: int, w: int, h: int, text: str, prob: float, fg_r: int = 0, fg_g: int = 0, fg_b: int = 0, bg_r: int = 0, bg_g: int = 0, bg_b: int = 0):
         self.x = x
@@ -329,12 +345,20 @@ class BBox(object):
         tl, tr, br, bl = np.array([self.x, self.y]), np.array([self.x + self.w, self.y]), np.array([self.x + self.w, self.y+ self.h]), np.array([self.x, self.y + self.h])
         return tl, tr, br, bl
 
+    @property
+    def xywh(self):
+        return np.array([self.x, self.y, self.w, self.h], dtype=np.int32)
+
 class Quadrilateral(object):
     """
     Helper for storing textlines that contains various helper functions.
     """
     def __init__(self, pts: np.ndarray, text: str, prob: float, fg_r: int = 0, fg_g: int = 0, fg_b: int = 0, bg_r: int = 0, bg_g: int = 0, bg_b: int = 0):
         self.pts = pts
+        # Sort coordinates to start at the top left and go clockwise
+        self.pts = self.pts[np.argsort(self.pts[:,1])]
+        self.pts = self.pts[[*np.argsort(self.pts[:2,0]), *np.argsort(self.pts[2:,0])[::-1] + 2]]
+
         self.text = text
         self.prob = prob
         self.fg_r = fg_r
@@ -367,11 +391,11 @@ class Quadrilateral(object):
 
     @property
     def fg_colors(self):
-        return self.fg_r, self.fg_g, self.fg_b
+        return np.array([self.fg_r, self.fg_g, self.fg_b])
 
     @property
     def bg_colors(self):
-        return self.bg_r, self.bg_g, self.bg_b
+        return np.array([self.bg_r, self.bg_g, self.bg_b])
 
     @functools.cached_property
     def aspect_ratio(self) -> float:
@@ -562,8 +586,24 @@ class Quadrilateral(object):
             else:
                 return dist(self.pts[2][0], self.pts[2][1], other.pts[2][0], other.pts[2][1])
 
+    def copy(self, new_pts: np.ndarray):
+        return Quadrilateral(new_pts, self.text, self.prob, *self.fg_colors, *self.bg_colors)
+
+# def merge_quadrilaterals(q1: Quadrilateral, q2: Quadrilateral):
+#     min_rect = np.array(Polygon([*q1.pts, *q2.pts]).minimum_rotated_rectangle.exterior.coords[:4])
+#     if q1.centroid[0] < q2.centroid[0] or q1.centroid[1] < q1.centroid[1]:
+#         text = q1.text + ' ' + q2.text
+#         # if q1.centroid[0] < q2.centroid[0]:
+#         #     min_rect = np.array([q1.pts[0], q2.pts[1], q2.pts[2], q1.pts[3]])
+#     else:
+#         text = q2.text + ' ' + q1.text
+#     prob = (q1.prob + q2.prob) / 2
+#     fg_colors = (q1.fg_colors + q2.fg_colors) // 2
+#     bg_colors = (q1.bg_colors + q2.bg_colors) // 2
+#     return Quadrilateral(min_rect, text, prob, *fg_colors, *bg_colors)
+
 def dist(x1, y1, x2, y2):
-    return np.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2))
+    return np.sqrt((x1 - x2)**2 + (y1 - y2)**2)
 
 def rect_distance(x1, y1, x1b, y1b, x2, y2, x2b, y2b):
     left = x2b < x1
@@ -626,13 +666,16 @@ def distance_point_lineseg(p: np.ndarray, p1: np.ndarray, p2: np.ndarray):
     return np.sqrt(dx * dx + dy * dy)
 
 
-def quadrilateral_can_merge_region(a: Quadrilateral, b: Quadrilateral, ratio = 1.9, discard_connection_gap = 5, char_gap_tolerance = 0.6, char_gap_tolerance2 = 1.5, font_size_ratio_tol = 1.5, aspect_ratio_tol = 2) -> bool:
+def quadrilateral_can_merge_region(a: Quadrilateral, b: Quadrilateral, ratio = 1.9, discard_connection_gap = 2, char_gap_tolerance = 0.6, char_gap_tolerance2 = 1.5, font_size_ratio_tol = 1.5, aspect_ratio_tol = 2) -> bool:
     b1 = a.aabb
     b2 = b.aabb
     char_size = min(a.font_size, b.font_size)
     x1, y1, w1, h1 = b1.x, b1.y, b1.w, b1.h
     x2, y2, w2, h2 = b2.x, b2.y, b2.w, b2.h
-    dist = rect_distance(x1, y1, x1 + w1, y1 + h1, x2, y2, x2 + w2, y2 + h2)
+    # dist = rect_distance(x1, y1, x1 + w1, y1 + h1, x2, y2, x2 + w2, y2 + h2)
+    p1 = Polygon(a.pts)
+    p2 = Polygon(b.pts)
+    dist = p1.distance(p2)
     if dist > discard_connection_gap * char_size:
         return False
     if max(a.font_size, b.font_size) / char_size > font_size_ratio_tol:
@@ -812,8 +855,9 @@ def color_difference(rgb1: List, rgb2: List) -> float:
 def rgb2hex(r,g,b):
     return "#{:02x}{:02x}{:02x}".format(r,g,b)
 
-def hex2rgb(hexcode):
-    return tuple(map(ord,hexcode[1:].decode('hex')))
+def hex2rgb(h):
+    h = h.lstrip('#')
+    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
 
 def get_color_name(rgb: List[int]) -> str:
         try:

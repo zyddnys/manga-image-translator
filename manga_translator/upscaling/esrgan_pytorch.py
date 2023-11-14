@@ -516,7 +516,7 @@ class ESRGANUpscalerPytorch(OfflineUpscaler):
             'hash': '545805CE2D861EE90972B5FA50B851F19EE4BB35DEDD2EB090BE1F7C935B6B00'.lower(),
         },
     }
-    _VALID_UPSCALE_RATIOS = '<=4'
+    _VALID_UPSCALE_RATIOS = [2, 3, 4]
 
     async def _load(self, device: str):
         super().__init__()

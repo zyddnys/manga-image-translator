@@ -6,7 +6,7 @@ import time
 from typing import List, Dict
 
 from .common import CommonTranslator, MissingAPIKeyException
-from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY
+from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE
 
 CONFIG = None
 
@@ -31,7 +31,12 @@ class GPT3Translator(CommonTranslator):
         'TRK': 'Turkish',
         'UKR': 'Ukrainian',
         'VIN': 'Vietnamese',
+        'CNR': 'Montenegrin',
+        'SRP': 'Serbian',
+        'HRV': 'Croatian',
         'ARA': 'Arabic',
+        'THA': 'Thai',
+        'IND': 'Indonesian'
     }
     _INVALID_REPEAT_COUNT = 2 # repeat up to 2 times if "invalid" translation was detected
     _MAX_REQUESTS_PER_MINUTE = 20
@@ -49,6 +54,7 @@ class GPT3Translator(CommonTranslator):
     def __init__(self):
         super().__init__()
         openai.api_key = openai.api_key or OPENAI_API_KEY
+        openai.api_base = OPENAI_API_BASE
         if not openai.api_key:
             raise MissingAPIKeyException('Please set the OPENAI_API_KEY environment variable before using the chatgpt translator.')
         if OPENAI_HTTP_PROXY:
@@ -59,12 +65,15 @@ class GPT3Translator(CommonTranslator):
             openai.proxy = proxies
         self.token_count = 0
         self.token_count_last = 0
+        self.config = None
+
+    def parse_args(self, args):
+        self.config = args.gpt_config
 
     def _config_get(self, key: str, default=None):
-        global CONFIG
-        if CONFIG is None:
+        if not self.config:
             return default
-        return CONFIG.get(self._CONFIG_KEY + '.' + key, CONFIG.get(key, default))
+        return self.config.get(self._CONFIG_KEY + '.' + key, self.config.get(key, default))
 
     @property
     def prompt_template(self) -> str:
@@ -273,7 +282,7 @@ class GPT4Translator(GPT35TurboTranslator):
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
         messages = [
-            {'role': 'system', 'content': self._CHAT_SYSTEM_TEMPLATE.format(to_lang=to_lang)},
+            {'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)},
             {'role': 'user', 'content': prompt},
         ]
 
