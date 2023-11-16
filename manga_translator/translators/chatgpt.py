@@ -1,6 +1,9 @@
 import re
-import openai
-import openai.error
+try:
+    import openai
+    import openai.error
+except ImportError:
+    openai = None
 import asyncio
 import time
 from typing import List, Dict
