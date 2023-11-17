@@ -29,7 +29,7 @@ websockets
 protobuf
 ctranslate2
 colorama
-openai
+openai==0.28
 open_clip_torch
 safetensors
 pandas
