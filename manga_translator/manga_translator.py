@@ -5,7 +5,7 @@ import io
 import cv2
 from aiohttp.web_middlewares import middleware
 from omegaconf import OmegaConf
-import py3langid as langid
+import langcodes
 import requests
 import os
 import re
@@ -469,15 +469,9 @@ class MangaTranslator():
     async def _run_ocr(self, ctx: Context):
         textlines = await dispatch_ocr(ctx.ocr, ctx.img_rgb, ctx.textlines, ctx, self.device, self.verbose)
 
-        # Filter out regions by original text
         new_textlines = []
         for textline in textlines:
-            text = textline.text
-            if (ctx.filter_text and re.search(ctx.filter_text, text)) \
-                    or not is_valuable_text(text):
-                if text.strip():
-                    logger.info(f'Filtered out: {text}')
-            else:
+            if textline.text.strip():
                 if ctx.font_color_fg:
                     textline.fg_r, textline.fg_g, textline.fg_b = ctx.font_color_fg
                 if ctx.font_color_bg:
@@ -488,12 +482,19 @@ class MangaTranslator():
     async def _run_textline_merge(self, ctx: Context):
         text_regions = await dispatch_textline_merge(ctx.textlines, ctx.img_rgb.shape[1], ctx.img_rgb.shape[0],
                                                      verbose=self.verbose)
-        text_regions = [region for region in text_regions if len(''.join(region.text)) >= ctx.min_text_length]
-
+        new_text_regions = []
         for region in text_regions:
-            if ctx.font_color_fg or ctx.font_color_bg:
-                if ctx.font_color_bg:
-                    region.adjust_bg_color = False
+            if len(region.text) >= ctx.min_text_length \
+                    and not is_valuable_text(region.text) \
+                    or (not ctx.no_text_lang_skip and langcodes.tag_distance(region.source_lang, ctx.target_lang) == 0):
+                if region.text.strip():
+                    logger.info(f'Filtered out: {region.text}')
+            else:
+                if ctx.font_color_fg or ctx.font_color_bg:
+                    if ctx.font_color_bg:
+                        region.adjust_bg_color = False
+                new_text_regions.append(region)
+        text_regions = new_text_regions
 
         # Sort ctd (comic text detector) regions left to right. Otherwise right to left.
         # Sorting will improve text translation quality.
@@ -501,10 +502,11 @@ class MangaTranslator():
         return text_regions
 
     async def _run_text_translation(self, ctx: Context):
-        translated_sentences = await dispatch_translation(ctx.translator,
-                                                          [region.get_text() for region in ctx.text_regions],
-                                                          ctx.use_mtpe,
-                                                          ctx, 'cpu' if self._cuda_limited_memory else self.device)
+        translated_sentences = \
+            await dispatch_translation(ctx.translator,
+                                       [region.text for region in ctx.text_regions],
+                                       ctx.use_mtpe,
+                                       ctx, 'cpu' if self._cuda_limited_memory else self.device)
 
         for region, translation in zip(ctx.text_regions, translated_sentences):
             if ctx.uppercase:
@@ -521,8 +523,8 @@ class MangaTranslator():
         for region in ctx.text_regions:
             # TODO: Maybe print reasons for filtering
             if not ctx.translator == 'none' and (region.translation.isnumeric() \
-                                                 or ctx.filter_text and re.search(ctx.filter_text, region.translation)
-                                                 or not ctx.translator == 'original' and region.get_text().lower().strip() == region.translation.lower().strip()):
+                    or ctx.filter_text and re.search(ctx.filter_text, region.translation)
+                    or not ctx.translator == 'original' and region.text.lower().strip() == region.translation.lower().strip()):
                 if region.translation.strip():
                     logger.info(f'Filtered out: {region.translation}')
             else:
@@ -618,7 +620,7 @@ class MangaTranslator():
 
             s += f'\n-- {i + 1} --\n'
             s += f'color: #{color_id}: {color_name} (fg, bg: {rgb2hex(*fore)} {rgb2hex(*back)})\n'
-            s += f'text:  {region.get_text()}\n'
+            s += f'text:  {region.text}\n'
             s += f'trans: {region.translation}\n'
             for line in region.lines:
                 s += f'coords: {list(line.ravel())}\n'
@@ -743,7 +745,7 @@ class MangaTranslatorWeb(MangaTranslator):
             requests.post(f'http://{self.host}:{self.port}/request-manual-internal', json={
                 'task_id': self._task_id,
                 'nonce': self.nonce,
-                'texts': [r.get_text() for r in text_regions],
+                'texts': [r.text for r in text_regions],
                 'translations': [r.translation for r in text_regions],
             }, timeout=20)
 
@@ -1225,7 +1227,7 @@ class MangaTranslatorAPI(MangaTranslator):
                 trans = {key: value[i] for key, value in ctx['translations'].items()}
             else:
                 trans = {}
-            trans["originalText"] = text_regions[i].get_text()
+            trans["originalText"] = text_regions[i].text
             if inpaint is not None:
                 overlay = inpaint[minY:maxY, minX:maxX]
 
@@ -1248,7 +1250,7 @@ class MangaTranslatorAPI(MangaTranslator):
                     'fg': color1.tolist(),
                     'bg': color2.tolist()
                 },
-                'language': langid.classify(text_regions[i].get_text())[0],
+                'language': text_regions[i].source_lang,
                 'background': background
             })
         if return_image and ctx.img_colorized is not None:

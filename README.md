@@ -398,7 +398,7 @@ THA: Thai
 --detector {default,ctd,craft,none}          Text detector used for creating a text mask from an
                                              image, DO NOT use craft for manga, it's not designed
                                              for it
---ocr {48px,32px,48px_ctc}                   Optical character recognition (OCR) model to use
+--ocr {32px,48px,48px_ctc}                   Optical character recognition (OCR) model to use
 --inpainter {default,lama_large,lama_mpe,sd,none,original}
                                              Inpainting model to use
 --upscaler {waifu2x,esrgan,4xultrasharp}     Upscaler to use. --upscale-ratio has to be set for it
@@ -431,10 +431,11 @@ THA: Thai
 --box-threshold BOX_THRESHOLD                Threshold for bbox generation
 --text-threshold TEXT_THRESHOLD              Threshold for text detection
 --min-text-length MIN_TEXT_LENGTH            Minimum text length of a text region
+--no-text-lang-skip                          Dont skip text that is seemingly already in the target
+                                             language.
 --inpainting-size INPAINTING_SIZE            Size of image used for inpainting (too large will
                                              result in OOM)
---inpainting-precision INPAINTING_PRECISION  Inpainting precision for lama, 
-                                             use bf16 while you can.
+--inpainting-precision {fp32,fp16,bf16}      Inpainting precision for lama, use bf16 while you can.
 --colorization-size COLORIZATION_SIZE        Size of image used for colorization. Set to -1 to use
                                              full image size
 --denoise-sigma DENOISE_SIGMA                Used by colorizer and affects color strength, range
