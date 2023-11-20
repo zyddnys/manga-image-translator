@@ -171,9 +171,6 @@ def get_filename_from_url(url: str, default: str = '') -> str:
         return m.group(1)
     return default
 
-def is_url(s: str):
-    return re.search(r'^http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+$', s) and True
-
 def download_url_with_progressbar(url: str, path: str):
     if os.path.basename(path) in ('.', '') or os.path.isdir(path):
         new_filename = get_filename_from_url(url)
