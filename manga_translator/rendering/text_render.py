@@ -352,7 +352,10 @@ def select_hyphenator(lang: str):
                 break
         else:
             return None
-    return Hyphenator(lang)
+    try:
+        return Hyphenator(lang)
+    except Exception:
+        return None
 
 # @functools.lru_cache(maxsize = 1024, typed = True)
 def get_char_offset_x(font_size: int, cdpt: str):
@@ -403,8 +406,11 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
     hyphenator = select_hyphenator(language)
     for i, word in enumerate(words):
         new_syls = []
-        if hyphenator:
-            new_syls = hyphenator.syllables(word)
+        if hyphenator and len(word) <= 100:
+            try:
+                new_syls = hyphenator.syllables(word)
+            except Exception:
+                new_syls = []
         if len(new_syls) == 0:
             if len(word) <= 3:
                 new_syls = [word]

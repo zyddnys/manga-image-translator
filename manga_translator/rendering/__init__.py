@@ -41,7 +41,7 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List[TextBlock], 
 
     dst_points_list = []
     for region in text_regions:
-        char_count_orig = len(region.get_text())
+        char_count_orig = len(region.text)
         char_count_trans = len(region.translation.strip())
         if char_count_trans > char_count_orig:
             # More characters were added, have to reduce fontsize to fit allotted area

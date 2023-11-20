@@ -125,6 +125,7 @@ parser.add_argument('--unclip-ratio', default=2.3, type=float, help='How much to
 parser.add_argument('--box-threshold', default=0.7, type=float, help='Threshold for bbox generation')
 parser.add_argument('--text-threshold', default=0.5, type=float, help='Threshold for text detection')
 parser.add_argument('--min-text-length', default=0, type=int, help='Minimum text length of a text region')
+parser.add_argument('--no-text-lang-skip', action='store_true', help='Dont skip text that is seemingly already in the target language.')
 parser.add_argument('--inpainting-size', default=2048, type=int, help='Size of image used for inpainting (too large will result in OOM)')
 parser.add_argument('--inpainting-precision', default='fp32', type=str, help='Inpainting precision for lama, use bf16 while you can.', choices=['fp32', 'fp16', 'bf16'])
 parser.add_argument('--colorization-size', default=576, type=int, help='Size of image used for colorization. Set to -1 to use full image size')
