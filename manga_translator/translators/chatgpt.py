@@ -90,7 +90,7 @@ class GPT3Translator(CommonTranslator):
     def top_p(self) -> float:
         return self._config_get('top_p', default=1)
 
-    def _assemble_prompts(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+    def _assemble_prompts(self, from_lang: str, to_lang: str, queries: List[str]):
         prompt = ''
 
         if self._INCLUDE_TEMPLATE:
@@ -110,7 +110,7 @@ class GPT3Translator(CommonTranslator):
             if self._MAX_TOKENS * 2 and len(''.join(queries[i+1:])) > self._MAX_TOKENS:
                 if self._RETURN_PROMPT:
                     prompt += '\n<|1|>'
-                yield prompt.lstrip()
+                yield prompt.lstrip(), i+1-i_offset
                 prompt = self.prompt_template.format(to_lang=to_lang)
                 # Restart counting at 1
                 i_offset = i + 1
@@ -118,7 +118,7 @@ class GPT3Translator(CommonTranslator):
         if self._RETURN_PROMPT:
             prompt += '\n<|1|>'
 
-        yield prompt.lstrip()
+        yield prompt.lstrip(), len(queries)-i_offset
 
     def _format_prompt_log(self, to_lang: str, prompt: str) -> str:
         return prompt
@@ -127,7 +127,7 @@ class GPT3Translator(CommonTranslator):
         translations = []
         self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')
 
-        for prompt in self._assemble_prompts(from_lang, to_lang, queries):
+        for prompt, query_size in self._assemble_prompts(from_lang, to_lang, queries):
             self.logger.debug('-- GPT Prompt --\n' + self._format_prompt_log(to_lang, prompt))
 
             ratelimit_attempt = 0
@@ -165,10 +165,21 @@ class GPT3Translator(CommonTranslator):
                     await asyncio.sleep(1)
 
             self.logger.debug('-- GPT Response --\n' + response)
+
             new_translations = re.split(r'<\|\d+\|>', response)
             # When there is only one query chatgpt likes to exclude the <|1|>
             if not new_translations[0].strip():
                 new_translations = new_translations[1:]
+
+            if len(new_translations) <= 1 and query_size > 1:
+                # Try splitting by newlines instead
+                new_translations = re.split(r'\n', response)
+
+            if len(new_translations) != query_size:
+                # super method will repeat translation as per self._INVALID_REPEAT_COUNT
+                translations = []
+                break
+
             translations.extend([t.strip() for t in new_translations])
 
         self.logger.debug(translations)
