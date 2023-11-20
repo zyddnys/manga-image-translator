@@ -118,7 +118,7 @@ def is_punctuation(ch):
 
 def is_valuable_char(ch):
     # return re.search(r'[^\d\W]', ch)
-    return not is_punctuation(ch) and not is_control(ch) and not is_whitespace(ch) and not ch.isnumeric()
+    return not is_punctuation(ch) and not is_control(ch) and not is_whitespace(ch) and not ch.isdigit()
 
 def is_valuable_text(text):
     for ch in text:
