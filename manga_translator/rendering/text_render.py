@@ -619,6 +619,8 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
             syl_start_idx, syl_end_idx = get_present_syllables_range(i, j)
             current_syllables = syllables[word_idx][syl_start_idx:syl_end_idx]
             line_text += ''.join(current_syllables)
+            if len(line_text) == 0:
+                continue
             if j == 0 and i > 0 and line_text_list[-1][-1] == '-' and line_text[0] == '-':
                 line_text = line_text[1:]
                 line_width_list[i] -= hyphen_offset_x

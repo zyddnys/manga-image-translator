@@ -128,7 +128,10 @@ def complete_mask(img: np.ndarray, mask: np.ndarray, textlines: List[Quadrilater
             # print(textlines[tl_idx].pts, cc_pts, '->', overlapping_area, min(area1, area2), '=', overlapping_area / min(area1, area2), '|', polys[tl_idx].distance(cc_poly))
 
         avg = np.argmax(ratio_mat[label])
-        # print('overlap:', ratio_mat[label, avg],'<=', keep_threshold)
+        # print('overlap:', ratio_mat[label, avg], '<=', keep_threshold)
+        area2 = polys[avg].area
+        if area1 >= area2:
+            continue
         if ratio_mat[label, avg] <= keep_threshold:
             avg = np.argmin(dist_mat[label])
             area2 = polys[avg].area
@@ -136,14 +139,14 @@ def complete_mask(img: np.ndarray, mask: np.ndarray, textlines: List[Quadrilater
             # if area1 < 0.4 * w1 * h1:
             #     # ccs is probably angled
             #     unit /= 2
-            # if avg == 9:
+            # if avg == 0:
             #     print('no intersect', area1, '>=', area2, dist_mat[label, avg], '>=', 0.5 * unit)
-            if area1 >= area2 or dist_mat[label, avg] >= 0.5 * unit:
+            if dist_mat[label, avg] >= 0.5 * unit:
                 continue
 
         textline_ccs[avg][y1:y1+h1, x1:x1+w1][labels[y1:y1+h1, x1:x1+w1] == label] = 255
-        # if avg == 9:
-        #     # print(avg)
+        # if avg == 0:
+        #     print(avg)
         #     cv2.imshow('ccs', image_resize(textline_ccs[avg], height = 800))
         #     cv2.waitKey(0)
         textline_rects[avg, 0] = min(textline_rects[avg, 0], x1)
