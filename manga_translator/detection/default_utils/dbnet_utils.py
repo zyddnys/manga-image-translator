@@ -25,7 +25,7 @@ class SegDetectorRepresenter():
         pred:
             binary: text region segmentation map, with shape (N, H, W)
             thresh: [if exists] thresh hold prediction with shape (N, H, W)
-            thresh_binary: [if exists] binarized with threshhold, (N, H, W)
+            thresh_binary: [if exists] binarized with threshold, (N, H, W)
         '''
         pred = pred[:, 0, :, :]
         segmentation = self.binarize(pred)

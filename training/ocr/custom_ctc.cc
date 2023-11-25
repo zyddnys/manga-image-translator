@@ -5,7 +5,7 @@
 // We mostly follow Graves.
 // 1. Graves et al: http://www.cs.toronto.edu/~graves/icml_2006.pdf
 // Note from zyddnys:
-//   Added regression capability to CTC loss, currectly we use L2 regression, future L1 regression maybe added
+//   Added regression capability to CTC loss, currently we use L2 regression, future L1 regression maybe added
 //   Two BLANKS where BLANK is the BLANK in CTC, BLANK_1 means regression part of this target is ignored
 // We use the equations from above link, but note that [1] has 1-based indexing and we (of course) use 0-based.
 // Graves et al call the probabilities y, we use log_probs (also calling them inputs)

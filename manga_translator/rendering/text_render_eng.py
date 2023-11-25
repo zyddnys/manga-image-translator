@@ -391,7 +391,7 @@ def render_textblock_list_eng(
 
     # Adjust enlarge ratios relative to each other to reduce intersections
     for region in text_regions:
-        # If it wasnt changed below already
+        # If it wasn't changed below already
         if region.enlarge_ratio == 1:
             # The larger the aspect ratio the more it should try to enlarge the bubble
             region.enlarge_ratio = min(max(region.xywh[2] / region.xywh[3], region.xywh[3] / region.xywh[2]) * 1.5, 3)

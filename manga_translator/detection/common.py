@@ -28,8 +28,8 @@ class CommonDetector(InfererModule):
             self.logger.debug('Adding border')
             image = self._add_border(image, minimum_image_size)
         if invert:
-            self.logger.debug('Adding invertion')
-            image = self._add_invertion(image)
+            self.logger.debug('Adding inversion')
+            image = self._add_inversion(image)
         if gamma_correct:
             self.logger.debug('Adding gamma correction')
             image = self._add_gamma_correction(image)
@@ -112,7 +112,7 @@ class CommonDetector(InfererModule):
             textlines[i] = Quadrilateral(rotated_pts, txtln.text, txtln.prob)
         return textlines, raw_mask, mask
 
-    def _add_invertion(self, image: np.ndarray):
+    def _add_inversion(self, image: np.ndarray):
         return cv2.bitwise_not(image)
 
     def _add_gamma_correction(self, image: np.ndarray):

@@ -98,9 +98,9 @@ def merge_mask_list(mask_list, pred_mask, blk: Quadrilateral = None, pred_thresh
                     continue
                 x1, y1, x2, y2 = x, y, x+w, y+h
                 label_local = labels[y1: y2, x1: x2]
-                label_cordinates = np.where(label_local==label_index)
+                label_coordinates = np.where(label_local==label_index)
                 tmp_merged = np.zeros_like(label_local, np.uint8)
-                tmp_merged[label_cordinates] = 255
+                tmp_merged[label_coordinates] = 255
                 tmp_merged = cv2.bitwise_or(mask_merged[y1: y2, x1: x2], tmp_merged)
                 xor_merged = cv2.bitwise_xor(tmp_merged, pred_mask[y1: y2, x1: x2]).sum()
                 xor_origin = cv2.bitwise_xor(mask_merged[y1: y2, x1: x2], pred_mask[y1: y2, x1: x2]).sum()
@@ -121,9 +121,9 @@ def merge_mask_list(mask_list, pred_mask, blk: Quadrilateral = None, pred_thresh
         if area < area_thresh:
             x1, y1, x2, y2 = x, y, x+w, y+h
             label_local = labels[y1: y2, x1: x2]
-            label_cordinates = np.where(label_local==label_index)
+            label_coordinates = np.where(label_local==label_index)
             tmp_merged = np.zeros_like(label_local, np.uint8)
-            tmp_merged[label_cordinates] = 255
+            tmp_merged[label_coordinates] = 255
             tmp_merged = cv2.bitwise_or(mask_merged[y1: y2, x1: x2], tmp_merged)
             xor_merged = cv2.bitwise_xor(tmp_merged, pred_mask[y1: y2, x1: x2]).sum()
             xor_origin = cv2.bitwise_xor(mask_merged[y1: y2, x1: x2], pred_mask[y1: y2, x1: x2]).sum()

@@ -561,7 +561,7 @@ async def dispatch(host: str, port: int, nonce: str = None, translation_params: 
         while True:
             await asyncio.sleep(1)
 
-            # Restart client if OOM or similar errors occured
+            # Restart client if OOM or similar errors occurred
             if client_process.poll() is not None:
                 # if client_process.poll() == 0:
                 #     break

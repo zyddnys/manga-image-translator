@@ -138,7 +138,7 @@ class GlobalAttention(nn.Module):
 
     def __init__(self, in_dim):
         super(GlobalAttention, self).__init__()
-        self.chanel_in = in_dim
+        self.channel_in = in_dim
 
         self.query_conv = ScaledWSConv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
         self.key_conv = ScaledWSConv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
