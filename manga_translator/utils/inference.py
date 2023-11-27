@@ -83,7 +83,7 @@ class ModelWrapper(ABC):
 
         hash                - Hash of downloaded file, Can be obtained upon ModelVerificationException
 
-        file                - File download destination, If set to '.' the filename will be infered
+        file                - File download destination, If set to '.' the filename will be inferred
                               from the url (fallback is `model_id` value)
 
         archive             - Dict that contains all files/folders that are to be extracted from

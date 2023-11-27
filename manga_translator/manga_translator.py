@@ -23,7 +23,7 @@ from manga_translator.utils.threading import Throttler
 from .args import DEFAULT_ARGS, translator_chain
 from .utils import (
     BASE_PATH,
-    LANGAUGE_ORIENTATION_PRESETS,
+    LANGUAGE_ORIENTATION_PRESETS,
     ModelWrapper,
     Context,
     PriorityLock,
@@ -543,7 +543,7 @@ class MangaTranslator():
         if ctx.renderer == 'none':
             output = ctx.img_inpainted
         # manga2eng currently only supports horizontal left to right rendering
-        elif ctx.renderer == 'manga2eng' and ctx.text_regions and LANGAUGE_ORIENTATION_PRESETS.get(
+        elif ctx.renderer == 'manga2eng' and ctx.text_regions and LANGUAGE_ORIENTATION_PRESETS.get(
                 ctx.text_regions[0].target_lang) == 'h':
             output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, ctx.font_path, ctx.line_spacing)
         else:

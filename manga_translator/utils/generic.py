@@ -81,7 +81,7 @@ def repeating_sequence(s: str):
 
 def is_whitespace(ch):
     """Checks whether `chars` is a whitespace character."""
-    # \t, \n, and \r are technically contorl characters but we treat them
+    # \t, \n, and \r are technically control characters but we treat them
     # as whitespace since they are generally considered as such.
     if ch == " " or ch == "\t" or ch == "\n" or ch == "\r" or ord(ch) == 0:
         return True
