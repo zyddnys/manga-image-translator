@@ -435,7 +435,7 @@ def next_token_batch(
     # S, N, E
     memory = torch.stack([memory[:, idx, :] for idx in [item.memory_idx for item in hyps]], dim = 1)
     for l, layer in enumerate(decoders.layers):
-        # TODO: keys and values are recomputed everytime
+        # TODO: keys and values are recomputed every time
         # L - 1, N, E
         combined_activations = torch.cat([item.cached_activations[l] for item in hyps], dim = 1)
         # L, N, E

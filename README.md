@@ -413,7 +413,7 @@ THA: Thai
 --selective-translation SELECTIVE_TRANSLATION
                                              Select a translator based on detected language in
                                              image. Note the first translation service acts as
-                                             default if the language isnt defined. Example:
+                                             default if the language isn't defined. Example:
                                              --translator-chain "google:JPN;sugoi:ENG".
 --revert-upscaling                           Downscales the previously upscaled image after
                                              translation back to original size (Use with --upscale-
@@ -589,7 +589,7 @@ A list of what needs to be done next, you're welcome to contribute.
    This works for images without speech bubbles, but making it impossible to decide where to put translated English text. I have no idea how to solve this.
 4. [Ryota et al.](https://arxiv.org/abs/2012.14271) proposed using multimodal machine translation, maybe we can add ViT features for building custom NMT models.
 5. Make this project works for video(rewrite code in C++ and use GPU/other hardware NN accelerator).\
-   Used for detecting hard subtitles in videos, generting ass file and remove them completetly.
+   Used for detecting hard subtitles in videos, generating ass file and remove them completely.
 6. ~~Mask refinement based using non deep learning algorithms, I am currently testing out CRF based algorithm.~~
 7. ~~Angled text region merge is not currently supported~~
 8. Create pip repository

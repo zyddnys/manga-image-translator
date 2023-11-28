@@ -14,7 +14,7 @@ from .generic import color_difference, is_right_to_left_char, is_valuable_char
 # LANGCLS2IDX = {'eng': 0, 'ja': 1, 'unknown': 2}
 
 # determines render direction
-LANGAUGE_ORIENTATION_PRESETS = {
+LANGUAGE_ORIENTATION_PRESETS = {
     'CHS': 'auto',
     'CHT': 'auto',
     'CSY': 'h',
@@ -193,7 +193,7 @@ class TextBlock(object):
         lines = self.lines.reshape((-1, 2))
         return MultiPoint([tuple(l) for l in lines]).convex_hull.area
     
-    def normalizd_width_list(self) -> List[float]:
+    def normalized_width_list(self) -> List[float]:
         polygons = self.unrotated_polygons
         width_list = []
         for polygon in polygons:
@@ -327,7 +327,7 @@ class TextBlock(object):
     def direction(self):
         """Render direction determined through used language or aspect ratio."""
         if self._direction not in ('h', 'v', 'hr', 'vr'):
-            d = LANGAUGE_ORIENTATION_PRESETS.get(self.target_lang)
+            d = LANGUAGE_ORIENTATION_PRESETS.get(self.target_lang)
             if d in ('h', 'v', 'hr', 'vr'):
                 return d
 
@@ -486,7 +486,7 @@ def sort_regions(regions: List[TextBlock], right_to_left=True) -> List[TextBlock
 #         vertical = norm_v > norm_h
 #     else:
 #         vertical = norm_v > norm_h * 2
-#     # calcuate distance between textlines and origin 
+#     # calculate distance between textlines and origin 
 #     if vertical:
 #         primary_vec, primary_norm = v, norm_v
 #         distance_vectors = center_pnts - np.array([[im_w, 0]], dtype=np.float64)   # vertical manga text is read from right to left, so origin is (imw, 0)

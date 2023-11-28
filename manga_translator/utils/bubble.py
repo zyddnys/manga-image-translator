@@ -26,7 +26,7 @@ def check_color(image):
 def is_ignore(region_img, ignore_bubble = 0):
     """
     Principle: Normally, white bubbles and their text boxes are mostly white, while black bubbles and their text boxes are mostly black. We calculate the ratio of white or black pixels around the text block to the total pixels, and judge whether the area is a normal bubble area or not. Based on the value of the --ignore-bubble parameter, if the ratio is greater than the base value and less than (100-base value), then it is considered a non-bubble area.
-    The normal range for ingore-bubble is 1-50, and other values are considered not input. The recommended value for ingore-bubble is 10. The smaller it is, the more likely it is to recognize normal bubbles as image text and skip them. The larger it is, the more likely it is to recognize image text as normal bubbles.
+    The normal range for ignore-bubble is 1-50, and other values are considered not input. The recommended value for ignore-bubble is 10. The smaller it is, the more likely it is to recognize normal bubbles as image text and skip them. The larger it is, the more likely it is to recognize image text as normal bubbles.
 
     Assuming ignore-bubble = 10
     The text block is surrounded by white if it is <10, and the text block is very likely to be a normal white bubble.
