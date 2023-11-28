@@ -49,7 +49,7 @@ class SegDetectorRepresenter():
         pred:
             binary: text region segmentation map, with shape (N, H, W)
             thresh: [if exists] thresh hold prediction with shape (N, H, W)
-            thresh_binary: [if exists] binarized with threshhold, (N, H, W)
+            thresh_binary: [if exists] binarized with threshold, (N, H, W)
         '''
         pred = pred[:, 0, :, :]
         segmentation = self.binarize(pred)
@@ -522,12 +522,12 @@ def shrink_polygon_pyclipper(polygon, shrink_ratio):
     subject = [tuple(l) for l in polygon]
     padding = pyclipper.PyclipperOffset()
     padding.AddPath(subject, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
-    shrinked = padding.Execute(-distance)
-    if shrinked == []:
-        shrinked = np.array(shrinked)
+    shrunk = padding.Execute(-distance)
+    if shrunk == []:
+        shrunk = np.array(shrunk)
     else:
-        shrinked = np.array(shrinked[0]).reshape(-1, 2)
-    return shrinked
+        shrunk = np.array(shrunk[0]).reshape(-1, 2)
+    return shrunk
 
 class MakeShrinkMap():
     r'''
@@ -563,12 +563,12 @@ class MakeShrinkMap():
                 cv2.fillPoly(mask, polygon.astype(np.int32)[np.newaxis, :, :], 0)
                 ignore_tags[i] = True
             else:
-                shrinked = self.shrink_func(polygon, self.shrink_ratio)
-                if shrinked.size == 0:
+                shrunk = self.shrink_func(polygon, self.shrink_ratio)
+                if shrunk.size == 0:
                     cv2.fillPoly(mask, polygon.astype(np.int32)[np.newaxis, :, :], 0)
                     ignore_tags[i] = True
                     continue
-                cv2.fillPoly(gt, [shrinked.astype(np.int32)], 1)
+                cv2.fillPoly(gt, [shrunk.astype(np.int32)], 1)
 
         data['shrink_map'] = gt
         data['shrink_mask'] = mask

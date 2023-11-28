@@ -103,7 +103,7 @@ class GPT3Translator(CommonTranslator):
         for i, query in enumerate(queries):
             prompt += f'\n<|{i+1-i_offset}|>{query}'
 
-            # If prompt is growing too large and theres still a lot of text left
+            # If prompt is growing too large and there's still a lot of text left
             # split off the rest of the queries into new prompts.
             # 1 token = ~4 characters according to https://platform.openai.com/tokenizer
             # TODO: potentially add summarizations from special requests as context information

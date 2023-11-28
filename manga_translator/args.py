@@ -42,7 +42,7 @@ def dir_path(string):
     return s
 
 # def choice_chain(choices):
-#     """Argument type for string chains from choices seperated by ':'. Example: 'choice1:choice2:choice3'"""
+#     """Argument type for string chains from choices separated by ':'. Example: 'choice1:choice2:choice3'"""
 #     def _func(string):
 #         if choices is not None:
 #             for s in string.split(':') or ['']:
@@ -113,7 +113,7 @@ parser.add_argument('--colorizer', default=None, type=str, choices=COLORIZERS, h
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--translator', default='google', type=str, choices=TRANSLATORS, help='Language translator to use')
 g.add_argument('--translator-chain', default=None, type=translator_chain, help='Output of one translator goes in another. Example: --translator-chain "google:JPN;sugoi:ENG".')
-g.add_argument('--selective-translation', default=None, type=translator_chain, help='Select a translator based on detected language in image. Note the first translation service acts as default if the language isnt defined. Example: --translator-chain "google:JPN;sugoi:ENG".')
+g.add_argument('--selective-translation', default=None, type=translator_chain, help='Select a translator based on detected language in image. Note the first translation service acts as default if the language isn\'t defined. Example: --translator-chain "google:JPN;sugoi:ENG".')
 
 parser.add_argument('--revert-upscaling', action='store_true', help='Downscales the previously upscaled image after translation back to original size (Use with --upscale-ratio).')
 parser.add_argument('--detection-size', default=1536, type=int, help='Size of image used for detection')

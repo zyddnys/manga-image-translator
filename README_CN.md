@@ -145,7 +145,7 @@ THA: Thai
 --selective-translation SELECTIVE_TRANSLATION
                                              Select a translator based on detected language in
                                              image. Note the first translation service acts as
-                                             default if the language isnt defined. Example:
+                                             default if the language isn't defined. Example:
                                              --translator-chain "google:JPN;sugoi:ENG".
 --revert-upscaling                           Downscales the previously upscaled image after
                                              translation back to original size (Use with --upscale-

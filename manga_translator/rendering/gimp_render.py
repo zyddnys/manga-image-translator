@@ -40,7 +40,7 @@ text_template = """
     {angle}
 """
 
-save_tempaltes = {
+save_templates = {
     "xcf": '( gimp-xcf-save RUN-NONINTERACTIVE image background_layer "{out_file}" "{out_file}" )',
     "psd": '( file-psd-save RUN-NONINTERACTIVE image background_layer "{out_file}" "{out_file}" 0 0 )',
     "pdf": '( file-pdf-save RUN-NONINTERACTIVE image background_layer "{out_file}" "{out_file}" TRUE TRUE TRUE )',
@@ -125,7 +125,7 @@ def gimp_render(out_file, ctx: Context):
         text_init=text_init,
         text=text,
         extension=extension,
-        save=save_tempaltes[extension].format(out_file=out_file.replace("\\", "\\\\")),
+        save=save_templates[extension].format(out_file=out_file.replace("\\", "\\\\")),
         create_mask=(
             create_mask.format(mask_file=mask_file.replace("\\", "\\\\"))
             if ctx.gimp_mask is not None
