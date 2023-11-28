@@ -262,7 +262,7 @@ class MangaTranslator():
                         img_path = os.path.join(os.path.dirname(dest), img_filename)
                         img.save(img_path, quality=ctx.save_quality)
                     if ctx.text_regions:
-                        self._save_text_to_file(dest, ctx)
+                        self._save_text_to_file(path, ctx)
                 return True
         return False
 
@@ -628,7 +628,7 @@ class MangaTranslator():
 
         text_output_file = ctx.text_output_file
         if not text_output_file:
-            text_output_file = os.path.join(os.path.dirname(image_path), '_translations.txt')
+            text_output_file = os.path.splitext(image_path)[0] + '_translations.txt'
 
         with open(text_output_file, 'a', encoding='utf-8') as f:
             f.write(s)
