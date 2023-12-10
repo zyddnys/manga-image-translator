@@ -96,14 +96,19 @@ class MangaTranslator():
     def parse_init_params(self, params: dict):
         self.verbose = params.get('verbose', False)
         self.ignore_errors = params.get('ignore_errors', False)
-
-        self.device = 'cuda' if params.get('use_cuda', False) else 'cpu'
-        self._cuda_limited_memory = params.get('use_cuda_limited', False)
-        if self._cuda_limited_memory and not self.using_cuda:
-            self.device = 'cuda'
+        # check mps for apple silicon or cuda for nvidia
+        device = 'mps' if torch.backends.mps.is_available() else 'cuda'
+        self.device = device if params.get('use_gpu', False) else 'cpu'
+        self._gpu_limited_memory = params.get('use_gpu_limited', False)
+        if self._gpu_limited_memory and not self.using_cuda:
+            self.device = device
         if self.using_cuda and not torch.cuda.is_available():
             raise Exception(
-                'CUDA compatible device could not be found in torch whilst --use-cuda args was set.\n' \
+                'CUDA compatible device could not be found in torch whilst --use-gpu args was set.\n' \
+                'Is the correct pytorch version installed? (See https://pytorch.org/)')
+        if self.using_mps and not torch.backends.mps.is_available():
+            raise Exception(
+                'MPS compatible device could not be found in torch whilst --use-gpu args was set.\n' \
                 'Is the correct pytorch version installed? (See https://pytorch.org/)')
         if params.get('model_dir'):
             ModelWrapper._MODEL_DIR = params.get('model_dir')
@@ -113,6 +118,9 @@ class MangaTranslator():
     @property
     def using_cuda(self):
         return self.device.startswith('cuda')
+    @property
+    def using_mps(self):
+        return self.device.startswith('mps')
 
     async def translate_path(self, path: str, dest: str = None, params: dict = None):
         """
@@ -222,7 +230,7 @@ class MangaTranslator():
                 queries = f.read().split('\n')
             translated_sentences = \
                 await dispatch_translation(ctx.translator, queries, ctx.use_mtpe, ctx,
-                                           'cpu' if self._cuda_limited_memory else self.device)
+                                           'cpu' if self._gpu_limited_memory else self.device)
             p, ext = os.path.splitext(dest)
             if ext != '.txt':
                 dest = p + '.txt'
@@ -506,7 +514,7 @@ class MangaTranslator():
             await dispatch_translation(ctx.translator,
                                        [region.text for region in ctx.text_regions],
                                        ctx.use_mtpe,
-                                       ctx, 'cpu' if self._cuda_limited_memory else self.device)
+                                       ctx, 'cpu' if self._gpu_limited_memory else self.device)
 
         for region, translation in zip(ctx.text_regions, translated_sentences):
             if ctx.uppercase:

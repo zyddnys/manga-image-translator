@@ -54,7 +54,7 @@ Python 3.10.6
 # Clone this repo
 $ git clone https://github.com/zyddnys/manga-image-translator.git
 
-# For --use-cuda option go to https://pytorch.org/ and follow
+# For --use-gpu option go to https://pytorch.org/ and follow
 # pytorch installation instructions. Add `--upgrade --force-reinstall`
 # to the pip command to overwrite the currently installed pytorch version.
 
@@ -92,7 +92,7 @@ Also, if you have trouble installing pydensecrf with the command above you can i
 #### Batch mode (default)
 
 ```bash
-# use `--use-cuda` for speedup if you have a compatible NVIDIA GPU.
+# use `--use-gpu` for speedup if you have a compatible NVIDIA GPU or using Apple Silicon.
 # use `--target-lang <language_code>` to specify a target language.
 # use `--inpainter=none` to disable inpainting.
 # use `--translator=none` if you only want to use inpainting (blank bubbles)
@@ -115,7 +115,7 @@ $ python -m manga_translator --mode demo -v --translator=google -l ENG -i <path>
 
 ```bash
 # use `--mode web` to start a web server.
-$ python -m manga_translator -v --mode web --use-cuda
+$ python -m manga_translator -v --mode web --use-gpu
 # the demo will be serving on http://127.0.0.1:5003
 ```
 
@@ -129,7 +129,7 @@ Basic manual translation demo can be found at <http://127.0.0.1:5003/manual> whe
 
 ```bash
 # use `--mode api` to start a web server.
-$ python -m manga_translator -v --mode api --use-cuda
+$ python -m manga_translator -v --mode api --use-gpu
 # the api will be serving on http://127.0.0.1:5003
 ```
 Api is accepting json(post) and multipart.
@@ -393,8 +393,8 @@ THA: Thai
 --overwrite                                  Overwrite already translated images in batch mode.
 --skip-no-text                               Skip image without text (Will not be saved).
 --model-dir MODEL_DIR                        Model directory (by default ./models in project root)
---use-cuda                                   Turn on/off cuda
---use-cuda-limited                           Turn on/off cuda (excluding offline translator)
+--use-gpu                                   Turn on/off gpu ( automatic del)
+--use-gpu-limited                           Turn on/off gpu (excluding offline translator)
 --detector {default,ctd,craft,none}          Text detector used for creating a text mask from an
                                              image, DO NOT use craft for manga, it's not designed
                                              for it
@@ -556,7 +556,7 @@ docker run --env="DEEPL_AUTH_KEY=xxx" --ipc=host --rm zyddnys/manga-image-transl
 To run the container with the following flags set:
 
 ```bash
-docker run ... --gpus=all ... zyddnys/manga-image-translator:main ... --use-cuda
+docker run ... --gpus=all ... zyddnys/manga-image-translator:main ... --use-gpu
 ```
 
 Or (For the web server + GPU)

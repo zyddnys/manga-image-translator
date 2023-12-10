@@ -4,9 +4,9 @@ services:
     build:
       context: ./../../
     container_name: manga_image_translator_localdev
-    command: --verbose --translator=offline --log-web --mode web --manga2eng --use-inpainting --host=0.0.0.0 --port=5003 # (FOR GPU) --use-cuda
+    command: --verbose --translator=offline --log-web --mode web --manga2eng --use-inpainting --host=0.0.0.0 --port=5003 # (FOR GPU) --use-gpu
     # Batch Mode
-    #command: --mode=batch --verbose --translator=offline --target-lang=ENG --manga2eng --use-inpainting --image "/app/Manga"# (FOR GPU) --use-cuda
+    #command: --mode=batch --verbose --translator=offline --target-lang=ENG --manga2eng --use-inpainting --image "/app/Manga"# (FOR GPU) --use-gpu
     volumes:
       - ./../../result:/app/result
       - ./../../detection:/app/detection
