@@ -689,6 +689,7 @@ class LamaFourier:
             self.discriminator.to(device)
         if self.mpe is not None:
             self.mpe.to(device)
+        return self
 
     def eval(self):
         self.inpaint_only = True
