@@ -338,6 +338,7 @@ class ModelWrapper(ABC):
         '''
         if not self.is_loaded():
             raise Exception(f'{self._key}: Tried to forward pass without having loaded the model.')
+        
         return await self._infer(*args, **kwargs)
 
     @abstractmethod
