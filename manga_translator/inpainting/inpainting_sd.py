@@ -72,9 +72,8 @@ class StableDiffusionInpainter(OfflineInpainter):
         load_ldm_sd(self.model, self._get_file_path('abyssorangemix2_Hard-inpainting.safetensors'))
         hack_everything()
         self.model.eval()
-        self.use_cuda = device == 'cuda'
-        if self.use_cuda:
-            self.model = self.model.cuda()
+        self.device = device
+        self.model = self.model.to(device)
 
     async def _unload(self):
         del self.model
@@ -111,7 +110,7 @@ class StableDiffusionInpainter(OfflineInpainter):
         pos_prompt = ','.join([x for x in tags.keys() if x not in blacklist]).replace('_', ' ')
         pos_prompt = 'masterpiece,best quality,' + pos_prompt
         neg_prompt = 'worst quality, low quality, normal quality,text,text,text,text'
-
+        import pdb; pdb.set_trace()
         if self.use_cuda :
             with torch.autocast(enabled = True, device_type = 'cuda') :
                 img = self.model.img2img_inpaint(

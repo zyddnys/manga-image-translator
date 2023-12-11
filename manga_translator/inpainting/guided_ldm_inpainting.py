@@ -162,21 +162,18 @@ class GuidedLDM(LatentDiffusion):
         mask: Image.Image,
         ddim_steps = 50, 
         mask_blur: int = 16,
-        use_cuda: bool = True,
+        device: str = 'cpu',
         **kwargs) -> Image.Image :
         ddim_sampler = GuidedDDIMSample(self)
-        if use_cuda :
-            self.cond_stage_model.cuda()
-            self.first_stage_model.cuda()
+        # move to device mps, cuda or cpu
+        if device.startswith('cuda') or device == 'mps':
+            self.cond_stage_model.to(device)
+            self.first_stage_model.to(device)
         c_text = self.get_learned_conditioning([c_text])
         uc_text = self.get_learned_conditioning([uc_text])
         cond = {"c_crossattn": [c_text]}
         uc_cond = {"c_crossattn": [uc_text]}
         
-        if use_cuda :
-            device = torch.device('cuda:0')
-        else :
-            device = torch.device('cpu')
             
         image_mask = mask
         image_mask = image_mask.convert('L')
@@ -209,23 +206,23 @@ class GuidedLDM(LatentDiffusion):
         ddim_sampler.make_schedule(ddim_num_steps=steps, ddim_eta=eta, ddim_discretize="uniform", verbose=False)
         x1 = ddim_sampler.stochastic_encode(init_latent, torch.tensor([t_enc] * int(init_latent.shape[0])).to(device), noise=noise)
 
-        if use_cuda :
+        if device.startswith('cuda') or device == 'mps':
             self.cond_stage_model.cpu()
             self.first_stage_model.cpu()
 
-        if use_cuda :
-            self.model.cuda()
+        if device.startswith('cuda') or device == 'mps':
+            self.model.to(device)
         decoded = ddim_sampler.decode(x1, cond,t_enc,init_latent=init_latent,nmask=nmask,unconditional_guidance_scale=7,unconditional_conditioning=uc_cond)
-        if use_cuda :
+        if device.startswith('cuda') or device == 'mps':
             self.model.cpu()
 
         if mask is not None :
             decoded = init_latent * (1 - nmask) + decoded * nmask
 
-        if use_cuda :
-            self.first_stage_model.cuda()
+        if device.startswith('cuda') or device == 'mps':
+            self.first_stage_model.to(device)
         x_samples = self.decode_first_stage(decoded)
-        if use_cuda :
+        if device.startswith('cuda') or device == 'mps':
             self.first_stage_model.cpu()
         return torch.clip(x_samples, -1, 1)
     
