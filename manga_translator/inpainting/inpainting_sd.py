@@ -110,7 +110,6 @@ class StableDiffusionInpainter(OfflineInpainter):
         pos_prompt = ','.join([x for x in tags.keys() if x not in blacklist]).replace('_', ' ')
         pos_prompt = 'masterpiece,best quality,' + pos_prompt
         neg_prompt = 'worst quality, low quality, normal quality,text,text,text,text'
-        import pdb; pdb.set_trace()
         if self.device.startswith('cuda') :
             with torch.autocast(enabled = True, device_type = 'cuda') :
                 img = self.model.img2img_inpaint(

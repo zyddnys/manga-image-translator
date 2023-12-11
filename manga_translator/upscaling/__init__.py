@@ -29,7 +29,6 @@ async def prepare(upscaler_key: str):
 async def dispatch(upscaler_key: str, image_batch: List[Image.Image], upscale_ratio: int, device: str = 'cpu') -> List[Image.Image]:
     if upscale_ratio == 1:
         return image_batch
-    import pdb; pdb.set_trace()
     upscaler = get_upscaler(upscaler_key)
     if isinstance(upscaler, OfflineUpscaler):
         await upscaler.load(device)
