@@ -78,7 +78,14 @@ class TextBlock(object):
         self._direction = direction
 
         self.texts = texts if texts is not None else []
-        self.text = ' '.join(texts)
+        self.text = texts[0]
+        for txt in texts[1:] :
+            first_cjk = '\u3000' <= self.text[-1] <= '\u9fff'
+            second_cjk = '\u3000' <= txt[0] <= '\u9fff'
+            if first_cjk or second_cjk :
+                self.text += txt
+            else :
+                self.texts += ' ' + txt
         self.prob = prob
 
         self.translation = translation
