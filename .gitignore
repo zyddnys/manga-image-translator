@@ -38,3 +38,4 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.history

@@ -29,7 +29,6 @@ class FFDNetDenoiser:
         self.weights_dir = _weights_dir
         self.channels = _in_ch
         self.device = _device
-        
         self.model = FFDNet(num_input_channels = _in_ch)
         self.load_weights()
         self.model.eval()
@@ -39,11 +38,12 @@ class FFDNetDenoiser:
         weights_name = 'net_rgb.pth' if self.channels == 3 else 'net_gray.pth'
         weights_path = os.path.join(self.weights_dir, weights_name)
         if self.device == 'cuda':
+            # data paralles only for cuda , no need for mps devices
             state_dict = torch.load(weights_path, map_location=torch.device('cpu'))
-            device_ids = [0]
-            self.model = nn.DataParallel(self.model, device_ids=device_ids).cuda()
+            self.model = nn.DataParallel(self.model,device_ids = [0]).to(self.device)
         else:
-            state_dict = torch.load(weights_path, map_location='cpu')
+            # MPS devices don't support DataParallel
+            state_dict = torch.load(weights_path, map_location=self.device)
             # CPU mode: remove the DataParallel wrapper
             state_dict = remove_dataparallel_wrapper(state_dict)
         self.model.load_state_dict(state_dict)
@@ -90,6 +90,7 @@ class FFDNetDenoiser:
         if self.device == 'cuda':
             dtype = torch.cuda.FloatTensor
         else:
+            # for mps devices is still floatTensor
             dtype = torch.FloatTensor
 
         imnoisy = imorig#.clone()

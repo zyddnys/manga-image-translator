@@ -125,8 +125,8 @@ THA: Thai
 --overwrite                                  Overwrite already translated images in batch mode.
 --skip-no-text                               Skip image without text (Will not be saved).
 --model-dir MODEL_DIR                        Model directory (by default ./models in project root)
---use-cuda                                   Turn on/off cuda
---use-cuda-limited                           Turn on/off cuda (excluding offline translator)
+--use-gpu                                   Turn on/off gpu (automatic selection between mps or cuda)
+--use-gpu-limited                           Turn on/off gpu (excluding offline translator)
 --detector {default,ctd,craft,none}          Text detector used for creating a text mask from an
                                              image, DO NOT use craft for manga, it's not designed
                                              for it
@@ -229,13 +229,13 @@ THA: Thai
 ### 使用命令行执行
 
 ```bash
-# 如果机器有支持 CUDA 的 NVIDIA GPU，可以添加 `--use-cuda` 参数
-# 使用 `--use-cuda-limited` 将需要使用大量显存的翻译交由CPU执行，这样可以减少显存占用
+# 如果机器有支持 CUDA 的 NVIDIA GPU，可以添加 `--use-gpu` 参数
+# 使用 `--use-gpu-limited` 将需要使用大量显存的翻译交由CPU执行，这样可以减少显存占用
 # 使用 `--translator=<翻译器名称>` 来指定翻译器
 # 使用 `--target-lang=<语言代码>` 来指定目标语言
 # 将 <图片文件路径> 替换为图片的路径
 # 如果你要翻译的图片比较小或者模糊，可以使用upscaler提升图像大小与质量，从而提升检测翻译效果
-$ python -m manga_translator --verbose --use-cuda --translator=google --target-lang=CHS -i <path_to_image_file>
+$ python -m manga_translator --verbose --use-gpu --translator=google --target-lang=CHS -i <path_to_image_file>
 # 结果会存放到 result 文件夹里
 ```
 
@@ -245,7 +245,7 @@ $ python -m manga_translator --verbose --use-cuda --translator=google --target-l
 # 其它参数如上
 # 使用 `--mode batch` 开启批量翻译模式
 # 将 <图片文件夹路径> 替换为图片文件夹的路径
-$ python -m manga_translator --verbose --mode batch --use-cuda --translator=google --target-lang=CHS -i <图片文件夹路径>
+$ python -m manga_translator --verbose --mode batch --use-gpu --translator=google --target-lang=CHS -i <图片文件夹路径>
 # 结果会存放到 `<图片文件夹路径>-translated` 文件夹里
 ```
 
@@ -254,7 +254,7 @@ $ python -m manga_translator --verbose --mode batch --use-cuda --translator=goog
 ```bash
 # 其它参数如上
 # 使用 `--mode web` 开启 Web 服务器模式
-$ python -m manga_translator --verbose --mode web --use-cuda
+$ python -m manga_translator --verbose --mode web --use-gpu
 # 程序服务会开启在 http://127.0.0.1:5003
 ```
 
