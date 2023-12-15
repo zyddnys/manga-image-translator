@@ -69,6 +69,7 @@ class MBart50Translator(OfflineTranslator):
         self.model = MBartForConditionalGeneration.from_pretrained(self._TRANSLATOR_MODEL)
         if self.device != 'cpu':
             self.model.to(self.device)
+        self.model.eval()
         self.tokenizer = AutoTokenizer.from_pretrained(self._TRANSLATOR_MODEL)
 
     async def _unload(self):
