@@ -1,3 +1,4 @@
+import os
 from typing import List
 import py3langid as langid
 
@@ -57,6 +58,7 @@ class NLLBTranslator(OfflineTranslator):
         'THA': 'tha_Thai',
         'IND': 'ind_Latn'
     }
+    _MODEL_SUB_DIR = os.path.join(OfflineTranslator._MODEL_DIR, OfflineTranslator._MODEL_SUB_DIR, 'nllb')
     _TRANSLATOR_MODEL = 'facebook/nllb-200-distilled-600M'
 
     async def _load(self, from_lang: str, to_lang: str, device: str):
@@ -118,11 +120,12 @@ class NLLBTranslator(OfflineTranslator):
 
     async def _download(self):
         import huggingface_hub
-        huggingface_hub.snapshot_download(self._TRANSLATOR_MODEL)
+        huggingface_hub.snapshot_download(self._TRANSLATOR_MODEL, cache_dir=self._MODEL_SUB_DIR)
 
     def _check_downloaded(self) -> bool:
         import huggingface_hub
-        return huggingface_hub.try_to_load_from_cache(self._TRANSLATOR_MODEL, 'pytorch_model.bin') is not None
+        return huggingface_hub.try_to_load_from_cache(self._TRANSLATOR_MODEL, 'pytorch_model.bin', cache_dir=self._MODEL_SUB_DIR) is not None
 
 class NLLBBigTranslator(NLLBTranslator):
+    _MODEL_SUB_DIR = os.path.join(OfflineTranslator._MODEL_DIR, OfflineTranslator._MODEL_SUB_DIR, 'nllb_big')
     _TRANSLATOR_MODEL = 'facebook/nllb-200-distilled-1.3B'
