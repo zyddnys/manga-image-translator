@@ -5,24 +5,26 @@ import py3langid as langid
 from .common import OfflineTranslator
 
 ISO_639_1_TO_MBart50 = {
-    'ara': 'ar_AR',
-    'deu': 'de_DE',
-    'eng': 'en_XX',
-    'spa': 'es_XX',
-    'fra': 'fr_XX',
-    'hin': 'hi_IN',
-    'ita': 'it_IT',
-    'jpn': 'ja_XX',
-    'nld': 'nl_XX',
-    'pol': 'pl_PL',
-    'por': 'pt_XX',
-    'rus': 'ru_RU',
-    'swa': 'sw_KE',
-    'tha': 'th_TH',
-    'tur': 'tr_TR',
-    'urd': 'ur_PK',
-    'vie': 'vi_VN',
-    'zho': 'zh_CN',
+
+    'ar': 'ar_AR',
+    'de': 'de_DE',
+    'en': 'en_XX',
+    'es': 'es_XX',
+    'fr': 'fr_XX',
+    'hi': 'hi_IN',
+    'it': 'it_IT',
+    'ja': 'ja_XX',
+    'nl': 'nl_XX',
+    'pl': 'pl_PL',
+    'pt': 'pt_XX',
+    'ru': 'ru_RU',
+    'sw': 'sw_KE',
+    'th': 'th_TH',
+    'tr': 'tr_TR',
+    'ur': 'ur_PK',
+    'vi': 'vi_VN',
+    'zh': 'zh_CN',
+    
     
 }
 
@@ -65,6 +67,8 @@ class MBart50Translator(OfflineTranslator):
             device += ':0'
         self.device = device
         self.model = MBartForConditionalGeneration.from_pretrained(self._TRANSLATOR_MODEL)
+        if self.device != 'cpu':
+            self.model.to(self.device)
         self.tokenizer = AutoTokenizer.from_pretrained(self._TRANSLATOR_MODEL)
 
     async def _unload(self):
@@ -84,7 +88,6 @@ class MBart50Translator(OfflineTranslator):
         return [self._translate_sentence(from_lang, to_lang, query) for query in queries]
 
     def _translate_sentence(self, from_lang: str, to_lang: str, query: str) -> str:
-        from transformers import pipeline
 
         if not self.is_loaded():
             return ''
@@ -92,21 +95,19 @@ class MBart50Translator(OfflineTranslator):
         if from_lang == 'auto':
             detected_lang = langid.classify(query)[0]
             from_lang = self._map_detected_lang_to_translator(detected_lang)
-
+        else:
+            from_lang = self._LANGUAGE_CODE_MAP(from_lang)
         if from_lang == None:
             self.logger.warn(f'MBart50 Translation Failed. Could not detect language (Or language not supported for text: {query})')
             return ''
-
-        translator = pipeline('translation',
-            device=self.device,
-            model=self.model,
-            tokenizer=self.tokenizer,
-            src_lang=from_lang,
-            tgt_lang=to_lang,
-            max_length = 512,
-        )
-
-        result = translator(query)[0]['translation_text']
+        
+        self.tokenizer.src_lang = from_lang 
+        tokens = self.tokenizer(query, return_tensors="pt")
+        # move to device
+        if self.device != 'cpu':
+            tokens = tokens.to(self.device)
+        generated_tokens = self.model.generate(**tokens, forced_bos_token_id=self.tokenizer.lang_code_to_id[to_lang])
+        result = self.tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)[0]
         return result
 
     def _map_detected_lang_to_translator(self, lang):
@@ -117,7 +118,8 @@ class MBart50Translator(OfflineTranslator):
 
     async def _download(self):
         import huggingface_hub
-        huggingface_hub.snapshot_download(self._TRANSLATOR_MODEL, cache_dir=self._MODEL_SUB_DIR)
+        # do not download msgpack and h5 files as they are not needed to run the model
+        huggingface_hub.snapshot_download(self._TRANSLATOR_MODEL, cache_dir=self._MODEL_SUB_DIR, ignore_patterns=["*.msgpack", "*.h5", '*.ot',".*", "*.safetensors"])
 
     def _check_downloaded(self) -> bool:
         import huggingface_hub

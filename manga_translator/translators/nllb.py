@@ -120,7 +120,9 @@ class NLLBTranslator(OfflineTranslator):
 
     async def _download(self):
         import huggingface_hub
-        huggingface_hub.snapshot_download(self._TRANSLATOR_MODEL, cache_dir=self._MODEL_SUB_DIR)
+        # do not download msgpack and h5 files as they are not needed to run the model
+        huggingface_hub.snapshot_download(self._TRANSLATOR_MODEL, cache_dir=self._MODEL_SUB_DIR, ignore_patterns=["*.msgpack", "*.h5", '*.ot',".*", "*.safetensors"])
+
 
     def _check_downloaded(self) -> bool:
         import huggingface_hub
