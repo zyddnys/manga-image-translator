@@ -267,6 +267,7 @@ Limitations:
 | sugoi      |         | ✔️      | Sugoi V4.0 Models (recommended for JPN->ENG)           |
 | m2m100     |         | ✔️      | Supports every language                                |
 | m2m100_big |         | ✔️      |                                                        |
+| mbart50    |         | ✔️      |                                                        |
 | none       |         | ✔️      | Translate to empty texts                               |
 | original   |         | ✔️      | Keep original texts                                    |
 
