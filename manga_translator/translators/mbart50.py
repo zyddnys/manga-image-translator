@@ -96,8 +96,7 @@ class MBart50Translator(OfflineTranslator):
         if from_lang == 'auto':
             detected_lang = langid.classify(query)[0]
             from_lang = self._map_detected_lang_to_translator(detected_lang)
-        else:
-            from_lang = self._LANGUAGE_CODE_MAP(from_lang)
+
         if from_lang == None:
             self.logger.warn(f'MBart50 Translation Failed. Could not detect language (Or language not supported for text: {query})')
             return ''
