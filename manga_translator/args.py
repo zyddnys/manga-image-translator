@@ -105,7 +105,7 @@ g.add_argument('--use-gpu-limited', action='store_true', help='Turn on/off gpu (
 
 parser.add_argument('--detector', default='default', type=str, choices=DETECTORS, help='Text detector used for creating a text mask from an image, DO NOT use craft for manga, it\'s not designed for it')
 parser.add_argument('--ocr', default='48px', type=str, choices=OCRS, help='Optical character recognition (OCR) model to use')
-parser.add_argument('--not-use-mocr-merge', action='store_true', help='Turn off bbox merge when Manga OCR inference.')
+parser.add_argument('--use-mocr-merge', action='store_true', help='Use bbox merge when Manga OCR inference.')
 parser.add_argument('--inpainter', default='lama_large', type=str, choices=INPAINTERS, help='Inpainting model to use')
 parser.add_argument('--upscaler', default='esrgan', type=str, choices=UPSCALERS, help='Upscaler to use. --upscale-ratio has to be set for it to take effect')
 parser.add_argument('--upscale-ratio', default=None, type=float, help='Image upscale ratio applied before detection. Can improve text detection.')

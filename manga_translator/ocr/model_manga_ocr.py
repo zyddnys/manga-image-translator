@@ -147,13 +147,12 @@ class ModelMangaOCR(OfflineOCR):
             is_quadrilaterals = True
         
         texts = {}
-        if args['not_use_mocr_merge']:
-            merged_idx = [[i] for i in range(len(region_imgs))]
-            merged_quadrilaterals = quadrilaterals
-        else:
+        if args['use_mocr_merge']:
             merged_textlines, merged_idx = await merge_bboxes(textlines, image.shape[1], image.shape[0])
             merged_quadrilaterals = list(self._generate_text_direction(merged_textlines))
-            
+        else:
+            merged_idx = [[i] for i in range(len(region_imgs))]
+            merged_quadrilaterals = quadrilaterals
         merged_region_imgs = []
         for q, d in merged_quadrilaterals:
             if d == 'h':
