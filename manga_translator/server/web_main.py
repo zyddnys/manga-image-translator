@@ -508,10 +508,10 @@ def start_translator_client_proc(host: str, port: int, nonce: str, params: dict)
         '--host', host,
         '--port', str(port),
     ]
-    if params.get('use_cuda', False):
-        cmds.append('--use-cuda')
-    if params.get('use_cuda_limited', False):
-        cmds.append('--use-cuda-limited')
+    if params.get('use_gpu', False):
+        cmds.append('--use-gpu')
+    if params.get('use_gpu_limited', False):
+        cmds.append('--use-gpu-limited')
     if params.get('ignore_errors', False):
         cmds.append('--ignore-errors')
     if params.get('verbose', False):

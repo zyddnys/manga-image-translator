@@ -28,9 +28,9 @@ class AotInpainter(LamaMPEInpainter):
         sd = torch.load(self._get_file_path('inpainting.ckpt'), map_location='cpu')
         self.model.load_state_dict(sd['model'] if 'model' in sd else sd)
         self.model.eval()
-        self.use_cuda = device == 'cuda'
-        if self.use_cuda:
-            self.model = self.model.cuda()
+        self.device = device
+        if device.startswith('cuda') or device == 'mps':
+            self.model.to(device)
 
 
 def relu_nf(x):

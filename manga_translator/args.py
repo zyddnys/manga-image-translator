@@ -100,8 +100,8 @@ parser.add_argument('--skip-no-text', action='store_true', help='Skip image with
 parser.add_argument('--model-dir', default=None, type=dir_path, help='Model directory (by default ./models in project root)')
 
 g = parser.add_mutually_exclusive_group()
-g.add_argument('--use-cuda', action='store_true', help='Turn on/off cuda')
-g.add_argument('--use-cuda-limited', action='store_true', help='Turn on/off cuda (excluding offline translator)')
+g.add_argument('--use-gpu', action='store_true', help='Turn on/off gpu (auto switch between mps and cuda)')
+g.add_argument('--use-gpu-limited', action='store_true', help='Turn on/off gpu (excluding offline translator)')
 
 parser.add_argument('--detector', default='default', type=str, choices=DETECTORS, help='Text detector used for creating a text mask from an image, DO NOT use craft for manga, it\'s not designed for it')
 parser.add_argument('--ocr', default='48px', type=str, choices=OCRS, help='Optical character recognition (OCR) model to use')

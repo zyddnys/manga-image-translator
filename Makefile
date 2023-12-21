@@ -8,6 +8,6 @@ run-web-server:
 		--manga2eng \
 		--verbose \
 		--mode=web \
-		--use-cuda \ 
+		--use-gpu \ 
 		--host=0.0.0.0 \
 		--port=5003

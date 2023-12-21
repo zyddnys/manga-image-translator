@@ -45,8 +45,8 @@ class DefaultDetector(OfflineDetector):
         self.model.load_state_dict(sd['model'] if 'model' in sd else sd)
         self.model.eval()
         self.device = device
-        if device == 'cuda':
-            self.model = self.model.cuda()
+        if device == 'cuda' or device == 'mps':
+            self.model = self.model.to(self.device)
         global MODEL
         MODEL = self.model
 

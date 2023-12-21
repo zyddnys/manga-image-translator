@@ -46,9 +46,14 @@ class Model48pxCTCOCR(OfflineOCR):
         del sd['encoders.layers.2.pe.pe']
         self.model.load_state_dict(sd, strict = False)
         self.model.eval()
-        self.use_cuda = device == 'cuda'
-        if self.use_cuda:
-            self.model = self.model.cuda()
+        self.device = device
+        if (device == 'cuda' or device == 'mps'):
+            self.use_gpu = True
+        else:
+            self.use_gpu = False
+        if self.use_gpu:
+            self.model = self.model.to(device)
+
     
     async def _unload(self):
         del self.model
@@ -93,8 +98,8 @@ class Model48pxCTCOCR(OfflineOCR):
                 ix += 1
             images = (torch.from_numpy(region).float() - 127.5) / 127.5
             images = einops.rearrange(images, 'N H W C -> N C H W')
-            if self.use_cuda:
-                images = images.cuda()
+            if self.use_gpu:
+                images = images.to(self.device)
             with torch.inference_mode():
                 texts = self.model.decode(images, widths, 0, verbose = verbose)
             for i, single_line in enumerate(texts):
