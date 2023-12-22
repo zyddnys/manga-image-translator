@@ -168,8 +168,8 @@ def complete_mask(img: np.ndarray, mask: np.ndarray, textlines: List[Quadrilater
         x1, y1, w1, h1 = textline_rects[i]
         text_size = min(w1, h1, textlines[i].font_size)
         x1, y1, w1, h1 = extend_rect(x1, y1, w1, h1, img.shape[1], img.shape[0], int(text_size * 0.1))
-        # TODO: Was text_size * 0.3 before. Need to think of better way to determine dilate_size.
-        dilate_size = max((int((text_size + dilation_offset) * 0.1) // 2) * 2 + 1, 3)
+        # TODO: Need to think of better way to determine dilate_size.
+        dilate_size = max((int((text_size + dilation_offset) * 0.3) // 2) * 2 + 1, 3)
         # print(textlines[i].font_size, min(w1, h1), dilate_size)
         kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (dilate_size, dilate_size))
         cc_region = np.ascontiguousarray(cc[y1: y1 + h1, x1: x1 + w1])
