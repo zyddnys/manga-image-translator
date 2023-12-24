@@ -157,7 +157,7 @@ class ModelMangaOCR(OfflineOCR):
         for q, d in merged_quadrilaterals:
             if d == 'h':
                 merged_text_height = q.aabb.w
-                merged_d = 'v'
+                merged_d = 'h'
             elif d == 'v':
                 merged_text_height = q.aabb.h
                 merged_d = 'h'
