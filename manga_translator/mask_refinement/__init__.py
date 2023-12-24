@@ -8,7 +8,7 @@ from ..utils.bubble import is_ignore
 
 async def dispatch(text_regions: List[TextBlock], raw_image: np.ndarray, raw_mask: np.ndarray, method: str = 'fit_text', dilation_offset: int = 0, ignore_bubble: int = 0, verbose: bool = False) -> np.ndarray:
     # Larger sized mask images will probably have crisper and thinner mask segments due to being able to fit the text pixels better
-    # so we dont want to size them down as much to not loose information
+    # so we dont want to size them down as much to not lose information
     scale_factor = max(min((raw_mask.shape[0] - raw_image.shape[0] / 3) / raw_mask.shape[0], 1), 0.5)
 
     img_resized = cv2.resize(raw_image, (int(raw_image.shape[1] * scale_factor), int(raw_image.shape[0] * scale_factor)), interpolation = cv2.INTER_LINEAR)

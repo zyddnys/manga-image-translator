@@ -85,7 +85,7 @@ class TextBlock(object):
             if first_cjk or second_cjk :
                 self.text += txt
             else :
-                self.texts += ' ' + txt
+                self.text += ' ' + txt
         self.prob = prob
 
         self.translation = translation
