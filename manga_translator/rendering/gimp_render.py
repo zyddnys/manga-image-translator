@@ -80,6 +80,10 @@ def gimp_render(out_file, ctx: Context):
     else:
         ctx.text_regions = []
 
+    filtered_text_regions = [
+        text_region for text_region in ctx.text_regions if text_region.translation != ""
+    ]
+
     text_init = "\n".join(
         [
             text_init_template.format(
@@ -90,7 +94,7 @@ def gimp_render(out_file, ctx: Context):
                 + (" Bold" if text_region.bold else "")
                 + (" Italic" if text_region.italic else ""),
             )
-            for n, text_region in enumerate(ctx.text_regions)
+            for n, text_region in enumerate(filtered_text_regions)
         ]
     )
 
@@ -115,7 +119,7 @@ def gimp_render(out_file, ctx: Context):
                 letter_spacing=text_region.letter_spacing,
                 base_direction=direction_to_base_direction[text_region.direction],
             )
-            for n, text_region in enumerate(ctx.text_regions)
+            for n, text_region in enumerate(filtered_text_regions)
         ]
     )
 
