@@ -59,6 +59,8 @@ script_template = """
         )
     {rename_mask}
     ( gimp-item-set-name background_layer "original image" )
+    ( gimp-item-set-lock-content background_layer TRUE )
+    ( gimp-item-set-lock-position background_layer TRUE )
     {text}
     {save}
     ( gimp-quit 0 )                        
