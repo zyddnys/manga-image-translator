@@ -80,6 +80,10 @@ def gimp_render(out_file, ctx: Context):
     else:
         ctx.text_regions = []
 
+    filtered_text_regions = [
+        text_region for text_region in ctx.text_regions if text_region.translation != ""
+    ]
+
     text_init = "\n".join(
         [
             text_init_template.format(
@@ -90,7 +94,7 @@ def gimp_render(out_file, ctx: Context):
                 + (" Bold" if text_region.bold else "")
                 + (" Italic" if text_region.italic else ""),
             )
-            for n, text_region in enumerate(ctx.text_regions)
+            for n, text_region in enumerate(filtered_text_regions)
         ]
     )
 
@@ -115,7 +119,7 @@ def gimp_render(out_file, ctx: Context):
                 letter_spacing=text_region.letter_spacing,
                 base_direction=direction_to_base_direction[text_region.direction],
             )
-            for n, text_region in enumerate(ctx.text_regions)
+            for n, text_region in enumerate(filtered_text_regions)
         ]
     )
 
@@ -148,6 +152,11 @@ def gimp_console_executable():
     executable = "gimp"
     if platform.system() == "Windows":
         gimp_dir = os.getenv("LOCALAPPDATA") + "\\Programs\\GIMP 2\\bin\\"
+        executables = glob.glob(gimp_dir + "gimp-console-2.*.exe")
+        if len(executables) > 0:
+            return executables[0]
+        # may be in program files
+        gimp_dir = os.getenv("ProgramFiles") + "\\GIMP 2\\bin\\"
         executables = glob.glob(gimp_dir + "gimp-console-2.*.exe")
         if len(executables) == 0:
             print("error: gimp not found in directory:", gimp_dir)
