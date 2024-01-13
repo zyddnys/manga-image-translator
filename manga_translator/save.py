@@ -52,7 +52,7 @@ class ImageFormat(ExportFormat):
         result.save(dest)
 
 class JPGFormat(ExportFormat):
-    SUPPORTED_FORMATS = ['jpg']
+    SUPPORTED_FORMATS = ['jpg', 'jpeg']
 
     def _save(self, result: Image.Image, dest: str, ctx: Context):
         result = result.convert('RGB')
