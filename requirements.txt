@@ -8,7 +8,6 @@ opencv-python
 pyclipper
 shapely
 requests
-git+https://github.com/wbond/oscrypto
 cryptography
 freetype-py
 googletrans==4.0.0rc1
@@ -34,6 +33,7 @@ open_clip_torch
 safetensors
 pandas
 onnxruntime
+timm
 omegaconf
 python-dotenv
 nest-asyncio

@@ -7,12 +7,12 @@ import mimetypes
 import time
 import asyncio
 import subprocess
+import secrets
 from io import BytesIO
 from PIL import Image
 from aiohttp import web
 from collections import deque
 from imagehash import phash
-from oscrypto import util as crypto_utils
 
 SERVER_DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 BASE_PATH = os.path.dirname(os.path.dirname(SERVER_DIR_PATH))
@@ -461,7 +461,7 @@ async def manual_translate_async(request):
         img, size, selected_translator, target_language, detector, direction = x
     else:
         return x
-    task_id = crypto_utils.rand_bytes(16).hex()
+    task_id = secrets.token_hex(16)
     print(f'New `manual-translate` task {task_id}')
     os.makedirs(f'result/{task_id}/', exist_ok=True)
     img = img.convert('RGB')
@@ -497,7 +497,7 @@ app.add_routes(routes)
 
 
 def generate_nonce():
-    return crypto_utils.rand_bytes(16).hex()
+    return secrets.token_hex(16)
 
 def start_translator_client_proc(host: str, port: int, nonce: str, params: dict):
     os.environ['MT_WEB_NONCE'] = nonce
