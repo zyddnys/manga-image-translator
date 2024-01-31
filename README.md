@@ -504,6 +504,7 @@ ARA: Arabic
 SRP: Serbian
 HRV: Croatian
 THA: Thai
+IND: Indonesian
 ```
 
 ### Translators Reference

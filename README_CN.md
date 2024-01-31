@@ -100,6 +100,7 @@ ARA: Arabic
 SRP: Serbian
 HRV: Croatian
 THA: Thai
+IND: Indonesian
 ```
 
 <!-- Auto generated start (See devscripts/make_readme.py) -->
