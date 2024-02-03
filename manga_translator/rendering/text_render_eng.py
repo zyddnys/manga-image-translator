@@ -99,7 +99,7 @@ def seg_eng(text: str) -> List[str]:
     """
     # TODO: replace with regexes
 
-    text = text.upper().replace('  ', ' ').replace(' .', '.').replace('\n', ' ')
+    text = text.strip().upper().replace('  ', ' ').replace(' .', '.').replace('\n', ' ')
     processed_text = ''
 
     # dumb way to ensure spaces between words
