@@ -93,7 +93,7 @@ def refine_mask(rgbimg, rawmask):
     crf_mask = np.array(res * 255, dtype=np.uint8)
     return crf_mask
 
-def complete_mask(img: np.ndarray, mask: np.ndarray, textlines: List[Quadrilateral], keep_threshold = 1e-2, dilation_offset = 0):
+def complete_mask(img: np.ndarray, mask: np.ndarray, textlines: List[Quadrilateral], keep_threshold = 1e-2, dilation_offset = 0,kernel_size=3):
     bboxes = [txtln.aabb.xywh for txtln in textlines]
     polys = [Polygon(txtln.pts) for txtln in textlines]
     for (x, y, w, h) in bboxes:
@@ -189,7 +189,7 @@ def complete_mask(img: np.ndarray, mask: np.ndarray, textlines: List[Quadrilater
         x2, y2, w2, h2 = extend_rect(x1, y1, w1, h1, img.shape[1], img.shape[0], -(-dilate_size // 2))
         cc[y2:y2+h2, x2:x2+w2] = cv2.dilate(cc[y2:y2+h2, x2:x2+w2], kern)
         final_mask[y2:y2+h2, x2:x2+w2] = cv2.bitwise_or(final_mask[y2:y2+h2, x2:x2+w2], cc[y2:y2+h2, x2:x2+w2])
-    kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
     # for (x, y, w, h) in text_lines:
     #     final_mask = cv2.rectangle(final_mask, (x, y), (x + w, y + h), (255), -1)
     return cv2.dilate(final_mask, kern)

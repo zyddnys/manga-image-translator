@@ -172,5 +172,8 @@ parser.add_argument('--ws-url', default='ws://localhost:5000', type=str, help='S
 parser.add_argument('--save-quality', default=100, type=int, help='Quality of saved JPEG image, range from 0 to 100 with 100 being best')
 parser.add_argument('--ignore-bubble', default=0, type=int, help='The threshold for ignoring text in non bubble areas, with valid values ranging from 1 to 50, does not ignore others. Recommendation 5 to 10. If it is too low, normal bubble areas may be ignored, and if it is too large, non bubble areas may be considered normal bubbles')
 
+parser.add_argument('--kernel-size', default=3, type=int, help='Set the convolution kernel size of the text erasure area to completely clean up text residues')
+
+
 # Generares dict with a default value for each argument
 DEFAULT_ARGS = vars(parser.parse_args([]))

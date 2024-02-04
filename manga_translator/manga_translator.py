@@ -108,7 +108,7 @@ class MangaTranslator():
                 'Is the correct pytorch version installed? (See https://pytorch.org/)')
         if params.get('model_dir'):
             ModelWrapper._MODEL_DIR = params.get('model_dir')
-
+        self.kernel_size=int(params.get('kernel_size'))
         os.environ['INPAINTING_PRECISION'] = params.get('inpainting_precision', 'fp32')
 
     @property
@@ -533,7 +533,7 @@ class MangaTranslator():
 
     async def _run_mask_refinement(self, ctx: Context):
         return await dispatch_mask_refinement(ctx.text_regions, ctx.img_rgb, ctx.mask_raw, 'fit_text',
-                                              ctx.mask_dilation_offset, ctx.ignore_bubble, self.verbose)
+                                              ctx.mask_dilation_offset, ctx.ignore_bubble, self.verbose,self.kernel_size)
 
     async def _run_inpainting(self, ctx: Context):
         return await dispatch_inpainting(ctx.inpainter, ctx.img_rgb, ctx.mask, ctx.inpainting_size, self.device,
