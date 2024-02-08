@@ -8,7 +8,7 @@ from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE
 
 CONFIG = None
 
-class GPT3Translator(CommonTranslator):
+class YITranslator(CommonTranslator):
     _LANGUAGE_CODE_MAP = {
         'CHS': 'Simplified Chinese',
         'CHT': 'Traditional Chinese',
@@ -170,7 +170,7 @@ class GPT3Translator(CommonTranslator):
         self.logger.info(f'Prompt: {prompt}')
         return "response.choices[0].text"
 
-class GPT35TurboTranslator(GPT3Translator):
+class YI34bTranslator(YITranslator):
     _CONFIG_KEY = 'gpt35'
     _MAX_REQUESTS_PER_MINUTE = 200
     _RETURN_PROMPT = False
