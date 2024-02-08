@@ -2,6 +2,8 @@ import re
 import asyncio
 import time
 from typing import List, Dict
+import requests
+import json
 
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE
@@ -49,6 +51,8 @@ class YITranslator(CommonTranslator):
     _INCLUDE_TEMPLATE = True
     _PROMPT_TEMPLATE = 'Please help me to translate the following text from a manga to {to_lang} (if it\'s already in {to_lang} or looks like gibberish you have to output it as it is instead):\n'
 
+    kconfig = None
+
     def __init__(self):
         super().__init__()
 
@@ -58,6 +62,7 @@ class YITranslator(CommonTranslator):
 
     def parse_args(self, args):
         self.config = args.gpt_config
+        self.kconfig = args
 
     def _config_get(self, key: str, default=None):
         if not self.config:
@@ -119,26 +124,7 @@ class YITranslator(CommonTranslator):
             ratelimit_attempt = 0
             server_error_attempt = 0
             timeout_attempt = 0
-            while True:
-                request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
-                started = time.time()
-                while not request_task.done():
-                    await asyncio.sleep(0.1)
-                    if time.time() - started > self._TIMEOUT + (timeout_attempt * self._TIMEOUT / 2):
-                        # Server takes too long to respond
-                        if timeout_attempt >= self._TIMEOUT_RETRY_ATTEMPTS:
-                            raise Exception('openai servers did not respond quickly enough.')
-                        timeout_attempt += 1
-                        self.logger.warn(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
-                        request_task.cancel()
-                        request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
-                        started = time.time()
-                try:
-                    response = await request_task
-                    break
-                except :
-                    print("something wrong!")
-
+            response = self._request_translation(to_lang, prompt)
             self.logger.debug('-- GPT Response --\n' + response)
 
             new_translations = re.split(r'<\|\d+\|>', response)
@@ -163,7 +149,7 @@ class YITranslator(CommonTranslator):
 
         return translations
 
-    async def _request_translation(self, to_lang: str, prompt: str) -> str:
+    def _request_translation(self, to_lang: str, prompt: str) -> str:
         #response = await openai.Completion.acreate(model='text-davinci-003',prompt=prompt,max_tokens=self._MAX_TOKENStemperature=self.temperature,top_p=self.top_p,)
         #self.token_count += response.usage['total_tokens']
         #self.token_count_last = response.usage['total_tokens']
@@ -231,7 +217,8 @@ class YI34bTranslator(YITranslator):
                 prompt,
             ])
 
-    async def _request_translation(self, to_lang: str, prompt: str) -> str:
+    def _request_translation(self, to_lang: str, prompt: str) -> str:
+        print("___________________________________________________________________")
         messages = [
             {'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)},
             {'role': 'user', 'content': prompt},
@@ -243,5 +230,12 @@ class YI34bTranslator(YITranslator):
 
 
         self.logger.info(f'Prompt: {messages}')
-        
-        return "response.choices[0].message.content"
+        # Convert the data to JSON format
+        json_data = json.dumps(messages)
+
+        url = self.kconfig.get('PrivateGPTAddress')
+        response = requests.post(url, data=json_data, headers={'Content-Type': 'application/json'})
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        print(response.text)
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        return response.text
