@@ -264,9 +264,11 @@ class YI34bTranslator(YITranslator):
                 # Process the response
                 print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                 print(response.status)
-                print(await response.text())
+                string = await response.text()
+                print(string)
+                print(string.replace(str(self.config.get("gpt3")['sufixPrompt']), '').replace(str(self.config.get("gpt3")['prefixPrompt']), ''))
                 print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                return await response.text()
+                return string.replace(str(self.config.get("gpt3")['sufixPrompt']), '').replace(str(self.config.get("gpt3")['prefixPrompt']), '')
 
         #response = await requests.post(url, data=json_data, headers={'Content-Type': 'application/json'})
         print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
