@@ -275,8 +275,8 @@ class YI34bTranslator(YITranslator):
                 print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                 print(response.status)
                 string = await response.text()
-                #print(string)
-                print(string.replace(str(self.config.get("gpt3")['sufixPrompt']), '').replace(str(self.config.get("gpt3")['prefixPrompt']), ''))
+                print(string)
+                print(string.replace(self.config.get("gpt3")['sufixPrompt'], '').replace(self.config.get("gpt3")['prefixPrompt'], ''))
                 print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                 return string.replace(str(self.config.get("gpt3")['sufixPrompt']), '').replace(str(self.config.get("gpt3")['prefixPrompt']), '')
 
