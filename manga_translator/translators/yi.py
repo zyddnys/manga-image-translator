@@ -159,6 +159,16 @@ class YITranslator(CommonTranslator):
                 # Try splitting by newlines instead
                 new_translations = re.split(r'\n', response)
 
+            # Regex pattern to match decimal numbers at the beginning of a line
+            decimal_pattern = r"^\d+\."
+
+            # Function to remove leading decimal points
+            def remove_leading_decimals(text):
+                return re.sub(decimal_pattern, '', text, flags=re.MULTILINE)
+
+            # Apply the function to each string in the list
+            new_translations = [remove_leading_decimals(translation) for translation in new_translations]
+
             if len(new_translations) != query_size:
                 # super method will repeat translation as per self._INVALID_REPEAT_COUNT
                 translations = []
@@ -265,13 +275,12 @@ class YI34bTranslator(YITranslator):
                 print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                 print(response.status)
                 string = await response.text()
-                print(string)
+                #print(string)
                 print(string.replace(str(self.config.get("gpt3")['sufixPrompt']), '').replace(str(self.config.get("gpt3")['prefixPrompt']), ''))
                 print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                 return string.replace(str(self.config.get("gpt3")['sufixPrompt']), '').replace(str(self.config.get("gpt3")['prefixPrompt']), '')
 
         #response = await requests.post(url, data=json_data, headers={'Content-Type': 'application/json'})
         print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        print(response.text)
         print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         return "Failed"
