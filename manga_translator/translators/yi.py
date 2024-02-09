@@ -4,7 +4,7 @@ import time
 from typing import List, Dict
 import requests
 import json
-
+import aiohttp
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE
 
@@ -40,7 +40,7 @@ class YITranslator(CommonTranslator):
     }
     _INVALID_REPEAT_COUNT = 2 # repeat up to 2 times if "invalid" translation was detected
     _MAX_REQUESTS_PER_MINUTE = 20
-    _TIMEOUT = 40 # Seconds to wait for a response from the server before retrying
+    _TIMEOUT = 60*10 # Seconds to wait for a response from the server before retrying
     _RETRY_ATTEMPTS = 3 # Number of times to retry an errored request before giving up
     _TIMEOUT_RETRY_ATTEMPTS = 3 # Number of times to retry a timed out request before giving up
     _RATELIMIT_RETRY_ATTEMPTS = 3 # Number of times to retry a ratelimited request before giving up
@@ -124,7 +124,30 @@ class YITranslator(CommonTranslator):
             ratelimit_attempt = 0
             server_error_attempt = 0
             timeout_attempt = 0
-            response = self._request_translation(to_lang, prompt)
+            while True:
+                request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
+                started = time.time()
+                while not request_task.done():
+                    await asyncio.sleep(0.1)
+                    if time.time() - started > self._TIMEOUT + (timeout_attempt * self._TIMEOUT / 2):
+                        # Server takes too long to respond
+                        if timeout_attempt >= self._TIMEOUT_RETRY_ATTEMPTS:
+                            raise Exception('openai servers did not respond quickly enough.')
+                        timeout_attempt += 1
+                        self.logger.warn(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
+                        request_task.cancel()
+                        request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
+                        started = time.time()
+                try:
+                    response = await request_task
+                    break
+                except Exception as e:
+                    print(f"An exception occurred: {e}")
+                    # You can also print the type of exception
+                    print(f"Exception type: {type(e)}")
+                    await asyncio.sleep(2)
+
+           # response = self._request_translation(to_lang, prompt)
             self.logger.debug('-- GPT Response --\n' + response)
 
             new_translations = re.split(r'<\|\d+\|>', response)
@@ -149,7 +172,7 @@ class YITranslator(CommonTranslator):
 
         return translations
 
-    def _request_translation(self, to_lang: str, prompt: str) -> str:
+    async def _request_translation(self, to_lang: str, prompt: str) -> str:
         #response = await openai.Completion.acreate(model='text-davinci-003',prompt=prompt,max_tokens=self._MAX_TOKENStemperature=self.temperature,top_p=self.top_p,)
         #self.token_count += response.usage['total_tokens']
         #self.token_count_last = response.usage['total_tokens']
@@ -217,11 +240,11 @@ class YI34bTranslator(YITranslator):
                 prompt,
             ])
 
-    def _request_translation(self, to_lang: str, prompt: str) -> str:
+    async def _request_translation(self, to_lang: str, prompt: str) -> str:
         print("___________________________________________________________________")
         messages = [
             {'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)},
-            {'role': 'user', 'content': prompt},
+            {'role': 'user', 'content': str(self._config_get('prefixPrompt', default="")) +prompt+str(self._config_get('sufixPrompt', default=""))},
         ]
 
         if to_lang in self.chat_sample:
@@ -231,11 +254,23 @@ class YI34bTranslator(YITranslator):
 
         self.logger.info(f'Prompt: {messages}')
         # Convert the data to JSON format
-        json_data = json.dumps(messages)
+        
 
-        url = self.kconfig.get('PrivateGPTAddress')
-        response = requests.post(url, data=json_data, headers={'Content-Type': 'application/json'})
+
+        async with aiohttp.ClientSession() as session:
+            url = self.kconfig.get('PrivateGPTAddress')
+            json_data = json.dumps(messages)
+            headers = {'Content-Type': 'application/json'}
+            async with session.post(url, data=json_data, headers=headers) as response:
+                # Process the response
+                print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                print(response.status)
+                print(await response.text())
+                print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                return await response.text()
+
+        #response = await requests.post(url, data=json_data, headers={'Content-Type': 'application/json'})
         print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         print(response.text)
         print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        return response.text
+        return "Failed"
