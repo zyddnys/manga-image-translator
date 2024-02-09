@@ -244,7 +244,7 @@ class YI34bTranslator(YITranslator):
         print("___________________________________________________________________")
         messages = [
             {'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)},
-            {'role': 'user', 'content': str(self._config_get('prefixPrompt', default="")) +prompt+str(self._config_get('sufixPrompt', default=""))},
+            {'role': 'user', 'content': str(self.config.get("gpt3")['prefixPrompt']) +prompt+str(self.config.get("gpt3")['sufixPrompt'])},
         ]
 
         if to_lang in self.chat_sample:
@@ -254,7 +254,6 @@ class YI34bTranslator(YITranslator):
 
         self.logger.info(f'Prompt: {messages}')
         # Convert the data to JSON format
-        
 
 
         async with aiohttp.ClientSession() as session:
