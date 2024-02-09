@@ -1,0 +1,1 @@
+python -m manga_translator --format jpg --translator=yi --manga2eng -l ENG --PrivateGPTAddress 'https://f6cc-34-41-16-139.ngrok-free.app/translate' --input demo/ -m batch -o ./output --gpt-config 'GPT.config'

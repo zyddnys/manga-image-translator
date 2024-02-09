@@ -94,6 +94,7 @@ parser.add_argument('-l', '--target-lang', default='CHS', type=str, choices=VALI
 parser.add_argument('-v', '--verbose', action='store_true', help='Print debug info and save intermediate images in result folder')
 parser.add_argument('-f', '--format', default=None, choices=OUTPUT_FORMATS, help='Output format of the translation.')
 parser.add_argument('--attempts', default=0, type=int, help='Retry attempts on encountered error. -1 means infinite times.')
+parser.add_argument('--PrivateGPTAddress', default="", type=str, help='your Private server link')
 parser.add_argument('--ignore-errors', action='store_true', help='Skip image on encountered error.')
 parser.add_argument('--overwrite', action='store_true', help='Overwrite already translated images in batch mode.')
 parser.add_argument('--skip-no-text', action='store_true', help='Skip image without text (Will not be saved).')
