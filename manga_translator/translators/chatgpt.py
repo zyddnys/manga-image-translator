@@ -190,7 +190,7 @@ class GPT3Translator(CommonTranslator):
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
         response = await openai.Completion.acreate(
-            model='text-davinci-003',
+            model='gpt-3.5-turbo',
             prompt=prompt,
             max_tokens=self._MAX_TOKENS // 2, # Assuming that half of the tokens are used for the query
             temperature=self.temperature,
