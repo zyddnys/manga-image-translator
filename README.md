@@ -389,7 +389,7 @@ Colorizer: **mc2**
 --upscale-ratio UPSCALE_RATIO                Image upscale ratio applied before detection. Can
                                              improve text detection.
 --colorizer {mc2}                            Colorization model to use.
---translator {google,youdao,baidu,deepl,papago,caiyun,gpt3,gpt3.5,gpt4,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big}
+--translator {google,youdao,baidu,deepl,papago,caiyun,gpt3,gpt3.5,gpt4,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big,sakura}
                                              Language translator to use
 --translator-chain TRANSLATOR_CHAIN          Output of one translator goes in another. Example:
                                              --translator-chain "google:JPN;sugoi:ENG".
