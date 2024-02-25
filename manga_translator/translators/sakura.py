@@ -17,7 +17,7 @@ from .keys import SAKURA_API_BASE
 class Sakura13BTranslator(CommonTranslator):
 
     _TIMEOUT = 999  # Seconds to wait for a response from the server before retrying
-    _RETRY_ATTEMPTS = 1  # Number of times to retry an errored request before giving up
+    _RETRY_ATTEMPTS = 3  # Number of times to retry an errored request before giving up
     _TIMEOUT_RETRY_ATTEMPTS = 3  # Number of times to retry a timed out request before giving up
     _RATELIMIT_RETRY_ATTEMPTS = 3  # Number of times to retry a ratelimited request before giving up
 
@@ -123,54 +123,67 @@ class Sakura13BTranslator(CommonTranslator):
         return new_texts
 
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
-        self._log_translation_details(queries)
-        queries_with_markers = self._add_quotation_marks_to_queries(queries)
-        response = await self._attempt_translation_with_retry(queries_with_markers)
-        translations = self._process_translation_response(response, queries_with_markers)
-        return self._delete_quotation_mark(translations)
-
-    def _log_translation_details(self, queries: List[str]):
+        translations = []
         self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')
         self.logger.debug(f'Queries: {queries}')
         text_prompt = '\n'.join(queries)
         self.logger.debug('-- Sakura Prompt --\n' + self._format_prompt_log(text_prompt) + '\n\n')
-
-    def _add_quotation_marks_to_queries(self, queries: List[str]) -> List[str]:
-        return [f'「{query}」' for query in queries]
-
-    async def _attempt_translation_with_retry(self, queries: List[str]) -> str:
+        # 给queries的每行加上「」
+        queries = [f'「{query}」' for query in queries]
         response = await self._handle_translation_request(queries)
-        if self.detect_and_remove_extra_repeats(response)[0]:
-            response = await self._retry_translation_on_error(queries)
-        return response
+        self.logger.debug('-- Sakura Response --\n' + response + '\n\n')
 
-    async def _retry_translation_on_error(self, queries: List[str], error_type='model_degradation') -> str:
-        if error_type == 'model_degradation':
-            for _ in range(self._RETRY_ATTEMPTS):
+        # 提取翻译结果并去除首尾空白
+        response = response.strip()
+
+        rep_flag = self.detect_and_remove_extra_repeats(response)[0]
+        if rep_flag:
+            for i in range(self._RETRY_ATTEMPTS):
+                self.logger.warning(f'Re-translated because of model degradation, {i} times.')
                 self._set_gpt_style("precise")
+                self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')
                 response = await self._handle_translation_request(queries)
-                if not self.detect_and_remove_extra_repeats(response)[0]:
-                    return response
-        # 可以添加其他错误类型的重试逻辑
-        self.logger.warning(f'Retry failed for {error_type}, returning original queries.')
-        return '\n'.join(queries)  # 在无法解决重复的情况下返回原始查询
+                rep_flag = self.detect_and_remove_extra_repeats(response)[0]
+                if not rep_flag:
+                    break
+            if rep_flag:
+                self.logger.warning('Model degradation, try to translate single line.')
+                for query in queries:
+                    response = await self._handle_translation_request(query)
+                    translations.append(response)
+                    rep_flag = self.detect_and_remove_extra_repeats(response)[0]
+                    if rep_flag:
+                        self.logger.warning('Model degradation, fill original text')
+                        return self._delete_quotation_mark(queries)
+                return self._delete_quotation_mark(translations)
 
-    def _process_translation_response(self, response: str, queries: List[str]) -> List[str]:
+        align_flag = self.check_align(queries, response)
+        if not align_flag:
+            for i in range(self._RETRY_ATTEMPTS):
+                self.logger.warning(f'Re-translated because of a mismatch in the number of lines, {i} times.')
+                self._set_gpt_style("precise")
+                self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')
+                response = await self._handle_translation_request(queries)
+                align_flag = self.check_align(queries, response)
+                if align_flag:
+                    break
+            if not align_flag:
+                self.logger.warning('Mismatch in the number of lines, try to translate single line.')
+                for query in queries:
+                    print(query)
+                    response = await self._handle_translation_request(query)
+                    translations.append(response)
+                    print(translations)
+                align_flag = self.check_align(queries, translations)
+                if not align_flag:
+                    self.logger.warning('Mismatch in the number of lines, fill original text')
+                    return self._delete_quotation_mark(queries)
+                return self._delete_quotation_mark(translations)
         translations = self._split_text(response)
-        if not self.check_align(queries, translations):
-            self.logger.warning('Mismatch in the number of lines, trying to translate line by line.')
-            translations = self._fallback_to_line_by_line_translation(queries)
-        return translations
-
-    async def _fallback_to_line_by_line_translation(self, queries: List[str]) -> List[str]:
-        translations = []
-        for query in queries:
-            response = await self._handle_translation_request([query])
-            translations.append(response)
-        if not self.check_align(queries, translations):
-            self.logger.warning('Fallback to original text due to alignment issues.')
-            return queries  # 在行数不匹配的情况下回退到原始查询
-        return translations
+        if isinstance(translations, list):
+            return self._delete_quotation_mark(translations)
+        translations = self._split_text(response)
+        return self._delete_quotation_mark(translations)
 
     async def _handle_translation_request(self, prompt: str) -> str:
         # 翻译请求和错误处理逻辑
@@ -262,10 +275,10 @@ class Sakura13BTranslator(CommonTranslator):
         self._current_style = style_name
         if style_name == "precise":
             temperature, top_p = 0.1, 0.3
-            frequency_penalty = 0.15
+            frequency_penalty = 0.0
         elif style_name == "normal":
             temperature, top_p = 0.3, 0.3
-            frequency_penalty = 0.0
+            frequency_penalty = 0.15
 
         self.temperature = temperature
         self.top_p = top_p
