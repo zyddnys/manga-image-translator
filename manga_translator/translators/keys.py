@@ -17,3 +17,6 @@ OPENAI_HTTP_PROXY = os.getenv('OPENAI_HTTP_PROXY') # TODO: Replace with --proxy
 OPENAI_API_BASE = os.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1') #使用api-for-open-llm例子 http://127.0.0.1:8000/v1
 
 CAIYUN_TOKEN = os.getenv('CAIYUN_TOKEN', '') # 彩云小译API访问令牌
+
+SAKURA_API_KEY = os.getenv('SAKURA_API_KEY', '')
+SAKURA_API_BASE = os.getenv('SAKURA_API_BASE', 'http://127.0.0.1:5000/v1')
