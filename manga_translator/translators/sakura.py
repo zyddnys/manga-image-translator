@@ -32,7 +32,12 @@ class Sakura13BTranslator(CommonTranslator):
 
     def __init__(self):
         super().__init__()
-        openai.api_base = SAKURA_API_BASE
+        #检测/v1是否存在
+        if "/v1" not in SAKURA_API_BASE:
+            openai.api_base = SAKURA_API_BASE + "/v1"
+        else:
+            openai.api_base = SAKURA_API_BASE
+        openai.api_key = "sk-114514"
         self.temperature = 0.3
         self.top_p = 0.3
         self.frequency_penalty = 0.0
