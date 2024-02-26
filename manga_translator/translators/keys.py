@@ -19,6 +19,3 @@ SAKURA_API_BASE = os.getenv('SAKURA_API_BASE', 'http://127.0.0.1:8080/v1') #SAKU
 
 
 CAIYUN_TOKEN = os.getenv('CAIYUN_TOKEN', '') # 彩云小译API访问令牌
-
-SAKURA_API_KEY = os.getenv('SAKURA_API_KEY', '')
-SAKURA_API_BASE = os.getenv('SAKURA_API_BASE', 'http://127.0.0.1:5000/v1')

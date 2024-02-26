@@ -7,7 +7,7 @@ from .youdao import YoudaoTranslator
 from .deepl import DeeplTranslator
 from .papago import PapagoTranslator
 from .caiyun import CaiyunTranslator
-from .chatgpt import GPT3Translator, GPT35TurboTranslator, GPT4Translator, SakuraTranslator
+from .chatgpt import GPT3Translator, GPT35TurboTranslator, GPT4Translator
 from .nllb import NLLBTranslator, NLLBBigTranslator
 from .sugoi import JparacrawlTranslator, JparacrawlBigTranslator, SugoiTranslator
 from .m2m100 import M2M100Translator, M2M100BigTranslator
@@ -25,7 +25,6 @@ OFFLINE_TRANSLATORS = {
     'jparacrawl_big': JparacrawlBigTranslator,
     'm2m100': M2M100Translator,
     'm2m100_big': M2M100BigTranslator,
-    'sakura': SakuraTranslator,
 }
 
 TRANSLATORS = {

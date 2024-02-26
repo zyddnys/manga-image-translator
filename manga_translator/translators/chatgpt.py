@@ -9,7 +9,7 @@ import time
 from typing import List, Dict
 
 from .common import CommonTranslator, MissingAPIKeyException
-from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE, SAKURA_API_BASE, SAKURA_API_KEY
+from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE
 
 CONFIG = None
 
@@ -54,11 +54,11 @@ class GPT3Translator(CommonTranslator):
     _INCLUDE_TEMPLATE = True
     _PROMPT_TEMPLATE = 'Please help me to translate the following text from a manga to {to_lang} (if it\'s already in {to_lang} or looks like gibberish you have to output it as it is instead):\n'
 
-    def __init__(self, check_openai_key = True):
+    def __init__(self):
         super().__init__()
         openai.api_key = openai.api_key or OPENAI_API_KEY
         openai.api_base = OPENAI_API_BASE
-        if not openai.api_key and check_openai_key:
+        if not openai.api_key:
             raise MissingAPIKeyException('Please set the OPENAI_API_KEY environment variable before using the chatgpt translator.')
         if OPENAI_HTTP_PROXY:
             proxies = {
@@ -320,77 +320,3 @@ class GPT4Translator(GPT35TurboTranslator):
 
         # If no response with text is found, return the first response's content (which may be empty)
         return response.choices[0].message.content
-
-
-class SakuraTranslator(GPT3Translator):
-    _CONFIG_KEY = 'sakura'
-    _MAX_REQUESTS_PER_MINUTE = 200
-    _RETRY_ATTEMPTS = 5
-    _MAX_TOKENS = 8192
-    _CHAT_SYSTEM_TEMPLATE = (
-        '你是一个轻小说翻译模型，可以流畅通顺地以日本轻小说的风格将日文翻译成简体中文，并联系上下文正确使用人称代词，不擅自添加原文中没有的代词。'
-    )
-    def __init__(self):
-        super().__init__(check_openai_key=False)
-
-    async def _request_translation(self, to_lang: str, prompt: str) -> str:
-        messages = [
-            {'role': 'system', 'content': self._CHAT_SYSTEM_TEMPLATE},
-            {'role': 'user', 'content': '将下面的日文文本翻译成中文：'+prompt},
-        ]
-
-        response = await openai.ChatCompletion.acreate(
-            model='gpt-4-0613',
-            messages=messages,
-            max_tokens=self._MAX_TOKENS // 2,
-            temperature=self.temperature,
-            top_p=self.top_p,
-            api_key=SAKURA_API_KEY,
-            api_base=SAKURA_API_BASE,
-        )
-
-        self.token_count += response.usage['total_tokens']
-        self.token_count_last = response.usage['total_tokens']
-        for choice in response.choices:
-            if 'text' in choice:
-                return choice.text
-
-        # If no response with text is found, return the first response's content (which may be empty)
-        return response.choices[0].message.content
-    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
-        translations = []
-        self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')
-
-        for query in queries:
-
-            ratelimit_attempt = 0
-            server_error_attempt = 0
-            timeout_attempt = 0
-            while True:
-                request_task = asyncio.create_task(self._request_translation(to_lang, query))
-                try:
-                    response = await request_task
-                    break
-                except openai.error.RateLimitError: # Server returned ratelimit response
-                    ratelimit_attempt += 1
-                    if ratelimit_attempt >= self._RATELIMIT_RETRY_ATTEMPTS:
-                        raise
-                    self.logger.warn(f'Restarting request due to ratelimiting by openai servers. Attempt: {ratelimit_attempt}')
-                    await asyncio.sleep(2)
-                except openai.error.APIError: # Server returned 500 error (probably server load)
-                    server_error_attempt += 1
-                    if server_error_attempt >= self._RETRY_ATTEMPTS:
-                        self.logger.error('Sakura encountered a server error, possibly due to high server load. Use a different translator or try again later.')
-                        raise
-                    self.logger.warn(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
-                    await asyncio.sleep(1)
-
-            self.logger.debug('-- Sakura Response --\n' + response)
-
-            translations.extend([response])
-
-        self.logger.debug(translations)
-        if self.token_count_last:
-            self.logger.info(f'Used {self.token_count_last} tokens (Total: {self.token_count})')
-
-        return translations

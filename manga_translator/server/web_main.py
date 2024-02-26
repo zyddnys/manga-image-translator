@@ -58,7 +58,6 @@ VALID_TRANSLATORS = [
     'jparacrawl_big',
     'm2m100',
     'm2m100_big',
-    'sakura',
     'none',
     'original',
 ]
