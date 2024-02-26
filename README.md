@@ -13,33 +13,41 @@
 
 Some manga/images will never be translated, therefore this project is born.
 
-- [Preview](#samples)
-- [Demo](#online-demo)
-- [Disclaimer](#disclaimer)
-- [Getting Started](#installation)
-    - [Installation](#installation)
-        - [Venv](#pipvenv)
-        - [Poetry](#poetry)
-        - [Extra Windows Info](#additional-instructions-for-windows)
-        - [Docker](#docker)
-    - [Usage](#usage)
-        - [Batch mode](#batch-mode-default)
-        - [Demo mode](#demo-mode)
-        - [Web mode](#web-mode)
-        - [Api mode](#api-mode)
-    - [Related Projects](#related-projects)
-- [Docs](#docs)
+- [Image/Manga Translator](#imagemanga-translator)
+  - [Samples](#samples)
+  - [Online Demo](#online-demo)
+  - [Disclaimer](#disclaimer)
+  - [Installation](#installation)
+    - [Pip/venv](#pipvenv)
+    - [Poetry](#poetry)
+      - [Additional instructions for **Windows**](#additional-instructions-for-windows)
+    - [Docker](#docker)
+      - [Hosting the web server](#hosting-the-web-server)
+      - [Using as CLI](#using-as-cli)
+      - [Setting Translation Secrets](#setting-translation-secrets)
+      - [Using with Nvidia GPU](#using-with-nvidia-gpu)
+      - [Building locally](#building-locally)
+  - [Usage](#usage)
+    - [Batch mode (default)](#batch-mode-default)
+    - [Demo mode](#demo-mode)
+    - [Web Mode](#web-mode)
+    - [Api Mode](#api-mode)
+  - [Related Projects](#related-projects)
+  - [Docs](#docs)
     - [Recommended Modules](#recommended-modules)
-    - [Args](#options)
-    - [Languages](#language-code-reference)
-    - [Translators](#translators-reference)
-    - [GPT config](#gpt-config-reference)
-    - [Gimp](#using-gimp-for-rendering)
-    - [Api Docs](#api-documentation)
-        - [v1](#api-documentation)
-        - [v2](#api-documentation)
-- [Roadmap](#next-steps)
-- [Support Us](#support-us)
+      - [Tips to improve translation quality](#tips-to-improve-translation-quality)
+    - [Options](#options)
+    - [Language Code Reference](#language-code-reference)
+    - [Translators Reference](#translators-reference)
+    - [GPT Config Reference](#gpt-config-reference)
+    - [Using Gimp for rendering](#using-gimp-for-rendering)
+    - [Api Documentation](#api-documentation)
+      - [Synchronous mode](#synchronous-mode)
+      - [Asynchronous mode](#asynchronous-mode)
+      - [Manual translation](#manual-translation)
+  - [Next steps](#next-steps)
+  - [Support Us](#support-us)
+    - [Thanks To All Our Contributors :](#thanks-to-all-our-contributors-)
 
 ## Samples
 
@@ -521,6 +529,7 @@ IND: Indonesian
 | gpt3.5     | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`    |
 | gpt4       | ✔️      |         | Implements gpt-4. Requires `OPENAI_API_KEY`            |
 | papago     |         |         |                                                        |
+| sakura     |         |         |需要`SAKURA_API_BASE`                                    |
 | offline    |         | ✔️      | Chooses most suitable offline translator for language  |
 | sugoi      |         | ✔️      | Sugoi V4.0 Models                                      |
 | m2m100     |         | ✔️      | Supports every language                                |

@@ -17,7 +17,7 @@ from .keys import SAKURA_API_BASE
 class Sakura13BTranslator(CommonTranslator):
 
     _TIMEOUT = 999  # Seconds to wait for a response from the server before retrying
-    _RETRY_ATTEMPTS = 3  # Number of times to retry an errored request before giving up
+    _RETRY_ATTEMPTS = 1  # Number of times to retry an errored request before giving up
     _TIMEOUT_RETRY_ATTEMPTS = 3  # Number of times to retry a timed out request before giving up
     _RATELIMIT_RETRY_ATTEMPTS = 3  # Number of times to retry a ratelimited request before giving up
 
@@ -128,6 +128,10 @@ class Sakura13BTranslator(CommonTranslator):
         self.logger.debug(f'Queries: {queries}')
         text_prompt = '\n'.join(queries)
         self.logger.debug('-- Sakura Prompt --\n' + self._format_prompt_log(text_prompt) + '\n\n')
+        # 去除emoji
+        queries = [re.sub(r'[\U00010000-\U0010ffff]', '', query) for query in queries]
+        # 替换❤
+        queries = [re.sub(r'❤', '♥', query) for query in queries]
         # 给queries的每行加上「」
         queries = [f'「{query}」' for query in queries]
         response = await self._handle_translation_request(queries)
@@ -139,6 +143,9 @@ class Sakura13BTranslator(CommonTranslator):
         rep_flag = self.detect_and_remove_extra_repeats(response)[0]
         if rep_flag:
             for i in range(self._RETRY_ATTEMPTS):
+                if self.detect_and_remove_extra_repeats(queries)[0]:
+                    self.logger.warning('Queries have repeats.')
+                    break
                 self.logger.warning(f'Re-translated because of model degradation, {i} times.')
                 self._set_gpt_style("precise")
                 self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')
@@ -254,7 +261,7 @@ class Sakura13BTranslator(CommonTranslator):
             ],
             temperature=self.temperature,
             top_p=self.top_p,
-            max_tokens=512,
+            max_tokens=1024,
             frequency_penalty=self.frequency_penalty,
             seed=-1,
             extra_query=extra_query,
