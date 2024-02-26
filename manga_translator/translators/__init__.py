@@ -25,7 +25,6 @@ OFFLINE_TRANSLATORS = {
     'jparacrawl_big': JparacrawlBigTranslator,
     'm2m100': M2M100Translator,
     'm2m100_big': M2M100BigTranslator,
-    'sakura': SakuraTranslator,
 }
 
 TRANSLATORS = {
