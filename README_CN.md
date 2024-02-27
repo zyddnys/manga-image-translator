@@ -66,6 +66,7 @@ $ pip install git+https://github.com/kodalli/pydensecrf.git
 | gpt3.5         | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`   |
 | gpt4           | ✔️      |         | Implements gpt-4. Requires `OPENAI_API_KEY`           |
 | papago         |         |         |                                                       |
+| sakura         |         |         |需要`SAKURA_API_BASE`|
 | offline        |         | ✔️      |  自动选择可用的离线模型，只是选择器                                                  |
 | sugoi          |         | ✔️      |  只能翻译英文                                                    |
 | m2m100         |         | ✔️      |  可以翻译所有语言                                                     |
