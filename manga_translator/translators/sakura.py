@@ -11,7 +11,7 @@ import time
 from typing import List, Dict
 
 from .common import CommonTranslator
-from .keys import SAKURA_API_BASE
+from .keys import SAKURA_API_BASE, SAKURA_API_KEY
 
 
 class Sakura13BTranslator(CommonTranslator):
@@ -33,11 +33,6 @@ class Sakura13BTranslator(CommonTranslator):
     def __init__(self):
         super().__init__()
         #检测/v1是否存在
-        if "/v1" not in SAKURA_API_BASE:
-            openai.api_base = SAKURA_API_BASE + "/v1"
-        else:
-            openai.api_base = SAKURA_API_BASE
-        openai.api_key = "sk-114514"
         self.temperature = 0.3
         self.top_p = 0.3
         self.frequency_penalty = 0.0
@@ -246,7 +241,14 @@ class Sakura13BTranslator(CommonTranslator):
             'num_beams': 1,
             'repetition_penalty': 1.0,
         }
+        old_api_base = openai.api_base or ''
+        old_api_key = openai.api_key or ''
 
+        if "/v1" not in SAKURA_API_BASE:
+            openai.api_base = SAKURA_API_BASE + "/v1"
+        else:
+            openai.api_base = SAKURA_API_BASE
+        openai.api_key = SAKURA_API_KEY
         response = await openai.ChatCompletion.acreate(
             model="sukinishiro",
             messages=[
@@ -266,6 +268,8 @@ class Sakura13BTranslator(CommonTranslator):
             seed=-1,
             extra_query=extra_query,
         )
+        openai.api_base = old_api_base
+        openai.api_key = old_api_key
 
         # 提取并返回响应文本
         for choice in response.choices:
