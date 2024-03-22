@@ -72,6 +72,7 @@ $ pip install git+https://github.com/kodalli/pydensecrf.git
 | m2m100         |         | ✔️      |  可以翻译所有语言                                                     |
 | m2m100_big     |         | ✔️      |  带big的是完整尺寸，不带是精简版                                                    |
 | none           |         | ✔️      | 翻译成空白文本                                          |
+| mbart50    |         | ✔️      |                                                        |
 | original       |         | ✔️      | 翻译成源文本                                            |
 
 ### 语言代码列表
