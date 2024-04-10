@@ -76,6 +76,34 @@ class GoogleTranslator(CommonTranslator):
     :type raise_exception: boolean
     """
 
+    # _LANGUAGE_CODE_MAP = {
+    #     'CHS': 'zh-CN',
+    #     'CHT': 'zh-TW',
+    #     'JPN': 'ja',
+    #     'ENG': 'en',
+    #     'KOR': 'ko',
+    #     'VIN': 'vi',
+    #     'CSY': 'cs',
+    #     'NLD': 'nl',
+    #     'FRA': 'fr',
+    #     'DEU': 'de',
+    #     'HUN': 'hu',
+    #     'ITA': 'it',
+    #     'PLK': 'pl',
+    #     'PTB': 'pt',
+    #     'ROM': 'ro',
+    #     'RUS': 'ru',
+    #     'ESP': 'es',
+    #     'TRK': 'tr',
+    #     'UKR': 'uk',
+    #     'VIN': 'vi',
+    #     'ARA': 'ar',
+    #     'SRP': 'sr',
+    #     'HRV': 'hr',
+    #     'THA': 'th',
+    #     'IND': 'id'
+    # }
+
     _LANGUAGE_CODE_MAP = {
         'CHS': 'zh-CN',
         'CHT': 'zh-TW',
@@ -96,13 +124,14 @@ class GoogleTranslator(CommonTranslator):
         'ESP': 'es',
         'TRK': 'tr',
         'UKR': 'uk',
-        'VIN': 'vi',
         'ARA': 'ar',
         'SRP': 'sr',
         'HRV': 'hr',
         'THA': 'th',
-        'IND': 'id'
+        'IND': 'id',
+        'FIL': 'tl'
     }
+
 
     def __init__(self, service_urls=DEFAULT_CLIENT_SERVICE_URLS, user_agent=DEFAULT_USER_AGENT,
                  raise_exception=DEFAULT_RAISE_EXCEPTION,
