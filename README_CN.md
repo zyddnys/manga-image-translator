@@ -118,7 +118,7 @@ FIL: Filipino (Tagalog)
                                              image folder if using batch mode
 -o, --dest DEST                              Path to the destination folder for translated images in
                                              batch mode
--l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA,CNR,SRP,HRV,THA,IND, FIL}
+-l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA,CNR,SRP,HRV,THA,IND,FIL}
                                              Destination language
 -v, --verbose                                Print debug info and save intermediate images in result
                                              folder
