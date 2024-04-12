@@ -11,7 +11,6 @@ from .chatgpt import GPT3Translator, GPT35TurboTranslator, GPT4Translator
 from .nllb import NLLBTranslator, NLLBBigTranslator
 from .sugoi import JparacrawlTranslator, JparacrawlBigTranslator, SugoiTranslator
 from .m2m100 import M2M100Translator, M2M100BigTranslator
-from .mbart50 import MBart50Translator
 from .selective import SelectiveOfflineTranslator, prepare as prepare_selective_translator
 from .none import NoneTranslator
 from .original import OriginalTranslator
@@ -26,7 +25,6 @@ OFFLINE_TRANSLATORS = {
     'jparacrawl_big': JparacrawlBigTranslator,
     'm2m100': M2M100Translator,
     'm2m100_big': M2M100BigTranslator,
-    'mbart50': MBart50Translator,
 }
 
 TRANSLATORS = {
