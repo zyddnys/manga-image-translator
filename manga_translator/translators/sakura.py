@@ -11,7 +11,6 @@ try:
 except ImportError:
     openai = None
 import asyncio
-import time
 from typing import List, Dict
 
 from .common import CommonTranslator
@@ -20,11 +19,11 @@ from .keys import SAKURA_API_BASE, SAKURA_VERSION, SAKURA_DICT_PATH
 import logging
 
 class SakuraDict():
-    def __init__(self, path: str):
+    def __init__(self, path: str, logger: logging.Logger):
+        self.logger = logger
         self.path = path
-        self.dict = {}
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
+        self.dict_str = ""
+        self.dict_str = self.get_dict_from_file(path)
 
     def load_galtransl_dic(self, dic_path: str):
         """
@@ -73,7 +72,7 @@ class SakuraDict():
             gpt_dict_text_list.append(single)
 
         gpt_dict_raw_text = "\n".join(gpt_dict_text_list)
-        self.dict = gpt_dict_raw_text
+        self.dict_str = gpt_dict_raw_text
         self.logger.info(
             f"载入 Galtransl 字典: {dic_name} {normalDic_count}普通词条"
         )
@@ -85,6 +84,9 @@ class SakuraDict():
 
         with open(dic_path, encoding="utf8") as f:
             dic_lines = f.readlines()
+
+        self.logger.debug(f"载入Sakura字典: {dic_path}")
+        self.logger.debug(f"载入Sakura字典: {dic_lines}")
         if len(dic_lines) == 0:
             return
         dic_path = os.path.abspath(dic_path)
@@ -98,15 +100,16 @@ class SakuraDict():
             elif line.startswith("\\\\") or line.startswith("//"):  # 注释行跳过
                 continue
 
-            sp = line.rstrip("\r\n").split("\t")  # 去多余换行符，Tab分割
+            sp = line.rstrip("\r\n").split("->")  # 去多余换行符，->分割
             len_sp = len(sp)
 
             if len_sp < 2:  # 至少是2个元素
                 continue
 
             src = sp[0]
-            dst = sp[1]
-            info = sp[2] if len_sp > 2 else None
+            dst_info = sp[1].split("#")  # 使用#分割目标和信息
+            dst = dst_info[0].strip()
+            info = dst_info[1].strip() if len(dst_info) > 1 else None
             if info:
                 single = f"{src}->{dst} #{info}"
             else:
@@ -115,8 +118,8 @@ class SakuraDict():
             normalDic_count += 1
 
         gpt_dict_raw_text = "\n".join(gpt_dict_text_list)
-        self.dict = gpt_dict_raw_text
-        self.logger.info(
+        self.dict_str = gpt_dict_raw_text
+        self.logger.debug(
             f"载入标准Sakura字典: {dic_name} {normalDic_count}普通词条"
         )
 
@@ -126,6 +129,7 @@ class SakuraDict():
         """
         with open(dic_path, encoding="utf8") as f:
             dic_lines = f.readlines()
+        self.logger.debug(f"检测字典类型: {dic_path}")
         if len(dic_lines) == 0:
             return "unknown"
 
@@ -137,7 +141,7 @@ class SakuraDict():
             elif line.startswith("\\\\") or line.startswith("//"):
                 continue
 
-            if "\t" not in line:
+            if "\t" not in line and "    " not in line:
                 is_galtransl = False
                 break
 
@@ -161,14 +165,14 @@ class SakuraDict():
 
         return "unknown"
 
-    def get_dict(self):
+    def get_dict_str(self):
         """
         获取字典内容。
         """
-        if self.dict == {}:
+        if self.dict_str == "":
             self.logger.warning("字典为空")
-            return {}
-        return self.dict
+            return ""
+        return self.dict_str
 
     def get_dict_from_file(self, dic_path: str):
         """
@@ -181,7 +185,7 @@ class SakuraDict():
             self.load_sakura_dict(dic_path)
         else:
             self.logger.warning(f"未知的字典类型: {dic_path}")
-        return self.get_dict()
+        return self.get_dict_str()
 
 
 class SakuraTranslator(CommonTranslator):
@@ -216,7 +220,7 @@ class SakuraTranslator(CommonTranslator):
         self._current_style = "normal"
         self._emoji_pattern = re.compile(r'[\U00010000-\U0010ffff]')
         self._heart_pattern = re.compile(r'❤')
-        self.sakura_dict = SakuraDict(self.get_dict_path())
+        self.sakura_dict = SakuraDict(self.get_dict_path(), self.logger)
 
     def get_sakura_version(self):
         return SAKURA_VERSION
@@ -253,14 +257,28 @@ class SakuraTranslator(CommonTranslator):
         return repeated, s
 
     def _format_prompt_log(self, prompt: str) -> str:
-        return '\n'.join([
+        """
+        格式化日志输出的提示文本。
+        """
+        gpt_dict_raw_text = self.sakura_dict.get_dict_str()
+        prompt_009 = '\n'.join([
             'System:',
-            self._CHAT_SYSTEM_TEMPLATE,
+            self._CHAT_SYSTEM_TEMPLATE_009,
             'User:',
             '将下面的日文文本翻译成中文：',
             prompt,
         ])
-
+        prompt_010 = '\n'.join([
+            'System:',
+            self._CHAT_SYSTEM_TEMPLATE_010,
+            'User:',
+            "根据以下术语表：",
+            gpt_dict_raw_text,
+            "将下面的日文文本根据上述术语表的对应关系和注释翻译成中文：",
+            prompt,
+        ])
+        return prompt_009 if SAKURA_VERSION == '0.0.9' else prompt_010
+    
     def _split_text(self, text: str) -> List[str]:
         """
         将字符串按换行符分割为列表。
@@ -429,7 +447,7 @@ class SakuraTranslator(CommonTranslator):
                     }
                 ]
         else:
-            gpt_dict_raw_text = self.sakura_dict.get_dict()
+            gpt_dict_raw_text = self.sakura_dict.get_dict_str()
             self.logger.debug(f"Sakura Dict: {gpt_dict_raw_text}")
             messages=[
                     {
@@ -438,7 +456,7 @@ class SakuraTranslator(CommonTranslator):
                     },
                     {
                         "role": "user",
-                        "content": f"根据以下术语表：\n" + {gpt_dict_raw_text} + "\n" + f"将下面的日文文本根据上述术语表的对应关系和注释翻译成中文：{raw_text}"
+                        "content": f"根据以下术语表：\n{gpt_dict_raw_text}\n将下面的日文文本根据上述术语表的对应关系和注释翻译成中文：{raw_text}"
                     }
                 ]
         response = await openai.ChatCompletion.acreate(
