@@ -1,3 +1,4 @@
+from calendar import c
 from distutils.cygwinccompiler import get_versions
 import re
 import os
@@ -11,19 +12,23 @@ try:
 except ImportError:
     openai = None
 import asyncio
-from typing import List, Dict
+from typing import List, Dict, Callable, Tuple
 
 from .common import CommonTranslator
 from .keys import SAKURA_API_BASE, SAKURA_VERSION, SAKURA_DICT_PATH
 
 import logging
 
+
 class SakuraDict():
     def __init__(self, path: str, logger: logging.Logger):
         self.logger = logger
         self.path = path
         self.dict_str = ""
-        self.dict_str = self.get_dict_from_file(path)
+        if SAKURA_VERSION == '0.10':
+            self.dict_str = self.get_dict_from_file(path)
+        if SAKURA_VERSION == '0.9':
+            self.logger.info("您当前选择了Sakura 0.9版本，暂不支持术语表")
 
     def load_galtransl_dic(self, dic_path: str):
         """
@@ -85,8 +90,6 @@ class SakuraDict():
         with open(dic_path, encoding="utf8") as f:
             dic_lines = f.readlines()
 
-        self.logger.debug(f"载入Sakura字典: {dic_path}")
-        self.logger.debug(f"载入Sakura字典: {dic_lines}")
         if len(dic_lines) == 0:
             return
         dic_path = os.path.abspath(dic_path)
@@ -119,7 +122,7 @@ class SakuraDict():
 
         gpt_dict_raw_text = "\n".join(gpt_dict_text_list)
         self.dict_str = gpt_dict_raw_text
-        self.logger.debug(
+        self.logger.info(
             f"载入标准Sakura字典: {dic_name} {normalDic_count}普通词条"
         )
 
@@ -191,9 +194,10 @@ class SakuraDict():
 class SakuraTranslator(CommonTranslator):
 
     _TIMEOUT = 999  # 等待服务器响应的超时时间(秒)
-    _RETRY_ATTEMPTS = 1  # 请求出错时的重试次数
+    _RETRY_ATTEMPTS = 3  # 请求出错时的重试次数
     _TIMEOUT_RETRY_ATTEMPTS = 3  # 请求超时时的重试次数
     _RATELIMIT_RETRY_ATTEMPTS = 3  # 请求被限速时的重试次数
+    _REPEAT_DETECT_THRESHOLD = 11  # 重复检测的阈值
 
     _CHAT_SYSTEM_TEMPLATE_009 = (
         '你是一个轻小说翻译模型，可以流畅通顺地以日本轻小说的风格将日文翻译成简体中文，并联系上下文正确使用人称代词，不擅自添加原文中没有的代词。'
@@ -228,10 +232,10 @@ class SakuraTranslator(CommonTranslator):
     def get_dict_path(self):
         return SAKURA_DICT_PATH
 
-    def detect_and_remove_extra_repeats(self, s: str, threshold: int = 20, remove_all=True):
+    def detect_and_caculate_repeats(self, s: str, threshold: int = _REPEAT_DETECT_THRESHOLD, remove_all=True) -> Tuple[bool, str, int, str]:
         """
-        检测字符串中是否有任何模式连续重复出现超过阈值，并在去除多余重复后返回新字符串。
-        保留一个模式的重复。
+        检测文本中是否存在重复模式,并计算重复次数。
+        返回值: (是否重复, 去除重复后的文本, 重复次数, 重复模式)
         """
         repeated = False
         for pattern_length in range(1, len(s) // 2 + 1):
@@ -247,6 +251,7 @@ class SakuraTranslator(CommonTranslator):
                     else:
                         break
                 if count >= threshold:
+                    self.logger.warning(f"检测到重复模式: {pattern}，重复次数: {count}")
                     repeated = True
                     if remove_all:
                         s = s[:i + pattern_length] + s[j:]
@@ -254,7 +259,7 @@ class SakuraTranslator(CommonTranslator):
                 i += 1
             if repeated:
                 break
-        return repeated, s
+        return repeated, s, count, pattern
 
     def _format_prompt_log(self, prompt: str) -> str:
         """
@@ -277,8 +282,8 @@ class SakuraTranslator(CommonTranslator):
             "将下面的日文文本根据上述术语表的对应关系和注释翻译成中文：",
             prompt,
         ])
-        return prompt_009 if SAKURA_VERSION == '0.0.9' else prompt_010
-    
+        return prompt_009 if SAKURA_VERSION == '0.9' else prompt_010
+
     def _split_text(self, text: str) -> List[str]:
         """
         将字符串按换行符分割为列表。
@@ -300,43 +305,39 @@ class SakuraTranslator(CommonTranslator):
         """
         检查翻译结果的质量,包括重复和行数对齐问题,如果存在问题则尝试重新翻译或返回原始文本。
         """
-        rep_flag = self._detect_repeats(response)
-        if rep_flag:
+        async def _retry_translation(queries: List[str], check_func: Callable[[str], bool], error_message: str) -> str:
+            styles = ["precise", "normal", "aggressive", ]
             for i in range(self._RETRY_ATTEMPTS):
-                if self._detect_repeats(''.join(queries)):
-                    self.logger.warning('Queries have repeats.')
-                    break
-                self.logger.warning(f'Re-translating due to model degradation, attempt: {i + 1}')
-                self._set_gpt_style("precise")
+                self._set_gpt_style(styles[i])
+                self.logger.warning(f'{error_message} 尝试次数: {i + 1}。当前参数风格：{self._current_style}。')
                 response = await self._handle_translation_request(queries)
-                rep_flag = self._detect_repeats(response)
-                if not rep_flag:
-                    break
-            if rep_flag:
-                self.logger.warning('Model degradation, translating single lines.')
-                return await self._translate_single_lines(queries)
+                if not check_func(response):
+                    return response
+            return None
 
-        align_flag = self._check_align(queries, response)
-        if not align_flag:
-            for i in range(self._RETRY_ATTEMPTS):
-                self.logger.warning(f'Re-translating due to mismatched lines, attempt: {i + 1}')
-                self._set_gpt_style("precise")
-                response = await self._handle_translation_request(queries)
-                align_flag = self._check_align(queries, response)
-                if align_flag:
-                    break
-            if not align_flag:
-                self.logger.warning('Mismatched lines, translating single lines.')
+        if self._detect_repeats(response):
+            if self._detect_repeats(''.join(queries)):
+                self.logger.warning('请求内容本身含有超过阈值的重复内容。')
+            else:
+                response = await _retry_translation(queries, self._detect_repeats, f'因为检测到大量重复内容（当前阈值：{self._REPEAT_DETECT_THRESHOLD}），疑似模型退化，重新翻译。')
+                if response is None:
+                    self.logger.warning(f'疑似模型退化，尝试{self._RETRY_ATTEMPTS}次仍未解决，进行单行翻译。')
+                    return await self._translate_single_lines(queries)
+
+        if not self._check_align(queries, response):
+            response = await _retry_translation(queries, lambda r: not self._check_align(queries, r), '因为检测到原文与译文行数不匹配，重新翻译。')
+            if response is None:
+                self.logger.warning(f'原文与译文行数不匹配，尝试{self._RETRY_ATTEMPTS}次仍未解决，进行单行翻译。')
                 return await self._translate_single_lines(queries)
 
         return self._split_text(response)
 
-    def _detect_repeats(self, text: str, threshold: int = 20) -> bool:
+    def _detect_repeats(self, text: str, threshold: int = _REPEAT_DETECT_THRESHOLD) -> bool:
         """
         检测文本中是否存在重复模式。
         """
-        _, text = self.detect_and_remove_extra_repeats(text, threshold)
-        return text != text
+        is_repeated, text, count, pattern = self.detect_and_caculate_repeats(text, threshold, remove_all=False)
+        return is_repeated
 
     def _check_align(self, queries: List[str], response: str) -> bool:
         """
@@ -345,7 +346,7 @@ class SakuraTranslator(CommonTranslator):
         translations = self._split_text(response)
         is_aligned = len(queries) == len(translations)
         if not is_aligned:
-            self.logger.warning(f"Mismatched lines - Queries: {len(queries)}, Translations: {len(translations)}")
+            self.logger.warning(f"行数不匹配 - 原文行数: {len(queries)}，译文行数： {len(translations)}")
         return is_aligned
 
     async def _translate_single_lines(self, queries: List[str]) -> List[str]:
@@ -356,7 +357,7 @@ class SakuraTranslator(CommonTranslator):
         for query in queries:
             response = await self._handle_translation_request(query)
             if self._detect_repeats(response):
-                self.logger.warning('Model degradation, using original text.')
+                self.logger.warning(f"单行翻译结果存在重复内容: {response}，返回原文。")
                 translations.append(query)
             else:
                 translations.append(response)
@@ -374,7 +375,7 @@ class SakuraTranslator(CommonTranslator):
 
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')
-        self.logger.debug(f'Queries: {queries}')
+        self.logger.debug(f'原文： {queries}')
         text_prompt = '\n'.join(queries)
         self.logger.debug('-- Sakura Prompt --\n' + self._format_prompt_log(text_prompt) + '\n\n')
 
@@ -405,20 +406,20 @@ class SakuraTranslator(CommonTranslator):
             except asyncio.TimeoutError:
                 timeout_attempt += 1
                 if timeout_attempt >= self._TIMEOUT_RETRY_ATTEMPTS:
-                    raise Exception('Sakura timeout.')
-                self.logger.warning(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
+                    raise Exception('Sakura超时。')
+                self.logger.warning(f'Sakura因超时而进行重试。尝试次数： {timeout_attempt}')
             except openai.error.RateLimitError:
                 ratelimit_attempt += 1
                 if ratelimit_attempt >= self._RATELIMIT_RETRY_ATTEMPTS:
                     raise
-                self.logger.warning(f'Restarting request due to ratelimiting by sakura servers. Attempt: {ratelimit_attempt}')
+                self.logger.warning(f'Sakura因被限速而进行重试。尝试次数： {ratelimit_attempt}')
                 await asyncio.sleep(2)
             except (openai.error.APIError, openai.error.APIConnectionError) as e:
                 server_error_attempt += 1
                 if server_error_attempt >= self._RETRY_ATTEMPTS:
-                    self.logger.error(f'Sakura server error: {str(e)}. Returning original text.')
+                    self.logger.error(f'Sakura API请求失败。错误信息： {e}')
                     return prompt
-                self.logger.warning(f'Restarting request due to server error. Attempt: {server_error_attempt}')
+                self.logger.warning(f'Sakura因服务器错误而进行重试。尝试次数： {server_error_attempt}，错误信息： {e}')
 
         return response
 
@@ -436,29 +437,29 @@ class SakuraTranslator(CommonTranslator):
             'repetition_penalty': 1.0,
         }
         if SAKURA_VERSION == "0.9":
-            messages=[
-                    {
-                        "role": "system",
-                        "content": f"{self._CHAT_SYSTEM_TEMPLATE_009}"
-                    },
-                    {
-                        "role": "user",
-                        "content": f"将下面的日文文本翻译成中文：{raw_text}"
-                    }
-                ]
+            messages = [
+                {
+                    "role": "system",
+                    "content": f"{self._CHAT_SYSTEM_TEMPLATE_009}"
+                },
+                {
+                    "role": "user",
+                    "content": f"将下面的日文文本翻译成中文：{raw_text}"
+                }
+            ]
         else:
             gpt_dict_raw_text = self.sakura_dict.get_dict_str()
             self.logger.debug(f"Sakura Dict: {gpt_dict_raw_text}")
-            messages=[
-                    {
-                        "role": "system",
-                        "content": f"{self._CHAT_SYSTEM_TEMPLATE_010}"
-                    },
-                    {
-                        "role": "user",
-                        "content": f"根据以下术语表：\n{gpt_dict_raw_text}\n将下面的日文文本根据上述术语表的对应关系和注释翻译成中文：{raw_text}"
-                    }
-                ]
+            messages = [
+                {
+                    "role": "system",
+                    "content": f"{self._CHAT_SYSTEM_TEMPLATE_010}"
+                },
+                {
+                    "role": "user",
+                    "content": f"根据以下术语表：\n{gpt_dict_raw_text}\n将下面的日文文本根据上述术语表的对应关系和注释翻译成中文：{raw_text}"
+                }
+            ]
         response = await openai.ChatCompletion.acreate(
             model="sukinishiro",
             messages=messages,
@@ -488,7 +489,10 @@ class SakuraTranslator(CommonTranslator):
             frequency_penalty = 0.1
         elif style_name == "normal":
             temperature, top_p = 0.3, 0.3
-            frequency_penalty = 0.15
+            frequency_penalty = 0.2
+        elif style_name == "aggressive":
+            temperature, top_p = 0.1, 0.3
+            frequency_penalty = 0.3
 
         self.temperature = temperature
         self.top_p = top_p
