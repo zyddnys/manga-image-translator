@@ -383,7 +383,7 @@ Colorizer: **mc2**
 --overwrite                                  Overwrite already translated images in batch mode.
 --skip-no-text                               Skip image without text (Will not be saved).
 --model-dir MODEL_DIR                        Model directory (by default ./models in project root)
---use-gou                                   Turn on/off gpu
+--use-gpu                                   Turn on/off gpu
 --use-gpu-limited                           Turn on/off gpu (excluding offline translator)
 --detector {default,ctd,craft,none}          Text detector used for creating a text mask from an
                                              image, DO NOT use craft for manga, it's not designed
