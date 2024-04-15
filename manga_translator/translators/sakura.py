@@ -21,13 +21,19 @@ import logging
 
 
 class SakuraDict():
-    def __init__(self, path: str, logger: logging.Logger):
+    def __init__(self, path: str, logger: logging.Logger, version: str = "0.9") -> None:
         self.logger = logger
-        self.path = path
         self.dict_str = ""
-        if SAKURA_VERSION == '0.10':
+        self.version = version
+        if not os.path.exists(path):
+            if self.version == '0.10':
+                self.logger.warning(f"字典文件不存在: {path}")
+            return
+        else:
+            self.path = path
+        if self.version == '0.10':
             self.dict_str = self.get_dict_from_file(path)
-        if SAKURA_VERSION == '0.9':
+        if self.version == '0.9':
             self.logger.info("您当前选择了Sakura 0.9版本，暂不支持术语表")
 
     def load_galtransl_dic(self, dic_path: str):
@@ -172,12 +178,17 @@ class SakuraDict():
         """
         获取字典内容。
         """
-        if SAKURA_VERSION == '0.9':
+        if self.version == '0.9':
             self.logger.info("您当前选择了Sakura 0.9版本，暂不支持术语表")
             return ""
         if self.dict_str == "":
-            self.logger.warning("字典为空")
-            return ""
+            try:
+                self.dict_str = self.get_dict_from_file(self.path)
+                return self.dict_str
+            except Exception as e:
+                if self.version == '0.10':
+                    self.logger.warning(f"载入字典失败: {e}")
+                return ""
         return self.dict_str
 
     def get_dict_from_file(self, dic_path: str):
@@ -227,7 +238,7 @@ class SakuraTranslator(CommonTranslator):
         self._current_style = "precise"
         self._emoji_pattern = re.compile(r'[\U00010000-\U0010ffff]')
         self._heart_pattern = re.compile(r'❤')
-        self.sakura_dict = SakuraDict(self.get_dict_path(), self.logger)
+        self.sakura_dict = SakuraDict(self.get_dict_path(), self.logger, SAKURA_VERSION)
 
     def get_sakura_version(self):
         return SAKURA_VERSION
