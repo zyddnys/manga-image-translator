@@ -1,10 +1,6 @@
-from calendar import c
-from distutils.cygwinccompiler import get_versions
 import re
 import os
 from venv import logger
-
-from httpx import get
 
 try:
     import openai
@@ -275,16 +271,16 @@ class SakuraTranslator(CommonTranslator):
                 i += 1
             if repeated:
                 break
-        
+
         # 计算重复次数的众数
         if counts:
             mode_count = max(set(counts), key=counts.count)
         else:
             mode_count = 0
-        
+
         # 根据默认阈值和众数计算实际阈值
         actual_threshold = max(threshold, mode_count)
-        
+
         return repeated, s, count, pattern, actual_threshold
 
     @staticmethod
@@ -327,7 +323,7 @@ class SakuraTranslator(CommonTranslator):
                 _conv_map = _exclude_ignorechar(ignore, conv_map.copy())
                 return _convert(text, _conv_map)
             return _convert(text, conv_map)
-        
+
         return _translate(text, ignore, SMALL_KANA2BIG_KANA)
 
     def _format_prompt_log(self, prompt: str) -> str:
@@ -389,10 +385,10 @@ class SakuraTranslator(CommonTranslator):
         # 检查请求内容是否含有超过默认阈值的重复内容
         if self._detect_repeats(''.join(queries), self._REPEAT_DETECT_THRESHOLD):
             self.logger.warning(f'请求内容本身含有超过默认阈值{self._REPEAT_DETECT_THRESHOLD}的重复内容。')
-        
-        # 根据译文众数和默认阈值计算实际阈值    
+
+        # 根据译文众数和默认阈值计算实际阈值
         actual_threshold = max(max(self._get_repeat_count(query) for query in queries), self._REPEAT_DETECT_THRESHOLD)
-        
+
         if self._detect_repeats(response, actual_threshold):
             response = await _retry_translation(queries, lambda r: self._detect_repeats(r, actual_threshold), f'检测到大量重复内容（当前阈值：{actual_threshold}），疑似模型退化，重新翻译。')
             if response is None:
