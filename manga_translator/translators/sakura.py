@@ -224,7 +224,7 @@ class SakuraTranslator(CommonTranslator):
         self.temperature = 0.3
         self.top_p = 0.3
         self.frequency_penalty = 0.1
-        self._current_style = "normal"
+        self._current_style = "precise"
         self._emoji_pattern = re.compile(r'[\U00010000-\U0010ffff]')
         self._heart_pattern = re.compile(r'❤')
         self.sakura_dict = SakuraDict(self.get_dict_path(), self.logger)
@@ -276,6 +276,49 @@ class SakuraTranslator(CommonTranslator):
         
         return repeated, s, count, pattern, actual_threshold
 
+    @staticmethod
+    def enlarge_small_kana(text, ignore=''):
+        """将小写平假名或片假名转换为普通大小
+
+        参数
+        ----------
+        text : str
+            全角平假名或片假名字符串。
+        ignore : str, 可选
+            转换时要忽略的字符。
+
+        返回
+        ------
+        str
+            平假名或片假名字符串，小写假名已转换为大写
+
+        示例
+        --------
+        >>> print(enlarge_small_kana('さくらきょうこ'))
+        さくらきようこ
+        >>> print(enlarge_small_kana('キュゥべえ'))
+        キユウべえ
+        """
+        SMALL_KANA = list('ぁぃぅぇぉゃゅょっァィゥェォヵヶャュョッ')
+        SMALL_KANA_NORMALIZED = list('あいうえおやゆよつアイウエオカケヤユヨツ')
+        SMALL_KANA2BIG_KANA = dict(zip(map(ord, SMALL_KANA), SMALL_KANA_NORMALIZED))
+
+        def _exclude_ignorechar(ignore, conv_map):
+            for character in map(ord, ignore):
+                del conv_map[character]
+            return conv_map
+
+        def _convert(text, conv_map):
+            return text.translate(conv_map)
+
+        def _translate(text, ignore, conv_map):
+            if ignore:
+                _conv_map = _exclude_ignorechar(ignore, conv_map.copy())
+                return _convert(text, _conv_map)
+            return _convert(text, conv_map)
+        
+        return _translate(text, ignore, SMALL_KANA2BIG_KANA)
+
     def _format_prompt_log(self, prompt: str) -> str:
         """
         格式化日志输出的提示文本。
@@ -311,9 +354,11 @@ class SakuraTranslator(CommonTranslator):
         """
         预处理查询文本,去除emoji,替换特殊字符,并添加「」标记。
         """
+        queries = [self.enlarge_small_kana(query) for query in queries]
         queries = [self._emoji_pattern.sub('', query) for query in queries]
         queries = [self._heart_pattern.sub('♥', query) for query in queries]
         queries = [f'「{query}」' for query in queries]
+        self.logger.debug(f'预处理后的查询文本：{queries}')
         return queries
 
     async def _check_translation_quality(self, queries: List[str], response: str) -> List[str]:
@@ -335,7 +380,7 @@ class SakuraTranslator(CommonTranslator):
             self.logger.warning(f'请求内容本身含有超过默认阈值{self._REPEAT_DETECT_THRESHOLD}的重复内容。')
         
         # 根据译文众数和默认阈值计算实际阈值    
-        _, _, _, _, actual_threshold = self.detect_and_caculate_repeats(response)
+        actual_threshold = max(max(self._get_repeat_count(query) for query in queries), self._REPEAT_DETECT_THRESHOLD)
         
         if self._detect_repeats(response, actual_threshold):
             response = await _retry_translation(queries, lambda r: self._detect_repeats(r, actual_threshold), f'检测到大量重复内容（当前阈值：{actual_threshold}），疑似模型退化，重新翻译。')
@@ -357,6 +402,13 @@ class SakuraTranslator(CommonTranslator):
         """
         is_repeated, text, count, pattern, actual_threshold = self.detect_and_caculate_repeats(text, threshold, remove_all=False)
         return is_repeated
+
+    def _get_repeat_count(self, text: str, threshold: int = _REPEAT_DETECT_THRESHOLD) -> bool:
+        """
+        计算文本中重复模式的次数。
+        """
+        is_repeated, text, count, pattern, actual_threshold = self.detect_and_caculate_repeats(text, threshold, remove_all=False)
+        return count
 
     def _check_align(self, queries: List[str], response: str) -> bool:
         """
@@ -505,12 +557,12 @@ class SakuraTranslator(CommonTranslator):
         self._current_style = style_name
         if style_name == "precise":
             temperature, top_p = 0.1, 0.3
-            frequency_penalty = 0.1
+            frequency_penalty = 0.05
         elif style_name == "normal":
             temperature, top_p = 0.3, 0.3
             frequency_penalty = 0.2
         elif style_name == "aggressive":
-            temperature, top_p = 0.1, 0.3
+            temperature, top_p = 0.3, 0.3
             frequency_penalty = 0.3
 
         self.temperature = temperature
