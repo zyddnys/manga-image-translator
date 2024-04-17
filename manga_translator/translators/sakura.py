@@ -509,6 +509,9 @@ class SakuraTranslator(CommonTranslator):
             raw_text = "\n".join(input_text_list)
         else:
             raw_text = input_text_list
+        raw_lenth = len(raw_text)
+        max_lenth = 512
+        max_token_num = max(raw_lenth*2, max_lenth)
         extra_query = {
             'do_sample': False,
             'num_beams': 1,
@@ -543,7 +546,7 @@ class SakuraTranslator(CommonTranslator):
             messages=messages,
             temperature=self.temperature,
             top_p=self.top_p,
-            max_tokens=1024,
+            max_tokens=max_token_num,
             frequency_penalty=self.frequency_penalty,
             seed=-1,
             extra_query=extra_query,
