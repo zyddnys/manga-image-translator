@@ -15,7 +15,7 @@ from .mbart50 import MBart50Translator
 from .selective import SelectiveOfflineTranslator, prepare as prepare_selective_translator
 from .none import NoneTranslator
 from .original import OriginalTranslator
-from .sakura import Sakura13BTranslator
+from .sakura import SakuraTranslator
 
 OFFLINE_TRANSLATORS = {
     'offline': SelectiveOfflineTranslator,
@@ -41,7 +41,7 @@ TRANSLATORS = {
     'gpt4': GPT4Translator,
     'none': NoneTranslator,
     'original': OriginalTranslator,
-    'sakura': Sakura13BTranslator,
+    'sakura': SakuraTranslator,
     **OFFLINE_TRANSLATORS,
 }
 translator_cache = {}
