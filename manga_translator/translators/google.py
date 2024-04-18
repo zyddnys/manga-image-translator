@@ -96,13 +96,14 @@ class GoogleTranslator(CommonTranslator):
         'ESP': 'es',
         'TRK': 'tr',
         'UKR': 'uk',
-        'VIN': 'vi',
         'ARA': 'ar',
         'SRP': 'sr',
         'HRV': 'hr',
         'THA': 'th',
-        'IND': 'id'
+        'IND': 'id',
+        'FIL': 'tl'
     }
+
 
     def __init__(self, service_urls=DEFAULT_CLIENT_SERVICE_URLS, user_agent=DEFAULT_USER_AGENT,
                  raise_exception=DEFAULT_RAISE_EXCEPTION,
