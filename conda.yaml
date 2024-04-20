@@ -124,4 +124,8 @@ dependencies:
     - pymongo
     - pandas
     - onnxruntime
+    - openai==0.28.1
+    # - httpcore==0.9.1
+    # - httpx==0.13.3
+    # - googletrans==4.0.0rc1
 

@@ -9,6 +9,9 @@ import manga_translator.ocr as ocr
 import manga_translator.textline_merge as textline_merge
 import manga_translator.utils.generic as utils_generic
 import manga_translator.utils.textblock as utils_textblock
+# FIXME: impl better translator , maybe with Langchain
+# FIXME: maybe create a different translators package
+import manga_translator.translators as translators
 
 import logging
 import json
@@ -189,8 +192,6 @@ async def async_textline_merge(*, textlines: list[utils_generic.Quadrilateral], 
 
 @async_to_sync
 async def async_translate(**kwargs) -> Awaitable[list[str]]:
-    # FIXME: impl better translator , maybe with Langchain
-    import manga_translator.translators as translators
     query = kwargs['query']
     target_lang = kwargs['target_lang']
     translator = translators.get_translator(kwargs['translator'])
