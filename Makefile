@@ -1,3 +1,17 @@
+.PHONY: default
+
+default:
+	@echo Please use other targets
+
+conda-env:
+	conda env update --prune --file conda.yaml
+
+run-worker:
+	conda run -n mit-py311 --no-capture-output celery --app moeflow_worker worker --queues mit --loglevel=debug --concurrency=1
+
+prepare-models:
+	conda run -n mit-py311 --no-capture-output python3 docker_prepare.py
+
 build-image:
 	docker rmi manga-image-translator || true
 	docker build . --tag=manga-image-translator

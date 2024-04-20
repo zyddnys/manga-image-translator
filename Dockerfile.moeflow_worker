@@ -1,0 +1,9 @@
+# FROM pytorch/pytorch:2.2.2-cuda12.1-cudnn8-runtime
+FROM continuumio/miniconda3
+
+RUN apt update \
+        && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y install tzdata build-essential python3-opencv
+WORKDIR /app
+COPY . /app
+RUN --mount=type=cache,target=/root/.conda conda env update --prune --file conda.yaml
+RUN conda run -n mit-py311 --no-capture-output python3 docker_prepare.py
