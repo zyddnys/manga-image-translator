@@ -11,6 +11,7 @@ DETECTORS = {
     'default': DefaultDetector,
     'dbconvnext': DBConvNextDetector,
     'ctd': ComicTextDetector,
+    # craft: Character-Region Awareness For Text detection // https://github.com/clovaai/CRAFT-pytorch
     'craft': CRAFTDetector,
     'none': NoneDetector,
 }
