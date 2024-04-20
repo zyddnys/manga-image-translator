@@ -263,31 +263,37 @@ class ModelMangaOCR(OfflineOCR):
                 bg_r.append(out_regions[idx].bg_r)
                 bg_g.append(out_regions[idx].bg_g)
                 bg_b.append(out_regions[idx].bg_b)
-                
-            total_logprobs /= total_area
-            prob = np.exp(total_logprobs)
-            fr = round(np.mean(fg_r))
-            fg = round(np.mean(fg_g))
-            fb = round(np.mean(fg_b))
-            br = round(np.mean(bg_r))
-            bg = round(np.mean(bg_g))
-            bb = round(np.mean(bg_b))
-            
+
+            try:
+                prob_not_updated = False
+                total_logprobs /= total_area # avoid division by zero
+                prob = np.exp(total_logprobs)
+                fr = round(np.mean(fg_r))
+                fg = round(np.mean(fg_g))
+                fb = round(np.mean(fg_b))
+                br = round(np.mean(bg_r))
+                bg = round(np.mean(bg_g))
+                bb = round(np.mean(bg_b))
+            except ZeroDivisionError:
+                prob_not_updated = True
+
             txt = texts[i]
             self.logger.info(f'prob: {prob} {txt} fg: ({fr}, {fg}, {fb}) bg: ({br}, {bg}, {bb})')
             cur_region = merged_quadrilaterals[i][0]
             if isinstance(cur_region, Quadrilateral):
                 cur_region.text = txt
-                cur_region.prob = prob
-                cur_region.fg_r = fr
-                cur_region.fg_g = fg
-                cur_region.fg_b = fb
-                cur_region.bg_r = br
-                cur_region.bg_g = bg
-                cur_region.bg_b = bb
-            else:
+                if not prob_not_updated:
+                    cur_region.prob = prob
+                    cur_region.fg_r = fr
+                    cur_region.fg_g = fg
+                    cur_region.fg_b = fb
+                    cur_region.bg_r = br
+                    cur_region.bg_g = bg
+                    cur_region.bg_b = bb
+            else: # TextBlock
                 cur_region.text.append(txt)
-                cur_region.update_font_colors(np.array([fr, fg, fb]), np.array([br, bg, bb]))
+                if not prob_not_updated:
+                    cur_region.update_font_colors(np.array([fr, fg, fb]), np.array([br, bg, bb]))
             output_regions.append(cur_region)
 
         if is_quadrilaterals:
