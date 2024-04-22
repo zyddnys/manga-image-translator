@@ -27,15 +27,6 @@ BACKEND_URL = os.environ.get('CELERY_BACKEND_URL')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-env = {
-    "RABBITMQ_USER": 'moeflow',
-    "RABBITMQ_PASS": 'PLEASE_CHANGE_THIS',
-    'RABBITMQ_VHOST_NAME': 'moeflow',
-    'MONGODB_USER': 'moeflow',
-    'MONGODB_PASS': 'PLEASE_CHANGE_THIS',
-    'MONGODB_DB_NAME': 'moeflow',
-}
-
 celery_app = Celery(
     "manga-image-translator-moeflow-worker",
     broker=BROKER_URL,
