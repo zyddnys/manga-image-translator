@@ -3,6 +3,10 @@ name: Build docker image as mit-worker
 on:
   workflow_call: {}
   workflow_dispatch: {}
+  push:
+    branches:
+      - main
+      - moeflow-*
 
 defaults:
   run:
