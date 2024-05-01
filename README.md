@@ -170,8 +170,6 @@ $ source venv/bin/activate
 
 # Install the dependencies
 $ pip install -r requirements.txt
-
-$ pip install git+https://github.com/kodalli/pydensecrf.git
 ```
 
 ### Poetry
