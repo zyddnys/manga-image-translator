@@ -204,6 +204,8 @@ FIL: Filipino (Tagalog)
 --save-text-file SAVE_TEXT_FILE              Like --save-text but with a specified file path.
 --filter-text FILTER_TEXT                    Filter regions by their text with a regex. Example
                                              usage: --text-filter ".*badtext.*"
+--skip-lang                                  Skip translation if source image is one of the provide languages, 
+                                             use comma to separate multiple languages. Example: JPN,ENG
 --prep-manual                                Prepare for manual typesetting by outputting blank,
                                              inpainted images, plus copies of the original for
                                              reference
