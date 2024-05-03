@@ -23,6 +23,7 @@ VALID_LANGUAGES = {
     'ITA': 'Italian',
     'JPN': 'Japanese',
     'KOR': 'Korean',
+    'MSL': 'Malaysian',
     'PLK': 'Polish',
     'PTB': 'Portuguese (Brazil)',
     'ROM': 'Romanian',
