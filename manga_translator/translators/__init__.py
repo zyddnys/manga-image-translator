@@ -124,30 +124,3 @@ async def dispatch(chain: TranslatorChain, queries: List[str], use_mtpe: bool = 
         if args is not None:
             args['translations'][tgt_lang] = queries
     return queries
-
-LANGDETECT_MAP = {
-    'zh-cn': 'CHS',
-    'zh-tw': 'CHT',
-    'cs': 'CSY',
-    'nl': 'NLD',
-    'en': 'ENG',
-    'fr': 'FRA',
-    'de': 'DEU',
-    'hu': 'HUN',
-    'it': 'ITA',
-    'ja': 'JPN',
-    'ko': 'KOR',
-    'pl': 'PLK',
-    'pt': 'PTB',
-    'ro': 'ROM',
-    'ru': 'RUS',
-    'es': 'ESP',
-    'tr': 'TRK',
-    'uk': 'UKR',
-    'vi': 'VIN',
-    'ar': 'ARA',
-    'hr': 'HRV',
-    'th': 'THA',
-    'id': 'IND',
-    'tl': 'FIL'
-}

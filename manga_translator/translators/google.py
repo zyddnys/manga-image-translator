@@ -238,7 +238,7 @@ class GoogleTranslator(CommonTranslator):
             for part in parsed[1][0][0][5]:
                 try:
                     translated_parts.append(part[4][1][0])
-                except (IndexError, TypeError):
+                except IndexError:
                     translated_parts.append(part[0])
         except IndexError:
             translated_parts.append("")
