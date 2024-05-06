@@ -9,12 +9,8 @@ async def download(dict):
   for key, value in dict.items():
     if issubclass(value, ModelWrapper):
       print(' -- Downloading', key)
-      try:
-        inst = value()
-        await inst.download()
-      except Exception as e:
-        print('Failed to download', key, value)
-        print(e)
+      inst = value()
+      await inst.download()
 
 async def main():
   await download(DETECTORS)

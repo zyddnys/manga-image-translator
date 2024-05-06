@@ -14,7 +14,6 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.dependencies]
 python = ">=3.10, <3.13"
 langcodes = "^3.3.0"
-langdetect = ">=1.0.0"
 networkx = "^3.1"
 torch = "^2.0.1"
 torchvision = "^0.15.2"
@@ -25,6 +24,7 @@ opencv-python = "^4.8.0.76"
 pyclipper = "^1.3.0.post5"
 shapely = "^2.0.1"
 requests = "^2.31.0"
+oscrypto = { git = "https://github.com/wbond/oscrypto" }
 freetype-py = "^2.4.0"
 googletrans = "4.0.0rc1"
 aiohttp = "^3.8.5"
@@ -58,7 +58,7 @@ aioshutil = "^1.3"
 aiofiles = "^23.2.1"
 arabic-reshaper = "^3.0.0"
 pyhyphen = "^4.0.3"
-pydensecrf = { git = "https://github.com/lucasb-eyer/pydensecrf.git" }
+pydensecrf = { git = "https://github.com/kodalli/pydensecrf.git" }
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.25.2"

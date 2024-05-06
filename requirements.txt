@@ -44,6 +44,4 @@ aiofiles
 arabic-reshaper
 pyhyphen
 langcodes
-langdetect
 manga-ocr
-pydensecrf@https://github.com/lucasb-eyer/pydensecrf/archive/refs/heads/master.zip

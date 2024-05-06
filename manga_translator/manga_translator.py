@@ -6,7 +6,6 @@ import cv2
 from aiohttp.web_middlewares import middleware
 from omegaconf import OmegaConf
 import langcodes
-import langdetect
 import requests
 import os
 import re
@@ -51,7 +50,6 @@ from .inpainting import INPAINTERS, dispatch as dispatch_inpainting, prepare as 
 from .translators import (
     TRANSLATORS,
     VALID_LANGUAGES,
-    LANGDETECT_MAP,
     LanguageUnsupportedException,
     TranslatorChain,
     dispatch as dispatch_translation,
@@ -468,7 +466,7 @@ class MangaTranslator():
         if ctx.revert_upscaling:
             await self._report_progress('downscaling')
             ctx.result = ctx.result.resize(ctx.input.size)
-
+        
         return ctx
 
     async def _run_colorizer(self, ctx: Context):
@@ -864,7 +862,6 @@ class MangaTranslatorWS(MangaTranslator):
 
             params = {
                 'target_lang': task.target_language,
-                'skip_lang': task.skip_language,
                 'detector': task.detector,
                 'direction': task.direction,
                 'translator': task.translator,
@@ -1288,7 +1285,6 @@ class MangaTranslatorAPI(MangaTranslator):
         upscaler = fields.Str(required=False, validate=lambda a: a.lower() in UPSCALERS)
         translator = fields.Str(required=False, validate=lambda a: a.lower() in TRANSLATORS)
         direction = fields.Str(required=False, validate=lambda a: a.lower() in {'auto', 'h', 'v'})
-        skip_language = fields.Str(required=False)
         upscale_ratio = fields.Integer(required=False)
         translator_chain = fields.Str(required=False)
         selective_translation = fields.Str(required=False)
