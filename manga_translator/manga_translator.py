@@ -382,7 +382,8 @@ class MangaTranslator():
             await self._report_progress('skip-no-regions', True)
             # If no text was found result is intermediate image product
             ctx.result = ctx.upscaled
-            return ctx
+            return await self._revert_upscale(ctx)
+
         if self.verbose:
             img_bbox_raw = np.copy(ctx.img_rgb)
             for txtln in ctx.textlines:
@@ -396,7 +397,7 @@ class MangaTranslator():
             await self._report_progress('skip-no-text', True)
             # If no text was found result is intermediate image product
             ctx.result = ctx.upscaled
-            return ctx
+            return await self._revert_upscale(ctx)
         
         if ctx.skip_lang is not None :
             skip_langs = ctx.skip_lang.split(',')
@@ -406,7 +407,7 @@ class MangaTranslator():
                 print('skip due to', source_language, 'in', skip_langs)
                 await self._report_progress('finished', True)
                 ctx.result = ctx.upscaled
-                return ctx
+                return await self._revert_upscale(ctx)
 
         # -- Textline merge
         await self._report_progress('textline_merge')
@@ -425,11 +426,11 @@ class MangaTranslator():
         if not ctx.text_regions:
             await self._report_progress('error-translating', True)
             ctx.result = ctx.upscaled
-            return ctx
+            return await self._revert_upscale(ctx)
         elif ctx.text_regions == 'cancel':
             await self._report_progress('cancelled', True)
             ctx.result = ctx.upscaled
-            return ctx
+            return await self._revert_upscale(ctx)
 
         # -- Mask refinement
         # (Delayed to take advantage of the region filtering done after ocr and translation)
@@ -459,6 +460,11 @@ class MangaTranslator():
         await self._report_progress('finished', True)
         ctx.result = dump_image(ctx.input, ctx.img_rendered, ctx.img_alpha)
 
+        return await self._revert_upscale(ctx)
+    
+    # If `revert_upscaling` is True, revert to input size
+    # Else leave `ctx` as-is
+    async def _revert_upscale(self, ctx: Context):
         if ctx.revert_upscaling:
             await self._report_progress('downscaling')
             ctx.result = ctx.result.resize(ctx.input.size)
