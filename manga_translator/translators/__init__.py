@@ -15,7 +15,7 @@ from .mbart50 import MBart50Translator
 from .selective import SelectiveOfflineTranslator, prepare as prepare_selective_translator
 from .none import NoneTranslator
 from .original import OriginalTranslator
-from .sakura import Sakura13BTranslator
+from .sakura import SakuraTranslator
 
 OFFLINE_TRANSLATORS = {
     'offline': SelectiveOfflineTranslator,
@@ -41,7 +41,7 @@ TRANSLATORS = {
     'gpt4': GPT4Translator,
     'none': NoneTranslator,
     'original': OriginalTranslator,
-    'sakura': Sakura13BTranslator,
+    'sakura': SakuraTranslator,
     **OFFLINE_TRANSLATORS,
 }
 translator_cache = {}
@@ -124,3 +124,30 @@ async def dispatch(chain: TranslatorChain, queries: List[str], use_mtpe: bool = 
         if args is not None:
             args['translations'][tgt_lang] = queries
     return queries
+
+LANGDETECT_MAP = {
+    'zh-cn': 'CHS',
+    'zh-tw': 'CHT',
+    'cs': 'CSY',
+    'nl': 'NLD',
+    'en': 'ENG',
+    'fr': 'FRA',
+    'de': 'DEU',
+    'hu': 'HUN',
+    'it': 'ITA',
+    'ja': 'JPN',
+    'ko': 'KOR',
+    'pl': 'PLK',
+    'pt': 'PTB',
+    'ro': 'ROM',
+    'ru': 'RUS',
+    'es': 'ESP',
+    'tr': 'TRK',
+    'uk': 'UKR',
+    'vi': 'VIN',
+    'ar': 'ARA',
+    'hr': 'HRV',
+    'th': 'THA',
+    'id': 'IND',
+    'tl': 'FIL'
+}
