@@ -170,8 +170,6 @@ $ source venv/bin/activate
 
 # Install the dependencies
 $ pip install -r requirements.txt
-
-$ pip install git+https://github.com/kodalli/pydensecrf.git
 ```
 
 ### Poetry
@@ -372,7 +370,7 @@ Colorizer: **mc2**
                                              image folder if using batch mode
 -o, --dest DEST                              Path to the destination folder for translated images in
                                              batch mode
--l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA,CNR,SRP,HRV,THA,IND, FIL}
+-l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA,CNR,SRP,HRV,THA,IND,FIL}
                                              Destination language
 -v, --verbose                                Print debug info and save intermediate images in result
                                              folder
@@ -463,6 +461,8 @@ Colorizer: **mc2**
 --save-text-file SAVE_TEXT_FILE              Like --save-text but with a specified file path.
 --filter-text FILTER_TEXT                    Filter regions by their text with a regex. Example
                                              usage: --text-filter ".*badtext.*"
+--skip-lang                                  Skip translation if source image is one of the provide languages, 
+                                             use comma to separate multiple languages. Example: JPN,ENG
 --prep-manual                                Prepare for manual typesetting by outputting blank,
                                              inpainted images, plus copies of the original for
                                              reference
