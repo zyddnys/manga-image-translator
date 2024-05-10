@@ -98,6 +98,7 @@ parser.add_argument('--ignore-errors', action='store_true', help='Skip image on 
 parser.add_argument('--overwrite', action='store_true', help='Overwrite already translated images in batch mode.')
 parser.add_argument('--skip-no-text', action='store_true', help='Skip image without text (Will not be saved).')
 parser.add_argument('--model-dir', default=None, type=dir_path, help='Model directory (by default ./models in project root)')
+parser.add_argument('--skip-lang', default=None, type=str, help='Skip translation if source image is one of the provide languages, use comma to separate multiple languages. Example: JPN,ENG')
 
 g = parser.add_mutually_exclusive_group()
 g.add_argument('--use-gpu', action='store_true', help='Turn on/off gpu (auto switch between mps and cuda)')
