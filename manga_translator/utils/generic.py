@@ -345,17 +345,39 @@ class BBox(object):
     @property
     def xywh(self):
         return np.array([self.x, self.y, self.w, self.h], dtype=np.int32)
+    
+
+def sort_pnts(pnts):
+    # from SegDetectorRepresenter.get_mini_boxes
+    # To align with reading order:
+    # First point must be the one with smaller y of the two leftmost points.
+    # Second point must be the one with smaller y of the two middle points.
+    points = sorted(pnts, key=lambda x: x[0])
+
+    index_1, index_2, index_3, index_4 = 0, 1, 2, 3
+    if points[1][1] > points[0][1]:
+        index_1 = 0
+        index_4 = 1
+    else:
+        index_1 = 1
+        index_4 = 0
+    if points[3][1] > points[2][1]:
+        index_2 = 2
+        index_3 = 3
+    else:
+        index_2 = 3
+        index_3 = 2
+
+    box = [points[index_1], points[index_2], points[index_3], points[index_4]]
+    return np.array(box)
+
 
 class Quadrilateral(object):
     """
     Helper for storing textlines that contains various helper functions.
     """
-    def __init__(self, pts: np.ndarray, text: str, prob: float, fg_r: int = 0, fg_g: int = 0, fg_b: int = 0, bg_r: int = 0, bg_g: int = 0, bg_b: int = 0):
-        self.pts = pts
-        # Sort coordinates to start at the top left and go clockwise
-        self.pts = self.pts[np.argsort(self.pts[:,1])]
-        self.pts = self.pts[[*np.argsort(self.pts[:2,0]), *np.argsort(self.pts[2:,0])[::-1] + 2]]
-
+    def __init__(self, pts: np.ndarray, text: str, prob: float, fg_r: int = 0, fg_g: int = 0, fg_b: int = 0, bg_r: int = 0, bg_g: int = 0, bg_b: int = 0):    
+        self.pts = sort_pnts(pts)
         self.text = text
         self.prob = prob
         self.fg_r = fg_r
