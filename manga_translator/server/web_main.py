@@ -220,7 +220,7 @@ async def run_async(request):
     #         return web.json_response({'state': 'error'})
     else:
         os.makedirs(f'result/{task_id}/', exist_ok=True)
-        img.save(f'result/{task_id}/input.png')
+        img.save(f'result/{task_id}/input.jpg')
         QUEUE.append(task_id)
         now = time.time()
         TASK_DATA[task_id] = {
@@ -437,7 +437,7 @@ async def submit_async(request):
         }
     elif task_id not in TASK_DATA or task_id not in TASK_STATES:
         os.makedirs(f'result/{task_id}/', exist_ok=True)
-        img.save(f'result/{task_id}/input.png')
+        img.save(f'result/{task_id}/input.jpg')
         QUEUE.append(task_id)
         TASK_STATES[task_id] = {
             'info': 'pending',
@@ -464,7 +464,7 @@ async def manual_translate_async(request):
     task_id = secrets.token_hex(16)
     print(f'New `manual-translate` task {task_id}')
     os.makedirs(f'result/{task_id}/', exist_ok=True)
-    img.save(f'result/{task_id}/input.png')
+    img.save(f'result/{task_id}/input.jpg')
     now = time.time()
     QUEUE.append(task_id)
     # TODO: Add form fields to manual translate website
