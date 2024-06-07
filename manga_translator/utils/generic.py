@@ -347,29 +347,34 @@ class BBox(object):
         return np.array([self.x, self.y, self.w, self.h], dtype=np.int32)
     
 
-def sort_pnts(pnts):
-    # from SegDetectorRepresenter.get_mini_boxes
-    # To align with reading order:
-    # First point must be the one with smaller y of the two leftmost points.
-    # Second point must be the one with smaller y of the two middle points.
-    points = sorted(pnts, key=lambda x: x[0])
+def sort_pnts(pts: np.ndarray):
+    '''
+    Direction must be provided for sorting.
+    The largest pairwise vector of input points is used to determine the direction.
+    It is reliable enough for text lines but not for blocks.
+    '''
 
-    index_1, index_2, index_3, index_4 = 0, 1, 2, 3
-    if points[1][1] > points[0][1]:
-        index_1 = 0
-        index_4 = 1
-    else:
-        index_1 = 1
-        index_4 = 0
-    if points[3][1] > points[2][1]:
-        index_2 = 2
-        index_3 = 3
-    else:
-        index_2 = 3
-        index_3 = 2
+    if isinstance(pts, List):
+        pts = np.array(pts)
+    assert isinstance(pts, np.ndarray) and pts.shape == (4, 2)
+    diag_vec = pts[:, None] - pts[None]
+    diag_vec_norm = np.linalg.norm(diag_vec, axis=2)
+    diag_pnt_ids = np.unravel_index(np.argmax(diag_vec_norm), diag_vec_norm.shape)
+    
+    diag_vec = diag_vec[diag_pnt_ids[0], diag_pnt_ids[1]]
+    diag_vec = np.abs(diag_vec)
+    is_vertical = diag_vec[0] <= diag_vec[1]
 
-    box = [points[index_1], points[index_2], points[index_3], points[index_4]]
-    return np.array(box)
+    if is_vertical:
+        pts = pts[np.argsort(pts[:, 1])]
+        pts = pts[[*np.argsort(pts[:2, 0]), *np.argsort(pts[2:, 0])[::-1] + 2]]
+        return pts, is_vertical
+    else:
+        pts = pts[np.argsort(pts[:, 0])]
+        pts_sorted = np.zeros_like(pts)
+        pts_sorted[[0, 3]] = sorted(pts[[0, 1]], key=lambda x: x[1])
+        pts_sorted[[1, 2]] = sorted(pts[[2, 3]], key=lambda x: x[1])
+        return pts_sorted, is_vertical
 
 
 class Quadrilateral(object):
@@ -377,7 +382,11 @@ class Quadrilateral(object):
     Helper for storing textlines that contains various helper functions.
     """
     def __init__(self, pts: np.ndarray, text: str, prob: float, fg_r: int = 0, fg_g: int = 0, fg_b: int = 0, bg_r: int = 0, bg_g: int = 0, bg_b: int = 0):    
-        self.pts = sort_pnts(pts)
+        self.pts, is_vertical = sort_pnts(pts)
+        if is_vertical:
+            self.direction = 'v'
+        else:
+            self.direction = 'h'
         self.text = text
         self.prob = prob
         self.fg_r = fg_r
@@ -505,16 +514,6 @@ class Quadrilateral(object):
         if abs(np.dot(unit_vector_1, e1)) < 0.05 or abs(np.dot(unit_vector_1, e2)) < 0.05 or abs(np.dot(unit_vector_2, e1)) < 0.05 or abs(np.dot(unit_vector_2, e2)) < 0.05:
             return True
         return False
-
-    @functools.cached_property
-    def direction(self) -> str:
-        [l1a, l1b, l2a, l2b] = [a.astype(np.float32) for a in self.structure]
-        v_vec = l1b - l1a
-        h_vec = l2b - l2a
-        if np.linalg.norm(v_vec) > np.linalg.norm(h_vec):
-            return 'v'
-        else:
-            return 'h'
 
     @functools.cached_property
     def cosangle(self) -> float:
