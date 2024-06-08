@@ -350,20 +350,22 @@ class BBox(object):
 def sort_pnts(pts: np.ndarray):
     '''
     Direction must be provided for sorting.
-    The largest pairwise vector of input points is used to determine the direction.
+    The longer structure vector (mean of long side vectors) of input points is used to determine the direction.
     It is reliable enough for text lines but not for blocks.
     '''
 
     if isinstance(pts, List):
         pts = np.array(pts)
     assert isinstance(pts, np.ndarray) and pts.shape == (4, 2)
-    diag_vec = pts[:, None] - pts[None]
-    diag_vec_norm = np.linalg.norm(diag_vec, axis=2)
-    diag_pnt_ids = np.unravel_index(np.argmax(diag_vec_norm), diag_vec_norm.shape)
-    
-    diag_vec = diag_vec[diag_pnt_ids[0], diag_pnt_ids[1]]
-    diag_vec = np.abs(diag_vec)
-    is_vertical = diag_vec[0] <= diag_vec[1]
+    pairwise_vec = (pts[:, None] - pts[None]).reshape((16, -1))
+    pairwise_vec_norm = np.linalg.norm(pairwise_vec, axis=1)
+    long_side_ids = np.argsort(pairwise_vec_norm)[[8, 10]]
+    long_side_vecs = pairwise_vec[long_side_ids]
+    inner_prod = (long_side_vecs[0] * long_side_vecs[1]).sum()
+    if inner_prod < 0:
+        long_side_vecs[0] = -long_side_vecs[0]
+    struc_vec = np.abs(long_side_vecs.mean(axis=0))
+    is_vertical = struc_vec[0] <= struc_vec[1]
 
     if is_vertical:
         pts = pts[np.argsort(pts[:, 1])]
