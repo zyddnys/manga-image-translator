@@ -19,6 +19,16 @@ from .utils import (
     natural_sort,
 )
 
+import ngrok
+from dotenv import load_dotenv
+
+load_dotenv()
+
+NGROK_KEY = os.getenv('NGROK_KEY')
+
+if NGROK_KEY:
+    ngrok.set_auth_token(NGROK_KEY)
+
 # TODO: Dynamic imports to reduce ram usage in web(-server) mode. Will require dealing with args.py imports.
 
 async def dispatch(args: Namespace):
@@ -70,6 +80,13 @@ if __name__ == '__main__':
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+        
+        # setup the ngrok tunnel
+        if args.ngrok:
+            logger.info('Setting up ngrok tunnel...')
+            ngrok_url = ngrok.connect(5003).url()
+            logger.info(f'ngrok tunnel: {ngrok_url}')
+        
         loop.run_until_complete(dispatch(args))
     except KeyboardInterrupt:
         if not args or args.mode != 'web':
