@@ -319,6 +319,10 @@ $ python -m manga_translator -v --mode web --use-gpu
 $ python -m manga_translator -v --mode api --use-gpu
 # the demo will be serving on http://127.0.0.1:5003
 ```
+
+### Ngrok support
+In this case you only need to add ```--ngrok``` argument in any mode.
+
 ## Related Projects
 GUI implementation: [BallonsTranslator](https://github.com/dmMaze/BallonsTranslator)
 
