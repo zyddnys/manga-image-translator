@@ -84,7 +84,7 @@ if __name__ == '__main__':
         # setup the ngrok tunnel
         if args.ngrok:
             logger.info('Setting up ngrok tunnel...')
-            ngrok_url = ngrok.connect(5003).url()
+            ngrok_url = ngrok.connect(args.port).url()
             logger.info(f'ngrok tunnel: {ngrok_url}')
         
         loop.run_until_complete(dispatch(args))
