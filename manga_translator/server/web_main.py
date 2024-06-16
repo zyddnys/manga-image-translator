@@ -142,6 +142,8 @@ async def file_type_async(request):
 async def queue_size_async(request):
     return web.json_response({'size' : len(QUEUE)})
 
+TARGET_LANG = "target_lang"
+
 async def handle_post(request):
     data = await request.post()
     detection_size = None
@@ -149,8 +151,8 @@ async def handle_post(request):
     target_language = 'CHS'
     detector = 'default'
     direction = 'auto'
-    if 'tgt_lang' in data:
-        target_language = data['tgt_lang'].upper()
+    if TARGET_LANG in data:
+        target_language = data[TARGET_LANG].upper()
         # TODO: move dicts to their own files to reduce load time
         if target_language not in VALID_LANGUAGES:
             target_language = 'CHS'
