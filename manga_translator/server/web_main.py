@@ -142,7 +142,7 @@ async def file_type_async(request):
 async def queue_size_async(request):
     return web.json_response({'size' : len(QUEUE)})
 
-TARGET_LANG = "target_lang"
+TARGET_LANG = "tgt_lang"
 
 async def handle_post(request):
     data = await request.post()
