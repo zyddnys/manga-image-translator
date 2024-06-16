@@ -746,8 +746,8 @@ class MangaTranslatorWeb(MangaTranslator):
                 log_file = self._result_path('log.txt')
                 add_file_logger(log_file)
 
-            # final.jpg will be renamed if format param is set
-            await self.translate_path(self._result_path('input.jpg'), self._result_path('final.jpg'),
+            # final.png will be renamed if format param is set
+            await self.translate_path(self._result_path('input.jpg'), self._result_path('final.png'),
                                       params=self._params)
             print()
 
