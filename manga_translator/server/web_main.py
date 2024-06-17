@@ -51,6 +51,7 @@ VALID_TRANSLATORS = [
     'papago',
     'caiyun',
     'gpt3.5',
+    'gpt4',
     'nllb',
     'nllb_big',
     'sugoi',
