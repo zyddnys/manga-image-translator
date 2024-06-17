@@ -175,7 +175,7 @@ class GPT3Translator(CommonTranslator):
                 new_translations = re.split(r'\n', response)
 
             if len(new_translations) > query_size:
-                new_translations = new_translations[: len(query_size)]
+                new_translations = new_translations[: query_size]
             elif len(new_translations) < query_size :
                 new_translations = new_translations + [''] * (query_size - len(new_translations))
 
