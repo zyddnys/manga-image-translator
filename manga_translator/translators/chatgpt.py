@@ -174,10 +174,10 @@ class GPT3Translator(CommonTranslator):
                 # Try splitting by newlines instead
                 new_translations = re.split(r'\n', response)
 
-            if len(new_translations) != query_size:
-                # super method will repeat translation as per self._INVALID_REPEAT_COUNT
-                translations = []
-                break
+            if len(new_translations) > query_size:
+                new_translations = new_translations[: len(query_size)]
+            elif len(new_translations) < query_size :
+                new_translations = new_translations + [''] * (query_size - len(new_translations))
 
             translations.extend([t.strip() for t in new_translations])
 
