@@ -6,6 +6,7 @@ import cv2
 from aiohttp.web_middlewares import middleware
 from omegaconf import OmegaConf
 import langcodes
+import langdetect
 import requests
 import os
 import re
@@ -50,6 +51,7 @@ from .inpainting import INPAINTERS, dispatch as dispatch_inpainting, prepare as 
 from .translators import (
     TRANSLATORS,
     VALID_LANGUAGES,
+    LANGDETECT_MAP,
     LanguageUnsupportedException,
     TranslatorChain,
     dispatch as dispatch_translation,
@@ -380,7 +382,8 @@ class MangaTranslator():
             await self._report_progress('skip-no-regions', True)
             # If no text was found result is intermediate image product
             ctx.result = ctx.upscaled
-            return ctx
+            return await self._revert_upscale(ctx)
+
         if self.verbose:
             img_bbox_raw = np.copy(ctx.img_rgb)
             for txtln in ctx.textlines:
@@ -390,12 +393,25 @@ class MangaTranslator():
         # -- OCR
         await self._report_progress('ocr')
         ctx.textlines = await self._run_ocr(ctx)
+        
+        if ctx.skip_lang is not None :
+            filtered_textlines = []
+            skip_langs = ctx.skip_lang.split(',')
+            for txtln in ctx.textlines :
+                try :
+                    source_language = LANGDETECT_MAP.get(langdetect.detect(txtln.text), 'UNKNOWN')
+                except Exception :
+                    source_language = 'UNKNOWN'
+                if source_language not in skip_langs :
+                    filtered_textlines.append(txtln)
+            ctx.textlines = filtered_textlines
+
         if not ctx.textlines:
             await self._report_progress('skip-no-text', True)
             # If no text was found result is intermediate image product
             ctx.result = ctx.upscaled
-            return ctx
-
+            return await self._revert_upscale(ctx)
+        
         # -- Textline merge
         await self._report_progress('textline_merge')
         ctx.text_regions = await self._run_textline_merge(ctx)
@@ -413,11 +429,11 @@ class MangaTranslator():
         if not ctx.text_regions:
             await self._report_progress('error-translating', True)
             ctx.result = ctx.upscaled
-            return ctx
+            return await self._revert_upscale(ctx)
         elif ctx.text_regions == 'cancel':
             await self._report_progress('cancelled', True)
             ctx.result = ctx.upscaled
-            return ctx
+            return await self._revert_upscale(ctx)
 
         # -- Mask refinement
         # (Delayed to take advantage of the region filtering done after ocr and translation)
@@ -447,6 +463,11 @@ class MangaTranslator():
         await self._report_progress('finished', True)
         ctx.result = dump_image(ctx.input, ctx.img_rendered, ctx.img_alpha)
 
+        return await self._revert_upscale(ctx)
+    
+    # If `revert_upscaling` is True, revert to input size
+    # Else leave `ctx` as-is
+    async def _revert_upscale(self, ctx: Context):
         if ctx.revert_upscaling:
             await self._report_progress('downscaling')
             ctx.result = ctx.result.resize(ctx.input.size)
@@ -725,10 +746,9 @@ class MangaTranslatorWeb(MangaTranslator):
                 log_file = self._result_path('log.txt')
                 add_file_logger(log_file)
 
-            # final.jpg will be renamed if format param is set
-            await self.translate_path(self._result_path('input.jpg'), self._result_path('final.jpg'), params=self._params)
-
-            #await self.translate_path(self._result_path('input.png'), self._result_path('final.jpg'), params=self._params)
+            # final.png will be renamed if format param is set
+            await self.translate_path(self._result_path('input.png'), self._result_path('final.png'),
+                                      params=self._params)
             print()
 
             if self.verbose:
@@ -847,6 +867,7 @@ class MangaTranslatorWS(MangaTranslator):
 
             params = {
                 'target_lang': task.target_language,
+                'skip_lang': task.skip_language,
                 'detector': task.detector,
                 'direction': task.direction,
                 'translator': task.translator,
@@ -1270,6 +1291,7 @@ class MangaTranslatorAPI(MangaTranslator):
         upscaler = fields.Str(required=False, validate=lambda a: a.lower() in UPSCALERS)
         translator = fields.Str(required=False, validate=lambda a: a.lower() in TRANSLATORS)
         direction = fields.Str(required=False, validate=lambda a: a.lower() in {'auto', 'h', 'v'})
+        skip_language = fields.Str(required=False)
         upscale_ratio = fields.Integer(required=False)
         translator_chain = fields.Str(required=False)
         selective_translation = fields.Str(required=False)

@@ -14,6 +14,7 @@ from typing import List
 
 import httpcore
 import httpx
+setattr(httpcore, 'SyncHTTPTransport', any)
 from httpx import Timeout
 
 from googletrans import urls, utils
@@ -96,17 +97,17 @@ class GoogleTranslator(CommonTranslator):
         'ESP': 'es',
         'TRK': 'tr',
         'UKR': 'uk',
-        'VIN': 'vi',
         'ARA': 'ar',
         'SRP': 'sr',
         'HRV': 'hr',
         'THA': 'th',
-        'IND': 'id'
+        'IND': 'id',
+        'FIL': 'tl'
     }
+
 
     def __init__(self, service_urls=DEFAULT_CLIENT_SERVICE_URLS, user_agent=DEFAULT_USER_AGENT,
                  raise_exception=DEFAULT_RAISE_EXCEPTION,
-                 proxies: typing.Dict[str, httpcore.AsyncHTTPTransport] = None,
                  timeout: Timeout = None,
                  http2=True,
                  use_fallback=False):

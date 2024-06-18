@@ -32,7 +32,7 @@
 ## 使用说明
 
 ```bash
-# 首先，确信你的机器安装了 Python 3.8 及以上版本
+# 首先，确信你的机器安装了 Python 3.8 及以上版本，和相应的编译工具
 $ python --version
 Python 3.8.13
 
@@ -41,14 +41,9 @@ $ git clone https://github.com/zyddnys/manga-image-translator.git
 
 # 安装依赖
 $ pip install -r requirements.txt
-
-$ pip install git+https://github.com/kodalli/pydensecrf.git
 ```
 
-注意：`pydensecrf` 并没有作为一个依赖列出，如果你的机器没有安装过，就需要手动安装一下。\
-如果你在使用 Windows，可以尝试在 <https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf> (英文) (`pip install https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf`)
-找一个对应 Python 版本的预编译包，并使用 `pip` 安装。\
-如果你在使用其它操作系统，可以尝试使用 `pip install git+https://github.com/kodalli/pydensecrf.git` 安装。
+注意：`pydensecrf` 和其他pip包可能需要操作系统的相应编译工具（如Debian的build-essential）。
 
 [使用谷歌翻译时可选]\
 申请有道翻译或者 DeepL 的 API，把你的 `APP_KEY` 和 `APP_SECRET` 或 `AUTH_KEY` 写入 `translators/key.py` 中。
@@ -103,6 +98,7 @@ SRP: Serbian
 HRV: Croatian
 THA: Thai
 IND: Indonesian
+FIL: Filipino (Tagalog)
 ```
 
 <!-- Auto generated start (See devscripts/make_readme.py) -->
@@ -117,7 +113,7 @@ IND: Indonesian
                                              image folder if using batch mode
 -o, --dest DEST                              Path to the destination folder for translated images in
                                              batch mode
--l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA,CNR,SRP,HRV,THA,IND}
+-l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA,CNR,SRP,HRV,THA,IND,FIL}
                                              Destination language
 -v, --verbose                                Print debug info and save intermediate images in result
                                              folder
@@ -208,6 +204,8 @@ IND: Indonesian
 --save-text-file SAVE_TEXT_FILE              Like --save-text but with a specified file path.
 --filter-text FILTER_TEXT                    Filter regions by their text with a regex. Example
                                              usage: --text-filter ".*badtext.*"
+--skip-lang                                  Skip translation if source image is one of the provide languages, 
+                                             use comma to separate multiple languages. Example: JPN,ENG
 --prep-manual                                Prepare for manual typesetting by outputting blank,
                                              inpainted images, plus copies of the original for
                                              reference
