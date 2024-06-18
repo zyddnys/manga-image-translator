@@ -232,12 +232,12 @@ class GoogleTranslator(CommonTranslator):
         # should_spacing = parsed[1][0][0][3]
         should_spacing = True
         translated_parts = []
-        # print(parsed)
+
         try:
             for part in parsed[1][0][0][5]:
                 try:
                     translated_parts.append(part[4][1][0])
-                except IndexError:
+                except (IndexError, TypeError):
                     translated_parts.append(part[0])
         except IndexError:
             translated_parts.append("")
