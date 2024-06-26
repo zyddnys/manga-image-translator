@@ -28,7 +28,7 @@ websockets
 protobuf
 ctranslate2
 colorama
-openai==0.28
+openai
 open_clip_torch
 safetensors
 pandas
@@ -44,4 +44,6 @@ aiofiles
 arabic-reshaper
 pyhyphen
 langcodes
+langdetect
 manga-ocr
+pydensecrf@https://github.com/lucasb-eyer/pydensecrf/archive/refs/heads/master.zip

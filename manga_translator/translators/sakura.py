@@ -4,7 +4,6 @@ from venv import logger
 
 try:
     import openai
-    import openai.error
 except ImportError:
     openai = None
 import asyncio
@@ -223,11 +222,12 @@ class SakuraTranslator(CommonTranslator):
 
     def __init__(self):
         super().__init__()
+        self.client = openai.AsyncOpenAI()
         if "/v1" not in SAKURA_API_BASE:
-            openai.api_base = SAKURA_API_BASE + "/v1"
+            self.client.base_url = SAKURA_API_BASE + "/v1"
         else:
-            openai.api_base = SAKURA_API_BASE
-        openai.api_key = "sk-114514"
+            self.client.base_url = SAKURA_API_BASE
+        self.client.api_key = "sk-114514"
         self.temperature = 0.3
         self.top_p = 0.3
         self.frequency_penalty = 0.1
@@ -486,13 +486,13 @@ class SakuraTranslator(CommonTranslator):
                 if timeout_attempt >= self._TIMEOUT_RETRY_ATTEMPTS:
                     raise Exception('Sakura超时。')
                 self.logger.warning(f'Sakura因超时而进行重试。尝试次数： {timeout_attempt}')
-            except openai.error.RateLimitError:
+            except openai.RateLimitError:
                 ratelimit_attempt += 1
                 if ratelimit_attempt >= self._RATELIMIT_RETRY_ATTEMPTS:
                     raise
                 self.logger.warning(f'Sakura因被限速而进行重试。尝试次数： {ratelimit_attempt}')
                 await asyncio.sleep(2)
-            except (openai.error.APIError, openai.error.APIConnectionError) as e:
+            except (openai.APIError, openai.APIConnectionError) as e:
                 server_error_attempt += 1
                 if server_error_attempt >= self._RETRY_ATTEMPTS:
                     self.logger.error(f'Sakura API请求失败。错误信息： {e}')
@@ -541,7 +541,7 @@ class SakuraTranslator(CommonTranslator):
                     "content": f"根据以下术语表：\n{gpt_dict_raw_text}\n将下面的日文文本根据上述术语表的对应关系和注释翻译成中文：{raw_text}"
                 }
             ]
-        response = await openai.ChatCompletion.acreate(
+        response = await self.client.chat.completions.create(
             model="sukinishiro",
             messages=messages,
             temperature=self.temperature,
