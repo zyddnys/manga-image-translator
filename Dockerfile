@@ -13,6 +13,7 @@ COPY requirements.txt /app/requirements.txt
 
 RUN pip install -r /app/requirements.txt
 RUN pip install torchvision --force-reinstall
+RUN pip install "numpy<2.0"
 
 RUN apt-get remove -y g++ && \
     apt-get autoremove -y
