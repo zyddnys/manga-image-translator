@@ -45,3 +45,4 @@ arabic-reshaper
 pyhyphen
 langcodes
 manga-ocr
+langdetect
