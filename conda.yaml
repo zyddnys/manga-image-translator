@@ -102,7 +102,8 @@ dependencies:
   - zstd=1.5.5=hc292b87_0
   - pip:
     - pydensecrf@https://github.com/lucasb-eyer/pydensecrf/archive/refs/heads/master.zip
-    - opencv-python
+    - opencv-python-headless
+    - numpy==1.26.4
     - celery==5.3.6
     - celery[redis]==5.3.6
     - asgiref
