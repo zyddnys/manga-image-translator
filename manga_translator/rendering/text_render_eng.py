@@ -345,6 +345,7 @@ def render_textblock_list_eng(
     ballonarea_thresh: float = 2,
     downscale_constraint: float = 0.7,
     original_img: np.ndarray = None,
+    disable_font_border: bool = False
 ) -> np.ndarray:
 
     r"""
