@@ -10,7 +10,6 @@ shapely
 requests
 cryptography
 freetype-py
-googletrans==4.0.0rc1
 aiohttp
 tqdm
 deepl
@@ -19,16 +18,16 @@ kornia
 backports.cached-property
 huggingface_hub
 transformers
-py3langid
+py3langid==0.2.2
 sentencepiece
 editdistance
-numpy
+numpy==1.26.4
 tensorboardX
 websockets
 protobuf
 ctranslate2
 colorama
-openai
+openai==1.35.9
 open_clip_torch
 safetensors
 pandas
@@ -44,6 +43,6 @@ aiofiles
 arabic-reshaper
 pyhyphen
 langcodes
-langdetect
 manga-ocr
+langdetect
 pydensecrf@https://github.com/lucasb-eyer/pydensecrf/archive/refs/heads/master.zip

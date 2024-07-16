@@ -54,8 +54,7 @@ class GPT3Translator(CommonTranslator):
 
     def __init__(self, check_openai_key = True):
         super().__init__()
-        self.client = openai.AsyncOpenAI()
-        self.client.api_key = openai.api_key or OPENAI_API_KEY
+        self.client = openai.AsyncOpenAI(api_key = openai.api_key or OPENAI_API_KEY)
         self.client.base_url = OPENAI_API_BASE
         if not self.client.api_key and check_openai_key:
             raise MissingAPIKeyException('Please set the OPENAI_API_KEY environment variable before using the chatgpt translator.')

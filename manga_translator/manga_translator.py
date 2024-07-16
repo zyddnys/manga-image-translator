@@ -1289,7 +1289,7 @@ class MangaTranslatorAPI(MangaTranslator):
         return web.json_response({'details': results, 'img': img})
 
     class PostSchema(Schema):
-        target_language = fields.Str(required=False, validate=lambda a: a.upper() in VALID_LANGUAGES)
+        target_lang = fields.Str(required=False, validate=lambda a: a.upper() in VALID_LANGUAGES)
         detector = fields.Str(required=False, validate=lambda a: a.lower() in DETECTORS)
         ocr = fields.Str(required=False, validate=lambda a: a.lower() in OCRS)
         inpainter = fields.Str(required=False, validate=lambda a: a.lower() in INPAINTERS)

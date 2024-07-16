@@ -134,6 +134,7 @@ parser.add_argument('--colorization-size', default=576, type=int, help='Size of 
 parser.add_argument('--denoise-sigma', default=30, type=int, help='Used by colorizer and affects color strength, range from 0 to 255 (default 30). -1 turns it off.')
 parser.add_argument('--mask-dilation-offset', default=0, type=int, help='By how much to extend the text mask to remove left-over text pixels of the original image.')
 
+parser.add_argument('--disable-font-border', action='store_true', help='Disable font border')
 parser.add_argument('--font-size', default=None, type=int, help='Use fixed font size for rendering')
 parser.add_argument('--font-size-offset', default=0, type=int, help='Offset font size by a given amount, positive number increase font size and vice versa')
 parser.add_argument('--font-size-minimum', default=-1, type=int, help='Minimum output font size. Default is image_sides_sum/200')
