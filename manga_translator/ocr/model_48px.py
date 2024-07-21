@@ -63,7 +63,7 @@ class Model48pxOCR(OfflineOCR):
     async def _unload(self):
         del self.model
     
-    async def _infer(self, image: np.ndarray, textlines: List[Quadrilateral], verbose: bool = False, ignore_bubble: int = 0) -> List[TextBlock]:
+    async def _infer(self, image: np.ndarray, textlines: List[Quadrilateral], args: dict, verbose: bool = False, ignore_bubble: int = 0) -> List[TextBlock]:
         text_height = 48
         max_chunk_size = 16
 
