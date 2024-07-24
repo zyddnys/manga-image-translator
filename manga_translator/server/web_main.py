@@ -150,8 +150,8 @@ async def handle_post(request):
     target_language = 'CHS'
     detector = 'default'
     direction = 'auto'
-    if 'tgt_lang' in data:
-        target_language = data['tgt_lang'].upper()
+    if 'target_lang' in data:
+        target_language = data['target_lang'].upper()
         # TODO: move dicts to their own files to reduce load time
         if target_language not in VALID_LANGUAGES:
             target_language = 'CHS'
