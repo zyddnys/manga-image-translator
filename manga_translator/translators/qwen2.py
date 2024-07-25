@@ -86,21 +86,19 @@ class Qwen2Translator(OfflineTranslator):
         del self.tokenizer
 
     async def _infer(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
-        response = []
-        for query in queries:
-            model_inputs = self.tokenize([query], to_lang)
-            # Generate the translation
-            generated_ids = self.model.generate(
-                model_inputs.input_ids,
-                max_new_tokens=10240
-            )
+        model_inputs = self.tokenize(queries, to_lang)
+        # Generate the translation
+        generated_ids = self.model.generate(
+            model_inputs.input_ids,
+            max_new_tokens=10240
+        )
 
-            # Extract the generated tokens
-            generated_ids = [
-                output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
-            ]
+        # Extract the generated tokens
+        generated_ids = [
+            output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+        ]
 
-            response.append(self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0])
+        response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0].split('\n')
         return response
 
     def tokenize(self, queries, lang):
