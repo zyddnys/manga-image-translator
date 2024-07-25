@@ -1,4 +1,5 @@
 import os
+import re
 from typing import List
 
 
@@ -7,6 +8,7 @@ from .common import OfflineTranslator
 
 # Adapted from:
 # https://github.com/zyddnys/manga-image-translator/issues/680#issue-2428018275
+# manga_translator/translators/chatgpt.py
 
 class Qwen2Translator(OfflineTranslator):
     _LANGUAGE_CODE_MAP = {
@@ -49,14 +51,14 @@ class Qwen2Translator(OfflineTranslator):
     )
     _CHAT_SAMPLE = [
         (
-            '恥ずかしい… 目立ちたくない… 私が消えたい…\n'
-            'きみ… 大丈夫⁉\n'
-            'なんだこいつ 空気読めて ないのか…？'
+            '<|1|>恥ずかしい… 目立ちたくない… 私が消えたい…\n'
+            '<|2|>きみ… 大丈夫⁉\n'
+            '<|3|>なんだこいつ 空気読めて ないのか…？'
         ),
         (
-            '好尴尬…我不想引人注目…我想消失…\n'
-            '你…没事吧⁉\n'
-            '这家伙怎么看不懂气氛的…？'
+            '<|1|>好尴尬…我不想引人注目…我想消失…\n'
+            '<|2|>你…没事吧⁉\n'
+            '<|3|>这家伙怎么看不懂气氛的…？'
         )
     ]
 
@@ -97,15 +99,34 @@ class Qwen2Translator(OfflineTranslator):
         generated_ids = [
             output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
         ]
+        response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        query_size = len(queries)
 
-        response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0].split('\n')
-        return response
+        translations = []
+        self.logger.debug('-- Qwen2 Response --\n' + response)
+        new_translations = re.split(r'<\|\d+\|>', response)
+        # When there is only one query chatgpt likes to exclude the <|1|>
+        if not new_translations[0].strip():
+            new_translations = new_translations[1:]
+
+        if len(new_translations) <= 1 and query_size > 1:
+            # Try splitting by newlines instead
+            new_translations = re.split(r'\n', response)
+
+        if len(new_translations) > query_size:
+            new_translations = new_translations[: query_size]
+        elif len(new_translations) < query_size:
+            new_translations = new_translations + [''] * (query_size - len(new_translations))
+
+        translations.extend([t.strip() for t in new_translations])
+
+        return translations
 
     def tokenize(self, queries, lang):
         prompt = f"""Translate into {lang} and keep the original format.\n"""
-
+        prompt += '\nOriginal:'
         for i, query in enumerate(queries):
-            prompt += f'\n{query}'
+            prompt += f'\n<|{i+1}|>{query}'
 
         tokenizer = self.tokenizer
         messages = [
@@ -114,6 +135,8 @@ class Qwen2Translator(OfflineTranslator):
             {'role': 'assistant', 'content': self._CHAT_SAMPLE[1]},
             {'role': 'user', 'content': prompt},
         ]
+        self.logger.debug('-- Qwen2 prompt --\n' + prompt)
+
         text = tokenizer.apply_chat_template(
             messages,
             tokenize=False,
