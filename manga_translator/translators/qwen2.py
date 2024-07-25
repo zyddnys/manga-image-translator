@@ -45,7 +45,21 @@ class Qwen2Translator(OfflineTranslator):
         'never interpret it. '
         'If there is any issue in the text, '
         'output it as is.\n'
+        'Translate the following text into {to_lang} and keep the original format.\n'
     )
+    _CHAT_SAMPLE = [
+        (
+            '恥ずかしい… 目立ちたくない… 私が消えたい…\n'
+            'きみ… 大丈夫⁉\n'
+            'なんだこいつ 空気読めて ないのか…？'
+        ),
+        (
+            '好尴尬…我不想引人注目…我想消失…\n'
+            '你…没事吧⁉\n'
+            '这家伙怎么看不懂气氛的…？'
+        )
+    ]
+
     _TRANSLATOR_MODEL = "Qwen/Qwen2-1.5B-Instruct"
     _MODEL_SUB_DIR = os.path.join(OfflineTranslator._MODEL_DIR, OfflineTranslator._MODEL_SUB_DIR, _TRANSLATOR_MODEL)
     _IS_4_BIT = False
@@ -73,8 +87,8 @@ class Qwen2Translator(OfflineTranslator):
 
     async def _infer(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         response = []
-        for querie in queries:
-            model_inputs = self.tokenize([querie], to_lang)
+        for query in queries:
+            model_inputs = self.tokenize([query], to_lang)
             # Generate the translation
             generated_ids = self.model.generate(
                 model_inputs.input_ids,
@@ -90,15 +104,17 @@ class Qwen2Translator(OfflineTranslator):
         return response
 
     def tokenize(self, queries, lang):
-        prompt = 'Translate the following text into {to_lang} and keep the original format.'.format(to_lang=lang)
+        prompt = f"""Translate into {lang} and keep the original format.\n"""
 
         for i, query in enumerate(queries):
             prompt += f'\n{query}'
 
         tokenizer = self.tokenizer
         messages = [
-            {"role": "system", "content": self._CHAT_SYSTEM_TEMPLATE.format(to_lang=lang)},
-            {"role": "user", "content": prompt}
+            {'role': 'system', 'content': self._CHAT_SYSTEM_TEMPLATE},
+            {'role': 'user', 'content': self._CHAT_SAMPLE[0]},
+            {'role': 'assistant', 'content': self._CHAT_SAMPLE[1]},
+            {'role': 'user', 'content': prompt},
         ]
         text = tokenizer.apply_chat_template(
             messages,
