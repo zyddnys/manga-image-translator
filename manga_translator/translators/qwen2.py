@@ -45,7 +45,6 @@ class Qwen2Translator(OfflineTranslator):
         'never interpret it. '
         'If there is any issue in the text, '
         'output it as is.\n'
-        'Translate the following text into {to_lang} and keep the prefix format.\n'
     )
     _TRANSLATOR_MODEL = "Qwen/Qwen2-1.5B-Instruct"
     _MODEL_SUB_DIR = os.path.join(OfflineTranslator._MODEL_DIR, OfflineTranslator._MODEL_SUB_DIR, _TRANSLATOR_MODEL)
@@ -65,7 +64,6 @@ class Qwen2Translator(OfflineTranslator):
             quantization_config=quantization_config,
             device_map="auto"
         )
-        self.model.to(self.device)
         self.model.eval()
         self.tokenizer = AutoTokenizer.from_pretrained(self._TRANSLATOR_MODEL)
 
@@ -92,11 +90,10 @@ class Qwen2Translator(OfflineTranslator):
         return response
 
     def tokenize(self, queries, lang):
-        prompt = 'Translate the following text into {to_lang} and keep the prefix format.'.format(to_lang=lang)
+        prompt = 'Translate the following text into {to_lang} and keep the original format.'.format(to_lang=lang)
 
-        i_offset = 0
         for i, query in enumerate(queries):
-            prompt += f'\n<|{i + 1 - i_offset}|>{query}'
+            prompt += f'\n{query}'
 
         tokenizer = self.tokenizer
         messages = [
