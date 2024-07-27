@@ -3,25 +3,25 @@ import cv2
 
 def check_color(image):
     """
-    Determine whether there are colors in non black, gray, white, and other gray areas in an RGB color image。
+    Determine whether there are colors in non-black, gray, white, and other gray areas in an RGB color image.
     params：
     image -- np.array
     return：
     True -- Colors with non black, gray, white, and other grayscale areas
     False -- Images are all grayscale areas
     """
+    # Calculate grayscale version of the image using vectorized operations
     gray_image = np.dot(image[...,:3], [0.299, 0.587, 0.114])
-    n=0
-    for i in range(image.shape[0]):
-        for j in range(image.shape[1]):
-            color = image[i, j]
-            color_distance = np.sum((color - gray_image[i, j])**2)
-            if color_distance > 100:
-                n+=1
-    # gt 10
-    if n>10:
-        return True
-    return False
+    gray_image = gray_image[..., np.newaxis]
+
+    # Calculate color distance for all pixels in a vectorized manner
+    color_distance = np.sum((image - gray_image) ** 2, axis=-1)
+
+    # Count the number of pixels where color distance exceeds the threshold
+    n = np.sum(color_distance > 100)
+
+    # Return True if there are more than 10 such pixels
+    return n > 10
 
 def is_ignore(region_img, ignore_bubble = 0):
     """
