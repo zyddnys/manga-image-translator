@@ -16,6 +16,7 @@ from .selective import SelectiveOfflineTranslator, prepare as prepare_selective_
 from .none import NoneTranslator
 from .original import OriginalTranslator
 from .sakura import SakuraTranslator
+from .qwen2 import Qwen2Translator, Qwen2BigTranslator
 
 OFFLINE_TRANSLATORS = {
     'offline': SelectiveOfflineTranslator,
@@ -27,6 +28,8 @@ OFFLINE_TRANSLATORS = {
     'm2m100': M2M100Translator,
     'm2m100_big': M2M100BigTranslator,
     'mbart50': MBart50Translator,
+    'qwen2': Qwen2Translator,
+    'qwen2_big': Qwen2BigTranslator,
 }
 
 TRANSLATORS = {
