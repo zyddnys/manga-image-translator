@@ -521,7 +521,7 @@ FIL: Filipino (Tagalog)
 
 | Name       | API Key | Offline | Note                                                   |
 |------------|---------|---------|--------------------------------------------------------|
-| google     |         |         |                                                        |
+| <s>google</s>     |         |         |         Disabled temporarily                                               |
 | youdao     | ✔️      |         | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`      |
 | baidu      | ✔️      |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`         |
 | deepl      | ✔️      |         | Requires `DEEPL_AUTH_KEY`                              |
