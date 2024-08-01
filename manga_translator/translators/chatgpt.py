@@ -272,7 +272,7 @@ class GPT35TurboTranslator(GPT3Translator):
             return '\n'.join(txt.splitlines()[1:])
 
         response = await self.client.chat.completions.create(
-            model='gpt-3.5-turbo-0125',
+            model='gpt-4o-mini-2024-07-18',
             messages=messages,
             max_tokens=self._MAX_TOKENS // 2,
             temperature=self.temperature,
@@ -315,7 +315,7 @@ class GPT4Translator(GPT35TurboTranslator):
             return '\n'.join(txt.splitlines()[1:])
 
         response = await self.client.chat.completions.create(
-            model='gpt-4o-mini-2024-07-18',
+            model='gpt-4o',
             messages=messages,
             max_tokens=self._MAX_TOKENS // 2,
             temperature=self.temperature,
