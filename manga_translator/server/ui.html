@@ -292,7 +292,7 @@
           formData.append('detector', this.textDetector)
           formData.append('direction', this.renderTextDirection)
           formData.append('translator', this.translator)
-          formData.append('tgt_lang', this.targetLanguage)
+          formData.append('target_lang', this.targetLanguage)
 
           const xhr = new XMLHttpRequest()
           xhr.open('POST', `${BASE_URI}submit`, true)
