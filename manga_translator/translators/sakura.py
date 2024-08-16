@@ -222,7 +222,7 @@ class SakuraTranslator(CommonTranslator):
 
     def __init__(self):
         super().__init__()
-        self.client = openai.AsyncOpenAI()
+        self.client = openai.AsyncOpenAI(api_key = openai.api_key or 'empty')
         if "/v1" not in SAKURA_API_BASE:
             self.client.base_url = SAKURA_API_BASE + "/v1"
         else:
