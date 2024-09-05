@@ -568,7 +568,7 @@ class DBConvNextDetector(OfflineDetector):
             polys, _ = boxes[idx], scores[idx]
             polys = polys.astype(np.float64)
             polys = craft_utils.adjustResultCoordinates(polys, ratio_w, ratio_h, ratio_net=1)
-            polys = polys.astype(np.int16)
+            polys = polys.astype(np.int64)
 
         textlines = [Quadrilateral(pts.astype(int), '', score) for pts, score in zip(polys, scores)]
         textlines = list(filter(lambda q: q.area > 16, textlines))
