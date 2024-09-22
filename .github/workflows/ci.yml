@@ -41,4 +41,5 @@ jobs:
     - name: Test
       run: |
         venv/bin/pytest test
+      if: always()
       timeout-minutes: 2
