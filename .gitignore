@@ -39,3 +39,4 @@ share/python-wheels/
 *.egg
 MANIFEST
 .history
+/venv
