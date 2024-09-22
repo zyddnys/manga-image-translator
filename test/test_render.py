@@ -4,10 +4,6 @@ import cv2
 import pytest
 import numpy as np
 
-pytest_plugins = ('pytest_asyncio')
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from manga_translator.rendering import dispatch as dispatch_rendering, dispatch_eng_render
 from manga_translator.utils import (
     TextBlock,

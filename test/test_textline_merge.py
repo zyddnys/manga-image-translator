@@ -1,14 +1,8 @@
 import os
-import sys
 import cv2
 import pytest
 from typing import List
 import numpy as np
-
-pytest_plugins = ('pytest_asyncio')
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from manga_translator.textline_merge import dispatch as dispatch_merge
 from manga_translator.utils import (
     TextBlock,
@@ -16,6 +10,7 @@ from manga_translator.utils import (
     visualize_textblocks,
 )
 
+pytest_plugins = ('pytest_asyncio')
 
 BBOX_IMAGE_FOLDER = 'test/testdata/bboxes'
 os.makedirs(BBOX_IMAGE_FOLDER, exist_ok=True)
