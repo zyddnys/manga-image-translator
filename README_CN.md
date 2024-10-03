@@ -50,25 +50,26 @@ $ pip install -r requirements.txt
 
 ### 翻译器列表
 
-| 名称            | 是否需要 API Key | 是否离线可用 | 其他说明                                    |
-| -------------- | ------- | ------- | ----------------------------------------------------- |
-| google         |         |         |                                                       |
-| youdao         | ✔️      |         | 需要 `YOUDAO_APP_KEY` 和 `YOUDAO_SECRET_KEY`     |
-| baidu          | ✔️      |         | 需要 `BAIDU_APP_ID` 和 `BAIDU_SECRET_KEY`        |
-| deepl          | ✔️      |         | 需要 `DEEPL_AUTH_KEY`                             |
-| caiyun          | ✔️      |         | 需要 `CAIYUN_TOKEN`                             |
-| gpt3           | ✔️      |         | Implements text-davinci-003. Requires `OPENAI_API_KEY`|
-| gpt3.5         | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`   |
-| gpt4           | ✔️      |         | Implements gpt-4. Requires `OPENAI_API_KEY`           |
-| papago         |         |         |                                                       |
-| sakura         |         |         |需要`SAKURA_API_BASE`|
-| offline        |         | ✔️      |  自动选择可用的离线模型，只是选择器                                                  |
-| sugoi          |         | ✔️      |  只能翻译英文                                                    |
-| m2m100         |         | ✔️      |  可以翻译所有语言                                                     |
-| m2m100_big     |         | ✔️      |  带big的是完整尺寸，不带是精简版                                                    |
-| none           |         | ✔️      | 翻译成空白文本                                          |
-| mbart50    |         | ✔️      |                                                        |
-| original       |         | ✔️      | 翻译成源文本                                            |
+| 名称              | 是否需要 API Key | 是否离线可用 | 其他说明                                                   |
+|-----------------| ------- |--------|--------------------------------------------------------|
+| google          |         |        |                                                        |
+| youdao          | ✔️      |        | 需要 `YOUDAO_APP_KEY` 和 `YOUDAO_SECRET_KEY`              |
+| baidu           | ✔️      |        | 需要 `BAIDU_APP_ID` 和 `BAIDU_SECRET_KEY`                 |
+| deepl           | ✔️      |        | 需要 `DEEPL_AUTH_KEY`                                    |
+| caiyun          | ✔️      |        | 需要 `CAIYUN_TOKEN`                                      |
+| gpt3            | ✔️      |        | Implements text-davinci-003. Requires `OPENAI_API_KEY` |
+| gpt3.5          | ✔️      |        | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`    |
+| gpt4            | ✔️      |        | Implements gpt-4. Requires `OPENAI_API_KEY`            |
+| deepseek        | ✔️      |        | 需要 DEEPSEEK_API_KEY                                    |
+| papago          |         |        |                                                        |
+| sakura          |         |        | 需要`SAKURA_API_BASE`                                    |
+| offline         |         | ✔️     | 自动选择可用的离线模型，只是选择器                                      |
+| sugoi           |         | ✔️     | 只能翻译英文                                                 |
+| m2m100          |         | ✔️     | 可以翻译所有语言                                               |
+| m2m100_big      |         | ✔️     | 带big的是完整尺寸，不带是精简版                                      |
+| none            |         | ✔️     | 翻译成空白文本                                                |
+| mbart50         |         | ✔️     |                                                        |
+| original        |         | ✔️     | 翻译成源文本                                                 |
 
 ### 语言代码列表
 
@@ -138,7 +139,7 @@ FIL: Filipino (Tagalog)
 --upscale-ratio UPSCALE_RATIO                Image upscale ratio applied before detection. Can
                                              improve text detection.
 --colorizer {mc2}                            Colorization model to use.
---translator {google,youdao,baidu,deepl,papago,caiyun,gpt3,gpt3.5,gpt4,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,sakura}
+--translator {google,youdao,baidu,deepl,papago,caiyun,gpt3,gpt3.5,gpt4,deepseek,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,sakura}
                                              Language translator to use
 --translator-chain TRANSLATOR_CHAIN          Output of one translator goes in another. Example:
                                              --translator-chain "google:JPN;sugoi:ENG".
