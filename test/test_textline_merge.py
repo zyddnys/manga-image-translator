@@ -365,5 +365,5 @@ async def test_merge_image10():
         [[1708, 3195], [1750, 3195], [1750, 3795], [1708, 3795]],
     ]
     # print((await generate_combinations(lines, width, height))[0])
-    expected_combinations = [[0, 9], [1, 8, 6, 11], [2], [3, 4], [5, 7, 10], [12, 13]]
+    expected_combinations = [[0, 9], [1, 6, 8, 11], [2], [3, 4], [5, 7, 10], [12, 13]]
     await run_test(lines, expected_combinations, width, height, '10.png')
