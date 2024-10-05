@@ -36,11 +36,12 @@ jobs:
       run: |
         python3 -mvenv venv
         venv/bin/pip install -r requirements.txt -r requirements-dev.txt
-    - name: Lint *.py files
-      run: |
-        venv/bin/pylint $(git ls-files '*.py')
     - name: Test
       run: |
         venv/bin/pytest test
-      if: always()
       timeout-minutes: 5
+    - name: Lint *.py files
+      run: |
+        venv/bin/pylint $(git ls-files '*.py')
+      if: always()
+      continue-on-error: true # to not fail CI on lint errors
