@@ -10,8 +10,6 @@ from manga_translator.utils import (
     visualize_textblocks,
 )
 
-pytest_plugins = ('pytest_asyncio')
-
 BBOX_IMAGE_FOLDER = 'test/testdata/bboxes'
 os.makedirs(BBOX_IMAGE_FOLDER, exist_ok=True)
 

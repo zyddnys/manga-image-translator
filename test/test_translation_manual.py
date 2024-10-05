@@ -5,8 +5,6 @@ from manga_translator.translators import (
     dispatch,
 )
 
-pytest_plugins = ('pytest_asyncio')
-
 @pytest.mark.asyncio
 async def test_specified_translator(translator, tgt_lang, text, count):
     if translator is None:

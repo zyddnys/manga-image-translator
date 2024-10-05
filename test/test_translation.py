@@ -9,8 +9,6 @@ from manga_translator.translators import (
 )
 from manga_translator.translators.common import LanguageUnsupportedException
 
-pytest_plugins = ('pytest_asyncio')
-
 @pytest.mark.asyncio
 async def test_mixed_languages():
     queries = ['How to be dead everyday', '', 'Ich bin ein deutscher', 'Test case m. HELLO THERE I WANT an audition! YOYOYOYO', '目标意识']
