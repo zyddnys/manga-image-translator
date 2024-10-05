@@ -80,13 +80,14 @@ class TextBlock(object):
 
         self.texts = texts if texts is not None else []
         self.text = texts[0]
-        for txt in texts[1:] :
-            first_cjk = '\u3000' <= self.text[-1] <= '\u9fff'
-            second_cjk = '\u3000' <= txt[0] <= '\u9fff'
-            if first_cjk or second_cjk :
-                self.text += txt
-            else :
-                self.text += ' ' + txt
+        if self.text and len(texts) > 1:
+            for txt in texts[1:]:
+                first_cjk = '\u3000' <= self.text[-1] <= '\u9fff'
+                second_cjk = '\u3000' <= txt[0] <= '\u9fff'
+                if first_cjk or second_cjk :
+                    self.text += txt
+                else :
+                    self.text += ' ' + txt
         self.prob = prob
 
         self.translation = translation
@@ -725,7 +726,7 @@ def sort_regions(regions: List[TextBlock], right_to_left=True) -> List[TextBlock
 
 #     return final_blk_list
 
-def visualize_textblocks(canvas, blk_list: List[TextBlock]):
+def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock]):
     lw = max(round(sum(canvas.shape) / 2 * 0.003), 2)  # line width
     for i, blk in enumerate(blk_list):
         bx1, by1, bx2, by2 = blk.xyxy

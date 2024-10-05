@@ -18,8 +18,8 @@ Some manga/images will never be translated, therefore this project is born.
   - [Online Demo](#online-demo)
   - [Disclaimer](#disclaimer)
   - [Installation](#installation)
-    - [Pip/venv](#pipvenv)
-    - [Poetry](#poetry)
+    - [Local setup](#local-setup)
+      - [Pip/venv](#pipvenv)
       - [Additional instructions for **Windows**](#additional-instructions-for-windows)
     - [Docker](#docker)
       - [Hosting the web server](#hosting-the-web-server)
@@ -147,7 +147,9 @@ Primarily designed for translating Japanese text, but also supports Chinese, Eng
 Supports inpainting, text rendering and colorization.
 ## Installation
 
-### Pip/venv
+### Local setup
+
+#### Pip/venv
 
 ```bash
 # First, you need to have Python(>=3.8) installed on your system
@@ -172,15 +174,6 @@ $ source venv/bin/activate
 $ pip install -r requirements.txt
 ```
 
-### Poetry
-
-```bash
-git clone https://github.com/zyddnys/manga-image-translator.git
-cd manga-image-translator
-poetry shell
-poetry install
-```
-
 The models will be downloaded into `./models` at runtime.
 
 #### Additional instructions for **Windows**
@@ -193,9 +186,6 @@ as some pip dependencies will not compile without it.
 
 To use [cuda](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64)
 on windows install the correct pytorch version as instructed on <https://pytorch.org/>.
-
-Also, if you have trouble installing pydensecrf with the command above you can install the pre-compiled wheels
-with `pip install https://www.lfd.uci.edu/~gohlke/pythonlibs/#_pydensecrf`.
 
 ### Docker
 

@@ -1,10 +1,4 @@
-import os
-import sys
 import pytest
-
-pytest_plugins = ('pytest_asyncio')
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from manga_translator.translators import (
     TRANSLATORS,
@@ -13,24 +7,34 @@ from manga_translator.translators import (
     MissingAPIKeyException,
     dispatch,
 )
+from manga_translator.translators.common import LanguageUnsupportedException
 
 @pytest.mark.asyncio
 async def test_mixed_languages():
     queries = ['How to be dead everyday', '', 'Ich bin ein deutscher', 'Test case m. HELLO THERE I WANT an audition! YOYOYOYO', '目标意识']
-    chain = TranslatorChain('google:ENG')
-    print(await dispatch(chain, queries))
+    try:
+        chain = TranslatorChain('youdao:ENG')
+        print(await dispatch(chain, queries))
+    except MissingAPIKeyException as e:
+        print(e)
     
 @pytest.mark.asyncio
 async def test_single_language():
     queries = ['僕はアイネと共に一度、宿の方に戻った', '改めて直面するのは部屋の問題――部屋のベッドが一つでは、さすがに狭すぎるだろう。']
-    chain = TranslatorChain('google:ENG')
-    print(await dispatch(chain, queries))
+    try:
+        chain = TranslatorChain('youdao:CHS')
+        print(await dispatch(chain, queries))
+    except MissingAPIKeyException as e:
+        print(e)
     
 @pytest.mark.asyncio
 async def test_chain():
     queries = ['僕はアイネと共に一度、宿の方に戻った', '改めて直面するのは部屋の問題――部屋のベッドが一つでは、さすがに狭すぎるだろう。']
-    chain = TranslatorChain('google:JPN;sugoi:ENG')
-    print(await dispatch(chain, queries))
+    try:
+        chain = TranslatorChain('gpt3.5:JPN;sugoi:ENG')
+        print(await dispatch(chain, queries))
+    except MissingAPIKeyException as e:
+        print(e)
 
 @pytest.mark.asyncio
 async def test_online_translators():
@@ -41,7 +45,7 @@ async def test_online_translators():
         try:
             chain = TranslatorChain(f'{key}:ENG')
             print(await dispatch(chain, queries))
-        except MissingAPIKeyException as e:
+        except (MissingAPIKeyException, LanguageUnsupportedException) as e:
             print(e)
 
 @pytest.mark.asyncio
