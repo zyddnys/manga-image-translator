@@ -26,10 +26,12 @@ async def test_default_renderer():
     regions = [
         TextBlock(
             [[[10, 10], [200, 10], [10, 400], [200, 400]]],
+            texts=['a', 'b','c', 'd', 'e', 'f'],
             translation='aaaaaa bbbbbbbbbbbb cccc ddddddddddd eeeeeeeeeeeeee fff'
         ),
         TextBlock(
             [[[410, 10], [900, 10], [410, 800], [900, 800]]],
+            texts=['eng', 'pne'],
             translation=#'aaaaaa bbbbbbbbbbbb cccc' \
                 # 'dddddddddddddddddddddddddddddddddddddddddddddddddddd eeeeeeeeeeeeee fff' \
                 # 'dddddddddddddddddddddddddddddddddddddddddddddddddddd fff' \
