@@ -726,7 +726,7 @@ def sort_regions(regions: List[TextBlock], right_to_left=True) -> List[TextBlock
 
 #     return final_blk_list
 
-def visualize_textblocks(canvas, blk_list: List[TextBlock]):
+def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock]):
     lw = max(round(sum(canvas.shape) / 2 * 0.003), 2)  # line width
     for i, blk in enumerate(blk_list):
         bx1, by1, bx2, by2 = blk.xyxy

@@ -46,19 +46,17 @@ async def generate_combinations(lines: List[List[List[int]]], width: int, height
         generated_combinations.append(combination)
     return generated_combinations, regions
 
-async def run_test(lines, expected_combinations, width, height, path = None):
+async def run_test(lines: List, expected_combinations: List, width: int, height: int, path = None):
     generated_combinations, regions = await generate_combinations(lines, width, height)
 
     # Save as image
     path = os.path.join(BBOX_IMAGE_FOLDER, path or 'bboxes.png')
     save_regions_to_image(path, regions, width, height)
 
-    invalid_regions = []
-    for i, generated_combination in enumerate(generated_combinations):
-        if generated_combination not in expected_combinations:
-            invalid_regions.append(i)
-    if invalid_regions:
-        raise Exception(f'Invalid regions: {invalid_regions}, Generated combination: {generated_combinations} - Image saved under {path}')
+    expected_as_tuples = set(tuple(combination) for combination in expected_combinations)
+    generated_as_tuples = set(tuple(combination) for combination in generated_combinations)
+
+    assert expected_as_tuples == generated_as_tuples, f"image saved under {path}"
 
         # # Search for all associated regions
         # associated_regions = []
