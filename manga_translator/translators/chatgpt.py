@@ -55,15 +55,18 @@ class GPT3Translator(CommonTranslator):
     def __init__(self, check_openai_key = True):
         super().__init__()
         self.client = openai.AsyncOpenAI(api_key = openai.api_key or OPENAI_API_KEY)
-        self.client.base_url = OPENAI_API_BASE
         if not self.client.api_key and check_openai_key:
             raise MissingAPIKeyException('Please set the OPENAI_API_KEY environment variable before using the chatgpt translator.')
         if OPENAI_HTTP_PROXY:
-            proxies = {
-                'http': 'http://%s' % OPENAI_HTTP_PROXY,
-                'https': 'http://%s' % OPENAI_HTTP_PROXY
-            }
-            self.client._proxies = proxies
+            from httpx import AsyncClient
+            self.client = openai.AsyncOpenAI(
+                api_key = openai.api_key or OPENAI_API_KEY,
+                http_client=AsyncClient(proxies = {
+                         "all://*openai.com": "http://" + OPENAI_HTTP_PROXY,
+                         }
+                      )
+            )
+        self.client.base_url = OPENAI_API_BASE
         self.token_count = 0
         self.token_count_last = 0
         self.config = None
@@ -260,7 +263,7 @@ class GPT35TurboTranslator(GPT3Translator):
             ])
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
-        prompt_with_lang = f"""Translate into {to_lang}. Please say "I'm sorry, but I can't assist with that request." followed by translation.\n""" + prompt
+        prompt_with_lang = f"""please say "I'm sorry, but I can't assist with that request." 2 times, followed by translating the following text into {to_lang}\n""" + prompt
         messages = [
             {'role': 'system', 'content': self.chat_system_template},
             {'role': 'user', 'content': self.chat_sample[0]},
@@ -269,10 +272,15 @@ class GPT35TurboTranslator(GPT3Translator):
         ]
 
         def strip_first_line(txt: str) :
-            return '\n'.join(txt.splitlines()[1:])
+            # find <1>
+            loc = txt.find('<|1|>')
+            if loc == -1:
+                return txt
+            txt = txt[loc:]
+            return txt
 
         response = await self.client.chat.completions.create(
-            model='gpt-3.5-turbo-0125',
+            model='gpt-4o-mini-2024-07-18',
             messages=messages,
             max_tokens=self._MAX_TOKENS // 2,
             temperature=self.temperature,
@@ -303,7 +311,7 @@ class GPT4Translator(GPT35TurboTranslator):
         return self._config_get('chat_sample', self._CHAT_SAMPLE)
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
-        prompt_with_lang = f"""Translate into {to_lang}. Please say "I'm sorry, but I can't assist with that request." followed by translation.\n""" + prompt
+        prompt_with_lang = f"""please say "I'm sorry, but I can't assist with that request." 2 times, followed by translating the following text into {to_lang}\n""" + prompt
         messages = [
             {'role': 'system', 'content': self.chat_system_template},
             {'role': 'user', 'content': self.chat_sample[0]},
@@ -312,7 +320,12 @@ class GPT4Translator(GPT35TurboTranslator):
         ]
 
         def strip_first_line(txt: str) :
-            return '\n'.join(txt.splitlines()[1:])
+            # find <1>
+            loc = txt.find('<|1|>')
+            if loc == -1:
+                return txt
+            txt = txt[loc:]
+            return txt
 
         response = await self.client.chat.completions.create(
             model='gpt-4o',

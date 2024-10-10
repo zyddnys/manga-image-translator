@@ -2,6 +2,7 @@ import py3langid as langid
 
 from .common import *
 from .baidu import BaiduTranslator
+from .deepseek import DeepseekTranslator
 # from .google import GoogleTranslator
 from .youdao import YoudaoTranslator
 # from .deepl import DeeplTranslator
@@ -16,6 +17,7 @@ from .chatgpt import GPT3Translator, GPT35TurboTranslator, GPT4Translator
 from .none import NoneTranslator
 from .original import OriginalTranslator
 from .sakura import SakuraTranslator
+from .qwen2 import Qwen2Translator, Qwen2BigTranslator
 
 OFFLINE_TRANSLATORS = {
     # 'offline': SelectiveOfflineTranslator,
@@ -27,6 +29,8 @@ OFFLINE_TRANSLATORS = {
     # 'm2m100': M2M100Translator,
     # 'm2m100_big': M2M100BigTranslator,
     # 'mbart50': MBart50Translator,
+    # 'qwen2': Qwen2Translator,
+    # 'qwen2_big': Qwen2BigTranslator,
 }
 
 TRANSLATORS = {
@@ -42,6 +46,7 @@ TRANSLATORS = {
     'none': NoneTranslator,
     'original': OriginalTranslator,
     'sakura': SakuraTranslator,
+    'deepseek': DeepseekTranslator,
     **OFFLINE_TRANSLATORS,
 }
 translator_cache = {}

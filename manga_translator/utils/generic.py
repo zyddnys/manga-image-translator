@@ -473,21 +473,36 @@ class Quadrilateral(object):
         v_vec = l1b - l1a
         h_vec = l2b - l2a
         ratio = np.linalg.norm(v_vec) / np.linalg.norm(h_vec)
-        src_pts = self.pts.astype(np.float32)
+
+        src_pts = self.pts.astype(np.int64).copy()
+        im_h, im_w = img.shape[:2]
+
+        x1, y1, x2, y2 = src_pts[:, 0].min(), src_pts[:, 1].min(), src_pts[:, 0].max(), src_pts[:, 1].max()
+        x1 = np.clip(x1, 0, im_w)
+        y1 = np.clip(y1, 0, im_h)
+        x2 = np.clip(x2, 0, im_w)
+        y2 = np.clip(y2, 0, im_h)
+        # cv2.warpPerspective could overflow if image size is too large, better crop it here
+        img_croped = img[y1: y2, x1: x2]
+
+        
+        src_pts[:, 0] -= x1
+        src_pts[:, 1] -= y1
+
         self.assigned_direction = direction
         if direction == 'h':
             h = max(int(textheight), 2)
             w = max(int(round(textheight / ratio)), 2)
             dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
             M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-            region = cv2.warpPerspective(img, M, (w, h))
+            region = cv2.warpPerspective(img_croped, M, (w, h))
             return region
         elif direction == 'v':
             w = max(int(textheight), 2)
             h = max(int(round(textheight * ratio)), 2)
             dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
             M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-            region = cv2.warpPerspective(img, M, (w, h))
+            region = cv2.warpPerspective(img_croped, M, (w, h))
             region = cv2.rotate(region, cv2.ROTATE_90_COUNTERCLOCKWISE)
             return region
 

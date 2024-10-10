@@ -1,21 +1,14 @@
 import os
-import sys
 import cv2
 import pytest
 from typing import List
 import numpy as np
-
-pytest_plugins = ('pytest_asyncio')
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from manga_translator.textline_merge import dispatch as dispatch_merge
 from manga_translator.utils import (
     TextBlock,
     Quadrilateral,
     visualize_textblocks,
 )
-
 
 BBOX_IMAGE_FOLDER = 'test/testdata/bboxes'
 os.makedirs(BBOX_IMAGE_FOLDER, exist_ok=True)
@@ -51,19 +44,17 @@ async def generate_combinations(lines: List[List[List[int]]], width: int, height
         generated_combinations.append(combination)
     return generated_combinations, regions
 
-async def run_test(lines, expected_combinations, width, height, path = None):
+async def run_test(lines: List, expected_combinations: List, width: int, height: int, path = None):
     generated_combinations, regions = await generate_combinations(lines, width, height)
 
     # Save as image
     path = os.path.join(BBOX_IMAGE_FOLDER, path or 'bboxes.png')
     save_regions_to_image(path, regions, width, height)
 
-    invalid_regions = []
-    for i, generated_combination in enumerate(generated_combinations):
-        if generated_combination not in expected_combinations:
-            invalid_regions.append(i)
-    if invalid_regions:
-        raise Exception(f'Invalid regions: {invalid_regions}, Generated combination: {generated_combinations} - Image saved under {path}')
+    expected_as_tuples = set(tuple(combination) for combination in expected_combinations)
+    generated_as_tuples = set(tuple(combination) for combination in generated_combinations)
+
+    assert expected_as_tuples == generated_as_tuples, f"image saved under {path}"
 
         # # Search for all associated regions
         # associated_regions = []
@@ -372,5 +363,5 @@ async def test_merge_image10():
         [[1708, 3195], [1750, 3195], [1750, 3795], [1708, 3795]],
     ]
     # print((await generate_combinations(lines, width, height))[0])
-    expected_combinations = [[0, 9], [1, 8, 6, 11], [2], [3, 4], [5, 7, 10], [12, 13]]
+    expected_combinations = [[0, 9], [1, 6, 8, 11], [2], [3, 4], [5, 7, 10], [12, 13]]
     await run_test(lines, expected_combinations, width, height, '10.png')

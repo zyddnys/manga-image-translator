@@ -80,13 +80,14 @@ class TextBlock(object):
 
         self.texts = texts if texts is not None else []
         self.text = texts[0]
-        for txt in texts[1:] :
-            first_cjk = '\u3000' <= self.text[-1] <= '\u9fff'
-            second_cjk = '\u3000' <= txt[0] <= '\u9fff'
-            if first_cjk or second_cjk :
-                self.text += txt
-            else :
-                self.text += ' ' + txt
+        if self.text and len(texts) > 1:
+            for txt in texts[1:]:
+                first_cjk = '\u3000' <= self.text[-1] <= '\u9fff'
+                second_cjk = '\u3000' <= txt[0] <= '\u9fff'
+                if first_cjk or second_cjk :
+                    self.text += txt
+                else :
+                    self.text += ' ' + txt
         self.prob = prob
 
         self.translation = translation
@@ -221,30 +222,64 @@ class TextBlock(object):
         return blk_dict
 
     def get_transformed_region(self, img: np.ndarray, line_idx: int, textheight: int, maxwidth: int = None) -> np.ndarray:
-        src_pts = np.array(self.lines[line_idx], dtype=np.float64)
+        im_h, im_w = img.shape[:2]
 
+        line = np.round(np.array(self.lines[line_idx])).astype(np.int64)
+
+        x1, y1, x2, y2 = line[:, 0].min(), line[:, 1].min(), line[:, 0].max(), line[:, 1].max()
+        x1 = np.clip(x1, 0, im_w)
+        y1 = np.clip(y1, 0, im_h)
+        x2 = np.clip(x2, 0, im_w)
+        y2 = np.clip(y2, 0, im_h)
+        img_croped = img[y1: y2, x1: x2]
+        
+        direction = 'v' if self.src_is_vertical else 'h'
+
+        src_pts = line.copy()
+        src_pts[:, 0] -= x1
+        src_pts[:, 1] -= y1
         middle_pnt = (src_pts[[1, 2, 3, 0]] + src_pts) / 2
         vec_v = middle_pnt[2] - middle_pnt[0]   # vertical vectors of textlines
         vec_h = middle_pnt[1] - middle_pnt[3]   # horizontal vectors of textlines
-        ratio = np.linalg.norm(vec_v) / np.linalg.norm(vec_h)
+        norm_v = np.linalg.norm(vec_v)
+        norm_h = np.linalg.norm(vec_h)
 
-        if ratio < 1:
+        if textheight is None:
+            if direction == 'h' :
+                textheight = int(norm_v)
+            else:
+                textheight = int(norm_h)
+        
+        if norm_v <= 0 or norm_h <= 0:
+            print('invalid textpolygon to target img')
+            return np.zeros((textheight, textheight, 3), dtype=np.uint8)
+        ratio = norm_v / norm_h
+
+        if direction == 'h' :
             h = int(textheight)
             w = int(round(textheight / ratio))
             dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
             M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-            region = cv2.warpPerspective(img, M, (w, h))
-        else:
+            if M is None:
+                print('invalid textpolygon to target img')
+                return np.zeros((textheight, textheight, 3), dtype=np.uint8)
+            region = cv2.warpPerspective(img_croped, M, (w, h))
+        elif direction == 'v' :
             w = int(textheight)
             h = int(round(textheight * ratio))
             dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
             M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-            region = cv2.warpPerspective(img, M, (w, h))
+            if M is None:
+                print('invalid textpolygon to target img')
+                return np.zeros((textheight, textheight, 3), dtype=np.uint8)
+            region = cv2.warpPerspective(img_croped, M, (w, h))
             region = cv2.rotate(region, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
         if maxwidth is not None:
             h, w = region.shape[: 2]
             if w > maxwidth:
                 region = cv2.resize(region, (maxwidth, h))
+
         return region
 
     @property
@@ -691,7 +726,7 @@ def sort_regions(regions: List[TextBlock], right_to_left=True) -> List[TextBlock
 
 #     return final_blk_list
 
-def visualize_textblocks(canvas, blk_list: List[TextBlock]):
+def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock]):
     lw = max(round(sum(canvas.shape) / 2 * 0.003), 2)  # line width
     for i, blk in enumerate(blk_list):
         bx1, by1, bx2, by2 = blk.xyxy
