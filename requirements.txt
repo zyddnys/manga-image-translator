@@ -1,5 +1,6 @@
 networkx
 torch
+groq
 torchvision
 torch-summary
 einops
