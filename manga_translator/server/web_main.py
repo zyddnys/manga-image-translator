@@ -48,6 +48,7 @@ VALID_TRANSLATORS = [
     'baidu',
     'google',
     'deepl',
+    'deepseek',
     'papago',
     'caiyun',
     'gpt3.5',
