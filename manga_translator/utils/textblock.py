@@ -42,7 +42,7 @@ class TextBlock(object):
     """
     Object that stores a block of text made up of textlines.
     """
-    def __init__(self, lines: List,
+    def __init__(self, lines: List[Tuple[int, int, int, int]],
                  texts: List[str] = None,
                  language: str = 'unknown',
                  font_size: float = -1,
