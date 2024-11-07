@@ -26,7 +26,7 @@ from ..utils import TextBlock, Quadrilateral, quadrilateral_can_merge_region, ch
 from ..utils.generic import AvgMeter
 from ..utils.bubble import is_ignore
 
-async def merge_bboxes(bboxes: List[Quadrilateral], width: int, height: int):
+async def merge_bboxes(bboxes: List[Quadrilateral], width: int, height: int) -> Tuple[List[Quadrilateral], int]:
     # step 1: divide into multiple text region candidates
     G = nx.Graph()
     for i, box in enumerate(bboxes):
@@ -147,7 +147,7 @@ class ModelMangaOCR(OfflineOCR):
             is_quadrilaterals = True
         
         texts = {}
-        if args['use_mocr_merge']:
+        if args.get('use_mocr_merge', False):
             merged_textlines, merged_idx = await merge_bboxes(textlines, image.shape[1], image.shape[0])
             merged_quadrilaterals = list(self._generate_text_direction(merged_textlines))
         else:
@@ -285,7 +285,7 @@ class ModelMangaOCR(OfflineOCR):
                 cur_region.bg_r = br
                 cur_region.bg_g = bg
                 cur_region.bg_b = bb
-            else:
+            else: # TextBlock
                 cur_region.text.append(txt)
                 cur_region.update_font_colors(np.array([fr, fg, fb]), np.array([br, bg, bb]))
             output_regions.append(cur_region)
