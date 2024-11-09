@@ -278,7 +278,15 @@ class ModelWrapper(ABC):
                 return False
         return True
 
-    def _check_downloaded_map(self, map_key: str) -> str:
+    def _check_downloaded_map(self, map_key: str) -> bool:
+        """Check if model file exists
+
+        Args:
+            map_key (str): key in self._MODEL_MAPPING
+
+        Returns:
+            bool: the "file" or "archive" file exists
+        """
         mapping = self._MODEL_MAPPING[map_key]
 
         if 'file' in mapping:

@@ -5,8 +5,8 @@ from .keys import DEEPL_AUTH_KEY
 
 class DeeplTranslator(CommonTranslator):
     _LANGUAGE_CODE_MAP = {
-        'CHS': 'ZH',
-        'CHT': 'ZH',
+        'CHS': 'ZH-HANS',
+        'CHT': 'ZH-HANT',
         'JPN': 'JA',
         'ENG': 'EN-US',
         'CSY': 'CS',

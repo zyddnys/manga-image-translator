@@ -117,7 +117,7 @@ class MangaTranslator():
     def using_gpu(self):
         return self.device.startswith('cuda') or self.device == 'mps'
 
-    async def translate_path(self, path: str, dest: str = None, params: dict = None):
+    async def translate_path(self, path: str, dest: str = None, params: dict[str, Union[int, str]] = None):
         """
         Translates an image or folder (recursively) specified through the path.
         """
@@ -219,7 +219,7 @@ class MangaTranslator():
             attempts += 1
         return False
 
-    async def _translate_file(self, path: str, dest: str, ctx: Context):
+    async def _translate_file(self, path: str, dest: str, ctx: Context) -> bool:
         if path.endswith('.txt'):
             with open(path, 'r') as f:
                 queries = f.read().split('\n')
