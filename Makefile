@@ -6,9 +6,6 @@ CONDA_YML ?= conda.yaml
 default:
 	@echo Please use other targets
 
-conda-env:
-	micromamba env update --prune --file conda.yaml
-
 run-worker:
 	conda run -n mit-py311 --no-capture-output celery --app moeflow_worker worker --queues mit --loglevel=debug --concurrency=1
 
