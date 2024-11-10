@@ -43,14 +43,14 @@ async def dispatch(args: Namespace):
 
             # Apply pre-translation dictionaries
             for textline in translator.textlines:
-                textline.text = translator.apply_dictionary(textline.text, pre_dict)  # 修改：使用 translator 对象调用 apply_dictionary
+                textline.text = translator.apply_dictionary(textline.text, pre_dict)  
                 logger.info(f'Pre-translation dictionary applied: {textline.text}')
 
             await translator.translate_path(args.input[0], dest, args_dict)
 
             # Apply post-translation dictionaries
             for textline in translator.textlines:
-                textline.translation = translator.apply_dictionary(textline.translation, post_dict)  # 修改：使用 translator 对象调用 apply_dictionary
+                textline.translation = translator.apply_dictionary(textline.translation, post_dict)  
                 logger.info(f'Post-translation dictionary applied: {textline.translation}')
 
         else: # batch
@@ -58,14 +58,14 @@ async def dispatch(args: Namespace):
             for path in natural_sort(args.input):
                 # Apply pre-translation dictionaries
                 for textline in translator.textlines:
-                    textline.text = translator.apply_dictionary(textline.text, pre_dict)  # 修改：使用 translator 对象调用 apply_dictionary
+                    textline.text = translator.apply_dictionary(textline.text, pre_dict)  
                     logger.info(f'Pre-translation dictionary applied: {textline.text}')
 
                 await translator.translate_path(path, dest, args_dict)
 
                 # Apply post-translation dictionaries
                 for textline in translator.textlines:
-                    textline.translation = translator.apply_dictionary(textline.translation, post_dict)  # 修改：使用 translator 对象调用 apply_dictionary
+                    textline.translation = translator.apply_dictionary(textline.translation, post_dict)  
                     logger.info(f'Post-translation dictionary applied: {textline.translation}')
 
     elif args.mode == 'web':
