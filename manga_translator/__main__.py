@@ -42,11 +42,10 @@ async def dispatch(args: Namespace):
             args.overwrite = True # Do overwrite result/final.png file
 
             # Apply pre-translation dictionaries
+            await translator.translate_path(args.input[0], dest, args_dict)
             for textline in translator.textlines:
                 textline.text = translator.apply_dictionary(textline.text, pre_dict)  
                 logger.info(f'Pre-translation dictionary applied: {textline.text}')
-
-            await translator.translate_path(args.input[0], dest, args_dict)
 
             # Apply post-translation dictionaries
             for textline in translator.textlines:
@@ -57,11 +56,10 @@ async def dispatch(args: Namespace):
             dest = args.dest
             for path in natural_sort(args.input):
                 # Apply pre-translation dictionaries
-                for textline in translator.textlines:
-                    textline.text = translator.apply_dictionary(textline.text, pre_dict)  
-                    logger.info(f'Pre-translation dictionary applied: {textline.text}')
-
                 await translator.translate_path(path, dest, args_dict)
+                for textline in translator.textlines:
+                    textline.text = translator.apply_dictionary(textline.text, pre_dict) 
+                    logger.info(f'Pre-translation dictionary applied: {textline.text}')
 
                 # Apply post-translation dictionaries
                 for textline in translator.textlines:
