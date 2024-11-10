@@ -573,20 +573,7 @@ class MangaTranslator():
             region._alignment = ctx.alignment
             region._direction = ctx.direction
 
-        # Filter out regions by their translations
-        new_text_regions = []
-        for region in ctx.text_regions:
-            # TODO: Maybe print reasons for filtering
-            if not ctx.translator == 'none' and (region.translation.isnumeric() \
-                    or ctx.filter_text and re.search(ctx.filter_text, region.translation)
-                    or not ctx.translator == 'original' and region.text.lower().strip() == region.translation.lower().strip()):
-                if region.translation.strip():
-                    logger.info(f'Filtered out: {region.translation}')
-            else:
-                new_text_regions.append(region)
-        return new_text_regions
-        
-        # Apply post dictionary after translating and filtering text 
+        # Apply post dictionary after translating
         post_dict = self.load_dictionary(ctx.post_dict)  
         post_replacements = []  
         for region in ctx.text_regions:  
@@ -600,7 +587,21 @@ class MangaTranslator():
             for replacement in post_replacements:  
                 logger.info(replacement)  
         else:  
-            logger.info("No post-translation replacements made.")        
+            logger.info("No post-translation replacements made.")  
+        
+        # Filter out regions by their translations
+        new_text_regions = []
+        for region in ctx.text_regions:
+            # TODO: Maybe print reasons for filtering
+            if not ctx.translator == 'none' and (region.translation.isnumeric() \
+                    or ctx.filter_text and re.search(ctx.filter_text, region.translation)
+                    or not ctx.translator == 'original' and region.text.lower().strip() == region.translation.lower().strip()):
+                if region.translation.strip():
+                    logger.info(f'Filtered out: {region.translation}')
+            else:
+                new_text_regions.append(region)
+        return new_text_regions
+               
 
     async def _run_mask_refinement(self, ctx: Context):
         return await dispatch_mask_refinement(ctx.text_regions, ctx.img_rgb, ctx.mask_raw, 'fit_text',
