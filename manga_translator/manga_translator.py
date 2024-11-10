@@ -304,6 +304,24 @@ class MangaTranslator():
         # translate
         return await self._translate(ctx)
 
+    def load_dictionary(self, file_path):
+        dictionary = []
+        if file_path and os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as file:
+                for line in file:
+                    key, value = line.strip().split('=')
+                    try:
+                        pattern = re.compile(key)
+                        dictionary.append((pattern, value))
+                    except re.error as e:
+                        logger.error(f'Invalid regex pattern in dictionary: {key} - {e}')
+        return dictionary
+
+    def apply_dictionary(self, text, dictionary):
+        for pattern, value in dictionary:
+            text = pattern.sub(value, text)
+        return text
+
     def _preprocess_params(self, ctx: Context):
         # params auto completion
         # TODO: Move args into ctx.args and only calculate once, or just copy into ctx
@@ -411,6 +429,22 @@ class MangaTranslator():
             # If no text was found result is intermediate image product
             ctx.result = ctx.upscaled
             return await self._revert_upscale(ctx)
+
+        # Apply pre-dictionary after OCR
+        pre_dict = self.load_dictionary(ctx.pre_dict)  
+        pre_replacements = []  
+        for textline in ctx.textlines:  
+            original = textline.text  
+            textline.text = self.apply_dictionary(textline.text, pre_dict)  
+            if original != textline.text:  
+                pre_replacements.append(f"{original} => {textline.text}")  
+
+        if pre_replacements:  
+            logger.info("Pre-translation replacements:")  
+            for replacement in pre_replacements:  
+                logger.info(replacement)  
+        else:  
+            logger.info("No pre-translation replacements made.")
         
         # -- Textline merge
         await self._report_progress('textline_merge')
@@ -551,6 +585,22 @@ class MangaTranslator():
             else:
                 new_text_regions.append(region)
         return new_text_regions
+        
+        # Apply post dictionary after translating and filtering text 
+        post_dict = self.load_dictionary(ctx.post_dict)  
+        post_replacements = []  
+        for region in ctx.text_regions:  
+            original = region.translation  
+            region.translation = self.apply_dictionary(region.translation, post_dict)  
+            if original != region.translation:  
+                post_replacements.append(f"{original} => {region.translation}")  
+
+        if post_replacements:  
+            logger.info("Post-translation replacements:")  
+            for replacement in post_replacements:  
+                logger.info(replacement)  
+        else:  
+            logger.info("No post-translation replacements made.")        
 
     async def _run_mask_refinement(self, ctx: Context):
         return await dispatch_mask_refinement(ctx.text_regions, ctx.img_rgb, ctx.mask_raw, 'fit_text',
