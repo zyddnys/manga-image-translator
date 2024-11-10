@@ -544,12 +544,19 @@ class MangaTranslator():
                     or (not ctx.no_text_lang_skip and langcodes.tag_distance(region.source_lang, ctx.target_lang) == 0):
                 if region.text.strip():
                     logger.info(f'Filtered out: {region.text}')
+                    if len(region.text) < ctx.min_text_length:
+                        logger.info('Reason: Text length is less than the minimum required length.')
+                    elif not is_valuable_text(region.text):
+                        logger.info('Reason: Text is not considered valuable.')
+                    elif langcodes.tag_distance(region.source_lang, ctx.target_lang) == 0:
+                        logger.info('Reason: Text language matches the target language and no_text_lang_skip is False.')
             else:
                 if ctx.font_color_fg or ctx.font_color_bg:
                     if ctx.font_color_bg:
                         region.adjust_bg_color = False
                 new_text_regions.append(region)
         text_regions = new_text_regions
+
 
         # Sort ctd (comic text detector) regions left to right. Otherwise right to left.
         # Sorting will improve text translation quality.
@@ -588,19 +595,83 @@ class MangaTranslator():
                 logger.info(replacement)  
         else:  
             logger.info("No post-translation replacements made.")  
+
+        # Filter out regions by their translations  
+        new_text_regions = []  
         
-        # Filter out regions by their translations
-        new_text_regions = []
-        for region in ctx.text_regions:
-            # TODO: Maybe print reasons for filtering
-            if not ctx.translator == 'none' and (region.translation.isnumeric() \
-                    or ctx.filter_text and re.search(ctx.filter_text, region.translation)
-                    or not ctx.translator == 'original' and region.text.lower().strip() == region.translation.lower().strip()):
-                if region.translation.strip():
-                    logger.info(f'Filtered out: {region.translation}')
-            else:
-                new_text_regions.append(region)
-        return new_text_regions
+        # Special handling for Chinese target language  
+        if ctx.target_lang in ['CHS', 'CHT']:  
+            # Classify all regions  
+            same_chinese_regions = []    # Chinese regions where translation is same as original  
+            diff_chinese_regions = []    # Chinese regions where translation differs from original  
+            same_non_chinese_regions = []  # Non-Chinese regions where translation is same as original  
+            diff_non_chinese_regions = []  # Non-Chinese regions where translation differs from original  
+            
+            for region in ctx.text_regions:  
+                text_equal = region.text.lower().strip() == region.translation.lower().strip()  
+                has_chinese = bool(re.search('[\u4e00-\u9fff]', region.text))  
+                
+                # Skip numeric translations and filtered text matches  
+                if region.translation.isnumeric():  
+                    logger.info(f'Filtered out: {region.translation}')  
+                    logger.info('Reason: Numeric translation')  
+                    continue  
+                
+                if ctx.filter_text and re.search(ctx.filter_text, region.translation):  
+                    logger.info(f'Filtered out: {region.translation}')  
+                    logger.info(f'Reason: Matched filter text: {ctx.filter_text}')  
+                    continue  
+                
+                if has_chinese:  
+                    if text_equal:  
+                        logger.info(f'Filtered out: {region.translation}')  
+                        logger.info('Reason: Translation identical to original')  
+                        same_chinese_regions.append(region)  
+                    else:  
+                        diff_chinese_regions.append(region)  
+                else:  
+                    if text_equal:  
+                        logger.info(f'Filtered out: {region.translation}')  
+                        logger.info('Reason: Translation identical to original')  
+                        same_non_chinese_regions.append(region)  
+                    else:  
+                        diff_non_chinese_regions.append(region)  
+            
+            # If there are any different translations (Chinese or non-Chinese), keep all Chinese regions  
+            if diff_chinese_regions or diff_non_chinese_regions:  
+                new_text_regions.extend(same_chinese_regions)  
+                new_text_regions.extend(diff_chinese_regions)  
+            
+            # Keep all non-Chinese regions with different translations  
+            new_text_regions.extend(diff_non_chinese_regions)  
+        
+        else:  
+            # Process non-Chinese target languages with original logic  
+            for region in ctx.text_regions:  
+                should_filter = False  
+                filter_reason = ""  
+                
+                if not ctx.translator == 'none':  
+                    if region.translation.isnumeric():  
+                        should_filter = True  
+                        filter_reason = "Numeric translation"  
+                    elif ctx.filter_text and re.search(ctx.filter_text, region.translation):  
+                        should_filter = True  
+                        filter_reason = f"Matched filter text: {ctx.filter_text}"  
+                    elif not ctx.translator == 'original':  
+                        text_equal = region.text.lower().strip() == region.translation.lower().strip()  
+                        if text_equal:  
+                            should_filter = True  
+                            filter_reason = "Translation identical to original"  
+                
+                if should_filter:  
+                    if region.translation.strip():  
+                        logger.info(f'Filtered out: {region.translation}')  
+                        logger.info(f'Reason: {filter_reason}')  
+                else:  
+                    new_text_regions.append(region)  
+        
+        return new_text_regions    
                
 
     async def _run_mask_refinement(self, ctx: Context):
