@@ -308,13 +308,24 @@ class MangaTranslator():
         dictionary = []
         if file_path and os.path.exists(file_path):
             with open(file_path, 'r', encoding='utf-8') as file:
-                for line in file:
-                    key, value = line.strip().split('=')
-                    try:
-                        pattern = re.compile(key)
-                        dictionary.append((pattern, value))
-                    except re.error as e:
-                        logger.error(f'Invalid regex pattern in dictionary: {key} - {e}')
+                for line_number, line in enumerate(file, start=1):
+                    # Ignore empty lines and lines starting with '#' or '//'
+                    if not line.strip() or line.strip().startswith('#') or line.strip().startswith('//'):
+                        continue
+                    # Remove comment parts
+                    line = line.split('#')[0].strip()
+                    line = line.split('//')[0].strip()
+                    parts = line.split()
+                    if len(parts) == 1:
+                        # If there is only the left part, the right part defaults to an empty string, meaning delete the left part
+                        pattern = re.compile(parts[0])
+                        dictionary.append((pattern, ''))
+                    elif len(parts) == 2:
+                        # If both left and right parts are present, perform the replacement
+                        pattern = re.compile(parts[0])
+                        dictionary.append((pattern, parts[1]))
+                    else:
+                        logger.error(f'Invalid dictionary entry at line {line_number}: {line.strip()}')
         return dictionary
 
     def apply_dictionary(self, text, dictionary):
@@ -598,20 +609,41 @@ class MangaTranslator():
 
         # Filter out regions by their translations  
         new_text_regions = []  
-        
-        # Special handling for Chinese target language  
-        if ctx.target_lang in ['CHS', 'CHT']:  
-            # Classify all regions  
-            same_chinese_regions = []    # Chinese regions where translation is same as original  
-            diff_chinese_regions = []    # Chinese regions where translation differs from original  
-            same_non_chinese_regions = []  # Non-Chinese regions where translation is same as original  
-            diff_non_chinese_regions = []  # Non-Chinese regions where translation differs from original  
+
+        # List of languages with specific language detection  
+        special_langs = ['CHS', 'CHT', 'JPN', 'KOR', 'IND', 'UKR', 'RUS', 'THA', 'ARA']  
+
+        # Process special language scenarios  
+        if ctx.target_lang in special_langs:  
+            # Categorize regions  
+            same_target_regions = []    # Target language regions with identical translation  
+            diff_target_regions = []    # Target language regions with different translation  
+            same_non_target_regions = []  # Non-target language regions with identical translation  
+            diff_non_target_regions = []  # Non-target language regions with different translation  
             
             for region in ctx.text_regions:  
                 text_equal = region.text.lower().strip() == region.translation.lower().strip()  
-                has_chinese = bool(re.search('[\u4e00-\u9fff]', region.text))  
+                has_target_lang = False  
+
+                # Target language detection  
+                if ctx.target_lang in ['CHS', 'CHT']:  # Chinese  
+                    has_target_lang = bool(re.search('[\u4e00-\u9fff]', region.text))  
+                elif ctx.target_lang == 'JPN':  # Japanese  
+                    has_target_lang = bool(re.search('[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff]', region.text))  
+                elif ctx.target_lang == 'KOR':  # Korean  
+                    has_target_lang = bool(re.search('[\uac00-\ud7af\u1100-\u11ff]', region.text))  
+                elif ctx.target_lang == 'ARA':  # Arabic  
+                    has_target_lang = bool(re.search('[\u0600-\u06ff]', region.text))  
+                elif ctx.target_lang == 'THA':  # Thai  
+                    has_target_lang = bool(re.search('[\u0e00-\u0e7f]', region.text))  
+                elif ctx.target_lang == 'RUS':  # Russian  
+                    has_target_lang = bool(re.search('[\u0400-\u04ff]', region.text))  
+                elif ctx.target_lang == 'UKR':  # Ukrainian  
+                    has_target_lang = bool(re.search('[\u0400-\u04ff]', region.text))  
+                elif ctx.target_lang == 'IND':  # Indonesian  
+                    has_target_lang = bool(re.search('[A-Za-z]', region.text))
                 
-                # Skip numeric translations and filtered text matches  
+                # Skip numeric translations and filtered text  
                 if region.translation.isnumeric():  
                     logger.info(f'Filtered out: {region.translation}')  
                     logger.info('Reason: Numeric translation')  
@@ -622,31 +654,31 @@ class MangaTranslator():
                     logger.info(f'Reason: Matched filter text: {ctx.filter_text}')  
                     continue  
                 
-                if has_chinese:  
+                if has_target_lang:  
                     if text_equal:  
                         logger.info(f'Filtered out: {region.translation}')  
                         logger.info('Reason: Translation identical to original')  
-                        same_chinese_regions.append(region)  
+                        same_target_regions.append(region)  
                     else:  
-                        diff_chinese_regions.append(region)  
+                        diff_target_regions.append(region)  
                 else:  
                     if text_equal:  
                         logger.info(f'Filtered out: {region.translation}')  
                         logger.info('Reason: Translation identical to original')  
-                        same_non_chinese_regions.append(region)  
+                        same_non_target_regions.append(region)  
                     else:  
-                        diff_non_chinese_regions.append(region)  
+                        diff_non_target_regions.append(region)  
             
-            # If there are any different translations (Chinese or non-Chinese), keep all Chinese regions  
-            if diff_chinese_regions or diff_non_chinese_regions:  
-                new_text_regions.extend(same_chinese_regions)  
-                new_text_regions.extend(diff_chinese_regions)  
+            # If any different translations exist, retain all target language regions  
+            if diff_target_regions or diff_non_target_regions:  
+                new_text_regions.extend(same_target_regions)  
+                new_text_regions.extend(diff_target_regions)  
             
-            # Keep all non-Chinese regions with different translations  
-            new_text_regions.extend(diff_non_chinese_regions)  
-        
+            # Retain all non-target language regions with different translations  
+            new_text_regions.extend(diff_non_target_regions)  
+
         else:  
-            # Process non-Chinese target languages with original logic  
+            # Process non-special language scenarios using original logic  
             for region in ctx.text_regions:  
                 should_filter = False  
                 filter_reason = ""  
@@ -670,8 +702,8 @@ class MangaTranslator():
                         logger.info(f'Reason: {filter_reason}')  
                 else:  
                     new_text_regions.append(region)  
-        
-        return new_text_regions    
+
+        return new_text_regions 
                
 
     async def _run_mask_refinement(self, ctx: Context):
