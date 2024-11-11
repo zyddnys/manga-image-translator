@@ -213,7 +213,7 @@ FIL: Filipino (Tagalog)
                                                     dog cat #Example
                                                     abc def
                                                     abc
---post-dict                                  file_path Path to the post-translation dictionary file
+--post-dict                                  file_path Path to the post-translation dictionary file. Same as above.
 --skip-lang                                  Skip translation if source image is one of the provide languages, 
                                              use comma to separate multiple languages. Example: JPN,ENG
 --prep-manual                                Prepare for manual typesetting by outputting blank,
