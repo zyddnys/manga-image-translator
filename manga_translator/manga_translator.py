@@ -674,7 +674,7 @@ class MangaTranslator():
                 new_text_regions.extend(same_target_regions)  
                 new_text_regions.extend(diff_target_regions)  
             
-            # Retain all non-target language regions with different translations  
+            # Retain all non-target language regions with different translations (It appears empty, it clears all contents.) 
             new_text_regions.extend(diff_non_target_regions)  
 
         else:  
