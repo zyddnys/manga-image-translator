@@ -1,4 +1,4 @@
-# name: mit-py311
+name: mit-py311
 channels:
 - conda-forge
 - pytorch
