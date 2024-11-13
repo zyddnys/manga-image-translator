@@ -304,6 +304,35 @@ class MangaTranslator():
         # translate
         return await self._translate(ctx)
 
+    def load_dictionary(self, file_path):
+        dictionary = []
+        if file_path and os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as file:
+                for line_number, line in enumerate(file, start=1):
+                    # Ignore empty lines and lines starting with '#' or '//'
+                    if not line.strip() or line.strip().startswith('#') or line.strip().startswith('//'):
+                        continue
+                    # Remove comment parts
+                    line = line.split('#')[0].strip()
+                    line = line.split('//')[0].strip()
+                    parts = line.split()
+                    if len(parts) == 1:
+                        # If there is only the left part, the right part defaults to an empty string, meaning delete the left part
+                        pattern = re.compile(parts[0])
+                        dictionary.append((pattern, ''))
+                    elif len(parts) == 2:
+                        # If both left and right parts are present, perform the replacement
+                        pattern = re.compile(parts[0])
+                        dictionary.append((pattern, parts[1]))
+                    else:
+                        logger.error(f'Invalid dictionary entry at line {line_number}: {line.strip()}')
+        return dictionary
+
+    def apply_dictionary(self, text, dictionary):
+        for pattern, value in dictionary:
+            text = pattern.sub(value, text)
+        return text
+
     def _preprocess_params(self, ctx: Context):
         # params auto completion
         # TODO: Move args into ctx.args and only calculate once, or just copy into ctx
@@ -411,6 +440,22 @@ class MangaTranslator():
             # If no text was found result is intermediate image product
             ctx.result = ctx.upscaled
             return await self._revert_upscale(ctx)
+
+        # Apply pre-dictionary after OCR
+        pre_dict = self.load_dictionary(ctx.pre_dict)  
+        pre_replacements = []  
+        for textline in ctx.textlines:  
+            original = textline.text  
+            textline.text = self.apply_dictionary(textline.text, pre_dict)  
+            if original != textline.text:  
+                pre_replacements.append(f"{original} => {textline.text}")  
+
+        if pre_replacements:  
+            logger.info("Pre-translation replacements:")  
+            for replacement in pre_replacements:  
+                logger.info(replacement)  
+        else:  
+            logger.info("No pre-translation replacements made.")
         
         # -- Textline merge
         await self._report_progress('textline_merge')
@@ -510,12 +555,19 @@ class MangaTranslator():
                     or (not ctx.no_text_lang_skip and langcodes.tag_distance(region.source_lang, ctx.target_lang) == 0):
                 if region.text.strip():
                     logger.info(f'Filtered out: {region.text}')
+                    if len(region.text) < ctx.min_text_length:
+                        logger.info('Reason: Text length is less than the minimum required length.')
+                    elif not is_valuable_text(region.text):
+                        logger.info('Reason: Text is not considered valuable.')
+                    elif langcodes.tag_distance(region.source_lang, ctx.target_lang) == 0:
+                        logger.info('Reason: Text language matches the target language and no_text_lang_skip is False.')
             else:
                 if ctx.font_color_fg or ctx.font_color_bg:
                     if ctx.font_color_bg:
                         region.adjust_bg_color = False
                 new_text_regions.append(region)
         text_regions = new_text_regions
+
 
         # Sort ctd (comic text detector) regions left to right. Otherwise right to left.
         # Sorting will improve text translation quality.
@@ -539,18 +591,120 @@ class MangaTranslator():
             region._alignment = ctx.alignment
             region._direction = ctx.direction
 
-        # Filter out regions by their translations
-        new_text_regions = []
-        for region in ctx.text_regions:
-            # TODO: Maybe print reasons for filtering
-            if not ctx.translator == 'none' and (region.translation.isnumeric() \
-                    or ctx.filter_text and re.search(ctx.filter_text, region.translation)
-                    or not ctx.translator == 'original' and region.text.lower().strip() == region.translation.lower().strip()):
-                if region.translation.strip():
-                    logger.info(f'Filtered out: {region.translation}')
-            else:
-                new_text_regions.append(region)
-        return new_text_regions
+        # Apply post dictionary after translating
+        post_dict = self.load_dictionary(ctx.post_dict)  
+        post_replacements = []  
+        for region in ctx.text_regions:  
+            original = region.translation  
+            region.translation = self.apply_dictionary(region.translation, post_dict)  
+            if original != region.translation:  
+                post_replacements.append(f"{original} => {region.translation}")  
+
+        if post_replacements:  
+            logger.info("Post-translation replacements:")  
+            for replacement in post_replacements:  
+                logger.info(replacement)  
+        else:  
+            logger.info("No post-translation replacements made.")  
+
+        # Filter out regions by their translations  
+        new_text_regions = []  
+
+        # List of languages with specific language detection  
+        special_langs = ['CHS', 'CHT', 'JPN', 'KOR', 'IND', 'UKR', 'RUS', 'THA', 'ARA']  
+
+        # Process special language scenarios  
+        if ctx.target_lang in special_langs:  
+            # Categorize regions  
+            same_target_regions = []    # Target language regions with identical translation  
+            diff_target_regions = []    # Target language regions with different translation  
+            same_non_target_regions = []  # Non-target language regions with identical translation  
+            diff_non_target_regions = []  # Non-target language regions with different translation  
+            
+            for region in ctx.text_regions:  
+                text_equal = region.text.lower().strip() == region.translation.lower().strip()  
+                has_target_lang = False  
+
+                # Target language detection  
+                if ctx.target_lang in ['CHS', 'CHT']:  # Chinese  
+                    has_target_lang = bool(re.search('[\u4e00-\u9fff]', region.text))  
+                elif ctx.target_lang == 'JPN':  # Japanese  
+                    has_target_lang = bool(re.search('[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff]', region.text))  
+                elif ctx.target_lang == 'KOR':  # Korean  
+                    has_target_lang = bool(re.search('[\uac00-\ud7af\u1100-\u11ff]', region.text))  
+                elif ctx.target_lang == 'ARA':  # Arabic  
+                    has_target_lang = bool(re.search('[\u0600-\u06ff]', region.text))  
+                elif ctx.target_lang == 'THA':  # Thai  
+                    has_target_lang = bool(re.search('[\u0e00-\u0e7f]', region.text))  
+                elif ctx.target_lang == 'RUS':  # Russian  
+                    has_target_lang = bool(re.search('[\u0400-\u04ff]', region.text))  
+                elif ctx.target_lang == 'UKR':  # Ukrainian  
+                    has_target_lang = bool(re.search('[\u0400-\u04ff]', region.text))  
+                elif ctx.target_lang == 'IND':  # Indonesian  
+                    has_target_lang = bool(re.search('[A-Za-z]', region.text))
+                
+                # Skip numeric translations and filtered text  
+                if region.translation.isnumeric():  
+                    logger.info(f'Filtered out: {region.translation}')  
+                    logger.info('Reason: Numeric translation')  
+                    continue  
+                
+                if ctx.filter_text and re.search(ctx.filter_text, region.translation):  
+                    logger.info(f'Filtered out: {region.translation}')  
+                    logger.info(f'Reason: Matched filter text: {ctx.filter_text}')  
+                    continue  
+                
+                if has_target_lang:  
+                    if text_equal:  
+                        logger.info(f'Filtered out: {region.translation}')  
+                        logger.info('Reason: Translation identical to original')  
+                        same_target_regions.append(region)  
+                    else:  
+                        diff_target_regions.append(region)  
+                else:  
+                    if text_equal:  
+                        logger.info(f'Filtered out: {region.translation}')  
+                        logger.info('Reason: Translation identical to original')  
+                        same_non_target_regions.append(region)  
+                    else:  
+                        diff_non_target_regions.append(region)  
+            
+            # If any different translations exist, retain all target language regions  
+            if diff_target_regions or diff_non_target_regions:  
+                new_text_regions.extend(same_target_regions)  
+                new_text_regions.extend(diff_target_regions)  
+            
+            # Retain all non-target language regions with different translations (It appears empty, it clears all contents.) 
+            new_text_regions.extend(diff_non_target_regions)  
+
+        else:  
+            # Process non-special language scenarios using original logic  
+            for region in ctx.text_regions:  
+                should_filter = False  
+                filter_reason = ""  
+                
+                if not ctx.translator == 'none':  
+                    if region.translation.isnumeric():  
+                        should_filter = True  
+                        filter_reason = "Numeric translation"  
+                    elif ctx.filter_text and re.search(ctx.filter_text, region.translation):  
+                        should_filter = True  
+                        filter_reason = f"Matched filter text: {ctx.filter_text}"  
+                    elif not ctx.translator == 'original':  
+                        text_equal = region.text.lower().strip() == region.translation.lower().strip()  
+                        if text_equal:  
+                            should_filter = True  
+                            filter_reason = "Translation identical to original"  
+                
+                if should_filter:  
+                    if region.translation.strip():  
+                        logger.info(f'Filtered out: {region.translation}')  
+                        logger.info(f'Reason: {filter_reason}')  
+                else:  
+                    new_text_regions.append(region)  
+
+        return new_text_regions 
+               
 
     async def _run_mask_refinement(self, ctx: Context):
         return await dispatch_mask_refinement(ctx.text_regions, ctx.img_rgb, ctx.mask_raw, 'fit_text',
