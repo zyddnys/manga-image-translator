@@ -20,6 +20,7 @@ class MangaShare(MangaTranslator):
         super().__init__(params)
         self.host = params.get('host', '127.0.0.1')
         self.port = int(params.get('port', '5003'))
+        self.nonce = params.get('nonce', None)
         self.lock = Lock()
 
     async def listen(self, translation_params: dict = None):
@@ -33,6 +34,11 @@ class MangaShare(MangaTranslator):
 
         @app.post("/execute/{method_name}")
         async def execute_method(request: Request, method_name: str = Path(...)):
+            if self.nonce:
+                nonce = request.headers.get('X-Nonce')
+                if nonce != self.nonce:
+                    raise HTTPException(401, detail="Nonce does not match")
+
             if not self.lock.acquire(blocking=False):
                 raise HTTPException(status_code=429, detail="some Method is already being executed.")
             if method_name == "listen" or method_name.startswith("__"):
