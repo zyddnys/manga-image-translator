@@ -3,6 +3,7 @@ import asyncio
 import logging
 from argparse import Namespace
 
+from manga_translator.share import MangaShare
 from .manga_translator import (
     MangaTranslator,
     MangaTranslatorWeb,
@@ -81,6 +82,11 @@ async def dispatch(args: Namespace):
     elif args.mode == 'api':
         translator = MangaTranslatorAPI(args_dict)
         await translator.listen(args_dict)
+    elif args.mode == 'shared':
+        translator = MangaShare(args_dict)
+        await translator.listen(args_dict)
+
+
 
 if __name__ == '__main__':
     args = None
