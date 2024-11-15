@@ -8,12 +8,30 @@ async def execute_method(method_name, attributes):
     url = f"http://127.0.0.1:5003/execute/{method_name}"
     headers = {'Content-Type': 'application/octet-stream'}
 
-    response = requests.post(url, data=pickle.dumps(attributes), headers=headers)
+    response = requests.post(url, data=pickle.dumps(attributes), headers=headers, stream=True)
 
-    result_bytes = response.content
     if response.status_code == 200:
-        result = pickle.loads(result_bytes)
-        print(result)
+        buffer = b''
+        for chunk in response.iter_content(chunk_size=None):
+            if chunk:
+                buffer += chunk
+                while True:
+                    if len(buffer) >= 5:
+                        status = int.from_bytes(buffer[0:1], byteorder='big')
+                        expected_size = int.from_bytes(buffer[1:5], byteorder='big')
+                        if len(buffer) >= 5 + expected_size:
+                            data = buffer[5:5 + expected_size]
+                            if status == 0:
+                                print("data", pickle.loads(data))
+                            elif status == 1:
+                                print("log", data)
+                            elif status == 2:
+                                print("error", data)
+                            buffer = buffer[5 + expected_size:]
+                        else:
+                            break
+                    else:
+                        break
     else:
         print(json.loads(response.content))
 
