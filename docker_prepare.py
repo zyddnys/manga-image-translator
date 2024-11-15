@@ -1,14 +1,17 @@
 import asyncio
 from argparse import ArgumentParser
+from manga_translator.utils import ModelWrapper
+from manga_translator.detection import DETECTORS
+from manga_translator.ocr import OCRS
+from manga_translator.inpainting import INPAINTERS
+
 
 arg_parser = ArgumentParser()
 arg_parser.add_argument("--models", default="")
 arg_parser.add_argument("--continue-on-error", action="store_true")
 
-from manga_translator.utils import ModelWrapper
-from manga_translator.detection import DETECTORS
-from manga_translator.ocr import OCRS
-from manga_translator.inpainting import INPAINTERS
+
+cli_args = arg_parser.parse_args()
 
 
 async def download(dict):
@@ -22,22 +25,28 @@ async def download(dict):
             except Exception as e:
                 print("Failed to download", key, value)
                 print(e)
+                if not cli_args.continue_on_error:
+                    raise
 
 
 async def main():
-    parsed = arg_parser.parse_args()
-    models: set[str] = set(parsed.models.split(","))
+    models: set[str] = set(filter(None, cli_args.models.split(",")))
+    # print("parsed.models", models)
     await download(
-        {k: v for k, v in DETECTORS.items() if not models or f"detector.{k}" in models}
+        {
+            k: v
+            for k, v in DETECTORS.items()
+            if (not models) or (f"detector.{k}" in models)
+        }
     )
     await download(
-        {k: v for k, v in OCRS.items() if not models or f"ocr.{k}" in models}
+        {k: v for k, v in OCRS.items() if (not models) or (f"ocr.{k}" in models)}
     )
     await download(
         {
             k: v
             for k, v in INPAINTERS.items()
-            if (not models or f"inpaint.{k}" in models) and (k not in ["sd"])
+            if (not models) or (f"inpaint.{k}" in models) and (k not in ["sd"])
         }
     )
 
