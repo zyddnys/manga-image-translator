@@ -1,7 +1,7 @@
 FROM mambaorg/micromamba:2-debian12-slim
 
 COPY ./conda.yaml /tmp/conda.yaml
-RUN --mount=type=cache,target=/opt/conda/pkgs micromamba env create --yes --file /tmp/conda.yaml
+RUN --mount=type=cache,uid=57439,gid=57439,target=/opt/conda/pkgs micromamba env create --yes --file /tmp/conda.yaml
 # RUN apt update \
 #         && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y install tzdata build-essential
 COPY --chown=mambauser . /app
