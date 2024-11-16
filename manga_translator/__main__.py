@@ -5,9 +5,6 @@ from argparse import Namespace
 
 from .manga_translator import (
     MangaTranslator,
-    MangaTranslatorWeb,
-    MangaTranslatorWS,
-    MangaTranslatorAPI,
     set_main_logger,
 )
 from .args import parser
@@ -71,14 +68,17 @@ async def dispatch(args: Namespace):
         await dispatch(args.host, args.port, translation_params=args_dict)
 
     elif args.mode == 'web_client':
+        from manga_translator.mode.web import MangaTranslatorWeb
         translator = MangaTranslatorWeb(args_dict)
         await translator.listen(args_dict)
 
     elif args.mode == 'ws':
+        from manga_translator.mode.ws import MangaTranslatorWS
         translator = MangaTranslatorWS(args_dict)
         await translator.listen(args_dict)
 
     elif args.mode == 'api':
+        from manga_translator.mode.api import MangaTranslatorAPI
         translator = MangaTranslatorAPI(args_dict)
         await translator.listen(args_dict)
 
