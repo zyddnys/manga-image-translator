@@ -177,6 +177,8 @@ parser.add_argument('--ignore-bubble', default=0, type=int, help='The threshold 
 
 parser.add_argument('--kernel-size', default=3, type=int, help='Set the convolution kernel size of the text erasure area to completely clean up text residues')
 
+parser.add_argument('--pre-dict', default=None, type=file_path, help='Path to the pre-translation dictionary file')
+parser.add_argument('--post-dict', default=None, type=file_path, help='Path to the post-translation dictionary file')
 
 # Generares dict with a default value for each argument
 DEFAULT_ARGS = vars(parser.parse_args([]))

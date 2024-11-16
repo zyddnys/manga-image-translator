@@ -205,6 +205,15 @@ FIL: Filipino (Tagalog)
 --save-text-file SAVE_TEXT_FILE              Like --save-text but with a specified file path.
 --filter-text FILTER_TEXT                    Filter regions by their text with a regex. Example
                                              usage: --text-filter ".*badtext.*"
+--filter-text FILTER_TEXT                    Filter regions by their text with a regex. Example
+                                             usage: --text-filter ".*badtext.*"
+--pre-dict FILe_PATH                         Path to the pre-translation dictionary file. One entry per line,
+                                             Comments can be added with `#` and `//`.
+                                             usage: //Example
+                                                    dog cat #Example
+                                                    abc def
+                                                    abc
+--post-dict                                  file_path Path to the post-translation dictionary file. Same as above.
 --skip-lang                                  Skip translation if source image is one of the provide languages, 
                                              use comma to separate multiple languages. Example: JPN,ENG
 --prep-manual                                Prepare for manual typesetting by outputting blank,

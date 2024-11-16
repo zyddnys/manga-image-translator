@@ -30,16 +30,41 @@ async def dispatch(args: Namespace):
         if not args.input:
             raise Exception('No input image was supplied. Use -i <image_path>')
         translator = MangaTranslator(args_dict)
+
+        # Load pre-translation and post-translation dictionaries
+        pre_dict = translator.load_dictionary(args.pre_dict)  
+        post_dict = translator.load_dictionary(args.post_dict)  
+
         if args.mode == 'demo':
             if len(args.input) != 1 or not os.path.isfile(args.input[0]):
                 raise FileNotFoundError(f'Invalid single image file path for demo mode: "{" ".join(args.input)}". Use `-m batch`.')
             dest = os.path.join(BASE_PATH, 'result/final.png')
             args.overwrite = True # Do overwrite result/final.png file
+
+            # Apply pre-translation dictionaries
             await translator.translate_path(args.input[0], dest, args_dict)
+            for textline in translator.textlines:
+                textline.text = translator.apply_dictionary(textline.text, pre_dict)  
+                logger.info(f'Pre-translation dictionary applied: {textline.text}')
+
+            # Apply post-translation dictionaries
+            for textline in translator.textlines:
+                textline.translation = translator.apply_dictionary(textline.translation, post_dict)  
+                logger.info(f'Post-translation dictionary applied: {textline.translation}')
+
         else: # batch
             dest = args.dest
             for path in natural_sort(args.input):
+                # Apply pre-translation dictionaries
                 await translator.translate_path(path, dest, args_dict)
+                for textline in translator.textlines:
+                    textline.text = translator.apply_dictionary(textline.text, pre_dict) 
+                    logger.info(f'Pre-translation dictionary applied: {textline.text}')
+
+                # Apply post-translation dictionaries
+                for textline in translator.textlines:
+                    textline.translation = translator.apply_dictionary(textline.translation, post_dict)  
+                    logger.info(f'Post-translation dictionary applied: {textline.translation}')
 
     elif args.mode == 'web':
         from .server.web_main import dispatch

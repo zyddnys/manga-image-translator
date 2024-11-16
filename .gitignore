@@ -38,6 +38,10 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-venv
 .history
 .conda_env_created
+/venv
+
+# Input and Output
+/input/
+/input-translated/
