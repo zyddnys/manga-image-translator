@@ -40,3 +40,4 @@ share/python-wheels/
 MANIFEST
 venv
 .history
+.conda_env_created
