@@ -23,18 +23,17 @@ async def dispatch(args: Namespace):
 
     logger.info(f'Running in {args.mode} mode')
 
-    if args.mode in ('demo', 'batch'):
+    if args.mode == 'local':
         if not args.input:
             raise Exception('No input image was supplied. Use -i <image_path>')
-        translator = MangaTranslator(args_dict)
+        from manga_translator.mode.local import MangaTranslatorLocal
+        translator = MangaTranslatorLocal(args_dict)
 
         # Load pre-translation and post-translation dictionaries
         pre_dict = translator.load_dictionary(args.pre_dict)  
         post_dict = translator.load_dictionary(args.post_dict)  
 
-        if args.mode == 'demo':
-            if len(args.input) != 1 or not os.path.isfile(args.input[0]):
-                raise FileNotFoundError(f'Invalid single image file path for demo mode: "{" ".join(args.input)}". Use `-m batch`.')
+        if len(args.input) == 1 and os.path.isfile(args.input[0]):
             dest = os.path.join(BASE_PATH, 'result/final.png')
             args.overwrite = True # Do overwrite result/final.png file
 

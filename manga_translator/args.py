@@ -101,7 +101,7 @@ parser.add_argument('--post-dict', default=None, type=file_path, help='Path to t
 subparsers = parser.add_subparsers(dest='mode', required=True, help='Mode of operation')
 
 # Batch mode
-parser_batch = subparsers.add_parser('batch', help='Run in batch translation mode')
+parser_batch = subparsers.add_parser('local', help='Run in batch translation mode')
 parser_batch.add_argument('-i', '--input', required=True, type=dir_path, help='Path to an image folder')
 parser_batch.add_argument('-o', '--dest', default='', type=str, help='Path to the destination folder for translated images')
 parser_batch.add_argument('-f', '--format', default=None, choices=OUTPUT_FORMATS, help='Output format of the translation.')
