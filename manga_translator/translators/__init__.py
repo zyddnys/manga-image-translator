@@ -19,36 +19,37 @@ from .original import OriginalTranslator
 from .sakura import SakuraTranslator
 from .qwen2 import Qwen2Translator, Qwen2BigTranslator
 from .groq import GroqTranslator
+from ..config import Translator
 
 OFFLINE_TRANSLATORS = {
-    'offline': SelectiveOfflineTranslator,
-    'nllb': NLLBTranslator,
-    'nllb_big': NLLBBigTranslator,
-    'sugoi': SugoiTranslator,
-    'jparacrawl': JparacrawlTranslator,
-    'jparacrawl_big': JparacrawlBigTranslator,
-    'm2m100': M2M100Translator,
-    'm2m100_big': M2M100BigTranslator,
-    'mbart50': MBart50Translator,
-    'qwen2': Qwen2Translator,
-    'qwen2_big': Qwen2BigTranslator,
+    Translator.offline: SelectiveOfflineTranslator,
+    Translator.nllb: NLLBTranslator,
+    Translator.nllb_big: NLLBBigTranslator,
+    Translator.sugoi: SugoiTranslator,
+    Translator.jparacrawl: JparacrawlTranslator,
+    Translator.jparacrawl_big: JparacrawlBigTranslator,
+    Translator.m2m100: M2M100Translator,
+    Translator.m2m100_big: M2M100BigTranslator,
+    Translator.mbart50: MBart50Translator,
+    Translator.qwen2: Qwen2Translator,
+    Translator.qwen2_big: Qwen2BigTranslator,
 }
 
 TRANSLATORS = {
     # 'google': GoogleTranslator,
-    'youdao': YoudaoTranslator,
-    'baidu': BaiduTranslator,
-    'deepl': DeeplTranslator,
-    'papago': PapagoTranslator,
-    'caiyun': CaiyunTranslator,
-    'gpt3': GPT3Translator,
-    'gpt3.5': GPT35TurboTranslator,
-    'gpt4': GPT4Translator,
-    'none': NoneTranslator,
-    'original': OriginalTranslator,
-    'sakura': SakuraTranslator,
-    'deepseek': DeepseekTranslator,
-    'groq':GroqTranslator,
+    Translator.youdao: YoudaoTranslator,
+    Translator.baidu: BaiduTranslator,
+    Translator.deepl: DeeplTranslator,
+    Translator.papago: PapagoTranslator,
+    Translator.caiyun: CaiyunTranslator,
+    Translator.gpt3: GPT3Translator,
+    Translator.gpt3_5: GPT35TurboTranslator,
+    Translator.gpt4: GPT4Translator,
+    Translator.none: NoneTranslator,
+    Translator.original: OriginalTranslator,
+    Translator.sakura: SakuraTranslator,
+    Translator.deepseek: DeepseekTranslator,
+    Translator.groq:GroqTranslator,
     **OFFLINE_TRANSLATORS,
 }
 translator_cache = {}

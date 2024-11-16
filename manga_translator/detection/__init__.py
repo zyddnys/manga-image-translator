@@ -6,13 +6,14 @@ from .ctd import ComicTextDetector
 from .craft import CRAFTDetector
 from .none import NoneDetector
 from .common import CommonDetector, OfflineDetector
+from ..config import Detector
 
 DETECTORS = {
-    'default': DefaultDetector,
-    'dbconvnext': DBConvNextDetector,
-    'ctd': ComicTextDetector,
-    'craft': CRAFTDetector,
-    'none': NoneDetector,
+    Detector.default: DefaultDetector,
+    Detector.dbconvnext: DBConvNextDetector,
+    Detector.ctd: ComicTextDetector,
+    Detector.craft: CRAFTDetector,
+    Detector.none: NoneDetector,
 }
 detector_cache = {}
 

@@ -5,11 +5,12 @@ from .common import CommonUpscaler, OfflineUpscaler
 from .waifu2x import Waifu2xUpscaler
 from .esrgan import ESRGANUpscaler
 from .esrgan_pytorch import ESRGANUpscalerPytorch
+from ..config import Upscaler
 
 UPSCALERS = {
-    'waifu2x': Waifu2xUpscaler,
-    'esrgan': ESRGANUpscaler,
-    '4xultrasharp': ESRGANUpscalerPytorch,
+    Upscaler.waifu2x: Waifu2xUpscaler,
+    Upscaler.esrgan: ESRGANUpscaler,
+    Upscaler.upscler4xultrasharp: ESRGANUpscalerPytorch,
 }
 upscaler_cache = {}
 

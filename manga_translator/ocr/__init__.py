@@ -6,13 +6,14 @@ from .model_32px import Model32pxOCR
 from .model_48px import Model48pxOCR
 from .model_48px_ctc import Model48pxCTCOCR
 from .model_manga_ocr import ModelMangaOCR
+from ..config import Ocr
 from ..utils import Quadrilateral
 
 OCRS = {
-    '32px': Model32pxOCR,
-    '48px': Model48pxOCR,
-    '48px_ctc': Model48pxCTCOCR,
-    'mocr': ModelMangaOCR,
+    Ocr.ocr32px: Model32pxOCR,
+    Ocr.ocr48px: Model48pxOCR,
+    Ocr.ocr48px_ctc: Model48pxCTCOCR,
+    Ocr.mocr: ModelMangaOCR,
 }
 ocr_cache = {}
 

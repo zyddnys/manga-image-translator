@@ -2,9 +2,10 @@ from PIL import Image
 
 from .common import CommonColorizer, OfflineColorizer
 from .manga_colorization_v2 import MangaColorizationV2
+from ..config import Colorizer
 
 COLORIZERS = {
-    'mc2': MangaColorizationV2,
+    Colorizer.mc2: MangaColorizationV2,
 }
 colorizer_cache = {}
 

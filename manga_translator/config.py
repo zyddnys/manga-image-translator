@@ -23,6 +23,60 @@ class InpaintPrecision(IntEnum):
     fp16 = 1
     bf16 = 2
 
+class Detector(IntEnum):
+    default = 0
+    dbconvnext = 1
+    ctd = 2
+    craft = 3
+    none = 4
+
+class Inpainter(IntEnum):
+    default = 0
+    lama_large = 1
+    lama_mpe = 2
+    sd = 3
+    none = 4
+    original = 5
+
+class Colorizer(IntEnum):
+    none = 0
+    mc2 = 1
+
+class Ocr(IntEnum):
+    ocr32px = 0
+    ocr48px = 1
+    ocr48px_ctc = 2
+    mocr = 3
+class Translator(IntEnum):
+    youdao = 0
+    baidu = 1
+    deepl = 2
+    papago = 3
+    caiyun = 4
+    gpt3 = 5
+    gpt3_5 = 6
+    gpt4 = 7
+    none = 8
+    original = 9
+    sakura = 10
+    deepseek = 11
+    groq = 12
+    offline = 13
+    nllb = 14
+    nllb_big = 15
+    sugoi = 16
+    jparacrawl = 17
+    jparacrawl_big = 18
+    m2m100 = 19
+    m2m100_big = 20
+    mbart50 = 21
+    qwen2 = 22
+    qwen2_big = 23
+class Upscaler:
+    waifu2x = 0
+    esrgan = 1
+    upscler4xultrasharp = 2
+
 class RenderConfig(BaseModel):
     renderer: Renderer = Renderer.default
     """Render english text translated from manga with some additional typesetting. Ignores some other argument options"""
@@ -53,7 +107,7 @@ class RenderConfig(BaseModel):
 
 
 class UpscaleConfig(BaseModel):
-    upscaler: str = 'esrgan' #todo: validate UPSCALERS #todo: convert to enum
+    upscaler: Upscaler = Upscaler.esrgan
     """Upscaler to use. --upscale-ratio has to be set for it to take effect"""
     revert_upscaling: bool = False
     """Downscales the previously upscaled image after translation back to original size (Use with --upscale-ratio)."""
@@ -61,7 +115,7 @@ class UpscaleConfig(BaseModel):
     """Image upscale ratio applied before detection. Can improve text detection."""
 
 class TranslatorConfig(BaseModel):
-    translator: str = "google" #todo: validate TRANSLATORS todo: convert to enum
+    translator: Translator = Translator.sugoi
     """Language translator to use"""
     target_lang: str = 'ENG' #todo: validate VALID_LANGUAGES #todo: convert to enum
     """Destination language"""
@@ -78,7 +132,7 @@ class TranslatorConfig(BaseModel):
 
 class DetectorConfig(BaseModel):
     """"""
-    detector: str = 'default' #todo: validate DETECTORS #todo: convert to enum
+    detector: Detector =Detector.default
     """"Text detector used for creating a text mask from an image, DO NOT use craft for manga, it\'s not designed for it"""
     detection_size: int = 1536
     """Size of image used for detection"""
@@ -96,7 +150,7 @@ class DetectorConfig(BaseModel):
     """The threshold for ignoring text in non bubble areas, with valid values ranging from 1 to 50, does not ignore others. Recommendation 5 to 10. If it is too low, normal bubble areas may be ignored, and if it is too large, non bubble areas may be considered normal bubbles"""
 
 class InpainterConfig(BaseModel):
-    inpainter: str = 'lama_large' #todo: validate INPAINTERS  #todo: convert to enum
+    inpainter: Inpainter = Inpainter.lama_large
     """Inpainting model to use"""
     inpainting_size: int = 2048
     """Size of image used for inpainting (too large will result in OOM)"""
@@ -109,7 +163,7 @@ class ColorizerConfig(BaseModel):
     """Size of image used for colorization. Set to -1 to use full image size"""
     denoise_sigma: int = 30
     """Used by colorizer and affects color strength, range from 0 to 255 (default 30). -1 turns it off."""
-    colorizer: Optional[str] = None  # todo: validate COLORIZERS  #todo: convert to enum
+    colorizer: Colorizer = Colorizer.none
     """Colorization model to use."""
 
 
@@ -117,7 +171,7 @@ class ColorizerConfig(BaseModel):
 class OcrConfig(BaseModel):
     use_mocr_merge: bool = False
     """Use bbox merge when Manga OCR inference."""
-    ocr: str = '48px' #todo: validate OCRS #todo: convert to enum
+    ocr: Ocr = Ocr.ocr48px
     """Optical character recognition (OCR) model to use"""
     min_text_length: int = 0
     """Minimum text length of a text region"""
