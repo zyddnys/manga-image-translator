@@ -1,7 +1,13 @@
+import re
 from enum import Enum, IntEnum
 
+from omegaconf import OmegaConf
 from pydantic import BaseModel
 from typing import Optional
+
+from manga_translator import TranslatorChain, hex2rgb
+from manga_translator.args import translator_chain
+
 
 class Renderer(IntEnum):
     default = 0
@@ -106,6 +112,29 @@ class RenderConfig(BaseModel):
     font_size: Optional[int] = None
     """Use fixed font size for rendering"""
 
+    @property
+    def font_color_fg(self):
+        if self.font_color and not self._font_color_fg:
+            colors = self.font_color.split(':')
+            try:
+                self._font_color_fg = hex2rgb(colors[0])
+                self._font_color_fg = hex2rgb(colors[1]) if len(colors) > 1 else None
+            except:
+                raise Exception(
+                    f'Invalid --font-color value: {self.font_color}. Use a hex value such as FF0000')
+        return self._font_color_fg
+
+    @property
+    def font_color_bg(self):
+        if self.font_color and not self._font_color_bg:
+            colors = self.font_color.split(':')
+            try:
+                self._font_color_fg = hex2rgb(colors[0])
+                self._font_color_bg = hex2rgb(colors[1]) if len(colors) > 1 else None
+            except:
+                raise Exception(
+                    f'Invalid --font-color value: {self.font_color}. Use a hex value such as FF0000')
+        return self._font_color_bg
 
 class UpscaleConfig(BaseModel):
     upscaler: Upscaler = Upscaler.esrgan
@@ -130,6 +159,28 @@ class TranslatorConfig(BaseModel):
     """Output of one translator goes in another. Example: --translator-chain "google:JPN;sugoi:ENG"."""
     selective_translation: Optional[str] = None  # todo: add parser translator_chain #todo: merge into one
     """Select a translator based on detected language in image. Note the first translation service acts as default if the language isn\'t defined. Example: --translator-chain "google:JPN;sugoi:ENG".'"""
+
+    @property
+    def translator_gen(self):
+        if self._translator_gen is None:
+            if self.selective_translation is not None:
+                trans =  translator_chain(self.selective_translation)
+                trans.target_lang = self.target_lang
+                self._translator_gen = trans
+            elif self.translator_chain is not None:
+                trans = translator_chain(self.translator_chain)
+                trans.target_lang = trans.langs[-1]
+                self._translator_gen = trans
+            else:
+                self._translator_gen = TranslatorChain(f'{self.translator}:{self.target_lang}')
+        return self._translator_gen
+
+    def chatgpt_config(self):
+        if self.gpt_config is not None and self._gpt_config is None:
+            #todo: load from already loaded file
+            self._gpt_config = OmegaConf.load(self.gpt_config)
+        return self._gpt_config
+
 
 class DetectorConfig(BaseModel):
     """"""
@@ -208,3 +259,9 @@ class Config(BaseModel):
     """Set the convolution kernel size of the text erasure area to completely clean up text residues"""
     mask_dilation_offset: int = 0
     """By how much to extend the text mask to remove left-over text pixels of the original image."""
+
+    @property
+    def re_filter_text(self):
+        if self._filter_text is None:
+            self._filter_text = re.compile(self.filter_text)
+        return self._filter_text

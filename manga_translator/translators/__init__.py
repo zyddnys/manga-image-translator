@@ -65,7 +65,7 @@ def get_translator(key: str, *args, **kwargs) -> CommonTranslator:
 prepare_selective_translator(get_translator)
 
 # TODO: Refactor
-class TranslatorChain():
+class TranslatorChain:
     def __init__(self, string: str):
         """
         Parses string in form 'trans1:lang1;trans2:lang2' into chains,

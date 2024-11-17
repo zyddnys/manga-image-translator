@@ -81,37 +81,6 @@ def load_dictionary(file_path):
                     logger.error(f'Invalid dictionary entry at line {line_number}: {line.strip()}')
     return dictionary
 
-
-def _preprocess_params(ctx: Context):
-    # todo: fix
-    # params auto completion
-    # TODO: Move args into ctx.args and only calculate once, or just copy into ctx
-    for arg in DEFAULT_ARGS:
-        ctx.setdefault(arg, DEFAULT_ARGS[arg])
-
-    if ctx.selective_translation is not None:
-        ctx.selective_translation.target_lang = ctx.target_lang
-        ctx.translator = ctx.selective_translation
-    elif ctx.translator_chain is not None:
-        ctx.target_lang = ctx.translator_chain.langs[-1]
-        ctx.translator = ctx.translator_chain
-    else:
-        ctx.translator = TranslatorChain(f'{ctx.translator}:{ctx.target_lang}')
-    if ctx.gpt_config:
-        ctx.gpt_config = OmegaConf.load(ctx.gpt_config)
-
-    if ctx.filter_text:
-        ctx.filter_text = re.compile(ctx.filter_text)
-
-    if ctx.font_color:
-        colors = ctx.font_color.split(':')
-        try:
-            ctx.font_color_fg = hex2rgb(colors[0])
-            ctx.font_color_bg = hex2rgb(colors[1]) if len(colors) > 1 else None
-        except:
-            raise Exception(f'Invalid --font-color value: {ctx.font_color}. Use a hex value such as FF0000')
-
-
 def apply_dictionary(text, dictionary):
     for pattern, value in dictionary:
         text = pattern.sub(value, text)
@@ -168,6 +137,7 @@ class MangaTranslator:
                 'Is the correct pytorch version installed? (See https://pytorch.org/)')
         if params.get('model_dir'):
             ModelWrapper._MODEL_DIR = params.get('model_dir')
+        #todo: fix
         self.kernel_size=int(params.get('kernel_size'))
         os.environ['INPAINTING_PRECISION'] = params.get('inpainting_precision', 'fp32')
 
@@ -199,8 +169,7 @@ class MangaTranslator:
         await prepare_detection(config.detector.detector)
         await prepare_ocr(config.ocr.ocr, self.device)
         await prepare_inpainting(config.inpainter.inpainter, self.device)
-        # todo: fix
-        await prepare_translation(config.translator.translator)
+        await prepare_translation(config.translator.translator_gen)
         if config.colorizer.colorizer != Colorizer.none:
             await prepare_colorization(config.colorizer.colorizer)
         # translate
@@ -319,6 +288,7 @@ class MangaTranslator:
 
         # -- Inpainting
         await self._report_progress('inpainting')
+        #todo: fix _run_inpainting takes ctx
         ctx.img_inpainted = await self._run_inpainting(config, ctx)
 
         ctx.gimp_mask = np.dstack((cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR), ctx.mask))
@@ -345,6 +315,7 @@ class MangaTranslator:
         return ctx
 
     async def _run_colorizer(self, config: Config, ctx: Context):
+        #todo: fix dispatch_colorization takes ctx
         return await dispatch_colorization(config.colorizer.colorizer, device=self.device, image=ctx.input, **ctx)
 
     async def _run_upscaling(self, config: Config, ctx: Context):
@@ -358,15 +329,16 @@ class MangaTranslator:
                                         self.device, self.verbose)
 
     async def _run_ocr(self, config: Config, ctx: Context):
+        #todo: fix dispatch_ocr takes ctx
         textlines = await dispatch_ocr(config.ocr.ocr, ctx.img_rgb, ctx.textlines, ctx, self.device, self.verbose)
 
         new_textlines = []
         for textline in textlines:
             if textline.text.strip():
-                if ctx.font_color_fg:
-                    textline.fg_r, textline.fg_g, textline.fg_b = ctx.font_color_fg
-                if ctx.font_color_bg:
-                    textline.bg_r, textline.bg_g, textline.bg_b = ctx.font_color_bg
+                if config.render.font_color_fg:
+                    textline.fg_r, textline.fg_g, textline.fg_b = config.render.font_color_fg
+                if config.render.font_color_bg:
+                    textline.bg_r, textline.bg_g, textline.bg_b = config.render.font_color_bg
                 new_textlines.append(textline)
         return new_textlines
 
@@ -400,8 +372,9 @@ class MangaTranslator:
         return text_regions
 
     async def _run_text_translation(self, config: Config, ctx: Context):
+        #todo: fix dispatch_translation takes ctx
         translated_sentences = \
-            await dispatch_translation(config.translator.translator,
+            await dispatch_translation(config.translator.translator_gen,
                                        [region.text for region in ctx.text_regions],
                                        self.use_mtpe,
                                        ctx, 'cpu' if self._gpu_limited_memory else self.device)
@@ -474,7 +447,7 @@ class MangaTranslator:
                     logger.info('Reason: Numeric translation')  
                     continue  
                 
-                if config.filter_text and re.search(config.filter_text, region.translation):
+                if config.filter_text and re.search(config.re_filter_text, region.translation):
                     logger.info(f'Filtered out: {region.translation}')  
                     logger.info(f'Reason: Matched filter text: {config.filter_text}')
                     continue  
@@ -512,7 +485,7 @@ class MangaTranslator:
                     if region.translation.isnumeric():  
                         should_filter = True  
                         filter_reason = "Numeric translation"  
-                    elif config.filter_text and re.search(config.filter_text, region.translation):
+                    elif config.filter_text and re.search(config.re_filter_text, region.translation):
                         should_filter = True  
                         filter_reason = f"Matched filter text: {config.filter_text}"
                     elif not config.translator.translator == Translator.original:
