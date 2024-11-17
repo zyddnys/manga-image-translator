@@ -55,16 +55,19 @@ async def dispatch(args: Namespace):
         else: # batch
             dest = args.dest
             for path in natural_sort(args.input):
-                # Apply pre-translation dictionaries
-                await translator.translate_path(path, dest, args_dict)
-                for textline in translator.textlines:
-                    textline.text = translator.apply_dictionary(textline.text, pre_dict) 
-                    logger.info(f'Pre-translation dictionary applied: {textline.text}')
+                try :
+                    # Apply pre-translation dictionaries
+                    await translator.translate_path(path, dest, args_dict)
+                    for textline in translator.textlines:
+                        textline.text = translator.apply_dictionary(textline.text, pre_dict) 
+                        logger.info(f'Pre-translation dictionary applied: {textline.text}')
 
-                # Apply post-translation dictionaries
-                for textline in translator.textlines:
-                    textline.translation = translator.apply_dictionary(textline.translation, post_dict)  
-                    logger.info(f'Post-translation dictionary applied: {textline.translation}')
+                    # Apply post-translation dictionaries
+                    for textline in translator.textlines:
+                        textline.translation = translator.apply_dictionary(textline.translation, post_dict)  
+                        logger.info(f'Post-translation dictionary applied: {textline.translation}')
+                except Exception :
+                    pass
 
     elif args.mode == 'web':
         from .server.web_main import dispatch
