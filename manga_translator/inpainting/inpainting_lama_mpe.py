@@ -12,6 +12,7 @@ import shutil
 from torch import Tensor
 
 from .common import OfflineInpainter
+from ..config import InpainterConfig
 from ..utils import resize_keep_aspect
 
 
@@ -52,7 +53,7 @@ class LamaMPEInpainter(OfflineInpainter):
     async def _unload(self):
         del self.model
 
-    async def _infer(self, image: np.ndarray, mask: np.ndarray, inpainting_size: int = 1024, verbose: bool = False) -> np.ndarray:
+    async def _infer(self, image: np.ndarray, mask: np.ndarray, config: InpainterConfig, inpainting_size: int = 1024, verbose: bool = False) -> np.ndarray:
         img_original = np.copy(image)
         mask_original = np.copy(mask)
         mask_original[mask_original < 127] = 0
@@ -95,7 +96,8 @@ class LamaMPEInpainter(OfflineInpainter):
             else:
                 # Note: lama's weight shouldn't be convert to fp16 or bf16 otherwise it produces darkened results.
                 # but it can inference under torch.autocast
-                precision = TORCH_DTYPE_MAP[os.environ.get("INPAINTING_PRECISION", "fp32")]
+
+                precision = TORCH_DTYPE_MAP[str(config.inpainting_precision)]
                 
                 if precision == torch.float16:
                     precision = torch.bfloat16

@@ -1,11 +1,8 @@
 import groq
-import asyncio
-import time
-import json
-import re
 import os
 from typing import List
 
+from . import TranslatorChain
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import GROQ_API_KEY
 
@@ -64,8 +61,9 @@ class GroqTranslator(CommonTranslator):
 
 
 
-    def parse_args(self, args):
-        self.config = args.groq_config
+    def parse_args(self, args: TranslatorChain):
+        #todo: is nver set
+        self.config = None
 
     def _config_get(self, key: str, default=None):
         if not self.config:

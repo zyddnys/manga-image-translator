@@ -5,6 +5,7 @@ from collections import Counter
 import networkx as nx
 import itertools
 
+from ..config import OcrConfig
 from ..utils import InfererModule, TextBlock, ModelWrapper, Quadrilateral
 
 class CommonOCR(InfererModule):
@@ -37,15 +38,15 @@ class CommonOCR(InfererModule):
                     for node in nodes:
                         yield bboxes[node], majority_dir
 
-    async def recognize(self, image: np.ndarray, textlines: List[Quadrilateral], args: dict, verbose: bool = False) -> List[Quadrilateral]:
+    async def recognize(self, image: np.ndarray, textlines: List[Quadrilateral], config: OcrConfig, verbose: bool = False) -> List[Quadrilateral]:
         '''
         Performs the optical character recognition, using the `textlines` as areas of interests.
         Returns a `textlines` list with the `textline.text` property set to the detected text string.
         '''
-        return await self._recognize(image, textlines, args, verbose)
+        return await self._recognize(image, textlines, config, verbose)
 
     @abstractmethod
-    async def _recognize(self, image: np.ndarray, textlines: List[Quadrilateral], args: dict, verbose: bool = False) -> List[Quadrilateral]:
+    async def _recognize(self, image: np.ndarray, textlines: List[Quadrilateral], config: OcrConfig, verbose: bool = False) -> List[Quadrilateral]:
         pass
 
 
@@ -56,5 +57,5 @@ class OfflineOCR(CommonOCR, ModelWrapper):
         return await self.infer(*args, **kwargs)
 
     @abstractmethod
-    async def _infer(self, image: np.ndarray, textlines: List[Quadrilateral], args: dict, verbose: bool = False) -> List[Quadrilateral]:
+    async def _infer(self, image: np.ndarray, textlines: List[Quadrilateral], args: OcrConfig, verbose: bool = False) -> List[Quadrilateral]:
         pass

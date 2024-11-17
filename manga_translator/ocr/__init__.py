@@ -1,12 +1,12 @@
 import numpy as np
-from typing import List
+from typing import List, Optional
 
 from .common import CommonOCR, OfflineOCR
 from .model_32px import Model32pxOCR
 from .model_48px import Model48pxOCR
 from .model_48px_ctc import Model48pxCTCOCR
 from .model_manga_ocr import ModelMangaOCR
-from ..config import Ocr
+from ..config import Ocr, OcrConfig
 from ..utils import Quadrilateral
 
 OCRS = {
@@ -31,9 +31,9 @@ async def prepare(ocr_key: Ocr, device: str = 'cpu'):
         await ocr.download()
         await ocr.load(device)
 
-async def dispatch(ocr_key: Ocr, image: np.ndarray, regions: List[Quadrilateral], args = None, device: str = 'cpu', verbose: bool = False) -> List[Quadrilateral]:
+async def dispatch(ocr_key: Ocr, image: np.ndarray, regions: List[Quadrilateral], config:Optional[OcrConfig] = None, device: str = 'cpu', verbose: bool = False) -> List[Quadrilateral]:
     ocr = get_ocr(ocr_key)
     if isinstance(ocr, OfflineOCR):
         await ocr.load(device)
-    args = args or {}
-    return await ocr.recognize(image, regions, args, verbose)
+    config = config or OcrConfig()
+    return await ocr.recognize(image, regions, config, verbose)

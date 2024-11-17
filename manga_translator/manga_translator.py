@@ -10,7 +10,6 @@ import numpy as np
 from PIL import Image
 from typing import Optional, Any
 
-from .args import DEFAULT_ARGS
 from .config import Config, Colorizer, Detector, Translator, Renderer, Inpainter
 from .utils import (
     BASE_PATH,
@@ -21,7 +20,6 @@ from .utils import (
     dump_image,
     visualize_textblocks,
     is_valuable_text,
-    hex2rgb,
     sort_regions,
 )
 
@@ -33,7 +31,6 @@ from .mask_refinement import dispatch as dispatch_mask_refinement
 from .inpainting import dispatch as dispatch_inpainting, prepare as prepare_inpainting
 from .translators import (
     LANGDETECT_MAP,
-    TranslatorChain,
     dispatch as dispatch_translation,
     prepare as prepare_translation,
 )
@@ -137,9 +134,8 @@ class MangaTranslator:
                 'Is the correct pytorch version installed? (See https://pytorch.org/)')
         if params.get('model_dir'):
             ModelWrapper._MODEL_DIR = params.get('model_dir')
-        #todo: fix
+        #todo: fix why is kernel size loaded in the constructor
         self.kernel_size=int(params.get('kernel_size'))
-        os.environ['INPAINTING_PRECISION'] = params.get('inpainting_precision', 'fp32')
 
     @property
     def using_gpu(self):
@@ -281,14 +277,13 @@ class MangaTranslator:
             ctx.mask = await self._run_mask_refinement(config, ctx)
 
         if self.verbose:
-            inpaint_input_img = await dispatch_inpainting(Inpainter.none, ctx.img_rgb, ctx.mask, config.inpainter.inpainting_size,
+            inpaint_input_img = await dispatch_inpainting(Inpainter.none, ctx.img_rgb, ctx.mask, config.inpainter,
                                                           self.using_gpu, self.verbose)
             cv2.imwrite(self._result_path('inpaint_input.png'), cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
             cv2.imwrite(self._result_path('mask_final.png'), ctx.mask)
 
         # -- Inpainting
         await self._report_progress('inpainting')
-        #todo: fix _run_inpainting takes ctx
         ctx.img_inpainted = await self._run_inpainting(config, ctx)
 
         ctx.gimp_mask = np.dstack((cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR), ctx.mask))
@@ -315,7 +310,7 @@ class MangaTranslator:
         return ctx
 
     async def _run_colorizer(self, config: Config, ctx: Context):
-        #todo: fix dispatch_colorization takes ctx
+        #todo: im pretty sure the ctx is never used. does it need to be passed in?
         return await dispatch_colorization(config.colorizer.colorizer, device=self.device, image=ctx.input, **ctx)
 
     async def _run_upscaling(self, config: Config, ctx: Context):
@@ -329,8 +324,7 @@ class MangaTranslator:
                                         self.device, self.verbose)
 
     async def _run_ocr(self, config: Config, ctx: Context):
-        #todo: fix dispatch_ocr takes ctx
-        textlines = await dispatch_ocr(config.ocr.ocr, ctx.img_rgb, ctx.textlines, ctx, self.device, self.verbose)
+        textlines = await dispatch_ocr(config.ocr.ocr, ctx.img_rgb, ctx.textlines, config.ocr, self.device, self.verbose)
 
         new_textlines = []
         for textline in textlines:
@@ -372,10 +366,10 @@ class MangaTranslator:
         return text_regions
 
     async def _run_text_translation(self, config: Config, ctx: Context):
-        #todo: fix dispatch_translation takes ctx
         translated_sentences = \
             await dispatch_translation(config.translator.translator_gen,
                                        [region.text for region in ctx.text_regions],
+                                       config.translator,
                                        self.use_mtpe,
                                        ctx, 'cpu' if self._gpu_limited_memory else self.device)
 
@@ -508,7 +502,7 @@ class MangaTranslator:
         return await dispatch_mask_refinement(ctx.text_regions, ctx.img_rgb, ctx.mask_raw, 'fit_text',
                                               config.mask_dilation_offset, config.detector.ignore_bubble, self.verbose,self.kernel_size)
 
-    async def _run_inpainting(self, config: Config,ctx: Context):
+    async def _run_inpainting(self, config: Config, ctx: Context):
         return await dispatch_inpainting(config.inpainter.inpainter, ctx.img_rgb, ctx.mask, config.inpainter.inpainting_size, self.device,
                                          self.verbose)
 

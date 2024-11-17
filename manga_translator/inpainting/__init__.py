@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 
 from .common import CommonInpainter, OfflineInpainter
@@ -6,7 +8,7 @@ from .inpainting_lama_mpe import LamaMPEInpainter, LamaLargeInpainter
 from .inpainting_sd import StableDiffusionInpainter
 from .none import NoneInpainter
 from .original import OriginalInpainter
-from ..config import Inpainter
+from ..config import Inpainter, InpainterConfig
 
 INPAINTERS = {
     Inpainter.default: AotInpainter,
@@ -32,8 +34,8 @@ async def prepare(inpainter_key: Inpainter, device: str = 'cpu'):
         await inpainter.download()
         await inpainter.load(device)
 
-async def dispatch(inpainter_key: Inpainter, image: np.ndarray, mask: np.ndarray, inpainting_size: int = 1024, device: str = 'cpu', verbose: bool = False) -> np.ndarray:
+async def dispatch(inpainter_key: Inpainter, image: np.ndarray, mask: np.ndarray, config: Optional[InpainterConfig], inpainting_size: int = 1024, device: str = 'cpu', verbose: bool = False) -> np.ndarray:
     inpainter = get_inpainter(inpainter_key)
     if isinstance(inpainter, OfflineInpainter):
         await inpainter.load(device)
-    return await inpainter.inpaint(image, mask, inpainting_size, verbose)
+    return await inpainter.inpaint(image, mask, config or InpainterConfig(), inpainting_size, verbose)

@@ -1,3 +1,5 @@
+from typing import Optional
+
 import py3langid as langid
 
 from .common import *
@@ -19,7 +21,8 @@ from .original import OriginalTranslator
 from .sakura import SakuraTranslator
 from .qwen2 import Qwen2Translator, Qwen2BigTranslator
 from .groq import GroqTranslator
-from ..config import Translator
+from .. import Context
+from ..config import Translator, TranslatorConfig
 
 OFFLINE_TRANSLATORS = {
     Translator.offline: SelectiveOfflineTranslator,
@@ -103,7 +106,7 @@ async def prepare(chain: TranslatorChain):
             await translator.download()
 
 # TODO: Optionally take in strings instead of TranslatorChain for simplicity
-async def dispatch(chain: TranslatorChain, queries: List[str], use_mtpe: bool = False, args = None, device: str = 'cpu') -> List[str]:
+async def dispatch(chain: TranslatorChain, queries: List[str], translator_config: Optional[TranslatorConfig] = None, use_mtpe: bool = False, args:Optional[Context] = None, device: str = 'cpu') -> List[str]:
     if not queries:
         return queries
 
@@ -118,7 +121,8 @@ async def dispatch(chain: TranslatorChain, queries: List[str], use_mtpe: bool = 
             translator = get_translator(chain.langs[0])
         if isinstance(translator, OfflineTranslator):
             await translator.load('auto', chain.target_lang, device)
-        translator.parse_args(args)
+        if translator_config:
+            translator.parse_args(translator_config)
         queries = await translator.translate('auto', chain.target_lang, queries, use_mtpe)
         return queries
     if args is not None:
@@ -127,7 +131,8 @@ async def dispatch(chain: TranslatorChain, queries: List[str], use_mtpe: bool = 
         translator = get_translator(key)
         if isinstance(translator, OfflineTranslator):
             await translator.load('auto', tgt_lang, device)
-        translator.parse_args(args)
+        if translator_config:
+            translator.parse_args(translator_config)
         queries = await translator.translate('auto', tgt_lang, queries, use_mtpe)
         if args is not None:
             args['translations'][tgt_lang] = queries

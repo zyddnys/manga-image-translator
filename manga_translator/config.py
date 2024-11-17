@@ -30,6 +30,9 @@ class InpaintPrecision(IntEnum):
     fp16 = 1
     bf16 = 2
 
+    def __str__(self):
+        return self.name
+
 class Detector(IntEnum):
     default = 0
     dbconvnext = 1
@@ -118,7 +121,7 @@ class RenderConfig(BaseModel):
             colors = self.font_color.split(':')
             try:
                 self._font_color_fg = hex2rgb(colors[0])
-                self._font_color_fg = hex2rgb(colors[1]) if len(colors) > 1 else None
+                self._font_color_bg = hex2rgb(colors[1]) if len(colors) > 1 else None
             except:
                 raise Exception(
                     f'Invalid --font-color value: {self.font_color}. Use a hex value such as FF0000')
@@ -155,15 +158,16 @@ class TranslatorConfig(BaseModel):
     """Skip translation if source image is one of the provide languages, use comma to separate multiple languages. Example: JPN,ENG"""
     gpt_config: Optional[str] = None  # todo: no more path
     """Path to GPT config file, more info in README"""
-    translator_chain: Optional[str] = None  # todo: add parser translator_chain #todo: merge into one
+    translator_chain: Optional[str] = None
     """Output of one translator goes in another. Example: --translator-chain "google:JPN;sugoi:ENG"."""
-    selective_translation: Optional[str] = None  # todo: add parser translator_chain #todo: merge into one
+    selective_translation: Optional[str] = None
     """Select a translator based on detected language in image. Note the first translation service acts as default if the language isn\'t defined. Example: --translator-chain "google:JPN;sugoi:ENG".'"""
 
     @property
     def translator_gen(self):
         if self._translator_gen is None:
             if self.selective_translation is not None:
+                #todo: refactor TranslatorChain
                 trans =  translator_chain(self.selective_translation)
                 trans.target_lang = self.target_lang
                 self._translator_gen = trans
@@ -175,6 +179,7 @@ class TranslatorConfig(BaseModel):
                 self._translator_gen = TranslatorChain(f'{self.translator}:{self.target_lang}')
         return self._translator_gen
 
+    @property
     def chatgpt_config(self):
         if self.gpt_config is not None and self._gpt_config is None:
             #todo: load from already loaded file
@@ -198,8 +203,6 @@ class DetectorConfig(BaseModel):
     """Invert the image colors for detection. Might improve detection."""
     det_gamma_correct: bool = False
     """Applies gamma correction for detection. Might improve detection."""
-    ignore_bubble: int = 0
-    """The threshold for ignoring text in non bubble areas, with valid values ranging from 1 to 50, does not ignore others. Recommendation 5 to 10. If it is too low, normal bubble areas may be ignored, and if it is too large, non bubble areas may be considered normal bubbles"""
     box_threshold: float = 0.7
     """Threshold for bbox generation"""
     unclip_ratio: float = 2.3
@@ -213,7 +216,6 @@ class InpainterConfig(BaseModel):
     inpainting_precision: InpaintPrecision = InpaintPrecision.fp32
     """Inpainting precision for lama, use bf16 while you can."""
 
-
 class ColorizerConfig(BaseModel):
     colorization_size: int = 576
     """Size of image used for colorization. Set to -1 to use full image size"""
@@ -222,8 +224,6 @@ class ColorizerConfig(BaseModel):
     colorizer: Colorizer = Colorizer.none
     """Colorization model to use."""
 
-
-
 class OcrConfig(BaseModel):
     use_mocr_merge: bool = False
     """Use bbox merge when Manga OCR inference."""
@@ -231,6 +231,8 @@ class OcrConfig(BaseModel):
     """Optical character recognition (OCR) model to use"""
     min_text_length: int = 0
     """Minimum text length of a text region"""
+    ignore_bubble: int = 0
+    """The threshold for ignoring text in non bubble areas, with valid values ranging from 1 to 50, does not ignore others. Recommendation 5 to 10. If it is too low, normal bubble areas may be ignored, and if it is too large, non bubble areas may be considered normal bubbles"""
 
 class Config(BaseModel):
     # unclear
