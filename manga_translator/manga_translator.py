@@ -8,10 +8,10 @@ import torch
 import logging
 import numpy as np
 from PIL import Image
-from typing import Union
-
+from typing import Optional, Any
 
 from .args import DEFAULT_ARGS
+from .config import Config, Colorizer, Detector, Translator, Renderer
 from .utils import (
     BASE_PATH,
     LANGUAGE_ORIENTATION_PRESETS,
@@ -58,8 +58,23 @@ class TranslationInterrupt(Exception):
 
 
 class MangaTranslator:
+    verbose: bool
+    ignore_errors: bool
+    _gpu_limited_memory: bool
+    device: Optional[str]
+    kernel_size: Optional[int]
+    _progress_hooks: list[Any]
+    result_sub_folder: str
 
     def __init__(self, params: dict = None):
+        self.font_path = None
+        self.use_mtpe = False
+        self.kernel_size = None
+        self.device = None
+        self._gpu_limited_memory = False
+        self.ignore_errors = False
+        self.verbose = False
+
         self._progress_hooks = []
         self._add_logger_hook()
 
@@ -76,6 +91,9 @@ class MangaTranslator:
 
     def parse_init_params(self, params: dict):
         self.verbose = params.get('verbose', False)
+        self.use_mtpe = params.get('use_mtpe', False)
+        self.font_path = params.get('font_path', None)
+
         self.ignore_errors = params.get('ignore_errors', False)
         # check mps for apple silicon or cuda for nvidia
         device = 'mps' if torch.backends.mps.is_available() else 'cuda'
@@ -85,7 +103,7 @@ class MangaTranslator:
             self.device = device
         if self.using_gpu and ( not torch.cuda.is_available() and not torch.backends.mps.is_available()):
             raise Exception(
-                'CUDA or Metal compatible device could not be found in torch whilst --use-gpu args was set.\n' \
+                'CUDA or Metal compatible device could not be found in torch whilst --use-gpu args was set.\n'
                 'Is the correct pytorch version installed? (See https://pytorch.org/)')
         if params.get('model_dir'):
             ModelWrapper._MODEL_DIR = params.get('model_dir')
@@ -96,7 +114,7 @@ class MangaTranslator:
     def using_gpu(self):
         return self.device.startswith('cuda') or self.device == 'mps'
 
-    async def translate(self, image: Image.Image, params: Union[dict, Context] = None) -> Context:
+    async def translate(self, image: Image.Image, config: Config) -> Context:
         """
         Translates a PIL image from a manga. Returns dict with result and intermediates of translation.
         Default params are taken from args.py.
@@ -108,28 +126,29 @@ class MangaTranslator:
         """
         # TODO: Take list of images to speed up batch processing
 
-        if not isinstance(params, Context):
-            params = params or {}
-            ctx = Context(**params)
-            self._preprocess_params(ctx)
-        else:
-            ctx = params
+        ctx = Context()
 
         ctx.input = image
         ctx.result = None
 
         # preload and download models (not strictly necessary, remove to lazy load)
         logger.info('Loading models')
-        if ctx.upscale_ratio:
-            await prepare_upscaling(ctx.upscaler)
-        await prepare_detection(ctx.detector)
-        await prepare_ocr(ctx.ocr, self.device)
-        await prepare_inpainting(ctx.inpainter, self.device)
-        await prepare_translation(ctx.translator)
-        if ctx.colorizer:
-            await prepare_colorization(ctx.colorizer)
+        if config.upscale.upscale_ratio:
+            # todo: fix
+            await prepare_upscaling(config.upscale.upscaler)
+        # todo: fix
+        await prepare_detection(config.detector.detector)
+        # todo: fix
+        await prepare_ocr(config.ocr.ocr, self.device)
+        # todo: fix
+        await prepare_inpainting(config.inpainter.inpainter, self.device)
+        # todo: fix
+        await prepare_translation(config.translator.translator)
+        if config.colorizer.colorizer != Colorizer.none:
+            #todo: fix
+            await prepare_colorization(config.colorizer.colorizer)
         # translate
-        return await self._translate(ctx)
+        return await self._translate(config, ctx)
 
     def load_dictionary(self, file_path):
         dictionary = []
@@ -161,30 +180,11 @@ class MangaTranslator:
         return text
 
     def _preprocess_params(self, ctx: Context):
+        # todo: fix
         # params auto completion
         # TODO: Move args into ctx.args and only calculate once, or just copy into ctx
         for arg in DEFAULT_ARGS:
             ctx.setdefault(arg, DEFAULT_ARGS[arg])
-
-        if 'direction' not in ctx:
-            if ctx.force_horizontal:
-                ctx.direction = 'h'
-            elif ctx.force_vertical:
-                ctx.direction = 'v'
-            else:
-                ctx.direction = 'auto'
-        if 'alignment' not in ctx:
-            if ctx.align_left:
-                ctx.alignment = 'left'
-            elif ctx.align_center:
-                ctx.alignment = 'center'
-            elif ctx.align_right:
-                ctx.alignment = 'right'
-            else:
-                ctx.alignment = 'auto'
-        if ctx.prep_manual:
-            ctx.renderer = 'none'
-        ctx.setdefault('renderer', 'manga2eng' if ctx.manga2eng else 'default')
 
         if ctx.selective_translation is not None:
             ctx.selective_translation.target_lang = ctx.target_lang
@@ -208,21 +208,21 @@ class MangaTranslator:
             except:
                 raise Exception(f'Invalid --font-color value: {ctx.font_color}. Use a hex value such as FF0000')
 
-    async def _translate(self, ctx: Context) -> Context:
+    async def _translate(self, config: Config, ctx: Context) -> Context:
 
         # -- Colorization
-        if ctx.colorizer:
+        if config.colorizer.colorizer != Colorizer.none:
             await self._report_progress('colorizing')
-            ctx.img_colorized = await self._run_colorizer(ctx)
+            ctx.img_colorized = await self._run_colorizer(config, ctx)
         else:
             ctx.img_colorized = ctx.input
 
         # -- Upscaling
         # The default text detector doesn't work very well on smaller images, might want to
         # consider adding automatic upscaling on certain kinds of small images.
-        if ctx.upscale_ratio:
+        if config.upscale.upscale_ratio:
             await self._report_progress('upscaling')
-            ctx.upscaled = await self._run_upscaling(ctx)
+            ctx.upscaled = await self._run_upscaling(config, ctx)
         else:
             ctx.upscaled = ctx.img_colorized
 
@@ -230,7 +230,7 @@ class MangaTranslator:
 
         # -- Detection
         await self._report_progress('detection')
-        ctx.textlines, ctx.mask_raw, ctx.mask = await self._run_detection(ctx)
+        ctx.textlines, ctx.mask_raw, ctx.mask = await self._run_detection(config, ctx)
         if self.verbose:
             cv2.imwrite(self._result_path('mask_raw.png'), ctx.mask_raw)
 
@@ -238,7 +238,7 @@ class MangaTranslator:
             await self._report_progress('skip-no-regions', True)
             # If no text was found result is intermediate image product
             ctx.result = ctx.upscaled
-            return await self._revert_upscale(ctx)
+            return await self._revert_upscale(config, ctx)
 
         if self.verbose:
             img_bbox_raw = np.copy(ctx.img_rgb)
@@ -248,11 +248,11 @@ class MangaTranslator:
 
         # -- OCR
         await self._report_progress('ocr')
-        ctx.textlines = await self._run_ocr(ctx)
+        ctx.textlines = await self._run_ocr(config, ctx)
         
-        if ctx.skip_lang is not None :
+        if config.translator.skip_lang is not None :
             filtered_textlines = []
-            skip_langs = ctx.skip_lang.split(',')
+            skip_langs = config.translator.skip_lang.split(',')
             for txtln in ctx.textlines :
                 try :
                     source_language = LANGDETECT_MAP.get(langdetect.detect(txtln.text), 'UNKNOWN')
@@ -266,10 +266,10 @@ class MangaTranslator:
             await self._report_progress('skip-no-text', True)
             # If no text was found result is intermediate image product
             ctx.result = ctx.upscaled
-            return await self._revert_upscale(ctx)
+            return await self._revert_upscale(config, ctx)
 
         # Apply pre-dictionary after OCR
-        pre_dict = self.load_dictionary(ctx.pre_dict)  
+        pre_dict = self.load_dictionary(config.pre_dict)
         pre_replacements = []  
         for textline in ctx.textlines:  
             original = textline.text  
@@ -286,7 +286,7 @@ class MangaTranslator:
         
         # -- Textline merge
         await self._report_progress('textline_merge')
-        ctx.text_regions = await self._run_textline_merge(ctx)
+        ctx.text_regions = await self._run_textline_merge(config, ctx)
 
         if self.verbose:
             bboxes = visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions)
@@ -294,34 +294,34 @@ class MangaTranslator:
 
         # -- Translation
         await self._report_progress('translating')
-        ctx.text_regions = await self._run_text_translation(ctx)
+        ctx.text_regions = await self._run_text_translation(config, ctx)
         await self._report_progress('after-translating')
 
 
         if not ctx.text_regions:
             await self._report_progress('error-translating', True)
             ctx.result = ctx.upscaled
-            return await self._revert_upscale(ctx)
+            return await self._revert_upscale(config, ctx)
         elif ctx.text_regions == 'cancel':
             await self._report_progress('cancelled', True)
             ctx.result = ctx.upscaled
-            return await self._revert_upscale(ctx)
+            return await self._revert_upscale(config, ctx)
 
         # -- Mask refinement
         # (Delayed to take advantage of the region filtering done after ocr and translation)
         if ctx.mask is None:
             await self._report_progress('mask-generation')
-            ctx.mask = await self._run_mask_refinement(ctx)
+            ctx.mask = await self._run_mask_refinement(config, ctx)
 
         if self.verbose:
-            inpaint_input_img = await dispatch_inpainting('none', ctx.img_rgb, ctx.mask, ctx.inpainting_size,
+            inpaint_input_img = await dispatch_inpainting('none', ctx.img_rgb, ctx.mask, config.inpainter.inpainting_size,
                                                           self.using_gpu, self.verbose)
             cv2.imwrite(self._result_path('inpaint_input.png'), cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
             cv2.imwrite(self._result_path('mask_final.png'), ctx.mask)
 
         # -- Inpainting
         await self._report_progress('inpainting')
-        ctx.img_inpainted = await self._run_inpainting(ctx)
+        ctx.img_inpainted = await self._run_inpainting(config, ctx)
 
         ctx.gimp_mask = np.dstack((cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR), ctx.mask))
 
@@ -330,37 +330,37 @@ class MangaTranslator:
 
         # -- Rendering
         await self._report_progress('rendering')
-        ctx.img_rendered = await self._run_text_rendering(ctx)
+        ctx.img_rendered = await self._run_text_rendering(config, ctx)
 
         await self._report_progress('finished', True)
         ctx.result = dump_image(ctx.input, ctx.img_rendered, ctx.img_alpha)
 
-        return await self._revert_upscale(ctx)
+        return await self._revert_upscale(config, ctx)
     
     # If `revert_upscaling` is True, revert to input size
     # Else leave `ctx` as-is
-    async def _revert_upscale(self, ctx: Context):
-        if ctx.revert_upscaling:
+    async def _revert_upscale(self, config: Config, ctx: Context):
+        if config.upscale.revert_upscaling:
             await self._report_progress('downscaling')
             ctx.result = ctx.result.resize(ctx.input.size)
 
         return ctx
 
-    async def _run_colorizer(self, ctx: Context):
-        return await dispatch_colorization(ctx.colorizer, device=self.device, image=ctx.input, **ctx)
+    async def _run_colorizer(self, config: Config, ctx: Context):
+        return await dispatch_colorization(config.colorizer.colorizer, device=self.device, image=ctx.input, **ctx)
 
-    async def _run_upscaling(self, ctx: Context):
-        return (await dispatch_upscaling(ctx.upscaler, [ctx.img_colorized], ctx.upscale_ratio, self.device))[0]
+    async def _run_upscaling(self, config: Config, ctx: Context):
+        return (await dispatch_upscaling(config.upscale.upscaler, [ctx.img_colorized], config.upscale.upscale_ratio, self.device))[0]
 
-    async def _run_detection(self, ctx: Context):
-        return await dispatch_detection(ctx.detector, ctx.img_rgb, ctx.detection_size, ctx.text_threshold,
-                                        ctx.box_threshold,
-                                        ctx.unclip_ratio, ctx.det_invert, ctx.det_gamma_correct, ctx.det_rotate,
-                                        ctx.det_auto_rotate,
+    async def _run_detection(self, config: Config, ctx: Context):
+        return await dispatch_detection(config.detector.detector, ctx.img_rgb, config.detector.detection_size, config.detector.text_threshold,
+                                        config.detector.box_threshold,
+                                        config.detector.unclip_ratio, config.detector.det_invert, config.detector.det_gamma_correct, config.detector.det_rotate,
+                                        config.detector.det_auto_rotate,
                                         self.device, self.verbose)
 
-    async def _run_ocr(self, ctx: Context):
-        textlines = await dispatch_ocr(ctx.ocr, ctx.img_rgb, ctx.textlines, ctx, self.device, self.verbose)
+    async def _run_ocr(self, config: Config, ctx: Context):
+        textlines = await dispatch_ocr(config.ocr.ocr, ctx.img_rgb, ctx.textlines, ctx, self.device, self.verbose)
 
         new_textlines = []
         for textline in textlines:
@@ -372,21 +372,21 @@ class MangaTranslator:
                 new_textlines.append(textline)
         return new_textlines
 
-    async def _run_textline_merge(self, ctx: Context):
+    async def _run_textline_merge(self, config: Config, ctx: Context):
         text_regions = await dispatch_textline_merge(ctx.textlines, ctx.img_rgb.shape[1], ctx.img_rgb.shape[0],
                                                      verbose=self.verbose)
         new_text_regions = []
         for region in text_regions:
-            if len(region.text) >= ctx.min_text_length \
+            if len(region.text) >= config.ocr.min_text_length \
                     and not is_valuable_text(region.text) \
-                    or (not ctx.no_text_lang_skip and langcodes.tag_distance(region.source_lang, ctx.target_lang) == 0):
+                    or (not config.translator.no_text_lang_skip and langcodes.tag_distance(region.source_lang, config.translator.target_lang) == 0):
                 if region.text.strip():
                     logger.info(f'Filtered out: {region.text}')
-                    if len(region.text) < ctx.min_text_length:
+                    if len(region.text) < config.ocr.min_text_length:
                         logger.info('Reason: Text length is less than the minimum required length.')
                     elif not is_valuable_text(region.text):
                         logger.info('Reason: Text is not considered valuable.')
-                    elif langcodes.tag_distance(region.source_lang, ctx.target_lang) == 0:
+                    elif langcodes.tag_distance(region.source_lang, config.translator.target_lang) == 0:
                         logger.info('Reason: Text language matches the target language and no_text_lang_skip is False.')
             else:
                 if ctx.font_color_fg or ctx.font_color_bg:
@@ -398,28 +398,28 @@ class MangaTranslator:
 
         # Sort ctd (comic text detector) regions left to right. Otherwise right to left.
         # Sorting will improve text translation quality.
-        text_regions = sort_regions(text_regions, right_to_left=True if ctx.detector != 'ctd' else False)
+        text_regions = sort_regions(text_regions, right_to_left=True if config.detector.detector != Detector.ctd else False)
         return text_regions
 
-    async def _run_text_translation(self, ctx: Context):
+    async def _run_text_translation(self, config: Config, ctx: Context):
         translated_sentences = \
-            await dispatch_translation(ctx.translator,
+            await dispatch_translation(config.translator.translator,
                                        [region.text for region in ctx.text_regions],
-                                       ctx.use_mtpe,
+                                       self.use_mtpe,
                                        ctx, 'cpu' if self._gpu_limited_memory else self.device)
 
         for region, translation in zip(ctx.text_regions, translated_sentences):
-            if ctx.uppercase:
+            if config.render.uppercase:
                 translation = translation.upper()
-            elif ctx.lowercase:
+            elif config.render.lowercase:
                 translation = translation.upper()
             region.translation = translation
-            region.target_lang = ctx.target_lang
-            region._alignment = ctx.alignment
-            region._direction = ctx.direction
+            region.target_lang = config.translator.target_lang
+            region._alignment = config.render.alignment
+            region._direction = config.render.direction
 
         # Apply post dictionary after translating
-        post_dict = self.load_dictionary(ctx.post_dict)  
+        post_dict = self.load_dictionary(config.post_dict)
         post_replacements = []  
         for region in ctx.text_regions:  
             original = region.translation  
@@ -441,7 +441,7 @@ class MangaTranslator:
         special_langs = ['CHS', 'CHT', 'JPN', 'KOR', 'IND', 'UKR', 'RUS', 'THA', 'ARA']  
 
         # Process special language scenarios  
-        if ctx.target_lang in special_langs:  
+        if config.translator.target_lang in special_langs:
             # Categorize regions  
             same_target_regions = []    # Target language regions with identical translation  
             diff_target_regions = []    # Target language regions with different translation  
@@ -453,21 +453,21 @@ class MangaTranslator:
                 has_target_lang = False  
 
                 # Target language detection  
-                if ctx.target_lang in ['CHS', 'CHT']:  # Chinese  
+                if config.translator.target_lang in ['CHS', 'CHT']:  # Chinese
                     has_target_lang = bool(re.search('[\u4e00-\u9fff]', region.text))  
-                elif ctx.target_lang == 'JPN':  # Japanese  
+                elif config.translator.target_lang == 'JPN':  # Japanese
                     has_target_lang = bool(re.search('[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff]', region.text))  
-                elif ctx.target_lang == 'KOR':  # Korean  
+                elif config.translator.target_lang == 'KOR':  # Korean
                     has_target_lang = bool(re.search('[\uac00-\ud7af\u1100-\u11ff]', region.text))  
-                elif ctx.target_lang == 'ARA':  # Arabic  
+                elif config.translator.target_lang == 'ARA':  # Arabic
                     has_target_lang = bool(re.search('[\u0600-\u06ff]', region.text))  
-                elif ctx.target_lang == 'THA':  # Thai  
+                elif config.translator.target_lang == 'THA':  # Thai
                     has_target_lang = bool(re.search('[\u0e00-\u0e7f]', region.text))  
-                elif ctx.target_lang == 'RUS':  # Russian  
+                elif config.translator.target_lang == 'RUS':  # Russian
                     has_target_lang = bool(re.search('[\u0400-\u04ff]', region.text))  
-                elif ctx.target_lang == 'UKR':  # Ukrainian  
+                elif config.translator.target_lang == 'UKR':  # Ukrainian
                     has_target_lang = bool(re.search('[\u0400-\u04ff]', region.text))  
-                elif ctx.target_lang == 'IND':  # Indonesian  
+                elif config.translator.target_lang == 'IND':  # Indonesian
                     has_target_lang = bool(re.search('[A-Za-z]', region.text))
                 
                 # Skip numeric translations and filtered text  
@@ -476,9 +476,9 @@ class MangaTranslator:
                     logger.info('Reason: Numeric translation')  
                     continue  
                 
-                if ctx.filter_text and re.search(ctx.filter_text, region.translation):  
+                if config.filter_text and re.search(config.filter_text, region.translation):
                     logger.info(f'Filtered out: {region.translation}')  
-                    logger.info(f'Reason: Matched filter text: {ctx.filter_text}')  
+                    logger.info(f'Reason: Matched filter text: {config.filter_text}')
                     continue  
                 
                 if has_target_lang:  
@@ -510,14 +510,14 @@ class MangaTranslator:
                 should_filter = False  
                 filter_reason = ""  
                 
-                if not ctx.translator == 'none':  
+                if not config.translator.translator == Translator.none:
                     if region.translation.isnumeric():  
                         should_filter = True  
                         filter_reason = "Numeric translation"  
-                    elif ctx.filter_text and re.search(ctx.filter_text, region.translation):  
+                    elif config.filter_text and re.search(config.filter_text, region.translation):
                         should_filter = True  
-                        filter_reason = f"Matched filter text: {ctx.filter_text}"  
-                    elif not ctx.translator == 'original':  
+                        filter_reason = f"Matched filter text: {config.filter_text}"
+                    elif not config.translator.translator == Translator.original:
                         text_equal = region.text.lower().strip() == region.translation.lower().strip()  
                         if text_equal:  
                             should_filter = True  
@@ -533,25 +533,25 @@ class MangaTranslator:
         return new_text_regions 
                
 
-    async def _run_mask_refinement(self, ctx: Context):
+    async def _run_mask_refinement(self, config: Config, ctx: Context):
         return await dispatch_mask_refinement(ctx.text_regions, ctx.img_rgb, ctx.mask_raw, 'fit_text',
-                                              ctx.mask_dilation_offset, ctx.ignore_bubble, self.verbose,self.kernel_size)
+                                              config.mask_dilation_offset, config.detector.ignore_bubble, self.verbose,self.kernel_size)
 
-    async def _run_inpainting(self, ctx: Context):
-        return await dispatch_inpainting(ctx.inpainter, ctx.img_rgb, ctx.mask, ctx.inpainting_size, self.device,
+    async def _run_inpainting(self, config: Config,ctx: Context):
+        return await dispatch_inpainting(config.inpainter.inpainter, ctx.img_rgb, ctx.mask, config.inpainter.inpainting_size, self.device,
                                          self.verbose)
 
-    async def _run_text_rendering(self, ctx: Context):
-        if ctx.renderer == 'none':
+    async def _run_text_rendering(self, config: Config, ctx: Context):
+        if config.render.renderer == Renderer.none:
             output = ctx.img_inpainted
         # manga2eng currently only supports horizontal left to right rendering
-        elif ctx.renderer == 'manga2eng' and ctx.text_regions and LANGUAGE_ORIENTATION_PRESETS.get(
+        elif config.render.renderer == Renderer.manga2Eng and ctx.text_regions and LANGUAGE_ORIENTATION_PRESETS.get(
                 ctx.text_regions[0].target_lang) == 'h':
-            output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, ctx.font_path, ctx.line_spacing)
+            output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, self.font_path, config.render.line_spacing)
         else:
-            output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, ctx.font_path, ctx.font_size,
-                                              ctx.font_size_offset,
-                                              ctx.font_size_minimum, not ctx.no_hyphenation, ctx.render_mask, ctx.line_spacing)
+            output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, self.font_path, config.render.font_size,
+                                              config.render.font_size_offset,
+                                              config.render.font_size_minimum, not config.render.no_hyphenation, config.render.render_mask, config.render.line_spacing)
         return output
 
     def _result_path(self, path: str) -> str:
