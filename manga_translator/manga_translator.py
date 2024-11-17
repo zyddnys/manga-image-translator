@@ -352,8 +352,8 @@ class MangaTranslator:
                     elif langcodes.tag_distance(region.source_lang, config.translator.target_lang) == 0:
                         logger.info('Reason: Text language matches the target language and no_text_lang_skip is False.')
             else:
-                if ctx.font_color_fg or ctx.font_color_bg:
-                    if ctx.font_color_bg:
+                if config.render.font_color_fg or config.render.font_color_bg:
+                    if config.render.font_color_bg:
                         region.adjust_bg_color = False
                 new_text_regions.append(region)
         text_regions = new_text_regions
@@ -502,7 +502,7 @@ class MangaTranslator:
                                               config.mask_dilation_offset, config.detector.ignore_bubble, self.verbose,self.kernel_size)
 
     async def _run_inpainting(self, config: Config, ctx: Context):
-        return await dispatch_inpainting(config.inpainter.inpainter, ctx.img_rgb, ctx.mask, config.inpainter.inpainting_size, self.device,
+        return await dispatch_inpainting(config.inpainter.inpainter, ctx.img_rgb, ctx.mask, config.inpainter, self.device,
                                          self.verbose)
 
     async def _run_text_rendering(self, config: Config, ctx: Context):
