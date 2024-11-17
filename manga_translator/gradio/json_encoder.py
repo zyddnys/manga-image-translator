@@ -33,3 +33,7 @@ class JSONEncoder(json.JSONEncoder):
             return float(o)
         else:
             return super().default(o)
+
+
+def to_json(obj) -> object:
+    return json.loads(json.dumps(obj, cls=JSONEncoder))

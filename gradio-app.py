@@ -1,10 +1,14 @@
+from fileinput import filename
 import gradio as gr
 import numpy as np
+from PIL import Image
 
 
 import dotenv
 import logging
 import asyncio
+import os.path
+from pathlib import Path
 import manga_translator.detection as detection
 import manga_translator.ocr as ocr
 import manga_translator.textline_merge as textline_merge
@@ -14,7 +18,6 @@ from manga_translator.gradio import (
     DetectionState,
     OcrState,
     mit_detect_text_default_params,
-    to_json,
 )
 from typing import List, Optional, TypedDict
 
@@ -42,7 +45,9 @@ with gr.Blocks() as demo:
     with gr.Row():
         with gr.Column():
             gr.Markdown("## Detection")
-            img_file = gr.Image(label="input image", height=256, width=256)
+            img_file = gr.Image(
+                label="input image", height=256, width=256, type="filepath"
+            )
             detector_key = gr.Radio(
                 choices=[
                     "default",
@@ -71,15 +76,25 @@ with gr.Blocks() as demo:
     )
     async def run_detector(
         prev: DetectionState | gr.State,
-        img,
+        img_path: Optional[str],
         detector_key: Optional[str],
     ):
         # print("prev", prev)
         prev_value = prev if isinstance(prev, DetectionState) else None  # prev.value
         assert prev_value, "prev_value is None"
-        logger.debug("run_detector %s %s", prev_value, type(img))
+        logger.debug("run_detector %s %s", prev_value, img_path)
 
-        value = prev_value.copy(img=img)
+        value = prev_value.copy()
+
+        if img_path:
+            raw_bytes = Path(img_path).read_bytes()
+            pil_img = Image.open(img_path)
+            img, mask = utils_generic.load_image(pil_img)
+            value = value.copy(
+                raw_filename=os.path.basename(img_path), raw_bytes=raw_bytes, img=img
+            )
+        else:
+            value = prev_value.copy(raw_filename=None, raw_bytes=None, img=None)
 
         if detector_key:
             value = value.copy(
