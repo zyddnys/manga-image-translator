@@ -22,7 +22,7 @@ STORAGE_DIR_RESOLVED = storage_dir.resolve()
 
 if gr.NO_RELOAD:
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.WARN,
         format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
         force=True,
@@ -31,7 +31,7 @@ if gr.NO_RELOAD:
         logging.getLogger(name).setLevel(logging.WARN)
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 async def copy_files(gradio_temp_files: list[str]) -> list[str]:
@@ -49,9 +49,9 @@ async def copy_files(gradio_temp_files: list[str]) -> list[str]:
 
 
 def log_file(basename: str, result: List[TextBlock]):
-    logger.debug("file: %s", basename)
+    logger.info("file: %s", basename)
     for i, b in enumerate(result):
-        logger.debug("  block %d: %s", i, b.text)
+        logger.info("  block %d: %s", i, b.text)
 
 
 async def process_files(
@@ -103,6 +103,7 @@ async def process_file(
         )
     except Exception as e:
         logger.error("error processing %s: %s", img_path, e)
+        print(e)
         text_blocks = []
     else:
         logger.debug("processed %s", img_path)
