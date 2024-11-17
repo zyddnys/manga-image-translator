@@ -51,3 +51,4 @@ manga-ocr
 # accelerate
 # bitsandbytes
 gradio==5.6.0
+orjson==3.10.11
