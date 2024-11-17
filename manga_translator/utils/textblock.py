@@ -83,7 +83,7 @@ class TextBlock(object):
         if self.text and len(texts) > 1:
             for txt in texts[1:]:
                 first_cjk = '\u3000' <= self.text[-1] <= '\u9fff'
-                second_cjk = '\u3000' <= txt[0] <= '\u9fff'
+                second_cjk = txt and ('\u3000' <= txt[0] <= '\u9fff')
                 if first_cjk or second_cjk :
                     self.text += txt
                 else :
