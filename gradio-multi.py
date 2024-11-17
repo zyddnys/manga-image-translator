@@ -115,7 +115,11 @@ async def process_file(
 
 with gr.Blocks() as demo:
     demo.enable_queue = True
-    file_input = gr.File(label="upload file", file_count="multiple", type="filepath")
+    file_input = gr.File(
+        label="upload file",
+        file_count="multiple",
+        type="filepath",
+    )
 
     ocr_output = gr.JSON(
         label="OCR output",
@@ -152,6 +156,4 @@ with gr.Blocks() as demo:
 
 
 if __name__ == "__main__":
-    demo.launch(
-        server_name="0.0.0.0",
-    )
+    demo.launch(server_name="0.0.0.0", max_file_size=10 * gr.FileSize.MB)
