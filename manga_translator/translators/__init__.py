@@ -57,7 +57,7 @@ TRANSLATORS = {
 }
 translator_cache = {}
 
-def get_translator(key: str, *args, **kwargs) -> CommonTranslator:
+def get_translator(key: Translator, *args, **kwargs) -> CommonTranslator:
     if key not in TRANSLATORS:
         raise ValueError(f'Could not find translator for: "{key}". Choose from the following: %s' % ','.join(TRANSLATORS))
     if not translator_cache.get(key):
@@ -80,11 +80,12 @@ class TranslatorChain:
         self.target_lang = None
         for g in string.split(';'):
             trans, lang = g.split(':')
-            if trans not in TRANSLATORS:
+            translator = Translator[trans]
+            if translator not in TRANSLATORS:
                 raise ValueError(f'Invalid choice: %s (choose from %s)' % (trans, ', '.join(map(repr, TRANSLATORS))))
             if lang not in VALID_LANGUAGES:
                 raise ValueError(f'Invalid choice: %s (choose from %s)' % (lang, ', '.join(map(repr, VALID_LANGUAGES))))
-            self.chain.append((trans, lang))
+            self.chain.append((translator, lang))
         self.translators, self.langs = list(zip(*self.chain))
     
     def has_offline(self) -> bool:

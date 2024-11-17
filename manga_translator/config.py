@@ -58,6 +58,7 @@ class Ocr(IntEnum):
     ocr48px = 1
     ocr48px_ctc = 2
     mocr = 3
+
 class Translator(IntEnum):
     youdao = 0
     baidu = 1
@@ -83,6 +84,10 @@ class Translator(IntEnum):
     mbart50 = 21
     qwen2 = 22
     qwen2_big = 23
+
+    def __str__(self):
+        return self.name
+
 class Upscaler:
     waifu2x = 0
     esrgan = 1
@@ -177,7 +182,7 @@ class TranslatorConfig(BaseModel):
                 trans.target_lang = trans.langs[-1]
                 self._translator_gen = trans
             else:
-                self._translator_gen = TranslatorChain(f'{self.translator}:{self.target_lang}')
+                self._translator_gen = TranslatorChain(f'{str(self.translator)}:{self.target_lang}')
         return self._translator_gen
 
     @property
