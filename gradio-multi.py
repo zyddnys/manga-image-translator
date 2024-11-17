@@ -159,6 +159,7 @@ with gr.Blocks() as demo:
 
 if __name__ == "__main__":
     demo.queue(api_open=True, max_size=100).launch(
+        debug=True,
         server_name="0.0.0.0",
         max_file_size=10 * gr.FileSize.MB,
     )
