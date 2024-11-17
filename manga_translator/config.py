@@ -1,12 +1,13 @@
 import re
-from enum import Enum, IntEnum
+from enum import IntEnum
 
 from omegaconf import OmegaConf
 from pydantic import BaseModel
 from typing import Optional
 
-from manga_translator import TranslatorChain, hex2rgb
 from manga_translator.args import translator_chain
+from manga_translator.translators import TranslatorChain
+from manga_translator.utils import hex2rgb
 
 
 class Renderer(IntEnum):

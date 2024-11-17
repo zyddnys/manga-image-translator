@@ -1,5 +1,4 @@
 import cv2
-from omegaconf import OmegaConf
 import langcodes
 import langdetect
 import os
