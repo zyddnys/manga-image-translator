@@ -31,7 +31,7 @@ async def download(dict):
 
 async def main():
     models: set[str] = set(filter(None, cli_args.models.split(",")))
-    # print("parsed.models", models)
+
     await download(
         {
             k: v
