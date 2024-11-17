@@ -6,6 +6,7 @@ from typing import Optional
 class Renderer(IntEnum):
     default = 0
     manga2Eng = 1
+    none = 2
 
 class Alignment(IntEnum):
     auto = 0
@@ -100,7 +101,7 @@ class RenderConfig(BaseModel):
     """If renderer should be splitting up words using a hyphen character (-)"""
     font_color: Optional[str] = None
     """Overwrite the text fg/bg color detected by the OCR model. Use hex string without the "#" such as FFFFFF for a white foreground or FFFFFF:000000 to also have a black background around the text."""
-    line_spacing: Optional[float] = None
+    line_spacing: Optional[int] = None
     """Line spacing is font_size * this value. Default is 0.01 for horizontal text and 0.2 for vertical."""
     font_size: Optional[int] = None
     """Use fixed font size for rendering"""
@@ -111,7 +112,7 @@ class UpscaleConfig(BaseModel):
     """Upscaler to use. --upscale-ratio has to be set for it to take effect"""
     revert_upscaling: bool = False
     """Downscales the previously upscaled image after translation back to original size (Use with --upscale-ratio)."""
-    upscale_ratio: Optional[float] = None
+    upscale_ratio: Optional[int] = None
     """Image upscale ratio applied before detection. Can improve text detection."""
 
 class TranslatorConfig(BaseModel):
@@ -148,6 +149,10 @@ class DetectorConfig(BaseModel):
     """Applies gamma correction for detection. Might improve detection."""
     ignore_bubble: int = 0
     """The threshold for ignoring text in non bubble areas, with valid values ranging from 1 to 50, does not ignore others. Recommendation 5 to 10. If it is too low, normal bubble areas may be ignored, and if it is too large, non bubble areas may be considered normal bubbles"""
+    box_threshold: float = 0.7
+    """Threshold for bbox generation"""
+    unclip_ratio: float = 2.3
+    """How much to extend text skeleton to form bounding box"""
 
 class InpainterConfig(BaseModel):
     inpainter: Inpainter = Inpainter.lama_large
@@ -199,11 +204,7 @@ class Config(BaseModel):
     ocr: OcrConfig
     """Ocr configs"""
     # ?
-    unclip_ratio: float = 2.3
-    """How much to extend text skeleton to form bounding box"""
     kernel_size: int = 3
     """Set the convolution kernel size of the text erasure area to completely clean up text residues"""
     mask_dilation_offset: int = 0
     """By how much to extend the text mask to remove left-over text pixels of the original image."""
-    box_threshold: float = 0.7
-    """Threshold for bbox generation"""
