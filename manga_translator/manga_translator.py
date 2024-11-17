@@ -11,7 +11,7 @@ from PIL import Image
 from typing import Optional, Any
 
 from .args import DEFAULT_ARGS
-from .config import Config, Colorizer, Detector, Translator, Renderer
+from .config import Config, Colorizer, Detector, Translator, Renderer, Inpainter
 from .utils import (
     BASE_PATH,
     LANGUAGE_ORIENTATION_PRESETS,
@@ -26,7 +26,7 @@ from .utils import (
 )
 
 from .detection import dispatch as dispatch_detection, prepare as prepare_detection
-from .upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling, UPSCALERS
+from .upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
 from .ocr import dispatch as dispatch_ocr, prepare as prepare_ocr
 from .textline_merge import dispatch as dispatch_textline_merge
 from .mask_refinement import dispatch as dispatch_mask_refinement
@@ -55,6 +55,67 @@ class TranslationInterrupt(Exception):
     the translation.
     """
     pass
+
+
+def load_dictionary(file_path):
+    dictionary = []
+    if file_path and os.path.exists(file_path):
+        with open(file_path, 'r', encoding='utf-8') as file:
+            for line_number, line in enumerate(file, start=1):
+                # Ignore empty lines and lines starting with '#' or '//'
+                if not line.strip() or line.strip().startswith('#') or line.strip().startswith('//'):
+                    continue
+                # Remove comment parts
+                line = line.split('#')[0].strip()
+                line = line.split('//')[0].strip()
+                parts = line.split()
+                if len(parts) == 1:
+                    # If there is only the left part, the right part defaults to an empty string, meaning delete the left part
+                    pattern = re.compile(parts[0])
+                    dictionary.append((pattern, ''))
+                elif len(parts) == 2:
+                    # If both left and right parts are present, perform the replacement
+                    pattern = re.compile(parts[0])
+                    dictionary.append((pattern, parts[1]))
+                else:
+                    logger.error(f'Invalid dictionary entry at line {line_number}: {line.strip()}')
+    return dictionary
+
+
+def _preprocess_params(ctx: Context):
+    # todo: fix
+    # params auto completion
+    # TODO: Move args into ctx.args and only calculate once, or just copy into ctx
+    for arg in DEFAULT_ARGS:
+        ctx.setdefault(arg, DEFAULT_ARGS[arg])
+
+    if ctx.selective_translation is not None:
+        ctx.selective_translation.target_lang = ctx.target_lang
+        ctx.translator = ctx.selective_translation
+    elif ctx.translator_chain is not None:
+        ctx.target_lang = ctx.translator_chain.langs[-1]
+        ctx.translator = ctx.translator_chain
+    else:
+        ctx.translator = TranslatorChain(f'{ctx.translator}:{ctx.target_lang}')
+    if ctx.gpt_config:
+        ctx.gpt_config = OmegaConf.load(ctx.gpt_config)
+
+    if ctx.filter_text:
+        ctx.filter_text = re.compile(ctx.filter_text)
+
+    if ctx.font_color:
+        colors = ctx.font_color.split(':')
+        try:
+            ctx.font_color_fg = hex2rgb(colors[0])
+            ctx.font_color_bg = hex2rgb(colors[1]) if len(colors) > 1 else None
+        except:
+            raise Exception(f'Invalid --font-color value: {ctx.font_color}. Use a hex value such as FF0000')
+
+
+def apply_dictionary(text, dictionary):
+    for pattern, value in dictionary:
+        text = pattern.sub(value, text)
+    return text
 
 
 class MangaTranslator:
@@ -134,79 +195,16 @@ class MangaTranslator:
         # preload and download models (not strictly necessary, remove to lazy load)
         logger.info('Loading models')
         if config.upscale.upscale_ratio:
-            # todo: fix
             await prepare_upscaling(config.upscale.upscaler)
-        # todo: fix
         await prepare_detection(config.detector.detector)
-        # todo: fix
         await prepare_ocr(config.ocr.ocr, self.device)
-        # todo: fix
         await prepare_inpainting(config.inpainter.inpainter, self.device)
         # todo: fix
         await prepare_translation(config.translator.translator)
         if config.colorizer.colorizer != Colorizer.none:
-            #todo: fix
             await prepare_colorization(config.colorizer.colorizer)
         # translate
         return await self._translate(config, ctx)
-
-    def load_dictionary(self, file_path):
-        dictionary = []
-        if file_path and os.path.exists(file_path):
-            with open(file_path, 'r', encoding='utf-8') as file:
-                for line_number, line in enumerate(file, start=1):
-                    # Ignore empty lines and lines starting with '#' or '//'
-                    if not line.strip() or line.strip().startswith('#') or line.strip().startswith('//'):
-                        continue
-                    # Remove comment parts
-                    line = line.split('#')[0].strip()
-                    line = line.split('//')[0].strip()
-                    parts = line.split()
-                    if len(parts) == 1:
-                        # If there is only the left part, the right part defaults to an empty string, meaning delete the left part
-                        pattern = re.compile(parts[0])
-                        dictionary.append((pattern, ''))
-                    elif len(parts) == 2:
-                        # If both left and right parts are present, perform the replacement
-                        pattern = re.compile(parts[0])
-                        dictionary.append((pattern, parts[1]))
-                    else:
-                        logger.error(f'Invalid dictionary entry at line {line_number}: {line.strip()}')
-        return dictionary
-
-    def apply_dictionary(self, text, dictionary):
-        for pattern, value in dictionary:
-            text = pattern.sub(value, text)
-        return text
-
-    def _preprocess_params(self, ctx: Context):
-        # todo: fix
-        # params auto completion
-        # TODO: Move args into ctx.args and only calculate once, or just copy into ctx
-        for arg in DEFAULT_ARGS:
-            ctx.setdefault(arg, DEFAULT_ARGS[arg])
-
-        if ctx.selective_translation is not None:
-            ctx.selective_translation.target_lang = ctx.target_lang
-            ctx.translator = ctx.selective_translation
-        elif ctx.translator_chain is not None:
-            ctx.target_lang = ctx.translator_chain.langs[-1]
-            ctx.translator = ctx.translator_chain
-        else:
-            ctx.translator = TranslatorChain(f'{ctx.translator}:{ctx.target_lang}')
-        if ctx.gpt_config:
-            ctx.gpt_config = OmegaConf.load(ctx.gpt_config)
-
-        if ctx.filter_text:
-            ctx.filter_text = re.compile(ctx.filter_text)
-
-        if ctx.font_color:
-            colors = ctx.font_color.split(':')
-            try:
-                ctx.font_color_fg = hex2rgb(colors[0])
-                ctx.font_color_bg = hex2rgb(colors[1]) if len(colors) > 1 else None
-            except:
-                raise Exception(f'Invalid --font-color value: {ctx.font_color}. Use a hex value such as FF0000')
 
     async def _translate(self, config: Config, ctx: Context) -> Context:
 
@@ -269,11 +267,11 @@ class MangaTranslator:
             return await self._revert_upscale(config, ctx)
 
         # Apply pre-dictionary after OCR
-        pre_dict = self.load_dictionary(config.pre_dict)
+        pre_dict = load_dictionary(config.pre_dict)
         pre_replacements = []  
         for textline in ctx.textlines:  
             original = textline.text  
-            textline.text = self.apply_dictionary(textline.text, pre_dict)  
+            textline.text = apply_dictionary(textline.text, pre_dict)
             if original != textline.text:  
                 pre_replacements.append(f"{original} => {textline.text}")  
 
@@ -314,7 +312,7 @@ class MangaTranslator:
             ctx.mask = await self._run_mask_refinement(config, ctx)
 
         if self.verbose:
-            inpaint_input_img = await dispatch_inpainting('none', ctx.img_rgb, ctx.mask, config.inpainter.inpainting_size,
+            inpaint_input_img = await dispatch_inpainting(Inpainter.none, ctx.img_rgb, ctx.mask, config.inpainter.inpainting_size,
                                                           self.using_gpu, self.verbose)
             cv2.imwrite(self._result_path('inpaint_input.png'), cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
             cv2.imwrite(self._result_path('mask_final.png'), ctx.mask)
@@ -419,11 +417,11 @@ class MangaTranslator:
             region._direction = config.render.direction
 
         # Apply post dictionary after translating
-        post_dict = self.load_dictionary(config.post_dict)
+        post_dict = load_dictionary(config.post_dict)
         post_replacements = []  
         for region in ctx.text_regions:  
             original = region.translation  
-            region.translation = self.apply_dictionary(region.translation, post_dict)  
+            region.translation = apply_dictionary(region.translation, post_dict)
             if original != region.translation:  
                 post_replacements.append(f"{original} => {region.translation}")  
 

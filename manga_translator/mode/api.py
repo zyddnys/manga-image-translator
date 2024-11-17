@@ -10,12 +10,14 @@ from aiohttp import web
 from aiohttp.web_middlewares import middleware
 from marshmallow import fields, Schema, ValidationError
 
-from manga_translator import MangaTranslator, Context, UPSCALERS, TranslationInterrupt, logger
+from manga_translator import MangaTranslator, Context, TranslationInterrupt, logger
 from manga_translator.args import translator_chain
 from manga_translator.detection import DETECTORS
 from manga_translator.inpainting import INPAINTERS
+from manga_translator.manga_translator import _preprocess_params
 from manga_translator.ocr import OCRS
 from manga_translator.translators import VALID_LANGUAGES, TRANSLATORS
+from manga_translator.upscaling import UPSCALERS
 
 
 class MangaTranslatorAPI(MangaTranslator):
@@ -158,7 +160,7 @@ class MangaTranslatorAPI(MangaTranslator):
                 if 'selective_translation' in data:
                     data['selective_translation'] = translator_chain(data['selective_translation'])
                 ctx = Context(**dict(self.params, **data))
-                self._preprocess_params(ctx)
+                _preprocess_params(ctx)
                 if data.get('image') is None and data.get('base64Images') is None and data.get('url') is None:
                     return web.json_response({'error': "Missing input", 'status': 422})
                 fil = await self.get_file(data.get('image'), data.get('base64Images'), data.get('url'))

@@ -18,7 +18,7 @@ INPAINTERS = {
 }
 inpainter_cache = {}
 
-def get_inpainter(key: str, *args, **kwargs) -> CommonInpainter:
+def get_inpainter(key: Inpainter, *args, **kwargs) -> CommonInpainter:
     if key not in INPAINTERS:
         raise ValueError(f'Could not find inpainter for: "{key}". Choose from the following: %s' % ','.join(INPAINTERS))
     if not inpainter_cache.get(key):
@@ -26,13 +26,13 @@ def get_inpainter(key: str, *args, **kwargs) -> CommonInpainter:
         inpainter_cache[key] = inpainter(*args, **kwargs)
     return inpainter_cache[key]
 
-async def prepare(inpainter_key: str, device: str = 'cpu'):
+async def prepare(inpainter_key: Inpainter, device: str = 'cpu'):
     inpainter = get_inpainter(inpainter_key)
     if isinstance(inpainter, OfflineInpainter):
         await inpainter.download()
         await inpainter.load(device)
 
-async def dispatch(inpainter_key: str, image: np.ndarray, mask: np.ndarray, inpainting_size: int = 1024, device: str = 'cpu', verbose: bool = False) -> np.ndarray:
+async def dispatch(inpainter_key: Inpainter, image: np.ndarray, mask: np.ndarray, inpainting_size: int = 1024, device: str = 'cpu', verbose: bool = False) -> np.ndarray:
     inpainter = get_inpainter(inpainter_key)
     if isinstance(inpainter, OfflineInpainter):
         await inpainter.load(device)

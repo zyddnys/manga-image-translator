@@ -17,7 +17,7 @@ OCRS = {
 }
 ocr_cache = {}
 
-def get_ocr(key: str, *args, **kwargs) -> CommonOCR:
+def get_ocr(key: Ocr, *args, **kwargs) -> CommonOCR:
     if key not in OCRS:
         raise ValueError(f'Could not find OCR for: "{key}". Choose from the following: %s' % ','.join(OCRS))
     if not ocr_cache.get(key):
@@ -25,13 +25,13 @@ def get_ocr(key: str, *args, **kwargs) -> CommonOCR:
         ocr_cache[key] = ocr(*args, **kwargs)
     return ocr_cache[key]
 
-async def prepare(ocr_key: str, device: str = 'cpu'):
+async def prepare(ocr_key: Ocr, device: str = 'cpu'):
     ocr = get_ocr(ocr_key)
     if isinstance(ocr, OfflineOCR):
         await ocr.download()
         await ocr.load(device)
 
-async def dispatch(ocr_key: str, image: np.ndarray, regions: List[Quadrilateral], args = None, device: str = 'cpu', verbose: bool = False) -> List[Quadrilateral]:
+async def dispatch(ocr_key: Ocr, image: np.ndarray, regions: List[Quadrilateral], args = None, device: str = 'cpu', verbose: bool = False) -> List[Quadrilateral]:
     ocr = get_ocr(ocr_key)
     if isinstance(ocr, OfflineOCR):
         await ocr.load(device)

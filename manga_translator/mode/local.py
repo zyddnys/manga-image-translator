@@ -4,6 +4,7 @@ from typing import Union, List
 from PIL import Image
 
 from manga_translator import MangaTranslator, logger, Context, TranslationInterrupt
+from ..manga_translator import _preprocess_params
 from ..save import save_result
 from ..translators import (
     LanguageUnsupportedException,
@@ -90,7 +91,7 @@ class MangaTranslatorLocal(MangaTranslator):
         # Turn dict to context to make values also accessible through params.<property>
         params = params or {}
         ctx = Context(**params)
-        self._preprocess_params(ctx)
+        _preprocess_params(ctx)
 
         attempts = 0
         while ctx.attempts == -1 or attempts < ctx.attempts + 1:

@@ -4,8 +4,7 @@ import logging
 from argparse import Namespace
 
 from .manga_translator import (
-    MangaTranslator,
-    set_main_logger,
+    set_main_logger, load_dictionary, apply_dictionary,
 )
 from .args import parser
 from .utils import (
@@ -30,8 +29,8 @@ async def dispatch(args: Namespace):
         translator = MangaTranslatorLocal(args_dict)
 
         # Load pre-translation and post-translation dictionaries
-        pre_dict = translator.load_dictionary(args.pre_dict)  
-        post_dict = translator.load_dictionary(args.post_dict)  
+        pre_dict = load_dictionary(args.pre_dict)
+        post_dict = load_dictionary(args.post_dict)
 
         if len(args.input) == 1 and os.path.isfile(args.input[0]):
             dest = os.path.join(BASE_PATH, 'result/final.png')
@@ -40,12 +39,12 @@ async def dispatch(args: Namespace):
             # Apply pre-translation dictionaries
             await translator.translate_path(args.input[0], dest, args_dict)
             for textline in translator.textlines:
-                textline.text = translator.apply_dictionary(textline.text, pre_dict)  
+                textline.text = apply_dictionary(textline.text, pre_dict)
                 logger.info(f'Pre-translation dictionary applied: {textline.text}')
 
             # Apply post-translation dictionaries
             for textline in translator.textlines:
-                textline.translation = translator.apply_dictionary(textline.translation, post_dict)  
+                textline.translation = apply_dictionary(textline.translation, post_dict)
                 logger.info(f'Post-translation dictionary applied: {textline.translation}')
 
         else: # batch
@@ -54,12 +53,12 @@ async def dispatch(args: Namespace):
                 # Apply pre-translation dictionaries
                 await translator.translate_path(path, dest, args_dict)
                 for textline in translator.textlines:
-                    textline.text = translator.apply_dictionary(textline.text, pre_dict) 
+                    textline.text = apply_dictionary(textline.text, pre_dict)
                     logger.info(f'Pre-translation dictionary applied: {textline.text}')
 
                 # Apply post-translation dictionaries
                 for textline in translator.textlines:
-                    textline.translation = translator.apply_dictionary(textline.translation, post_dict)  
+                    textline.translation = apply_dictionary(textline.translation, post_dict)
                     logger.info(f'Post-translation dictionary applied: {textline.translation}')
 
     elif args.mode == 'web':
