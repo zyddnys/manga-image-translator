@@ -68,7 +68,7 @@ async def process_files(
     await mit_ocr.prepare(ocr_key, device)
 
     result = await asyncio.gather(
-        *[process_file(p, detector_key, ocr_key) for p in path_list]
+        *[process_file(p, detector_key, ocr_key, device) for p in path_list]
     )
 
     for r in result:
