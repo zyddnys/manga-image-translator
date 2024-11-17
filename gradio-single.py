@@ -1,4 +1,3 @@
-from fileinput import filename
 import gradio as gr
 import numpy as np
 from PIL import Image
@@ -6,14 +5,12 @@ from PIL import Image
 
 import dotenv
 import logging
-import asyncio
 import os.path
 from pathlib import Path
 import manga_translator.detection as detection
-import manga_translator.ocr as ocr
+import manga_translator.ocr as mit_ocr
 import manga_translator.textline_merge as textline_merge
 import manga_translator.utils.generic as utils_generic
-import manga_translator.utils.textblock as utils_textblock
 from manga_translator.gradio import (
     DetectionState,
     OcrState,
@@ -129,7 +126,7 @@ with gr.Blocks() as demo:
         ):
             return prev_value, repr(prev_value)
 
-        textlines = await ocr.dispatch(
+        textlines = await mit_ocr.dispatch(
             ocr_key=ocr_key,
             image=detector_state.img,
             regions=detector_state.textlines,

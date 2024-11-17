@@ -5,7 +5,7 @@ from typing import Any, Awaitable
 from celery import Celery
 from asgiref.sync import async_to_sync
 import manga_translator.detection as detection
-import manga_translator.ocr as ocr
+import manga_translator.ocr as mit_ocr
 import manga_translator.textline_merge as textline_merge
 import manga_translator.utils.generic as utils_generic
 import manga_translator.utils.textblock as utils_textblock
@@ -135,10 +135,10 @@ async def async_detection(path_or_url: str, **kwargs: str):
 async def async_ocr(
     path_or_url: str, **kwargs
 ) -> Awaitable[list[utils_generic.Quadrilateral]]:
-    await ocr.prepare(kwargs["ocr_key"])
+    await mit_ocr.prepare(kwargs["ocr_key"])
     img = load_rgb_image(path_or_url)
     quads = deserialize_quad_list(kwargs["regions"])
-    result: list[utils_generic.Quadrilateral] = await ocr.dispatch(
+    result: list[utils_generic.Quadrilateral] = await mit_ocr.dispatch(
         ocr_key=kwargs["ocr_key"],
         image=img,
         regions=quads,
