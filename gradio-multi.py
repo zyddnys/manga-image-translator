@@ -14,6 +14,7 @@ from manga_translator.gradio import (
     mit_detect_text_default_params,
     mit_ocr_default_params,
     storage_dir,
+    load_model_mutex,
     MitJSONEncoder,
 )
 from manga_translator.utils.textblock import TextBlock
@@ -64,8 +65,9 @@ async def process_files(
         # assert p.is_file() and STORAGE_DIR_RESOLVED in p.parents, f"illegal path: {f}"
         path_list.append(Path(f))
 
-    await mit_detection.prepare(detector_key)
-    await mit_ocr.prepare(ocr_key, device)
+    with load_model_mutex:
+        await mit_detection.prepare(detector_key)
+        await mit_ocr.prepare(ocr_key, device)
 
     result = await asyncio.gather(
         *[process_file(p, detector_key, ocr_key, device) for p in path_list]
@@ -115,7 +117,6 @@ async def process_file(
 
 
 with gr.Blocks() as demo:
-    demo.enable_queue = True
     file_input = gr.File(
         label="upload file",
         file_count="multiple",
@@ -157,4 +158,7 @@ with gr.Blocks() as demo:
 
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", max_file_size=10 * gr.FileSize.MB)
+    demo.queue(api_open=True, max_size=100).launch(
+        server_name="0.0.0.0",
+        max_file_size=10 * gr.FileSize.MB,
+    )
