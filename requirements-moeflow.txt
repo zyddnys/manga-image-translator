@@ -50,3 +50,4 @@ manga-ocr
 # pydensecrf@https://github.com/lucasb-eyer/pydensecrf/archive/refs/heads/master.zip
 # accelerate
 # bitsandbytes
+gradio==5.6.0

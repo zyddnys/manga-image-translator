@@ -3,8 +3,10 @@ import manga_translator.utils.generic as utils_generic
 import manga_translator.utils.textblock as utils_textblock
 from dataclasses import dataclass
 from typing import List, Optional
+from .json_encoder import JSONEncoder
 
 import numpy as np
+import json
 
 
 mit_detect_text_default_params = dict(
@@ -41,3 +43,37 @@ class DetectionState:
 
     def __repr__(self):
         return f"DetectionState(img={type(self.img)}, args={self.args}, textlines={type(self.textlines)}, mask={type(self.mask)}, mask_raw={type(self.mask_raw)})"
+
+    def __json__(self):
+        return {
+            "img": to_json(self.img),
+            "args": to_json(self.args),
+            "textlines": to_json(self.textlines),
+            "mask": to_json(self.mask),
+            "mask_raw": to_json(self.mask_raw),
+        }
+
+
+mit_ocr_default_params = dict(
+    ocr_key="48px",  # recommended by rowland
+    # ocr_key="48px_ctc",
+    # ocr_key="mocr",  # XXX: mocr may have different output format
+    # use_mocr_merge=True,
+    verbose=True,
+)
+
+
+@dataclass(frozen=True, kw_only=True)
+class OcrState:
+    text_blocks: Optional[List[utils_textblock.TextBlock]] = None
+    ocr_key: Optional[str] = None
+
+    def copy(self, **kwargs):
+        return OcrState(
+            ocr_key=kwargs.get("ocr_key", self.ocr_key),
+            text_blocks=kwargs.get("text_blocks", self.text_blocks),
+        )
+
+
+def to_json(obj):
+    return json.loads(json.dumps(obj, cls=JSONEncoder))

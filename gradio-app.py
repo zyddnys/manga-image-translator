@@ -10,7 +10,12 @@ import manga_translator.ocr as ocr
 import manga_translator.textline_merge as textline_merge
 import manga_translator.utils.generic as utils_generic
 import manga_translator.utils.textblock as utils_textblock
-from manga_translator.gradio import DetectionState, mit_detect_text_default_params
+from manga_translator.gradio import (
+    DetectionState,
+    OcrState,
+    mit_detect_text_default_params,
+    to_json,
+)
 from typing import List, Optional, TypedDict
 
 logger = logging.getLogger(__name__)
@@ -24,41 +29,6 @@ if gr.NO_RELOAD:
 dotenv.load_dotenv()
 
 
-mit_ocr_default_params = dict(
-    ocr_key="48px",  # recommended by rowland
-    # ocr_key="48px_ctc",
-    # ocr_key="mocr",  # XXX: mocr may have different output format
-    # use_mocr_merge=True,
-    verbose=True,
-)
-
-
-class DetectionResult(TypedDict):
-    textlines: List[utils_generic.Quadrilateral]
-    mask_raw: np.ndarray
-    mask: np.ndarray | None
-
-
-async def run_detection_single_image(
-    image: np.ndarray, detector_key: str
-) -> DetectionResult:
-    print("image", image.shape)
-    textlines, mask_raw, mask = await detection.dispatch(
-        image=image, **{"detector_key": detector_key, **mit_detect_text_default_params}
-    )
-    print("textlines", textlines)
-    print("mask_raw", mask_raw)
-    print("mask", mask)
-    return {
-        "textlines": textlines,
-        "mask_raw": mask_raw,
-        "mask": mask,
-    }
-
-
-input_single_img = gr.Image(label="input image")
-output_json = gr.JSON(label="output json")
-
 with gr.Blocks() as demo:
     gr.Markdown(
         """
@@ -67,23 +37,31 @@ with gr.Blocks() as demo:
     )
 
     detector_state = gr.State(DetectionState())
+    ocr_state = gr.State(OcrState())
 
     with gr.Row():
         with gr.Column():
             gr.Markdown("## Detection")
             img_file = gr.Image(label="input image", height=256, width=256)
             detector_key = gr.Radio(
-                choices=["default", "dbconvnext", "ctd", "craft", "none"],
-                label="detector key",
+                choices=[
+                    "default",
+                    # maybe broken: manga_translator.utils.inference.InvalidModelMappingException: [DBConvNextDetector->model] Invalid _MODEL_MAPPING - Malformed url property
+                    #  "dbconvnext",
+                    "ctd",
+                    "craft",
+                    "none",
+                ],
+                label="detector",
             )
 
-            btn_detect = gr.Button("detect")
+            btn_detect = gr.Button("run detector")
             detector_state_dump = gr.TextArea(
-                label="detection state"  # , value=lambda: repr(detector_state.value)
+                label="detector result"  # , value=lambda: repr(detector_state.value)
             )
         with gr.Column():
             gr.Markdown("## OCR")
-            ocr_key = gr.Radio(choices=["48px", "48px_ctc", "mocr"], label="ocr key")
+            ocr_key = gr.Radio(choices=["48px", "48px_ctc", "mocr"], label="ocr")
             btn_ocr = gr.Button("ocr")
             ocr_state_dump = gr.TextArea(label="ocr state")
 
@@ -97,7 +75,8 @@ with gr.Blocks() as demo:
         detector_key: Optional[str],
     ):
         # print("prev", prev)
-        prev_value = prev if isinstance(prev, DetectionState) else prev.value
+        prev_value = prev if isinstance(prev, DetectionState) else None  # prev.value
+        assert prev_value, "prev_value is None"
         logger.debug("run_detector %s %s", prev_value, type(img))
 
         value = prev_value.copy(img=img)
@@ -115,6 +94,40 @@ with gr.Blocks() as demo:
             value = value.copy(textlines=textlines, mask_raw=mask_raw, mask=mask)
 
         logger.debug("run_detector result %s", value)
+        return value, repr(value)
+
+    @btn_ocr.click(
+        inputs=[ocr_state, detector_state, ocr_key],
+        outputs=[ocr_state, ocr_state_dump],
+    )
+    async def run_ocr(
+        prev_value: OcrState,
+        detector_state: DetectionState,
+        ocr_key: Optional[str],
+    ):
+        logger.debug(
+            "run ocr %s %s %s", type(prev_value), type(detector_state), ocr_key
+        )
+
+        if not (
+            ocr_key and (detector_state.img is not None) and detector_state.textlines
+        ):
+            return prev_value, repr(prev_value)
+
+        textlines = await ocr.dispatch(
+            ocr_key=ocr_key,
+            image=detector_state.img,
+            regions=detector_state.textlines,
+            args={},
+            verbose=True,
+        )
+
+        img_w, img_h = detector_state.img.shape[:2]
+        text_blocks = await textline_merge.dispatch(
+            textlines=textlines, width=img_w, height=img_h
+        )
+
+        value = prev_value.copy(text_blocks=text_blocks, ocr_key=ocr_key)
         return value, repr(value)
 
 
