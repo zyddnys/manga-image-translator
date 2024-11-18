@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Union, List
 
@@ -28,6 +29,7 @@ class MangaTranslatorLocal(MangaTranslator):
         """
         Translates an image or folder (recursively) specified through the path.
         """
+        config = Config(**json.loads('{}'))
         if not os.path.exists(path):
             raise FileNotFoundError(path)
         path = os.path.abspath(os.path.expanduser(path))
@@ -58,7 +60,7 @@ class MangaTranslatorLocal(MangaTranslator):
             else:
                 p, ext = os.path.splitext(dest)
                 _dest = f'{p}.{file_ext or ext[1:]}'
-            await self.translate_file(path, _dest, params)
+            await self.translate_file(path, _dest, params,config)
 
         elif os.path.isdir(path):
             # Determine destination folder path
@@ -82,7 +84,7 @@ class MangaTranslatorLocal(MangaTranslator):
                     p, ext = os.path.splitext(output_dest)
                     output_dest = f'{p}.{file_ext or ext[1:]}'
 
-                    if await self.translate_file(file_path, output_dest, params):
+                    if await self.translate_file(file_path, output_dest, params, config):
                         translated_count += 1
             if translated_count == 0:
                 logger.info('No further untranslated files found. Use --overwrite to write over existing translations.')

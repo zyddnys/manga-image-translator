@@ -2,6 +2,8 @@ import argparse
 import os
 from urllib.parse import unquote
 
+from torch.optim.optimizer import required
+
 from .detection import DETECTORS
 from .ocr import OCRS
 from .inpainting import INPAINTERS
@@ -88,12 +90,13 @@ g.add_argument('--use-gpu-limited', action='store_true', help='Turn on/off gpu (
 parser.add_argument('--font-path', default='', type=file_path, help='Path to font file')
 parser.add_argument('--pre-dict', default=None, type=file_path, help='Path to the pre-translation dictionary file')
 parser.add_argument('--post-dict', default=None, type=file_path, help='Path to the post-translation dictionary file')
+parser.add_argument('--kernel-size', default=3, type=int, help='Set the convolution kernel size of the text erasure area to completely clean up text residues')
 
 subparsers = parser.add_subparsers(dest='mode', required=True, help='Mode of operation')
 
 # Batch mode
 parser_batch = subparsers.add_parser('local', help='Run in batch translation mode')
-parser_batch.add_argument('-i', '--input', required=True, type=dir_path, help='Path to an image folder')
+parser_batch.add_argument('-i', '--input', required=True, type=path, nargs='+', help='Path to an image folder')
 parser_batch.add_argument('-o', '--dest', default='', type=str, help='Path to the destination folder for translated images')
 parser_batch.add_argument('-f', '--format', default=None, choices=OUTPUT_FORMATS, help='Output format of the translation.')
 parser_batch.add_argument('--overwrite', action='store_true', help='Overwrite already translated images')
@@ -130,6 +133,3 @@ parser_api.add_argument('--host', default='127.0.0.1', type=str, help='Host for 
 parser_api.add_argument('--port', default=5003, type=int, help='Port for API service')
 parser_api.add_argument('--nonce', default=os.getenv('MT_WEB_NONCE', ''), type=str, help='Nonce for securing internal API server communication')
 
-
-# Generares dict with a default value for each argument
-DEFAULT_ARGS = vars(parser.parse_args([]))

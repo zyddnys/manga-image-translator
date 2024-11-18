@@ -5,6 +5,8 @@ from enum import IntEnum
 from typing import Optional
 
 from omegaconf import OmegaConf
+from pydantic import BaseModel
+
 
 # TODO: Refactor
 class TranslatorChain:
@@ -132,12 +134,12 @@ class Translator(IntEnum):
     def __str__(self):
         return self.name
 
-class Upscaler:
+class Upscaler(IntEnum):
     waifu2x = 0
     esrgan = 1
     upscler4xultrasharp = 2
 
-class RenderConfig:
+class RenderConfig(BaseModel):
     renderer: Renderer = Renderer.default
     """Render english text translated from manga with some additional typesetting. Ignores some other argument options"""
     alignment: Alignment = Alignment.auto
@@ -189,7 +191,7 @@ class RenderConfig:
                     f'Invalid --font-color value: {self.font_color}. Use a hex value such as FF0000')
         return self._font_color_bg
 
-class UpscaleConfig:
+class UpscaleConfig(BaseModel):
     upscaler: Upscaler = Upscaler.esrgan
     """Upscaler to use. --upscale-ratio has to be set for it to take effect"""
     revert_upscaling: bool = False
@@ -197,7 +199,7 @@ class UpscaleConfig:
     upscale_ratio: Optional[int] = None
     """Image upscale ratio applied before detection. Can improve text detection."""
 
-class TranslatorConfig:
+class TranslatorConfig(BaseModel):
     translator: Translator = Translator.sugoi
     """Language translator to use"""
     target_lang: str = 'ENG' #todo: validate VALID_LANGUAGES #todo: convert to enum
@@ -237,7 +239,7 @@ class TranslatorConfig:
         return self._gpt_config
 
 
-class DetectorConfig:
+class DetectorConfig(BaseModel):
     """"""
     detector: Detector =Detector.default
     """"Text detector used for creating a text mask from an image, DO NOT use craft for manga, it\'s not designed for it"""
@@ -258,7 +260,7 @@ class DetectorConfig:
     unclip_ratio: float = 2.3
     """How much to extend text skeleton to form bounding box"""
 
-class InpainterConfig:
+class InpainterConfig(BaseModel):
     inpainter: Inpainter = Inpainter.lama_large
     """Inpainting model to use"""
     inpainting_size: int = 2048
@@ -266,7 +268,7 @@ class InpainterConfig:
     inpainting_precision: InpaintPrecision = InpaintPrecision.fp32
     """Inpainting precision for lama, use bf16 while you can."""
 
-class ColorizerConfig:
+class ColorizerConfig(BaseModel):
     colorization_size: int = 576
     """Size of image used for colorization. Set to -1 to use full image size"""
     denoise_sigma: int = 30
@@ -274,7 +276,7 @@ class ColorizerConfig:
     colorizer: Colorizer = Colorizer.none
     """Colorization model to use."""
 
-class OcrConfig:
+class OcrConfig(BaseModel):
     use_mocr_merge: bool = False
     """Use bbox merge when Manga OCR inference."""
     ocr: Ocr = Ocr.ocr48px
@@ -284,7 +286,7 @@ class OcrConfig:
     ignore_bubble: int = 0
     """The threshold for ignoring text in non bubble areas, with valid values ranging from 1 to 50, does not ignore others. Recommendation 5 to 10. If it is too low, normal bubble areas may be ignored, and if it is too large, non bubble areas may be considered normal bubbles"""
 
-class Config:
+class Config(BaseModel):
     # unclear
     pre_dict: Optional[str] = None
     post_dict: Optional[str] = None
@@ -292,19 +294,19 @@ class Config:
     # json
     filter_text: Optional[str] = None
     """Filter regions by their text with a regex. Example usage: '.*badtext.*'"""
-    render: RenderConfig
+    render: RenderConfig = RenderConfig()
     """render configs"""
-    upscale: UpscaleConfig
+    upscale: UpscaleConfig = UpscaleConfig()
     """upscaler configs"""
-    translator: TranslatorConfig
+    translator: TranslatorConfig = TranslatorConfig()
     """tanslator configs"""
-    detector: DetectorConfig
+    detector: DetectorConfig = DetectorConfig()
     """detector configs"""
-    colorizer: ColorizerConfig
+    colorizer: ColorizerConfig = ColorizerConfig()
     """colorizer configs"""
-    inpainter: InpainterConfig
+    inpainter: InpainterConfig = InpainterConfig()
     """inpainter configs"""
-    ocr: OcrConfig
+    ocr: OcrConfig = OcrConfig()
     """Ocr configs"""
     # ?
     kernel_size: int = 3
