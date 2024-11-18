@@ -3,8 +3,7 @@ from typing import Union, List
 
 from PIL import Image
 
-from manga_translator import MangaTranslator, logger, Context, TranslationInterrupt
-from ..manga_translator import _preprocess_params
+from manga_translator import MangaTranslator, logger, Context, TranslationInterrupt, Config
 from ..save import save_result
 from ..translators import (
     LanguageUnsupportedException,
@@ -14,6 +13,17 @@ from ..utils import natural_sort, replace_prefix, get_color_name, rgb2hex
 
 
 class MangaTranslatorLocal(MangaTranslator):
+    def __init__(self, params: dict = None):
+        super().__init__(params)
+        self.attempts = params.get('attempts', None)
+        self.skip_no_text = params.get('skip_no_text', False)
+        self.text_output_file = params.get('text_output_file', None)
+        self.save_quality = params.get('save_quality', None)
+        self.text_regions = params.get('text_regions', None)
+        self.save_text_file = params.get('save_text_file', None)
+        self.save_text = params.get('save_text', None)
+        self.prep_manual = params.get('prep_manual', None)
+
     async def translate_path(self, path: str, dest: str = None, params: dict[str, Union[int, str]] = None):
         """
         Translates an image or folder (recursively) specified through the path.
@@ -79,7 +89,7 @@ class MangaTranslatorLocal(MangaTranslator):
             else:
                 logger.info(f'Done. Translated {translated_count} image{"" if translated_count == 1 else "s"}')
 
-    async def translate_file(self, path: str, dest: str, params: dict):
+    async def translate_file(self, path: str, dest: str, params: dict, config: Config):
         if not params.get('overwrite') and os.path.exists(dest):
             logger.info(
                 f'Skipping as already translated: "{dest}". Use --overwrite to overwrite existing translations.')
@@ -91,15 +101,14 @@ class MangaTranslatorLocal(MangaTranslator):
         # Turn dict to context to make values also accessible through params.<property>
         params = params or {}
         ctx = Context(**params)
-        _preprocess_params(ctx)
 
         attempts = 0
-        while ctx.attempts == -1 or attempts < ctx.attempts + 1:
+        while self.attempts == -1 or attempts < self.attempts + 1:
             if attempts > 0:
                 logger.info(f'Retrying translation! Attempt {attempts}'
-                            + (f' of {ctx.attempts}' if ctx.attempts != -1 else ''))
+                            + (f' of {self.attempts}' if self.attempts != -1 else ''))
             try:
-                return await self._translate_file(path, dest, ctx)
+                return await self._translate_file(path, dest, config, ctx)
 
             except TranslationInterrupt:
                 break
@@ -108,7 +117,7 @@ class MangaTranslatorLocal(MangaTranslator):
                     await self._report_progress('error-lang', True)
                 else:
                     await self._report_progress('error', True)
-                if not self.ignore_errors and not (ctx.attempts == -1 or attempts < ctx.attempts):
+                if not self.ignore_errors and not (self.attempts == -1 or attempts < self.attempts):
                     raise
                 else:
                     logger.error(f'{e.__class__.__name__}: {e}',
@@ -116,12 +125,12 @@ class MangaTranslatorLocal(MangaTranslator):
             attempts += 1
         return False
 
-    async def _translate_file(self, path: str, dest: str, ctx: Context) -> bool:
+    async def _translate_file(self, path: str, dest: str, config: Config, ctx: Context) -> bool:
         if path.endswith('.txt'):
             with open(path, 'r') as f:
                 queries = f.read().split('\n')
             translated_sentences = \
-                await dispatch_translation(ctx.translator, queries, ctx.use_mtpe, ctx,
+                await dispatch_translation(config.translator.translator_gen, queries, self.use_mtpe, ctx,
                                            'cpu' if self._gpu_limited_memory else self.device)
             p, ext = os.path.splitext(dest)
             if ext != '.txt':
@@ -142,26 +151,27 @@ class MangaTranslatorLocal(MangaTranslator):
                 logger.warn(f'Failed to open image: {path}')
                 return False
 
-            ctx = await self.translate(img, ctx)
+            ctx = await self.translate(img, config)
             result = ctx.result
 
             # Save result
-            if ctx.skip_no_text and not ctx.text_regions:
+            if self.skip_no_text and not ctx.text_regions:
                 logger.debug('Not saving due to --skip-no-text')
                 return True
             if result:
                 logger.info(f'Saving "{dest}"')
+                ctx.save_quality = self.save_quality
                 save_result(result, dest, ctx)
                 await self._report_progress('saved', True)
 
-                if ctx.save_text or ctx.save_text_file or ctx.prep_manual:
-                    if ctx.prep_manual:
+                if self.save_text or self.save_text_file or self.prep_manual:
+                    if self.prep_manual:
                         # Save original image next to translated
                         p, ext = os.path.splitext(dest)
                         img_filename = p + '-orig' + ext
                         img_path = os.path.join(os.path.dirname(dest), img_filename)
-                        img.save(img_path, quality=ctx.save_quality)
-                    if ctx.text_regions:
+                        img.save(img_path, quality=self.save_quality)
+                    if self.text_regions:
                         self._save_text_to_file(path, ctx)
                 return True
         return False
@@ -194,7 +204,7 @@ class MangaTranslatorLocal(MangaTranslator):
                 s += f'coords: {list(line.ravel())}\n'
         s += '\n'
 
-        text_output_file = ctx.text_output_file
+        text_output_file = self.text_output_file
         if not text_output_file:
             text_output_file = os.path.splitext(image_path)[0] + '_translations.txt'
 

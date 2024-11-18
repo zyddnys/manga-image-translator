@@ -21,8 +21,8 @@ from .original import OriginalTranslator
 from .sakura import SakuraTranslator
 from .qwen2 import Qwen2Translator, Qwen2BigTranslator
 from .groq import GroqTranslator
-from .. import Context
-from ..config import Translator, TranslatorConfig
+from ..config import Translator, TranslatorConfig, TranslatorChain
+from ..utils import Context
 
 OFFLINE_TRANSLATORS = {
     Translator.offline: SelectiveOfflineTranslator,
@@ -66,38 +66,6 @@ def get_translator(key: Translator, *args, **kwargs) -> CommonTranslator:
     return translator_cache[key]
 
 prepare_selective_translator(get_translator)
-
-# TODO: Refactor
-class TranslatorChain:
-    def __init__(self, string: str):
-        """
-        Parses string in form 'trans1:lang1;trans2:lang2' into chains,
-        which will be executed one after another when passed to the dispatch function.
-        """
-        if not string:
-            raise Exception('Invalid translator chain')
-        self.chain = []
-        self.target_lang = None
-        for g in string.split(';'):
-            trans, lang = g.split(':')
-            translator = Translator[trans]
-            if translator not in TRANSLATORS:
-                raise ValueError(f'Invalid choice: %s (choose from %s)' % (trans, ', '.join(map(repr, TRANSLATORS))))
-            if lang not in VALID_LANGUAGES:
-                raise ValueError(f'Invalid choice: %s (choose from %s)' % (lang, ', '.join(map(repr, VALID_LANGUAGES))))
-            self.chain.append((translator, lang))
-        self.translators, self.langs = list(zip(*self.chain))
-    
-    def has_offline(self) -> bool:
-        """
-        Returns True if the chain contains offline translators.
-        """
-        return any(translator in OFFLINE_TRANSLATORS for translator in self.translators)
-
-    def __eq__(self, __o: object) -> bool:
-        if type(__o) is str:
-            return __o == self.translators[0]
-        return super.__eq__(self, __o)
 
 async def prepare(chain: TranslatorChain):
     for key, tgt_lang in chain.chain:

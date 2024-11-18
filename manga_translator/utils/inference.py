@@ -11,7 +11,6 @@ from functools import cached_property
 
 from .generic import (
     BASE_PATH,
-    Context,
     download_url_with_progressbar,
     prompt_yes_no,
     replace_prefix,

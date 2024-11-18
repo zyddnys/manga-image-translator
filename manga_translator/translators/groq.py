@@ -2,7 +2,6 @@ import groq
 import os
 from typing import List
 
-from . import TranslatorChain
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import GROQ_API_KEY
 
@@ -61,7 +60,7 @@ class GroqTranslator(CommonTranslator):
 
 
 
-    def parse_args(self, args: TranslatorChain):
+    def parse_args(self, args):
         #todo: is nver set
         self.config = None
 

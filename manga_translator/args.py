@@ -51,15 +51,6 @@ def dir_path(string):
 #         return string
 #     return _func
 
-def translator_chain(string):
-    try:
-        return TranslatorChain(string)
-    except ValueError as e:
-        raise argparse.ArgumentTypeError(e)
-    except Exception:
-        raise argparse.ArgumentTypeError(f'Invalid translator_chain value: "{string}". Example usage: --translator "google:sugoi" -l "JPN:ENG"')
-
-
 class HelpFormatter(argparse.HelpFormatter):
     INDENT_INCREMENT = 2
     MAX_HELP_POSITION = 24

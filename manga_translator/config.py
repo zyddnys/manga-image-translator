@@ -1,14 +1,58 @@
+import argparse
 import re
 from enum import IntEnum
 
-from omegaconf import OmegaConf
-from pydantic import BaseModel
 from typing import Optional
 
-from manga_translator.args import translator_chain
-from manga_translator.translators import TranslatorChain
-from manga_translator.utils import hex2rgb
+from omegaconf import OmegaConf
 
+# TODO: Refactor
+class TranslatorChain:
+    def __init__(self, string: str):
+        """
+        Parses string in form 'trans1:lang1;trans2:lang2' into chains,
+        which will be executed one after another when passed to the dispatch function.
+        """
+        from manga_translator.translators import TRANSLATORS, VALID_LANGUAGES
+        if not string:
+            raise Exception('Invalid translator chain')
+        self.chain = []
+        self.target_lang = None
+        for g in string.split(';'):
+            trans, lang = g.split(':')
+            translator = Translator[trans]
+            if translator not in TRANSLATORS:
+                raise ValueError(f'Invalid choice: %s (choose from %s)' % (trans, ', '.join(map(repr, TRANSLATORS))))
+            if lang not in VALID_LANGUAGES:
+                raise ValueError(f'Invalid choice: %s (choose from %s)' % (lang, ', '.join(map(repr, VALID_LANGUAGES))))
+            self.chain.append((translator, lang))
+        self.translators, self.langs = list(zip(*self.chain))
+
+    def has_offline(self) -> bool:
+        """
+        Returns True if the chain contains offline translators.
+        """
+        from manga_translator.translators import OFFLINE_TRANSLATORS
+        return any(translator in OFFLINE_TRANSLATORS for translator in self.translators)
+
+    def __eq__(self, __o: object) -> bool:
+        if type(__o) is str:
+            return __o == self.translators[0]
+        return super.__eq__(self, __o)
+
+
+def translator_chain(string):
+    try:
+        return TranslatorChain(string)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(e)
+    except Exception:
+        raise argparse.ArgumentTypeError(f'Invalid translator_chain value: "{string}". Example usage: --translator "google:sugoi" -l "JPN:ENG"')
+
+
+def hex2rgb(h):
+    h = h.lstrip('#')
+    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
 
 class Renderer(IntEnum):
     default = 0
@@ -93,7 +137,7 @@ class Upscaler:
     esrgan = 1
     upscler4xultrasharp = 2
 
-class RenderConfig(BaseModel):
+class RenderConfig:
     renderer: Renderer = Renderer.default
     """Render english text translated from manga with some additional typesetting. Ignores some other argument options"""
     alignment: Alignment = Alignment.auto
@@ -145,7 +189,7 @@ class RenderConfig(BaseModel):
                     f'Invalid --font-color value: {self.font_color}. Use a hex value such as FF0000')
         return self._font_color_bg
 
-class UpscaleConfig(BaseModel):
+class UpscaleConfig:
     upscaler: Upscaler = Upscaler.esrgan
     """Upscaler to use. --upscale-ratio has to be set for it to take effect"""
     revert_upscaling: bool = False
@@ -153,7 +197,7 @@ class UpscaleConfig(BaseModel):
     upscale_ratio: Optional[int] = None
     """Image upscale ratio applied before detection. Can improve text detection."""
 
-class TranslatorConfig(BaseModel):
+class TranslatorConfig:
     translator: Translator = Translator.sugoi
     """Language translator to use"""
     target_lang: str = 'ENG' #todo: validate VALID_LANGUAGES #todo: convert to enum
@@ -193,7 +237,7 @@ class TranslatorConfig(BaseModel):
         return self._gpt_config
 
 
-class DetectorConfig(BaseModel):
+class DetectorConfig:
     """"""
     detector: Detector =Detector.default
     """"Text detector used for creating a text mask from an image, DO NOT use craft for manga, it\'s not designed for it"""
@@ -214,7 +258,7 @@ class DetectorConfig(BaseModel):
     unclip_ratio: float = 2.3
     """How much to extend text skeleton to form bounding box"""
 
-class InpainterConfig(BaseModel):
+class InpainterConfig:
     inpainter: Inpainter = Inpainter.lama_large
     """Inpainting model to use"""
     inpainting_size: int = 2048
@@ -222,7 +266,7 @@ class InpainterConfig(BaseModel):
     inpainting_precision: InpaintPrecision = InpaintPrecision.fp32
     """Inpainting precision for lama, use bf16 while you can."""
 
-class ColorizerConfig(BaseModel):
+class ColorizerConfig:
     colorization_size: int = 576
     """Size of image used for colorization. Set to -1 to use full image size"""
     denoise_sigma: int = 30
@@ -230,7 +274,7 @@ class ColorizerConfig(BaseModel):
     colorizer: Colorizer = Colorizer.none
     """Colorization model to use."""
 
-class OcrConfig(BaseModel):
+class OcrConfig:
     use_mocr_merge: bool = False
     """Use bbox merge when Manga OCR inference."""
     ocr: Ocr = Ocr.ocr48px
@@ -240,7 +284,7 @@ class OcrConfig(BaseModel):
     ignore_bubble: int = 0
     """The threshold for ignoring text in non bubble areas, with valid values ranging from 1 to 50, does not ignore others. Recommendation 5 to 10. If it is too low, normal bubble areas may be ignored, and if it is too large, non bubble areas may be considered normal bubbles"""
 
-class Config(BaseModel):
+class Config:
     # unclear
     pre_dict: Optional[str] = None
     post_dict: Optional[str] = None
