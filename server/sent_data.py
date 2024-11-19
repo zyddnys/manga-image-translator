@@ -21,6 +21,16 @@ async def fetch_data_stream(url, image: Image, config: Config, sender: NotifyTyp
             else:
                 raise HTTPException(response.status, detail=response.text())
 
+async def fetch_data(url, image: Image, config: Config, headers: Mapping[str, str] = {}):
+    attributes = {"image": image, "config": config}
+    data = pickle.dumps(attributes)
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, data=data, headers=headers) as response:
+            if response.status == 200:
+                return pickle.loads(await response.read())
+            else:
+                raise HTTPException(response.status, detail=response.text())
 
 async def process_stream(response, sender: NotifyType):
     buffer = b''

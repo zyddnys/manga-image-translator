@@ -6,8 +6,7 @@ from PIL import Image
 from pydantic import BaseModel
 
 from manga_translator import Config
-from server.sent_data import fetch_data_stream, NotifyType
-from fastapi import Response
+from server.sent_data import fetch_data_stream, NotifyType, fetch_data
 
 
 class ExecutorInstance(BaseModel):
@@ -18,15 +17,15 @@ class ExecutorInstance(BaseModel):
     def free_executor(self):
         self.busy = False
 
-    async def sent(self) -> Response:
-        pass
+    async def sent(self, image: Image, config: Config):
+        return await fetch_data("http://"+self.ip+":"+str(self.port)+"/simple_execute/translate", image, config)
 
     async def sent_stream(self, image: Image, config: Config, sender: NotifyType):
         await fetch_data_stream("http://"+self.ip+":"+str(self.port)+"/execute/translate", image, config, sender)
 
 class Executors:
     def __init__(self):
-        self.list: List[ExecutorInstance] = []
+        self.list: List[ExecutorInstance] = [ExecutorInstance(ip="127.0.0.1", port=5003)]
         self.lock: Lock = Lock()
         self.event = Event()
 
