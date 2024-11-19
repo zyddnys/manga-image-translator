@@ -276,7 +276,7 @@ class MangaTranslator:
             ctx.mask = await self._run_mask_refinement(config, ctx)
 
         if self.verbose:
-            inpaint_input_img = await dispatch_inpainting(Inpainter.none, ctx.img_rgb, ctx.mask, config.inpainter,
+            inpaint_input_img = await dispatch_inpainting(Inpainter.none, ctx.img_rgb, ctx.mask, config.inpainter,config.inpainter.inpainting_size,
                                                           self.using_gpu, self.verbose)
             cv2.imwrite(self._result_path('inpaint_input.png'), cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
             cv2.imwrite(self._result_path('mask_final.png'), ctx.mask)
@@ -284,12 +284,10 @@ class MangaTranslator:
         # -- Inpainting
         await self._report_progress('inpainting')
         ctx.img_inpainted = await self._run_inpainting(config, ctx)
-
         ctx.gimp_mask = np.dstack((cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR), ctx.mask))
 
         if self.verbose:
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR))
-
         # -- Rendering
         await self._report_progress('rendering')
         ctx.img_rendered = await self._run_text_rendering(config, ctx)
@@ -499,10 +497,10 @@ class MangaTranslator:
 
     async def _run_mask_refinement(self, config: Config, ctx: Context):
         return await dispatch_mask_refinement(ctx.text_regions, ctx.img_rgb, ctx.mask_raw, 'fit_text',
-                                              config.mask_dilation_offset, config.detector.ignore_bubble, self.verbose,self.kernel_size)
+                                              config.mask_dilation_offset, config.ocr.ignore_bubble, self.verbose,self.kernel_size)
 
     async def _run_inpainting(self, config: Config, ctx: Context):
-        return await dispatch_inpainting(config.inpainter.inpainter, ctx.img_rgb, ctx.mask, config.inpainter, self.device,
+        return await dispatch_inpainting(config.inpainter.inpainter, ctx.img_rgb, ctx.mask, self.device,
                                          self.verbose)
 
     async def _run_text_rendering(self, config: Config, ctx: Context):
@@ -515,7 +513,7 @@ class MangaTranslator:
         else:
             output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, self.font_path, config.render.font_size,
                                               config.render.font_size_offset,
-                                              config.render.font_size_minimum, not config.render.no_hyphenation, config.render.render_mask, config.render.line_spacing)
+                                              config.render.font_size_minimum, not config.render.no_hyphenation, ctx.render_mask, config.render.line_spacing)
         return output
 
     def _result_path(self, path: str) -> str:
