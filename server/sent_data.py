@@ -1,3 +1,4 @@
+import asyncio
 import pickle
 from typing import Mapping, Optional, Callable
 
@@ -27,10 +28,11 @@ async def process_stream(response, sender: NotifyType):
     async for chunk in response.content.iter_any():
         if chunk:
             buffer += chunk
-            await handle_buffer(buffer, sender)
+            buffer = handle_buffer(buffer, sender)
 
 
-async def handle_buffer(buffer, sender: NotifyType):
+
+def handle_buffer(buffer, sender: NotifyType):
     while len(buffer) >= 5:
         status, expected_size = extract_header(buffer)
 
@@ -40,6 +42,7 @@ async def handle_buffer(buffer, sender: NotifyType):
             buffer = buffer[5 + expected_size:]
         else:
             break
+    return buffer
 
 
 def extract_header(buffer):

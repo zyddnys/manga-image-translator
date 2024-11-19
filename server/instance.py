@@ -1,3 +1,4 @@
+import pickle
 from asyncio import Event, Lock
 from typing import List, Optional
 
@@ -16,7 +17,7 @@ class ExecutorInstance(BaseModel):
     def free_executor(self):
         self.busy = False
 
-    async def sent(self, image: Image, config: Config, sender: NotifyType):
+    async def sent_stream(self, image: Image, config: Config, sender: NotifyType):
         await fetch_data_stream("http://"+self.ip+":"+str(self.port)+"/execute/translate", image, config, sender)
 
 class Executors:
@@ -50,8 +51,11 @@ class Executors:
         self.event.set()
         self.event.clear()
 
-def example_notify(a: int, b: Optional[int] = None) -> None:
-    print(f"Notify called with a={a} and b={b}")
+def example_notify(a: int, b) -> None:
+    if a == 0:
+        print(pickle.loads(b))
+    else:
+        print(f"Notify called with a={a} and b={b}")
 
 async def main():
     executor = ExecutorInstance(ip="127.0.0.1", port=5003)
@@ -59,7 +63,7 @@ async def main():
     image = Image.open("../imgs/232264684-5a7bcf8e-707b-4925-86b0-4212382f1680.png")
     config = Config()
 
-    await executor.sent(image, config, example_notify)
+    await executor.sent_stream(image, config, example_notify)
 
 if __name__ == "__main__":
     import asyncio

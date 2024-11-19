@@ -4,6 +4,9 @@ import pickle
 import requests
 from PIL import Image
 
+from manga_translator import Config
+
+
 async def execute_method(method_name, attributes):
     url = f"http://127.0.0.1:5003/execute/{method_name}"
     headers = {'Content-Type': 'application/octet-stream'}
@@ -39,5 +42,5 @@ async def execute_method(method_name, attributes):
 
 if __name__ == '__main__':
     image = Image.open("../imgs/232264684-5a7bcf8e-707b-4925-86b0-4212382f1680.png")
-    attributes = {"image": image, "params": {"translator": "none", "inpainter": "none"}}
+    attributes = {"image": image, "config": Config()}
     asyncio.run(execute_method("translate", attributes))
