@@ -93,6 +93,8 @@ class MangaTranslator:
     result_sub_folder: str
 
     def __init__(self, params: dict = None):
+        self.pre_dict = params.get('pre_dict', None)
+        self.post_dict = params.get('post_dict', None)
         self.font_path = None
         self.use_mtpe = False
         self.kernel_size = None
@@ -231,7 +233,7 @@ class MangaTranslator:
             return await self._revert_upscale(config, ctx)
 
         # Apply pre-dictionary after OCR
-        pre_dict = load_dictionary(config.pre_dict)
+        pre_dict = load_dictionary(self.pre_dict)
         pre_replacements = []  
         for textline in ctx.textlines:  
             original = textline.text  
@@ -381,7 +383,7 @@ class MangaTranslator:
             region._direction = config.render.direction
 
         # Apply post dictionary after translating
-        post_dict = load_dictionary(config.post_dict)
+        post_dict = load_dictionary(self.post_dict)
         post_replacements = []  
         for region in ctx.text_regions:  
             original = region.translation  
