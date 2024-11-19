@@ -79,10 +79,6 @@ async def dispatch(args: Namespace):
         translator = MangaTranslatorWS(args_dict)
         await translator.listen(args_dict)
 
-    elif args.mode == 'api':
-        from manga_translator.mode.api import MangaTranslatorAPI
-        translator = MangaTranslatorAPI(args_dict)
-        await translator.listen(args_dict)
     elif args.mode == 'shared':
         translator = MangaShare(args_dict)
         await translator.listen(args_dict)

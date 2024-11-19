@@ -9,12 +9,13 @@ import requests
 from PIL import Image
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.responses import StreamingResponse
+from starlette.responses import StreamingResponse, JSONResponse
 
-from manga_translator import Config
+from manga_translator import Config, Context
 from server.instance import ExecutorInstance, Executors
 from server.myqueue import TaskQueue
 from server.sent_data import NotifyType
+from server.to_json import to_json
 
 app = FastAPI()
 
@@ -91,8 +92,7 @@ async def wait(task, notify: NotifyType):
             else:
                 result = await instance.sent(task.image, task.config)
 
-            instance.busy = False
-            instance.event.set()
+            executor_instances.free_executor(instance)
 
             if notify:
                 return
@@ -127,22 +127,42 @@ def transform_to_image(data):
 @app.post("/json")
 async def json(req: Request):
     data, img = await multi_content_type(req)
-    img = await to_pil_image(img)
-    data = await wait((data, img), None)
+    ctx = Context()
+
+    ctx.image = await to_pil_image(img)
+    ctx.config = data
+    task_queue.add_task(ctx)
+
+    data = await wait(ctx, None)
+    json = to_json(data)
+    return JSONResponse(content=json)
 
 @app.post("/bytes")
 async def bytes(req: Request):
     data, img = await multi_content_type(req)
-    img = await to_pil_image(img)
+    ctx = Context()
+
+    ctx.image = await to_pil_image(img)
+    ctx.config = data
+    task_queue.add_task(ctx)
     data = await wait((data, img), None)
 
 
 @app.post("/image")
 async def image(req: Request):
     data, img = await multi_content_type(req)
-    img = await to_pil_image(img)
-    data = await wait((data, img), None)
+    ctx = Context()
 
+    ctx.image = await to_pil_image(img)
+    ctx.config = data
+    task_queue.add_task(ctx)
+
+    data = await wait((data, img), None)
+    img_byte_arr = io.BytesIO()
+    data.result.save(img_byte_arr, format="PNG")
+    img_byte_arr.seek(0)
+
+    return StreamingResponse(img_byte_arr, media_type="image/png")
 
 @app.post("/stream_json")
 async def stream_json(req: Request):
