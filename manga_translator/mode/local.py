@@ -29,12 +29,22 @@ class MangaTranslatorLocal(MangaTranslator):
         """
         Translates an image or folder (recursively) specified through the path.
         """
-        config = Config(**json.loads('{}'))
         if not os.path.exists(path):
             raise FileNotFoundError(path)
         path = os.path.abspath(os.path.expanduser(path))
         dest = os.path.abspath(os.path.expanduser(dest)) if dest else ''
         params = params or {}
+        config_file_path = params.get("config_file", None)
+        config_content = "{}"
+
+        if config_file_path:
+            try:
+                with open(config_file_path, 'r') as file:
+                    config_content = file.read()
+            except Exception as e:
+                print("Couldnt read file")
+                pass
+        config = Config(**json.loads(config_content))
 
         # Handle format
         file_ext = params.get('format')

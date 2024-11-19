@@ -107,6 +107,7 @@ g_batch.add_argument('--save-text', action='store_true', help='Save extracted te
 g_batch.add_argument('--save-text-file', default='', type=str, help='Like --save-text but with a specified file path.')
 parser_batch.add_argument('--prep-manual', action='store_true', help='Prepare for manual typesetting by outputting blank, inpainted images, plus copies of the original for reference')
 parser_batch.add_argument('--save-quality', default=100, type=int, help='Quality of saved JPEG image, range from 0 to 100 with 100 being best')
+parser.add_argument('--config-file', default=None, type=str, help='path to the config file')
 
 # Web mode
 parser_web = subparsers.add_parser('web', help='Run in web service mode')

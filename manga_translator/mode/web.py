@@ -3,12 +3,13 @@ import time
 
 import requests
 
-from manga_translator import MangaTranslator, logger, Context
+from manga_translator import logger, Context, Config
+from manga_translator.mode.local import MangaTranslatorLocal
 from manga_translator.translators import TRANSLATORS
 from manga_translator.utils import add_file_logger, remove_file_logger
 
 
-class MangaTranslatorWeb(MangaTranslator):
+class MangaTranslatorWeb(MangaTranslatorLocal):
     """
     Translator client that executes tasks on behalf of the webserver in web_main.py.
     """
@@ -110,10 +111,11 @@ class MangaTranslatorWeb(MangaTranslator):
             self._params = None
             self.result_sub_folder = ''
 
-    async def _run_text_translation(self, ctx: Context):
+    async def _run_text_translation(self, config: Config, ctx: Context):
         # Run machine translation as reference for manual translation (if `--translator=none` is not set)
-        text_regions = await super()._run_text_translation(ctx)
+        text_regions = await super()._run_text_translation(config, ctx)
 
+        #todo: manual never set
         if ctx.get('manual', False):
             logger.info('Waiting for user input from manual translation')
             requests.post(f'http://{self.host}:{self.port}/request-manual-internal', json={
@@ -142,7 +144,7 @@ class MangaTranslatorWeb(MangaTranslator):
                             i = i - 1
                         else:
                             text_regions[i].translation = translation
-                            text_regions[i].target_lang = ctx.translator.langs[-1]
+                            text_regions[i].target_lang = config.translator.translator_gen.langs[-1]
                         i = i + 1
                     break
                 elif 'cancel' in ret:

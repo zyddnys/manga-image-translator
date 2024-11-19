@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from manga_translator import logger, Context, MangaTranslator
+from manga_translator import logger, Context, MangaTranslator, Config
 from manga_translator.utils import PriorityLock, Throttler
 
 
@@ -152,7 +152,7 @@ class MangaTranslatorWS(MangaTranslator):
 
             return True, output is not None
 
-        async def server_process(main_loop, session, websocket, task) -> bool:
+        async def server_process(main_loop, session, websocket, task):
             logger_task = logger.getChild(f'{task.id}')
             try:
                 (success, has_translation_mask) = await server_process_inner(main_loop, logger_task, session, websocket,
@@ -224,9 +224,9 @@ class MangaTranslatorWS(MangaTranslator):
         # create a future that is never done
         await future
 
-    async def _run_text_translation(self, ctx: Context):
-        coroutine = super()._run_text_translation(ctx)
-        if ctx.translator.has_offline():
+    async def _run_text_translation(self, config: Config, ctx: Context):
+        coroutine = super()._run_text_translation(config, ctx)
+        if config.translator.translator_gen.has_offline():
             return await coroutine
         else:
             task_id = self._task_id
@@ -243,10 +243,10 @@ class MangaTranslatorWS(MangaTranslator):
             self._websocket = websocket
             return result
 
-    async def _run_text_rendering(self, ctx: Context):
+    async def _run_text_rendering(self, config: Config, ctx: Context):
         render_mask = (ctx.mask >= 127).astype(np.uint8)[:, :, None]
 
-        output = await super()._run_text_rendering(ctx)
+        output = await super()._run_text_rendering(config, ctx)
         render_mask[np.sum(ctx.img_rgb != output, axis=2) > 0] = 1
         ctx.render_mask = render_mask
         if self.verbose:
