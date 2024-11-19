@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from manga_translator import Config
 from server.sent_data import fetch_data_stream, NotifyType
+from fastapi import Response
 
 
 class ExecutorInstance(BaseModel):
@@ -16,6 +17,9 @@ class ExecutorInstance(BaseModel):
 
     def free_executor(self):
         self.busy = False
+
+    async def sent(self) -> Response:
+        pass
 
     async def sent_stream(self, image: Image, config: Config, sender: NotifyType):
         await fetch_data_stream("http://"+self.ip+":"+str(self.port)+"/execute/translate", image, config, sender)
