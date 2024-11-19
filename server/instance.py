@@ -6,7 +6,7 @@ from PIL import Image
 from pydantic import BaseModel
 
 from manga_translator import Config
-from server.sent_data import fetch_data_stream, NotifyType, fetch_data
+from server.sent_data_internal import fetch_data_stream, NotifyType, fetch_data
 
 
 class ExecutorInstance(BaseModel):
@@ -54,20 +54,5 @@ class Executors:
         self.event.set()
         self.event.clear()
 
-def example_notify(a: int, b) -> None:
-    if a == 0:
-        print(pickle.loads(b))
-    else:
-        print(f"Notify called with a={a} and b={b}")
 
-async def main():
-    executor = ExecutorInstance(ip="127.0.0.1", port=5003)
-
-    image = Image.open("../imgs/232264684-5a7bcf8e-707b-4925-86b0-4212382f1680.png")
-    config = Config()
-
-    await executor.sent_stream(image, config, example_notify)
-
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+executor_instances: Executors = Executors()
