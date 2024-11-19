@@ -38,4 +38,5 @@ async def dispatch(inpainter_key: Inpainter, image: np.ndarray, mask: np.ndarray
     inpainter = get_inpainter(inpainter_key)
     if isinstance(inpainter, OfflineInpainter):
         await inpainter.load(device)
-    return await inpainter.inpaint(image, mask, config or InpainterConfig(), inpainting_size, verbose)
+    config = config or InpainterConfig()
+    return await inpainter.inpaint(image, mask, config, inpainting_size, verbose)

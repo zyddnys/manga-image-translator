@@ -166,7 +166,8 @@ class RenderConfig(BaseModel):
     """Line spacing is font_size * this value. Default is 0.01 for horizontal text and 0.2 for vertical."""
     font_size: Optional[int] = None
     """Use fixed font size for rendering"""
-
+    _font_color_fg = None
+    _font_color_bg = None
     @property
     def font_color_fg(self):
         if self.font_color and not self._font_color_fg:
@@ -214,6 +215,8 @@ class TranslatorConfig(BaseModel):
     """Output of one translator goes in another. Example: --translator-chain "google:JPN;sugoi:ENG"."""
     selective_translation: Optional[str] = None
     """Select a translator based on detected language in image. Note the first translation service acts as default if the language isn\'t defined. Example: --translator-chain "google:JPN;sugoi:ENG".'"""
+    _translator_gen = None
+    _gpt_config = None
 
     @property
     def translator_gen(self):
@@ -261,7 +264,7 @@ class DetectorConfig(BaseModel):
     """How much to extend text skeleton to form bounding box"""
 
 class InpainterConfig(BaseModel):
-    inpainter: Inpainter = Inpainter.lama_large
+    inpainter: Inpainter = Inpainter.none
     """Inpainting model to use"""
     inpainting_size: int = 2048
     """Size of image used for inpainting (too large will result in OOM)"""
@@ -287,11 +290,6 @@ class OcrConfig(BaseModel):
     """The threshold for ignoring text in non bubble areas, with valid values ranging from 1 to 50, does not ignore others. Recommendation 5 to 10. If it is too low, normal bubble areas may be ignored, and if it is too large, non bubble areas may be considered normal bubbles"""
 
 class Config(BaseModel):
-    # unclear
-    pre_dict: Optional[str] = None
-    post_dict: Optional[str] = None
-
-    # json
     filter_text: Optional[str] = None
     """Filter regions by their text with a regex. Example usage: '.*badtext.*'"""
     render: RenderConfig = RenderConfig()
@@ -313,6 +311,7 @@ class Config(BaseModel):
     """Set the convolution kernel size of the text erasure area to completely clean up text residues"""
     mask_dilation_offset: int = 0
     """By how much to extend the text mask to remove left-over text pixels of the original image."""
+    _filter_text = None
 
     @property
     def re_filter_text(self):

@@ -83,9 +83,12 @@ class MangaTranslatorLocal(MangaTranslator):
                     output_dest = replace_prefix(file_path, path, _dest)
                     p, ext = os.path.splitext(output_dest)
                     output_dest = f'{p}.{file_ext or ext[1:]}'
-
-                    if await self.translate_file(file_path, output_dest, params, config):
-                        translated_count += 1
+                    try:
+                        if await self.translate_file(file_path, output_dest, params, config):
+                            translated_count += 1
+                    except Exception as e:
+                        logger.error(e)
+                        raise e
             if translated_count == 0:
                 logger.info('No further untranslated files found. Use --overwrite to write over existing translations.')
             else:
