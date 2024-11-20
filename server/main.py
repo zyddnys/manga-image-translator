@@ -78,12 +78,12 @@ async def queue_size() -> int:
 
 @app.post("/")
 async def index():
-    # ui.html
+    # todo:ui.html
     pass
 
 @app.post("/manual")
 async def manual():
-    # manual.html
+    # todo:manual.html
     pass
 
 def generate_nonce():
@@ -107,7 +107,7 @@ def start_translator_client_proc(host: str, port: int, nonce: str, params: dict)
         cmds.append('--ignore-errors')
     if params.get('verbose', False):
         cmds.append('--verbose')
-
+    #todo: cwd
     proc = subprocess.Popen(cmds, cwd=BASE_PATH)
     executor_instances.register(ExecutorInstance(ip=host, port=port))
     return proc
@@ -125,6 +125,7 @@ def prepare(args):
 #todo: cache results
 #todo: cleanup cache
 #todo: store images while in queue
+#todo: add docs
 
 if __name__ == '__main__':
     import uvicorn
