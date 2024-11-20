@@ -25,7 +25,7 @@ class ExecutorInstance(BaseModel):
 
 class Executors:
     def __init__(self):
-        self.list: List[ExecutorInstance] = [ExecutorInstance(ip="127.0.0.1", port=5003)]
+        self.list: List[ExecutorInstance] = []
         self.lock: Lock = Lock()
         self.event = Event()
 
