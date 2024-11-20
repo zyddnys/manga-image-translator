@@ -29,6 +29,9 @@ def transform_to_image(ctx):
     ctx.result.save(img_byte_arr, format="PNG")
     return img_byte_arr.getvalue()
 
+def transform_to_json(ctx):
+    return str(to_json(ctx)).encode("utf-8")
+
 @app.post("/json")
 async def json(req: Request):
     ctx = await get_ctx(req)
@@ -50,15 +53,15 @@ async def image(req: Request):
 
 @app.post("/stream_json")
 async def stream_json(req: Request):
-    return while_streaming(req, transform_to_image)
+    return await while_streaming(req, transform_to_json)
 
 @app.post("/stream_bytes")
 async def stream_bytes(req: Request):
-    return while_streaming(req, transform_to_image)
+    return await while_streaming(req, transform_to_image)
 
 @app.post("/stream_image")
 async def stream_image(req: Request):
-    return while_streaming(req, transform_to_image)
+    return await while_streaming(req, transform_to_image)
 
 if __name__ == '__main__':
     import uvicorn

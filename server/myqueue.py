@@ -35,12 +35,12 @@ async def wait_in_queue(task, notify: NotifyType):
     while True:
         queue_pos = task_queue.get_pos(task)
         if notify:
-            notify(3, queue_pos)
+            notify(3, str(queue_pos))
         if queue_pos < executor_instances.free_executors():
             instance = await executor_instances.find_executor()
             task_queue.remove(task)
             if notify:
-                notify(4, 0)
+                notify(4, "0")
             if notify:
                 await instance.sent_stream(task.image, task.config, notify)
             else:
