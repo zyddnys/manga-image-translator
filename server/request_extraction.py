@@ -59,6 +59,7 @@ async def get_ctx(req: Request):
 
     ctx.image = await to_pil_image(img)
     ctx.config = data
+    ctx.req = req
     task_queue.add_task(ctx)
 
     return await wait_in_queue(ctx, None)
@@ -69,6 +70,7 @@ async def while_streaming(req: Request, transform):
 
     ctx.image = await to_pil_image(img)
     ctx.config = data
+    ctx.req = req
     task_queue.add_task(ctx)
 
     messages = asyncio.Queue()
