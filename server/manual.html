@@ -72,7 +72,7 @@
             formData.append('image', file);
 
             try {
-                const response = await fetch( generateImage.checked ? 'http://127.0.0.1:8000/stream_image' : 'http://127.0.0.1:8000/stream_json', {
+                const response = await fetch( generateImage.checked ? '/translate/image/stream' : '/translate/json/stream', {
                     method: 'POST',
                     body: formData,
                     /*headers: {
@@ -142,7 +142,6 @@
                             buffer = buffer.slice(totalSize);
                         }
                     }
-                    console.log(buffer.length)
 
                 } else {
                     errorField.innerHTML = response.statusText;
