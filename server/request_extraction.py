@@ -61,7 +61,7 @@ async def get_ctx(req: Request):
     ctx.config = data
     task_queue.add_task(ctx)
 
-    data = await wait_in_queue(ctx, None)
+    return await wait_in_queue(ctx, None)
 
 async def while_streaming(req: Request, transform):
     data, img = await multi_content_type(req)
@@ -77,5 +77,5 @@ async def while_streaming(req: Request, transform):
         notify(code, data, transform, messages)
 
     streaming_response = StreamingResponse(stream(messages), media_type="application/octet-stream")
-    asyncio.create_task(wait_in_queue((data, img), notify_internal))
+    asyncio.create_task(wait_in_queue(ctx, notify_internal))
     return streaming_response
