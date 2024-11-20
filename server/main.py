@@ -1,6 +1,10 @@
 import io
+import os
+import secrets
+import subprocess
+import sys
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import StreamingResponse, JSONResponse
 
@@ -10,6 +14,7 @@ from server.request_extraction import get_ctx, while_streaming
 from server.to_json import to_json
 
 app = FastAPI()
+nonce = None
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,6 +26,9 @@ app.add_middleware(
 
 @app.post("/register")
 async def register_instance(instance: ExecutorInstance, request: Request):
+    req_nonce = request.headers.get('X-Nonce')
+    if req_nonce != nonce:
+        raise HTTPException(401, detail="Invalid nonce")
     instance.ip = request.client.host
     executor_instances.register(instance)
     return {"code": 0}
@@ -78,10 +86,51 @@ async def manual():
     # manual.html
     pass
 
+def generate_nonce():
+    return secrets.token_hex(16)
+
+def start_translator_client_proc(host: str, port: int, nonce: str, params: dict):
+    cmds = [
+        sys.executable,
+        '-m', 'manga_translator',
+        '--mode', 'shared',
+        '--host', host,
+        '--port', str(port),
+        '--nonce', nonce,
+        '--no-report'
+    ]
+    if params.get('use_gpu', False):
+        cmds.append('--use-gpu')
+    if params.get('use_gpu_limited', False):
+        cmds.append('--use-gpu-limited')
+    if params.get('ignore_errors', False):
+        cmds.append('--ignore-errors')
+    if params.get('verbose', False):
+        cmds.append('--verbose')
+
+    proc = subprocess.Popen(cmds, cwd=BASE_PATH)
+    executor_instances.register(ExecutorInstance(ip=host, port=port))
+    return proc
+
+def prepare(args):
+    global nonce
+    if args.get("nonce", None) is None:
+        nonce = os.getenv('MT_WEB_NONCE', generate_nonce())
+    else:
+        nonce = args.get("nonce", None)
+    if args.get("start_instance", None):
+        start_translator_client_proc(args.get("host", "0.0.0.0"), args.get("port",8000) + 1, nonce, args)
+
+#todo: restart if crash
+#todo: cache results
+#todo: cleanup cache
+#todo: store images while in queue
 
 if __name__ == '__main__':
     import uvicorn
     from args import parse_arguments
 
     args = parse_arguments()
+    prepare(args)
+    print("Nonce: "+nonce)
     uvicorn.run(app, host=args.host, port=args.port)
