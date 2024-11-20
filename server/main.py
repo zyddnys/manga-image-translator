@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import StreamingResponse, JSONResponse
 
 from server.instance import ExecutorInstance, executor_instances
+from server.myqueue import task_queue
 from server.request_extraction import get_ctx, while_streaming
 from server.to_json import to_json
 
@@ -32,17 +33,17 @@ def transform_to_image(ctx):
 def transform_to_json(ctx):
     return str(to_json(ctx)).encode("utf-8")
 
-@app.post("/json")
+@app.post("/translate/json")
 async def json(req: Request):
     ctx = await get_ctx(req)
     json = to_json(ctx)
     return JSONResponse(content=json)
 
-@app.post("/bytes")
+@app.post("/translate/bytes")
 async def bytes(req: Request):
     ctx = await get_ctx(req)
 
-@app.post("/image")
+@app.post("/translate/image")
 async def image(req: Request):
     ctx = await get_ctx(req)
     img_byte_arr = io.BytesIO()
@@ -51,17 +52,32 @@ async def image(req: Request):
 
     return StreamingResponse(img_byte_arr, media_type="image/png")
 
-@app.post("/stream_json")
+@app.post("/translate/json/stream")
 async def stream_json(req: Request):
     return await while_streaming(req, transform_to_json)
 
-@app.post("/stream_bytes")
+@app.post("/translate/bytes/stream")
 async def stream_bytes(req: Request):
     return await while_streaming(req, transform_to_image)
 
-@app.post("/stream_image")
+@app.post("/translate/image/stream")
 async def stream_image(req: Request):
     return await while_streaming(req, transform_to_image)
+
+@app.post("/queue-size")
+async def queue_size() -> int:
+    return len(task_queue.queue)
+
+@app.post("/")
+async def index():
+    # ui.html
+    pass
+
+@app.post("/manual")
+async def manual():
+    # manual.html
+    pass
+
 
 if __name__ == '__main__':
     import uvicorn
