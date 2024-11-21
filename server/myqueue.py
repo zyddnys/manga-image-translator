@@ -43,7 +43,7 @@ async def wait_in_queue(task, notify: NotifyType):
     while True:
         queue_pos = task_queue.get_pos(task)
         if notify:
-            notify(3, str(queue_pos))
+            notify(3, str(queue_pos).encode('utf-8'))
         if queue_pos < executor_instances.free_executors():
             if await is_client_disconnected(task.req):
                 task_queue.remove(task)
@@ -55,7 +55,7 @@ async def wait_in_queue(task, notify: NotifyType):
             instance = await executor_instances.find_executor()
             task_queue.remove(task)
             if notify:
-                notify(4, "0")
+                notify(4, b"")
             if notify:
                 await instance.sent_stream(task.image, task.config, notify)
             else:

@@ -81,7 +81,7 @@ async def while_streaming(req: Request, transform):
 
     messages = asyncio.Queue()
 
-    def notify_internal(code: int, data) -> None:
+    def notify_internal(code: int, data: bytes) -> None:
         notify(code, data, transform, messages)
 
     streaming_response = StreamingResponse(stream(messages), media_type="application/octet-stream")
