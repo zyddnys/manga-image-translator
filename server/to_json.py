@@ -2,6 +2,7 @@ import base64
 from typing import Dict, List
 
 import cv2
+from pydantic import BaseModel
 
 from manga_translator import Context
 from manga_translator.utils import TextBlock
@@ -64,3 +65,17 @@ def to_json(ctx: Context):
             'background': background
         })
     return results
+
+class TextColor(BaseModel):
+    fg: tuple[int, int, int]
+    bg: tuple[int, int, int]
+
+class Translation(BaseModel):
+    text: dict[str, str]
+    minX: int
+    minY: int
+    maxX: int
+    maxY: int
+    textColor:TextColor
+    language: str
+    background: str

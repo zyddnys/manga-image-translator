@@ -8,12 +8,19 @@ from typing import Union
 import requests
 from PIL import Image
 from fastapi import Request, HTTPException
+from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 
 from manga_translator import Config, Context
 from server.myqueue import task_queue, wait_in_queue
 from server.streaming import notify, stream
 
+class TranslateRequest(BaseModel):
+    """This request can be a multipart or a json request"""
+    image: bytes|str
+    """can be a url, base64 encoded image or a multipart image"""
+    config: Config
+    """in case it is a multipart this needs to be a string(json.stringify)"""
 
 async def to_pil_image(image: Union[str, bytes]) -> Image.Image:
     try:
@@ -36,7 +43,6 @@ async def to_pil_image(image: Union[str, bytes]) -> Image.Image:
 
 async def multi_content_type(request: Request):
     content_type = request.headers.get("content-type")
-
     if content_type and content_type.startswith("multipart/form-data"):
         form = await request.form()
         config = form.get("config", "{}")
