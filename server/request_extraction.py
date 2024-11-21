@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 
 from manga_translator import Config, Context
-from server.myqueue import task_queue, wait_in_queue
+from server.myqueue import task_queue, wait_in_queue, QueueElement
 from server.streaming import notify, stream
 
 class TranslateRequest(BaseModel):
@@ -61,29 +61,25 @@ async def multi_content_type(request: Request):
 
 async def get_ctx(req: Request):
     data, img = await multi_content_type(req)
-    ctx = Context()
 
-    ctx.image = await to_pil_image(img)
-    ctx.config = data
-    ctx.req = req
-    task_queue.add_task(ctx)
+    image = await to_pil_image(img)
+    task = QueueElement(req, image, data, 0)
 
-    return await wait_in_queue(ctx, None)
+    task_queue.add_task(task)
+
+    return await wait_in_queue(task, None)
 
 async def while_streaming(req: Request, transform):
     data, img = await multi_content_type(req)
-    ctx = Context()
 
-    ctx.image = await to_pil_image(img)
-    ctx.config = data
-    ctx.req = req
-    task_queue.add_task(ctx)
+    image = await to_pil_image(img)
+    task = QueueElement(req, image, data, 0)
+    task_queue.add_task(task)
 
     messages = asyncio.Queue()
 
     def notify_internal(code: int, data: bytes) -> None:
         notify(code, data, transform, messages)
-
     streaming_response = StreamingResponse(stream(messages), media_type="application/octet-stream")
-    asyncio.create_task(wait_in_queue(ctx, notify_internal))
+    asyncio.create_task(wait_in_queue(task, notify_internal))
     return streaming_response

@@ -1,32 +1,64 @@
 import asyncio
-from typing import List, Dict, Optional
+import os
+from typing import List, Optional
 
+from PIL import Image
 from fastapi import HTTPException
-from starlette.requests import Request
+from fastapi.requests import Request
 
-from manga_translator import Context
+from manga_translator import Config
 from server.instance import executor_instances
 from server.sent_data_internal import NotifyType
 
+class QueueElement:
+    req: Request
+    image: Image.Image | str
+    config: Config
+
+    def __init__(self, req: Request, image: Image.Image, config: Config, length):
+        self.req = req
+        if length > 10:
+            #todo: store image in "upload-cache" folder
+            self.image = image
+        else:
+            self.image = image
+        self.config = config
+
+    def get_image(self)-> Image:
+        if isinstance(self.image, str):
+            return Image.open(self.image)
+        else:
+            return self.image
+
+    def __del__(self):
+        if isinstance(self.image, str):
+            os.remove(self.image)
+
+    async def is_client_disconnected(self) -> bool:
+        if await self.req.is_disconnected():
+            return True
+        return False
+
+
 class TaskQueue:
     def __init__(self):
-        self.queue: List[Context] = []
+        self.queue: List[QueueElement] = []
         self.queue_event: asyncio.Event = asyncio.Event()
 
-    def add_task(self, task):
+    def add_task(self, task: QueueElement):
         self.queue.append(task)
 
-    def get_pos(self, task) -> Optional[int]:
+    def get_pos(self, task: QueueElement) -> Optional[int]:
         try:
             return self.queue.index(task)
         except ValueError:
             return None
     async def update_event(self):
-        self.queue = [ctx for ctx in self.queue if not await is_client_disconnected(ctx.req)]
+        self.queue = [task for task in self.queue if not await task.is_client_disconnected()]
         self.queue_event.set()
         self.queue_event.clear()
 
-    async def remove(self, task):
+    async def remove(self, task: QueueElement):
         self.queue.remove(task)
         await self.update_event()
 
@@ -35,16 +67,11 @@ class TaskQueue:
 
 task_queue = TaskQueue()
 
-async def is_client_disconnected(request: Request) -> bool:
-    if await request.is_disconnected():
-        return True
-    return False
-
-async def wait_in_queue(task, notify: NotifyType):
+async def wait_in_queue(task: QueueElement, notify: NotifyType):
     """Will get task position report it. If its in the range of translators then it will try to aquire an instance(blockig) and sent a task to it. when done the item will be removed from the queue and result will be returned"""
     while True:
         queue_pos = task_queue.get_pos(task)
-        if not queue_pos:
+        if queue_pos is None:
             if notify:
                 return
             else:
@@ -52,7 +79,7 @@ async def wait_in_queue(task, notify: NotifyType):
         if notify:
             notify(3, str(queue_pos).encode('utf-8'))
         if queue_pos < executor_instances.free_executors():
-            if await is_client_disconnected(task.req):
+            if await task.is_client_disconnected():
                 await task_queue.update_event()
                 if notify:
                     return

@@ -1,24 +1,22 @@
 import io
 import os
 import secrets
+import shutil
 import signal
 import subprocess
 import sys
 from argparse import Namespace
-from builtins import bytes
-from typing import Union
 
-from fastapi import FastAPI, Request, HTTPException, Header, Form, UploadFile
+from fastapi import FastAPI, Request, HTTPException, Header, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse, HTMLResponse
 from pathlib import Path
 
 from pydantic import BaseModel
 
-from manga_translator import Config
 from server.instance import ExecutorInstance, executor_instances
 from server.myqueue import task_queue
-from server.request_extraction import get_ctx, while_streaming, TranslateRequest
+from server.request_extraction import get_ctx, while_streaming
 from server.to_json import to_json, Translation
 
 app = FastAPI()
@@ -54,22 +52,11 @@ def transform_to_image(ctx):
 def transform_to_json(ctx):
     return str(to_json(ctx)).encode("utf-8")
 
-async def parse_request(
-    req: Request,
-    image: Union[str, bytes] = Form(...),
-    config: str = Form(...),
-):
-    if req.headers.get('content-type').startswith('multipart'):
-        config = json.loads(config)
-        return TranslateRequest(image=image, config=Config(**config))
-    else:
-        return None
 
 @app.post("/translate/json", response_model=list[Translation], response_description="json strucure inspired by the ichigo translator extension")
 async def json(req: Request):
     ctx = await get_ctx(req)
-    json = to_json(ctx)
-    return JSONResponse(content=json)
+    return JSONResponse(content=to_json(ctx))
 
 @app.post("/translate/bytes", response_class=StreamingResponse, response_description="custom byte structure following the stream encoding, but with json first and then the image bytes as chunks")
 async def bytes(req: Request):
@@ -154,13 +141,16 @@ def prepare(args):
         nonce = args.nonce
     if args.start_instance:
         return start_translator_client_proc(args.host, args.port + 1, nonce, args)
+    folder_name= "upload-cache"
+    if os.path.exists(folder_name):
+        shutil.rmtree(folder_name)
+    os.makedirs(folder_name)
 
 #todo: restart if crash
 #todo: cache results
 #todo: cleanup cache
-#todo: store images while in queue
+
 #todo: add docs
-#todo: index doesnt work properly in the list(is_client_disconnected is not executed immediatly/does not update the index)
 #todo: enable config in html pages
 
 if __name__ == '__main__':
