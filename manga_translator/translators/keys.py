@@ -16,6 +16,7 @@ GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 OPENAI_HTTP_PROXY = os.getenv('OPENAI_HTTP_PROXY') # TODO: Replace with --proxy
 
 OPENAI_API_BASE = os.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1') #使用api-for-open-llm例子 http://127.0.0.1:8000/v1
+CHATGPT_4_MODEL=os.getenv('CHATGPT_4_MODEL','gpt-4o')
 
 # sakura
 SAKURA_API_BASE = os.getenv('SAKURA_API_BASE', 'http://127.0.0.1:8080/v1') #SAKURA API地址
