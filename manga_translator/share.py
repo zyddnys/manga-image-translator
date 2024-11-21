@@ -113,7 +113,7 @@ class MangaShare:
                     result = await method(**attr)
                 else:
                     result = method(**attr)
-                    self.lock.release()
+                self.lock.release()
                 result_bytes = pickle.dumps(result)
                 return Response(content=result_bytes, media_type="application/octet-stream")
             except Exception as e:
