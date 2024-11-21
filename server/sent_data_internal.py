@@ -8,7 +8,7 @@ from fastapi import HTTPException
 
 from manga_translator import Config
 
-NotifyType = Optional[Callable[[int, Optional[int]], None]]
+NotifyType = Optional[Callable[[int, Optional[bytes]], None]]
 
 async def fetch_data_stream(url, image: Image, config: Config, sender: NotifyType, headers: Mapping[str, str] = {}):
     attributes = {"image": image, "config": config}
