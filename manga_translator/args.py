@@ -133,4 +133,4 @@ parser_api = subparsers.add_parser('shared', help='Run in API mode')
 parser_api.add_argument('--host', default='127.0.0.1', type=str, help='Host for API service')
 parser_api.add_argument('--port', default=5003, type=int, help='Port for API service')
 parser_api.add_argument('--nonce', default=os.getenv('MT_WEB_NONCE', ''), type=str, help='Nonce for securing internal API server communication')
-
+parser_api.add_argument("--report", default=None,type=str, help='reports to server to register instance')
