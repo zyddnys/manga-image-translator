@@ -1,6 +1,5 @@
-import pickle
 from asyncio import Event, Lock
-from typing import List, Optional
+from typing import List
 
 from PIL import Image
 from pydantic import BaseModel
@@ -49,10 +48,11 @@ class Executors:
             instance.busy = True
             return instance
 
-    def free_executor(self, instance: ExecutorInstance):
+    async def free_executor(self, instance: ExecutorInstance):
+        from server.myqueue import task_queue
         instance.free_executor()
         self.event.set()
         self.event.clear()
-
+        await task_queue.update_event()
 
 executor_instances: Executors = Executors()
