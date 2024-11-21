@@ -1,8 +1,10 @@
 import io
 import os
 import secrets
+import signal
 import subprocess
 import sys
+from argparse import Namespace
 from builtins import bytes
 from typing import Union
 
@@ -100,8 +102,9 @@ async def queue_size() -> int:
 
 @app.get("/", response_class=HTMLResponse)
 async def index() -> HTMLResponse:
-    # todo:ui.html
-    pass
+    html_file = Path("index.html")
+    html_content = html_file.read_text()
+    return HTMLResponse(content=html_content)
 
 @app.get("/manual", response_class=HTMLResponse)
 async def manual():
@@ -112,27 +115,35 @@ async def manual():
 def generate_nonce():
     return secrets.token_hex(16)
 
-def start_translator_client_proc(host: str, port: int, nonce: str, params: dict):
+def start_translator_client_proc(host: str, port: int, nonce: str, params: Namespace):
     cmds = [
         sys.executable,
         '-m', 'manga_translator',
-        '--mode', 'shared',
+        'shared',
         '--host', host,
         '--port', str(port),
         '--nonce', nonce,
-        '--no-report'
     ]
-    if params.get('use_gpu', False):
+    if params.use_gpu:
         cmds.append('--use-gpu')
-    if params.get('use_gpu_limited', False):
+    if params.use_gpu_limited:
         cmds.append('--use-gpu-limited')
-    if params.get('ignore_errors', False):
+    if params.ignore_errors:
         cmds.append('--ignore-errors')
-    if params.get('verbose', False):
+    if params.verbose:
         cmds.append('--verbose')
-    #todo: cwd
-    proc = subprocess.Popen(cmds, cwd=BASE_PATH)
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    parent = os.path.dirname(base_path)
+    proc = subprocess.Popen(cmds, cwd=parent)
     executor_instances.register(ExecutorInstance(ip=host, port=port))
+
+    def handle_exit_signals(signal, frame):
+        proc.terminate()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, handle_exit_signals)
+    signal.signal(signal.SIGTERM, handle_exit_signals)
+
     return proc
 
 def prepare(args):
@@ -142,7 +153,7 @@ def prepare(args):
     else:
         nonce = args.nonce
     if args.start_instance:
-        start_translator_client_proc(args.host, args.port + 1, nonce, args)
+        return start_translator_client_proc(args.host, args.port + 1, nonce, args)
 
 #todo: restart if crash
 #todo: cache results
@@ -150,13 +161,18 @@ def prepare(args):
 #todo: store images while in queue
 #todo: add docs
 #todo: index doesnt work properly in the list(is_client_disconnected is not executed immediatly/does not update the index)
+#todo: enable config in html pages
 
 if __name__ == '__main__':
     import uvicorn
     from args import parse_arguments
 
     args = parse_arguments()
-    prepare(args)
+    args.start_instance = True
+    proc = prepare(args)
     print("Nonce: "+nonce)
-    executor_instances.register(ExecutorInstance(ip="127.0.0.1", port=5003))
-    uvicorn.run(app, host=args.host, port=args.port)
+    try:
+        uvicorn.run(app, host=args.host, port=args.port)
+    except Exception:
+        if proc:
+            proc.terminate()
