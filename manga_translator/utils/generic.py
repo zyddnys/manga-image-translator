@@ -37,7 +37,7 @@ class Context(dict):
     def __eq__(self, other):
         if not isinstance(other, Context):
             return NotImplemented
-        return vars(self) == vars(other)
+        return dict(self) == dict(other)
 
     def __contains__(self, key):
         return key in self.keys()

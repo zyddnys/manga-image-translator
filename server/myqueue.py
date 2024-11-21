@@ -3,13 +3,15 @@ from typing import List, Dict
 
 from fastapi import HTTPException
 from starlette.requests import Request
+from starlette.responses import StreamingResponse
 
+from manga_translator import Context
 from server.instance import executor_instances
 from server.sent_data_internal import NotifyType
 
 class TaskQueue:
     def __init__(self):
-        self.queue: List[Dict] = []
+        self.queue: List[Context] = []
         self.queue_event: asyncio.Event = asyncio.Event()
 
     def add_task(self, task):
@@ -43,10 +45,13 @@ async def wait_in_queue(task, notify: NotifyType):
         if notify:
             notify(3, str(queue_pos))
         if queue_pos < executor_instances.free_executors():
-            if is_client_disconnected(task.req):
+            if await is_client_disconnected(task.req):
                 task_queue.remove(task)
                 task_queue.update_event()
-                raise HTTPException(500, detail="User is no longer connected") #just for the logs
+                if notify:
+                    return
+                else:
+                    raise HTTPException(500, detail="User is no longer connected") #just for the logs
             instance = await executor_instances.find_executor()
             task_queue.remove(task)
             if notify:
@@ -64,10 +69,11 @@ async def wait_in_queue(task, notify: NotifyType):
             else:
                 return result
         else:
-            if queue_pos == 0:
-                raise HTTPException(500, detail="No translator registered")
-            if is_client_disconnected(task.req):
+            if await is_client_disconnected(task.req):
                 task_queue.remove(task)
                 task_queue.update_event()
-                raise HTTPException(500, detail="User is no longer connected") #just for the logs
+                if notify:
+                    return
+                else:
+                    raise HTTPException(500, detail="User is no longer connected") #just for the logs
             await task_queue.wait_for_event()
