@@ -8,7 +8,7 @@ import time
 from typing import List, Dict
 
 from .common import CommonTranslator, MissingAPIKeyException
-from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE
+from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE,CHATGPT_4_MODEL
 CONFIG = None
 
 class GPT3Translator(CommonTranslator):
@@ -328,7 +328,7 @@ class GPT4Translator(GPT35TurboTranslator):
             return txt
 
         response = await self.client.chat.completions.create(
-            model='gpt-4o-mini-2024-07-18',
+            model=CHATGPT_4_MODEL,
             messages=messages,
             max_tokens=self._MAX_TOKENS // 2,
             temperature=self.temperature,
