@@ -46,7 +46,7 @@ class TextBlock(object):
                  texts: List[str] = None,
                  language: str = 'unknown',
                  font_size: float = -1,
-                 angle: int = 0,
+                 angle: float = 0,
                  translation: str = "",
                  fg_color: Tuple[float] = (0, 0, 0),
                  bg_color: Tuple[float] = (0, 0, 0),

@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from server.instance import ExecutorInstance, executor_instances
 from server.myqueue import task_queue
 from server.request_extraction import get_ctx, while_streaming
-from server.to_json import to_json, Translation
+from server.to_json import to_translation, TranslationResponse
 
 app = FastAPI()
 nonce = None
@@ -50,17 +50,20 @@ def transform_to_image(ctx):
     return img_byte_arr.getvalue()
 
 def transform_to_json(ctx):
-    return str(to_json(ctx)).encode("utf-8")
+    return to_translation(ctx).model_dump_json().encode("utf-8")
 
+def transform_to_bytes(ctx):
+    return to_translation(ctx).to_bytes()
 
-@app.post("/translate/json", response_model=list[Translation], response_description="json strucure inspired by the ichigo translator extension")
+@app.post("/translate/json", response_model=TranslationResponse, response_description="json strucure inspired by the ichigo translator extension")
 async def json(req: Request):
     ctx = await get_ctx(req)
-    return JSONResponse(content=to_json(ctx))
+    return to_translation(ctx)
 
 @app.post("/translate/bytes", response_class=StreamingResponse, response_description="custom byte structure following the stream encoding, but with json first and then the image bytes as chunks")
 async def bytes(req: Request):
     ctx = await get_ctx(req)
+    return StreamingResponse(content=to_translation(ctx).to_bytes())
 
 @app.post("/translate/image", response_description="the result image", response_class=StreamingResponse)
 async def image(req: Request) -> StreamingResponse:
@@ -77,7 +80,7 @@ async def stream_json(req: Request) -> StreamingResponse:
 
 @app.post("/translate/bytes/stream", response_class=StreamingResponse, response_description="A stream over elements with strucure(1byte status, 4 byte size, n byte data) status code are 0,1,2,3,4 0 is result data, 1 is progress report, 2 is error, 3 is waiting queue position, 4 is waiting for translator instance")
 async def stream_bytes(req: Request)-> StreamingResponse:
-    return await while_streaming(req, transform_to_image)
+    return await while_streaming(req, transform_to_bytes)
 
 @app.post("/translate/image/stream", response_class=StreamingResponse, response_description="A stream over elements with strucure(1byte status, 4 byte size, n byte data) status code are 0,1,2,3,4 0 is result data, 1 is progress report, 2 is error, 3 is waiting queue position, 4 is waiting for translator instance")
 async def stream_image(req: Request) -> StreamingResponse:
