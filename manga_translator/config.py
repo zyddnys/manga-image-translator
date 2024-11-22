@@ -1,6 +1,6 @@
 import argparse
 import re
-from enum import IntEnum
+from enum import Enum
 
 from typing import Optional
 
@@ -56,88 +56,88 @@ def hex2rgb(h):
     h = h.lstrip('#')
     return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
 
-class Renderer(IntEnum):
-    default = 0
-    manga2Eng = 1
-    none = 2
+class Renderer(str, Enum):
+    default = "default"
+    manga2Eng = "manga2eng"
+    none = "none"
 
-class Alignment(IntEnum):
-    auto = 0
-    left = 1
-    center = 2
-    right = 3
+class Alignment(str, Enum):
+    auto = "auto"
+    left = "left"
+    center = "center"
+    right = "right"
 
-class Direction(IntEnum):
-    auto = 0
-    h = 1
-    v = 2
+class Direction(str, Enum):
+    auto = "auto"
+    h = "horizontal"
+    v = "vertical"
 
-class InpaintPrecision(IntEnum):
-    fp32 = 0
-    fp16 = 1
-    bf16 = 2
-
-    def __str__(self):
-        return self.name
-
-class Detector(IntEnum):
-    default = 0
-    dbconvnext = 1
-    ctd = 2
-    craft = 3
-    none = 4
-
-class Inpainter(IntEnum):
-    default = 0
-    lama_large = 1
-    lama_mpe = 2
-    sd = 3
-    none = 4
-    original = 5
-
-class Colorizer(IntEnum):
-    none = 0
-    mc2 = 1
-
-class Ocr(IntEnum):
-    ocr32px = 0
-    ocr48px = 1
-    ocr48px_ctc = 2
-    mocr = 3
-
-class Translator(IntEnum):
-    youdao = 0
-    baidu = 1
-    deepl = 2
-    papago = 3
-    caiyun = 4
-    gpt3 = 5
-    gpt3_5 = 6
-    gpt4 = 7
-    none = 8
-    original = 9
-    sakura = 10
-    deepseek = 11
-    groq = 12
-    offline = 13
-    nllb = 14
-    nllb_big = 15
-    sugoi = 16
-    jparacrawl = 17
-    jparacrawl_big = 18
-    m2m100 = 19
-    m2m100_big = 20
-    mbart50 = 21
-    qwen2 = 22
-    qwen2_big = 23
+class InpaintPrecision(str, Enum):
+    fp32 = "fp32"
+    fp16 = "fp16"
+    bf16 = "bf16"
 
     def __str__(self):
         return self.name
 
-class Upscaler(IntEnum):
-    waifu2x = 0
-    esrgan = 1
-    upscler4xultrasharp = 2
+class Detector(str, Enum):
+    default = "default"
+    dbconvnext = "dbconvnext"
+    ctd = "ctd"
+    craft = "craft"
+    none = "none"
+
+class Inpainter(str, Enum):
+    default = "default"
+    lama_large = "lama_large"
+    lama_mpe = "lama_mpe"
+    sd = "sd"
+    none = "none"
+    original = "original"
+
+class Colorizer(str, Enum):
+    none = "none"
+    mc2 = "mc2"
+
+class Ocr(str, Enum):
+    ocr32px = "32px"
+    ocr48px = "48px"
+    ocr48px_ctc = "48px_ctc"
+    mocr = "mocr"
+
+class Translator(str, Enum):
+    youdao = "youdao"
+    baidu = "baidu"
+    deepl = "deepl"
+    papago = "papago"
+    caiyun = "caiyun"
+    gpt3 = "gpt3"
+    gpt3_5 = "gpt3.5"
+    gpt4 = "gpt4"
+    none = "none"
+    original = "original"
+    sakura = "sakura"
+    deepseek = "deepseek"
+    groq = "groq"
+    offline = "offline"
+    nllb = "nllb"
+    nllb_big = "nllb_big"
+    sugoi = "sugoi"
+    jparacrawl = "jparacrawl"
+    jparacrawl_big = "jparacrawl_big"
+    m2m100 = "m2m100"
+    m2m100_big = "m2m100_big"
+    mbart50 = "mbart50"
+    qwen2 = "qwen2"
+    qwen2_big = "qwen2_big"
+
+    def __str__(self):
+        return self.name
+
+class Upscaler(str, Enum):
+    waifu2x = "waifu2x"
+    esrgan = "esrgan"
+    upscler4xultrasharp = "4xultrasharp"
 
 class RenderConfig(BaseModel):
     renderer: Renderer = Renderer.default
