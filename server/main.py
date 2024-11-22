@@ -7,16 +7,15 @@ import subprocess
 import sys
 from argparse import Namespace
 
-from fastapi import FastAPI, Request, HTTPException, Header, UploadFile
+from fastapi import FastAPI, Request, HTTPException, Header, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse, HTMLResponse
+from fastapi.responses import StreamingResponse, HTMLResponse
 from pathlib import Path
 
-from pydantic import BaseModel
-
+from manga_translator import Config
 from server.instance import ExecutorInstance, executor_instances
 from server.myqueue import task_queue
-from server.request_extraction import get_ctx, while_streaming
+from server.request_extraction import get_ctx, while_streaming, TranslateRequest
 from server.to_json import to_translation, TranslationResponse
 
 app = FastAPI()
@@ -30,14 +29,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class TranslateRequestForm(BaseModel):
-    """This request can be a multipart or a json request"""
-    image: UploadFile
-    """can be a url, base64 encoded image or a multipart image"""
-    config: str
-    """in case it is a multipart this needs to be a string(json.stringify)"""
-
-@app.post("/register", response_description="no response")
+@app.post("/register", response_description="no response", tags=["internal-api"])
 async def register_instance(instance: ExecutorInstance, req: Request, req_nonce: str = Header(alias="X-Nonce")):
     if req_nonce != nonce:
         raise HTTPException(401, detail="Invalid nonce")
@@ -55,48 +47,85 @@ def transform_to_json(ctx):
 def transform_to_bytes(ctx):
     return to_translation(ctx).to_bytes()
 
-@app.post("/translate/json", response_model=TranslationResponse, response_description="json strucure inspired by the ichigo translator extension")
-async def json(req: Request):
-    ctx = await get_ctx(req)
+@app.post("/translate/json", response_model=TranslationResponse, tags=["api", "json"],response_description="json strucure inspired by the ichigo translator extension")
+async def json(req: Request, data: TranslateRequest):
+    ctx = await get_ctx(req, data.config, data.image)
     return to_translation(ctx)
 
-@app.post("/translate/bytes", response_class=StreamingResponse, response_description="custom byte structure for decoding look at examples in 'examples/response.*'")
-async def bytes(req: Request):
-    ctx = await get_ctx(req)
+@app.post("/translate/bytes", response_class=StreamingResponse, tags=["api", "json"],response_description="custom byte structure for decoding look at examples in 'examples/response.*'")
+async def bytes(req: Request, data: TranslateRequest):
+    ctx = await get_ctx(req, data.config, data.image)
     return StreamingResponse(content=to_translation(ctx).to_bytes())
 
-@app.post("/translate/image", response_description="the result image", response_class=StreamingResponse)
-async def image(req: Request) -> StreamingResponse:
-    ctx = await get_ctx(req)
+@app.post("/translate/image", response_description="the result image", tags=["api", "json"],response_class=StreamingResponse)
+async def image(req: Request, data: TranslateRequest) -> StreamingResponse:
+    ctx = await get_ctx(req, data.config, data.image)
     img_byte_arr = io.BytesIO()
     ctx.result.save(img_byte_arr, format="PNG")
     img_byte_arr.seek(0)
 
     return StreamingResponse(img_byte_arr, media_type="image/png")
 
-@app.post("/translate/json/stream", response_class=StreamingResponse, response_description="A stream over elements with strucure(1byte status, 4 byte size, n byte data) status code are 0,1,2,3,4 0 is result data, 1 is progress report, 2 is error, 3 is waiting queue position, 4 is waiting for translator instance")
-async def stream_json(req: Request) -> StreamingResponse:
-    return await while_streaming(req, transform_to_json)
+@app.post("/translate/json/stream", response_class=StreamingResponse,tags=["api", "json"], response_description="A stream over elements with strucure(1byte status, 4 byte size, n byte data) status code are 0,1,2,3,4 0 is result data, 1 is progress report, 2 is error, 3 is waiting queue position, 4 is waiting for translator instance")
+async def stream_json(req: Request, data: TranslateRequest) -> StreamingResponse:
+    return await while_streaming(req, transform_to_json, data.config, data.image)
 
-@app.post("/translate/bytes/stream", response_class=StreamingResponse, response_description="A stream over elements with strucure(1byte status, 4 byte size, n byte data) status code are 0,1,2,3,4 0 is result data, 1 is progress report, 2 is error, 3 is waiting queue position, 4 is waiting for translator instance")
-async def stream_bytes(req: Request)-> StreamingResponse:
-    return await while_streaming(req, transform_to_bytes)
+@app.post("/translate/bytes/stream", response_class=StreamingResponse, tags=["api", "json"],response_description="A stream over elements with strucure(1byte status, 4 byte size, n byte data) status code are 0,1,2,3,4 0 is result data, 1 is progress report, 2 is error, 3 is waiting queue position, 4 is waiting for translator instance")
+async def stream_bytes(req: Request, data: TranslateRequest)-> StreamingResponse:
+    return await while_streaming(req, transform_to_bytes,data.config, data.image)
 
-@app.post("/translate/image/stream", response_class=StreamingResponse, response_description="A stream over elements with strucure(1byte status, 4 byte size, n byte data) status code are 0,1,2,3,4 0 is result data, 1 is progress report, 2 is error, 3 is waiting queue position, 4 is waiting for translator instance")
-async def stream_image(req: Request) -> StreamingResponse:
-    return await while_streaming(req, transform_to_image)
+@app.post("/translate/image/stream", response_class=StreamingResponse, tags=["api", "json"], response_description="A stream over elements with strucure(1byte status, 4 byte size, n byte data) status code are 0,1,2,3,4 0 is result data, 1 is progress report, 2 is error, 3 is waiting queue position, 4 is waiting for translator instance")
+async def stream_image(req: Request, data: TranslateRequest) -> StreamingResponse:
+    return await while_streaming(req, transform_to_image, data.config, data.image)
 
-@app.post("/queue-size", response_model=int)
+@app.post("/translate/with-form/json", response_model=TranslationResponse, tags=["api", "form"],response_description="json strucure inspired by the ichigo translator extension")
+async def json_form(req: Request, image: UploadFile = File(...), config: str = Form("{}")):
+    img = await image.read()
+    ctx = await get_ctx(req, Config.parse_raw(config), img)
+    return to_translation(ctx)
+
+@app.post("/translate/with-form/bytes", response_class=StreamingResponse, tags=["api", "form"],response_description="custom byte structure for decoding look at examples in 'examples/response.*'")
+async def bytes_form(req: Request, image: UploadFile = File(...), config: str = Form("{}")):
+    img = await image.read()
+    ctx = await get_ctx(req, Config.parse_raw(config), img)
+    return StreamingResponse(content=to_translation(ctx).to_bytes())
+
+@app.post("/translate/with-form/image", response_description="the result image", tags=["api", "form"],response_class=StreamingResponse)
+async def image_form(req: Request, image: UploadFile = File(...), config: str = Form("{}")) -> StreamingResponse:
+    img = await image.read()
+    ctx = await get_ctx(req, Config.parse_raw(config), img)
+    img_byte_arr = io.BytesIO()
+    ctx.result.save(img_byte_arr, format="PNG")
+    img_byte_arr.seek(0)
+
+    return StreamingResponse(img_byte_arr, media_type="image/png")
+
+@app.post("/translate/with-form/json/stream", response_class=StreamingResponse, tags=["api", "form"],response_description="A stream over elements with strucure(1byte status, 4 byte size, n byte data) status code are 0,1,2,3,4 0 is result data, 1 is progress report, 2 is error, 3 is waiting queue position, 4 is waiting for translator instance")
+async def stream_json_form(req: Request, image: UploadFile = File(...), config: str = Form("{}")) -> StreamingResponse:
+    img = await image.read()
+    return await while_streaming(req, transform_to_json, Config.parse_raw(config), img)
+
+@app.post("/translate/with-form/bytes/stream", response_class=StreamingResponse,tags=["api", "form"], response_description="A stream over elements with strucure(1byte status, 4 byte size, n byte data) status code are 0,1,2,3,4 0 is result data, 1 is progress report, 2 is error, 3 is waiting queue position, 4 is waiting for translator instance")
+async def stream_bytes_form(req: Request, image: UploadFile = File(...), config: str = Form("{}"))-> StreamingResponse:
+    img = await image.read()
+    return await while_streaming(req, transform_to_bytes, Config.parse_raw(config), img)
+
+@app.post("/translate/with-form/image/stream", response_class=StreamingResponse, tags=["api", "form"], response_description="A stream over elements with strucure(1byte status, 4 byte size, n byte data) status code are 0,1,2,3,4 0 is result data, 1 is progress report, 2 is error, 3 is waiting queue position, 4 is waiting for translator instance")
+async def stream_image_form(req: Request, image: UploadFile = File(...), config: str = Form("{}")) -> StreamingResponse:
+    img = await image.read()
+    return await while_streaming(req, transform_to_image, Config.parse_raw(config), img)
+
+@app.post("/queue-size", response_model=int, tags=["api", "json"])
 async def queue_size() -> int:
     return len(task_queue.queue)
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse,tags=["ui"])
 async def index() -> HTMLResponse:
     html_file = Path("index.html")
     html_content = html_file.read_text()
     return HTMLResponse(content=html_content)
 
-@app.get("/manual", response_class=HTMLResponse)
+@app.get("/manual", response_class=HTMLResponse, tags=["ui"])
 async def manual():
     html_file = Path("manual.html")
     html_content = html_file.read_text()
@@ -153,7 +182,6 @@ def prepare(args):
 #todo: cache results
 #todo: cleanup cache
 
-#todo: add docs
 #todo: enable config in html pages
 
 if __name__ == '__main__':

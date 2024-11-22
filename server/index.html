@@ -357,7 +357,7 @@
             }
             const uploadWithProgress = async (formData) => {
                 try {
-                    const response = await fetch(`${BASE_URI}translate/image/stream`, {
+                    const response = await fetch(`${BASE_URI}translate/with-form/image/stream`, {
                         method: 'POST',
                         body: formData,
                     });

@@ -1,10 +1,10 @@
 import base64
 import struct
-from typing import Dict, List
+from typing import Dict, List, Annotated
 
 import cv2
 import numpy as np
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, WithJsonSchema
 
 from manga_translator import Context
 from manga_translator.utils import TextBlock
@@ -24,6 +24,10 @@ from manga_translator.utils import TextBlock
 #img_rendered: array
 #mask_raw: array
 #mask:array
+NumpyNdarray = Annotated[
+    np.ndarray,
+    WithJsonSchema({'type': 'string', "format": "base64","examples": ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA..."]}),
+]
 
 class TextColor(BaseModel):
     fg: tuple[int, int, int]
@@ -39,7 +43,7 @@ class Translation(BaseModel):
     prob: float
     text_color: TextColor
     text: dict[str, str]
-    background: np.ndarray = Field(
+    background: NumpyNdarray = Field(
         ...,
         description="Background image encoded as a base64 string",
         examples=["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA..."]
