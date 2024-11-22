@@ -33,10 +33,10 @@
                     <div class="relative">
                         <select class="w-9ch appearance-none bg-transparent border-b border-gray-300"
                                 v-model="detectionResolution">
-                            <option value="S">1024px</option>
-                            <option value="M">1536px</option>
-                            <option value="L">2048px</option>
-                            <option value="X">2560px</option>
+                            <option value="1024">1024px</option>
+                            <option value="1536">1536px</option>
+                            <option value="2048">2048px</option>
+                            <option value="2560">2560px</option>
                         </select>
                         <i class="iconify absolute top-1.5 right-1 pointer-events-none"
                            data-icon="carbon:chevron-down"></i>
@@ -47,7 +47,7 @@
                     <div class="relative">
                         <select class="w-9ch appearance-none bg-transparent border-b border-gray-300"
                                 v-model="textDetector">
-                            <option value="auto">Default</option>
+                            <option value="default">Default</option>
                             <option value="ctd">CTD</option>
                         </select>
                         <i class="iconify absolute top-1.5 right-1 pointer-events-none"
@@ -60,8 +60,8 @@
                         <select class="w-12ch appearance-none bg-transparent border-b border-gray-300"
                                 v-model="renderTextDirection">
                             <option value="auto">Auto</option>
-                            <option value="h">Horizontal</option>
-                            <option value="v">Vertical</option>
+                            <option value="horizontal">Horizontal</option>
+                            <option value="vertical">Vertical</option>
                         </select>
                         <i class="iconify absolute top-1.5 right-1 pointer-events-none"
                            data-icon="carbon:chevron-down"></i>
@@ -199,13 +199,13 @@
         get fileUri() {
             return this.file ? URL.createObjectURL(this.file) : null
         },
-        detectionResolution: 'M',
-        textDetector: 'auto',
+        detectionResolution: '1536',
+        textDetector: 'default',
         renderTextDirection: 'auto',
         translator: 'youdao',
-        validTranslators: ['youdao', 'baidu', 'google', 'deepl', 'papago', 'caiyun', 'offline', 'gpt3.5', 'none'],
+        validTranslators: ['youdao', 'baidu', 'deepl', 'papago', 'caiyun', 'offline', 'gpt3.5', 'none'],
         getTranslatorName(key) {
-            if (key == 'none')
+            if (key === 'none')
                 return "No Text"
             return key ? key[0].toUpperCase() + key.slice(1) : "";
         },
@@ -307,11 +307,22 @@
             const formData = new FormData()
             formData.append('image', this.file)
 
-            /*formData.append('size', this.detectionResolution)
-            formData.append('detector', this.textDetector)
-            formData.append('direction', this.renderTextDirection)
-            formData.append('translator', this.translator)
-            formData.append('target_lang', this.targetLanguage)*/
+            const config = `{
+                "detector": {
+                    "detector": "${this.textDetector}",
+                    "detection_size": ${this.detectionResolution}
+                },
+                "render": {
+                    "direction": "${this.renderTextDirection}"
+                },
+                "translator": {
+                    "translator": "${this.translator}",
+                    "target_lang": "${this.targetLanguage}"
+                }
+            }`;
+
+            formData.append('config', config)
+
 
             const processChunk = (value) => {
                 if (this.error) return;
