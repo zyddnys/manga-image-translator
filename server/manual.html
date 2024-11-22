@@ -72,7 +72,7 @@
             formData.append('image', file);
 
             try {
-                const response = await fetch( generateImage.checked ? '/translate/image/stream' : '/translate/json/stream', {
+                const response = await fetch( generateImage.checked ? '/translate/with-form/image/stream' : '/translate/with-form/json/stream', {
                     method: 'POST',
                     body: formData,
                     /*headers: {
