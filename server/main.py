@@ -60,7 +60,7 @@ async def json(req: Request):
     ctx = await get_ctx(req)
     return to_translation(ctx)
 
-@app.post("/translate/bytes", response_class=StreamingResponse, response_description="custom byte structure following the stream encoding, but with json first and then the image bytes as chunks")
+@app.post("/translate/bytes", response_class=StreamingResponse, response_description="custom byte structure for decoding look at examples in 'examples/response.*'")
 async def bytes(req: Request):
     ctx = await get_ctx(req)
     return StreamingResponse(content=to_translation(ctx).to_bytes())
