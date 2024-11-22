@@ -182,8 +182,6 @@ def prepare(args):
 #todo: cache results
 #todo: cleanup cache
 
-#todo: enable config in html pages
-
 if __name__ == '__main__':
     import uvicorn
     from args import parse_arguments
