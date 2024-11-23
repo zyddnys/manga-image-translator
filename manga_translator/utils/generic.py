@@ -1,5 +1,5 @@
 import os
-from typing import List, Callable, Tuple
+from typing import List, Callable, Tuple, Optional
 import numpy as np
 import cv2
 import functools
@@ -65,7 +65,7 @@ class Context(dict):
 
 # TODO: Add TranslationContext for type linting
 
-def atoi(text):
+def atoi(text: str) -> int | str:
     return int(text) if text.isdigit() else text
 
 def natural_sort(l: List[str]):
@@ -246,7 +246,7 @@ class AvgMeter():
         else:
             return 0
 
-def load_image(img: Image.Image):
+def load_image(img: Image.Image) -> Tuple[np.ndarray, Optional[Image.Image]]:
     if img.mode == 'RGBA':
         # from https://stackoverflow.com/questions/9166400/convert-rgba-png-to-rgb-with-pil
         img.load()  # needed for split()

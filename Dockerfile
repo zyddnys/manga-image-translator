@@ -22,7 +22,7 @@ RUN apt-get remove -y g++ && \
 COPY . /app
 
 # Prepare models
-RUN python -u docker_prepare.py
+RUN python -u docker_prepare.py --continue-on-error
 
 RUN rm -rf /tmp
 

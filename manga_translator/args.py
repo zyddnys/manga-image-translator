@@ -2,8 +2,6 @@ import argparse
 import os
 from urllib.parse import unquote
 
-from torch.optim.optimizer import required
-
 from .detection import DETECTORS
 from .ocr import OCRS
 from .inpainting import INPAINTERS

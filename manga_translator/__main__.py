@@ -3,6 +3,7 @@ import asyncio
 import logging
 from argparse import Namespace
 
+from manga_translator.share import MangaShare
 from .manga_translator import (
     set_main_logger, load_dictionary, apply_dictionary,
 )
@@ -82,6 +83,11 @@ async def dispatch(args: Namespace):
         from manga_translator.mode.api import MangaTranslatorAPI
         translator = MangaTranslatorAPI(args_dict)
         await translator.listen(args_dict)
+    elif args.mode == 'shared':
+        translator = MangaShare(args_dict)
+        await translator.listen(args_dict)
+
+
 
 if __name__ == '__main__':
     args = None
@@ -94,9 +100,7 @@ if __name__ == '__main__':
         if args.mode != 'web':
             logger.debug(args)
 
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(dispatch(args))
+        asyncio.run(dispatch(args))
     except KeyboardInterrupt:
         if not args or args.mode != 'web':
             print()
