@@ -3,7 +3,6 @@ import asyncio
 import logging
 from argparse import Namespace
 
-from manga_translator.share import MangaShare
 from .manga_translator import (
     set_main_logger, load_dictionary, apply_dictionary,
 )
@@ -65,24 +64,15 @@ async def dispatch(args: Namespace):
                 except Exception :
                     pass
 
-    elif args.mode == 'web':
-        from .server.web_main import dispatch
-        await dispatch(args.host, args.port, translation_params=args_dict)
-
-    elif args.mode == 'web_client':
-        from manga_translator.mode.web import MangaTranslatorWeb
-        translator = MangaTranslatorWeb(args_dict)
-        await translator.listen(args_dict)
-
     elif args.mode == 'ws':
         from manga_translator.mode.ws import MangaTranslatorWS
         translator = MangaTranslatorWS(args_dict)
         await translator.listen(args_dict)
 
     elif args.mode == 'shared':
+        from manga_translator.mode.share import MangaShare
         translator = MangaShare(args_dict)
         await translator.listen(args_dict)
-
 
 
 if __name__ == '__main__':

@@ -107,18 +107,6 @@ parser_batch.add_argument('--prep-manual', action='store_true', help='Prepare fo
 parser_batch.add_argument('--save-quality', default=100, type=int, help='Quality of saved JPEG image, range from 0 to 100 with 100 being best')
 parser.add_argument('--config-file', default=None, type=str, help='path to the config file')
 
-# Web mode
-parser_web = subparsers.add_parser('web', help='Run in web service mode')
-parser_web.add_argument('--host', default='127.0.0.1', type=str, help='Host for web service')
-parser_web.add_argument('--port', default=5003, type=int, help='Port for web service')
-parser_web.add_argument('--nonce', default=os.getenv('MT_WEB_NONCE', ''), type=str, help='Nonce for securing internal web server communication')
-
-# Web client mode
-parser_web_client = subparsers.add_parser('web_client', help='Run in web client mode')
-parser_web_client.add_argument('--host', default='127.0.0.1', type=str, help='Host for web client')
-parser_web_client.add_argument('--port', default=5003, type=int, help='Port for web client')
-parser_web_client.add_argument('--nonce', default=os.getenv('MT_WEB_NONCE', ''), type=str, help='Nonce for securing internal web client communication')
-
 # WebSocket mode
 parser_ws = subparsers.add_parser('ws', help='Run in WebSocket mode')
 parser_ws.add_argument('--host', default='127.0.0.1', type=str, help='Host for WebSocket service')
