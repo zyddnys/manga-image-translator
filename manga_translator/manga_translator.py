@@ -78,7 +78,7 @@ class TranslationInterrupt(Exception):
     pass
 
 
-class MangaTranslator():
+class MangaTranslator:
 
     def __init__(self, params: dict = None):
         self._progress_hooks = []
