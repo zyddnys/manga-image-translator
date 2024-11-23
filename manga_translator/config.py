@@ -22,7 +22,10 @@ class TranslatorChain:
         self.target_lang = None
         for g in string.split(';'):
             trans, lang = g.split(':')
-            translator = Translator[trans]
+            if trans == "gpt3.5":
+                translator = Translator["gpt3_5"]
+            else:
+                translator = Translator[trans]
             if translator not in TRANSLATORS:
                 raise ValueError(f'Invalid choice: %s (choose from %s)' % (trans, ', '.join(map(repr, TRANSLATORS))))
             if lang not in VALID_LANGUAGES:
