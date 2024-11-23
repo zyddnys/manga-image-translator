@@ -421,35 +421,32 @@ class MangaTranslator:
                 # Target language detection  
                 if config.translator.target_lang in ['CHS', 'CHT']:  # Chinese
                     has_target_lang = bool(re.search('[\u4e00-\u9fff]', region.text))
-                elif config.translator.target_lang == 'JPN':  # Japanese
-                if ctx.target_lang in ['CHS', 'CHT']:  # Chinese
-                    has_target_lang = bool(re.search('[\u4e00-\u9fff]', region.text))
                     has_target_lang_in_translation = bool(re.search('[\u4e00-\u9fff]', region.translation))
-                elif ctx.target_lang == 'JPN':  # Japanese
+                elif config.translator.target_lang == 'JPN':  # Japanese
                     has_target_lang = bool(re.search('[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff]', region.text))
                 elif config.translator.target_lang == 'KOR':  # Korean
                     has_target_lang_in_translation = bool(re.search('[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff]', region.translation))
-                elif ctx.target_lang == 'KOR':  # Korean
+                elif config.translator.target_lang == 'KOR':  # Korean
                     has_target_lang = bool(re.search('[\uac00-\ud7af\u1100-\u11ff]', region.text))
                 elif config.translator.target_lang == 'ARA':  # Arabic
                     has_target_lang_in_translation = bool(re.search('[\uac00-\ud7af\u1100-\u11ff]', region.translation))
-                elif ctx.target_lang == 'ARA':  # Arabic
+                elif config.translator.target_lang == 'ARA':  # Arabic
                     has_target_lang = bool(re.search('[\u0600-\u06ff]', region.text))
                 elif config.translator.target_lang == 'THA':  # Thai
                     has_target_lang_in_translation = bool(re.search('[\u0600-\u06ff]', region.translation))
-                elif ctx.target_lang == 'THA':  # Thai
+                elif config.translator.target_lang == 'THA':  # Thai
                     has_target_lang = bool(re.search('[\u0e00-\u0e7f]', region.text))
                 elif config.translator.target_lang == 'RUS':  # Russian
                     has_target_lang_in_translation = bool(re.search('[\u0e00-\u0e7f]', region.translation))
-                elif ctx.target_lang == 'RUS':  # Russian
+                elif config.translator.target_lang == 'RUS':  # Russian
                     has_target_lang = bool(re.search('[\u0400-\u04ff]', region.text))
                 elif config.translator.target_lang == 'UKR':  # Ukrainian
                     has_target_lang_in_translation = bool(re.search('[\u0400-\u04ff]', region.translation))
-                elif ctx.target_lang == 'UKR':  # Ukrainian
+                elif config.translator.target_lang == 'UKR':  # Ukrainian
                     has_target_lang = bool(re.search('[\u0400-\u04ff]', region.text))
                 elif config.translator.target_lang == 'IND':  # Indonesian
                     has_target_lang_in_translation = bool(re.search('[\u0400-\u04ff]', region.translation))
-                elif ctx.target_lang == 'IND':  # Indonesian
+                elif config.translator.target_lang == 'IND':  # Indonesian
                     has_target_lang = bool(re.search('[A-Za-z]', region.text))
                     has_target_lang_in_translation = bool(re.search('[A-Za-z]', region.translation))
 
