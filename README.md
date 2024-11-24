@@ -1,3 +1,9 @@
+---
+title: manga-image-translator
+app_file: gradio-multi.py
+sdk: gradio
+sdk_version: 5.6.0
+---
 # Image/Manga Translator
 
 ![Commit activity](https://img.shields.io/github/commit-activity/m/zyddnys/manga-image-translator)
