@@ -40,6 +40,7 @@ share/python-wheels/
 MANIFEST
 .history
 .conda_env_created
+.gradio
 /venv
 
 # Input and Output
