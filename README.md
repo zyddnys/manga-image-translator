@@ -451,7 +451,7 @@ Colorizer: **mc2**
 --save-text-file SAVE_TEXT_FILE              Like --save-text but with a specified file path.
 --filter-text FILTER_TEXT                    Filter regions by their text with a regex. Example
                                              usage: --text-filter ".*badtext.*"
---pre-dict FILe_PATH                         Path to the pre-translation dictionary file. One entry per line,
+--pre-dict FILE_PATH                         Path to the pre-translation dictionary file. One entry per line,
                                              Comments can be added with `#` and `//`.
                                              usage: //Example
                                                     dog cat #Example

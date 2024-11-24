@@ -78,7 +78,7 @@ class TranslationInterrupt(Exception):
     pass
 
 
-class MangaTranslator():
+class MangaTranslator:
 
     def __init__(self, params: dict = None):
         self._progress_hooks = []
@@ -620,28 +620,38 @@ class MangaTranslator():
             diff_target_regions = []    # Target language regions with different translation  
             same_non_target_regions = []  # Non-target language regions with identical translation  
             diff_non_target_regions = []  # Non-target language regions with different translation  
+            has_target_lang_in_translation_regions = []
             
             for region in ctx.text_regions:  
                 text_equal = region.text.lower().strip() == region.translation.lower().strip()  
                 has_target_lang = False  
+                has_target_lang_in_translation = False
 
                 # Target language detection  
                 if ctx.target_lang in ['CHS', 'CHT']:  # Chinese  
-                    has_target_lang = bool(re.search('[\u4e00-\u9fff]', region.text))  
+                    has_target_lang = bool(re.search('[\u4e00-\u9fff]', region.text)) 
+                    has_target_lang_in_translation = bool(re.search('[\u4e00-\u9fff]', region.translation))
                 elif ctx.target_lang == 'JPN':  # Japanese  
                     has_target_lang = bool(re.search('[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff]', region.text))  
+                    has_target_lang_in_translation = bool(re.search('[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff]', region.translation)) 
                 elif ctx.target_lang == 'KOR':  # Korean  
                     has_target_lang = bool(re.search('[\uac00-\ud7af\u1100-\u11ff]', region.text))  
+                    has_target_lang_in_translation = bool(re.search('[\uac00-\ud7af\u1100-\u11ff]', region.translation))  
                 elif ctx.target_lang == 'ARA':  # Arabic  
                     has_target_lang = bool(re.search('[\u0600-\u06ff]', region.text))  
+                    has_target_lang_in_translation = bool(re.search('[\u0600-\u06ff]', region.translation))  
                 elif ctx.target_lang == 'THA':  # Thai  
                     has_target_lang = bool(re.search('[\u0e00-\u0e7f]', region.text))  
+                    has_target_lang_in_translation = bool(re.search('[\u0e00-\u0e7f]', region.translation))  
                 elif ctx.target_lang == 'RUS':  # Russian  
                     has_target_lang = bool(re.search('[\u0400-\u04ff]', region.text))  
+                    has_target_lang_in_translation = bool(re.search('[\u0400-\u04ff]', region.translation))  
                 elif ctx.target_lang == 'UKR':  # Ukrainian  
                     has_target_lang = bool(re.search('[\u0400-\u04ff]', region.text))  
+                    has_target_lang_in_translation = bool(re.search('[\u0400-\u04ff]', region.translation)) 
                 elif ctx.target_lang == 'IND':  # Indonesian  
                     has_target_lang = bool(re.search('[A-Za-z]', region.text))
+                    has_target_lang_in_translation = bool(re.search('[A-Za-z]', region.translation))
                 
                 # Skip numeric translations and filtered text  
                 if region.translation.isnumeric():  
@@ -655,27 +665,43 @@ class MangaTranslator():
                     continue  
                 
                 if has_target_lang:  
-                    if text_equal:  
-                        logger.info(f'Filtered out: {region.translation}')  
-                        logger.info('Reason: Translation identical to original')  
+                    if text_equal:    
                         same_target_regions.append(region)  
                     else:  
                         diff_target_regions.append(region)  
                 else:  
                     if text_equal:  
-                        logger.info(f'Filtered out: {region.translation}')  
-                        logger.info('Reason: Translation identical to original')  
                         same_non_target_regions.append(region)  
                     else:  
                         diff_non_target_regions.append(region)  
-            
+                        
+                if has_target_lang_in_translation:
+                        has_target_lang_in_translation_regions.append(region)
+                    
             # If any different translations exist, retain all target language regions  
             if diff_target_regions or diff_non_target_regions:  
                 new_text_regions.extend(same_target_regions)  
                 new_text_regions.extend(diff_target_regions)  
+
+            # Keep all non_target_lang regions with different translations (if translation contains target language characters)  
+            for region in diff_non_target_regions:  
+                if region in has_target_lang_in_translation_regions:  
+                    new_text_regions.append(region)   
+                else:  
+                    logger.info(f'Filtered out: {region.translation}')  
+                    logger.info('Reason: Translation does not contain target language characters')  
             
-            # Retain all non-target language regions with different translations (It appears empty, it clears all contents.) 
-            new_text_regions.extend(diff_non_target_regions)  
+            # No different translations exist, clear all content.  
+            if not (diff_target_regions or diff_non_target_regions):  
+                for region in same_target_regions:  
+                    logger.info(f'Filtered out: {region.translation}')  
+                    logger.info('Reason: Translation identical to original -the whole page-')  
+            
+            # Clear non_target_lang_regions with identical translations.  
+            for region in same_non_target_regions:  
+                logger.info(f'Filtered out: {region.translation}')  
+                logger.info('Reason: Translation identical to original -one textine-')
+                
 
         else:  
             # Process non-special language scenarios using original logic  
