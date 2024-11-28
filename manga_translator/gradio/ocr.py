@@ -1,4 +1,3 @@
-import manga_translator.textline_merge as textline_merge
 import manga_translator.utils.textblock as utils_textblock
 from dataclasses import dataclass
 from typing import List, Optional
@@ -9,7 +8,7 @@ mit_ocr_default_params = dict(
     # ocr_key="mocr",  # XXX: mocr may have different output format
     # use_mocr_merge=True,
     # device="cpu",
-    verbose=True,
+    verbose=False,  # True would create temp file
 )
 
 
