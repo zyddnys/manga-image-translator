@@ -78,6 +78,8 @@ class HelpFormatter(argparse.HelpFormatter):
 
 
 parser = argparse.ArgumentParser(prog='manga_translator', description='Seamlessly translate mangas into a chosen language', formatter_class=HelpFormatter)
+subparsers = parser.add_subparsers(dest='mode', required=True, help='Mode of operation')
+
 parser.add_argument('-v', '--verbose', action='store_true', help='Print debug info and save intermediate images in result folder')
 parser.add_argument('--attempts', default=0, type=int, help='Retry attempts on encountered error. -1 means infinite times.')
 parser.add_argument('--ignore-errors', action='store_true', help='Skip image on encountered error.')
@@ -89,8 +91,6 @@ parser.add_argument('--font-path', default='', type=file_path, help='Path to fon
 parser.add_argument('--pre-dict', default=None, type=file_path, help='Path to the pre-translation dictionary file')
 parser.add_argument('--post-dict', default=None, type=file_path, help='Path to the post-translation dictionary file')
 parser.add_argument('--kernel-size', default=3, type=int, help='Set the convolution kernel size of the text erasure area to completely clean up text residues')
-
-subparsers = parser.add_subparsers(dest='mode', required=True, help='Mode of operation')
 
 # Batch mode
 parser_batch = subparsers.add_parser('local', help='Run in batch translation mode')
