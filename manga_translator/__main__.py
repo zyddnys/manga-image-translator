@@ -87,7 +87,6 @@ if __name__ == '__main__':
     init_logging()
     try:
         args, unknown = parser.parse_known_args()
-        parser.add_argument_group()
         args = Namespace(**{**vars(args), **vars(reparse(unknown))})
         set_log_level(level=logging.DEBUG if args.verbose else logging.INFO)
         logger = get_logger(args.mode)
