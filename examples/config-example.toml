@@ -1,0 +1,50 @@
+mask_dilation_offset = 0
+
+[render]
+renderer = "default"
+alignment = "auto"
+disable_font_border = false
+font_size_offset = 0
+font_size_minimum = -1
+direction = "auto"
+uppercase = false
+lowercase = false
+gimp_font = "Sans-serif"
+no_hyphenation = false
+
+[upscale]
+upscaler = "esrgan"
+revert_upscaling = false
+
+[translator]
+translator = "sugoi"
+target_lang = "ENG"
+no_text_lang_skip = false
+
+[detector]
+detector = "default"
+detection_size = 1536
+text_threshold = 0.5
+det_rotate = false
+det_auto_rotate = false
+det_invert = false
+det_gamma_correct = false
+box_threshold = 0.7
+unclip_ratio = 2.3
+
+[colorizer]
+colorization_size = 576
+denoise_sigma = 30
+colorizer = "none"
+
+[inpainter]
+inpainter = "none"
+inpainting_size = 2048
+inpainting_precision = "fp32"
+
+[ocr]
+use_mocr_merge = false
+ocr = "48px"
+min_text_length = 0
+ignore_bubble = 0
+
