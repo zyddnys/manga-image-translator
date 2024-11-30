@@ -346,10 +346,7 @@ def put_text_vertical(font_size: int, text: str, h: int, alignment: str, fg: Tup
     canvas_border = np.clip(canvas_border, 0, 255)
     line_box = add_color(canvas_text, fg, canvas_border, bg)
     # rect
-    if bg is None :
-        x, y, w, h = cv2.boundingRect(canvas_text)
-    else :
-        x, y, w, h = cv2.boundingRect(canvas_border)
+    x, y, w, h = cv2.boundingRect(canvas_border)
     return line_box[y:y+h, x:x+w]
 
 def select_hyphenator(lang: str):
