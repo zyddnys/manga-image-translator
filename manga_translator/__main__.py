@@ -3,6 +3,7 @@ import asyncio
 import logging
 from argparse import Namespace
 
+from manga_translator import Config
 from .manga_translator import (
     set_main_logger, load_dictionary, apply_dictionary,
 )
@@ -73,6 +74,11 @@ async def dispatch(args: Namespace):
         from manga_translator.mode.share import MangaShare
         translator = MangaShare(args_dict)
         await translator.listen(args_dict)
+    elif args.mode == 'config-help':
+        import json
+        config = Config.schema()
+        print(json.dumps(config, indent=2))
+
 
 
 if __name__ == '__main__':
