@@ -4,6 +4,7 @@ import logging
 from argparse import Namespace
 
 from manga_translator import Config
+from manga_translator.args import parser, reparse
 from .manga_translator import (
     set_main_logger, load_dictionary, apply_dictionary,
 )
@@ -85,7 +86,9 @@ if __name__ == '__main__':
     args = None
     init_logging()
     try:
-        args = parser.parse_args()
+        args, unknown = parser.parse_known_args()
+        parser.add_argument_group()
+        args = Namespace(**{**vars(args), **vars(reparse(unknown))})
         set_log_level(level=logging.DEBUG if args.verbose else logging.INFO)
         logger = get_logger(args.mode)
         set_main_logger(logger)
