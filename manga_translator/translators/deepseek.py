@@ -1,4 +1,7 @@
 import re
+
+from ..config import TranslatorConfig
+
 try:
     import openai
 except ImportError:
@@ -94,8 +97,8 @@ class DeepseekTranslator(CommonTranslator):
         self.token_count_last = 0
         self.config = None
 
-    def parse_args(self, args):
-        self.config = args.gpt_config
+    def parse_args(self, args: TranslatorConfig):
+        self.config = args.chatgpt_config
 
     def _config_get(self, key: str, default=None):
         if not self.config:

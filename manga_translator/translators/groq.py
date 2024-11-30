@@ -1,8 +1,4 @@
 import groq
-import asyncio
-import time
-import json
-import re
 import os
 from typing import List
 
@@ -65,7 +61,8 @@ class GroqTranslator(CommonTranslator):
 
 
     def parse_args(self, args):
-        self.config = args.groq_config
+        #todo: is nver set
+        self.config = None
 
     def _config_get(self, key: str, default=None):
         if not self.config:

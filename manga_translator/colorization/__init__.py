@@ -2,13 +2,14 @@ from PIL import Image
 
 from .common import CommonColorizer, OfflineColorizer
 from .manga_colorization_v2 import MangaColorizationV2
+from ..config import Colorizer
 
 COLORIZERS = {
-    'mc2': MangaColorizationV2,
+    Colorizer.mc2: MangaColorizationV2,
 }
 colorizer_cache = {}
 
-def get_colorizer(key: str, *args, **kwargs) -> CommonColorizer:
+def get_colorizer(key: Colorizer, *args, **kwargs) -> CommonColorizer:
     if key not in COLORIZERS:
         raise ValueError(f'Could not find colorizer for: "{key}". Choose from the following: %s' % ','.join(COLORIZERS))
     if not colorizer_cache.get(key):
@@ -16,12 +17,12 @@ def get_colorizer(key: str, *args, **kwargs) -> CommonColorizer:
         colorizer_cache[key] = upscaler(*args, **kwargs)
     return colorizer_cache[key]
 
-async def prepare(key: str):
+async def prepare(key: Colorizer):
     upscaler = get_colorizer(key)
     if isinstance(upscaler, OfflineColorizer):
         await upscaler.download()
 
-async def dispatch(key: str, device: str = 'cpu', **kwargs) -> Image.Image:
+async def dispatch(key: Colorizer, device: str = 'cpu', **kwargs) -> Image.Image:
     colorizer = get_colorizer(key)
     if isinstance(colorizer, OfflineColorizer):
         await colorizer.load(device)
