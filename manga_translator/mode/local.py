@@ -35,7 +35,6 @@ class MangaTranslatorLocal(MangaTranslator):
         dest = os.path.abspath(os.path.expanduser(dest)) if dest else ''
         params = params or {}
         config_file_path = params.get("config_file", None)
-        config_content = "{}"
 
         if config_file_path:
             try:
@@ -43,9 +42,23 @@ class MangaTranslatorLocal(MangaTranslator):
                     config_content = file.read()
             except Exception as e:
                 print("Couldnt read file")
-                pass
-        config = Config(**json.loads(config_content))
+                raise e
+            config_extension = os.path.splitext(config_file_path)[1].lower()
 
+            try:
+                if config_extension == ".toml":
+                    import tomllib
+                    config_dict = tomllib.loads(config_content)
+                elif config_extension == ".json":
+                    config_dict = json.loads(config_content)
+                else:
+                    raise ValueError("Unsupported configuration file format")
+            except Exception as e:
+                print("Failed to load configuration file")
+                raise e
+            config = Config(**config_dict)
+        else:
+            config = Config()
         # Handle format
         file_ext = params.get('format')
         if params.get('save_quality', 100) < 100:

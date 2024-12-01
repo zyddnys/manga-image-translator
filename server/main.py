@@ -7,6 +7,9 @@ import subprocess
 import sys
 from argparse import Namespace
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
 from fastapi import FastAPI, Request, HTTPException, Header, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, HTMLResponse
@@ -121,13 +124,15 @@ async def queue_size() -> int:
 
 @app.get("/", response_class=HTMLResponse,tags=["ui"])
 async def index() -> HTMLResponse:
-    html_file = Path("index.html")
+    script_directory = Path(__file__).parent
+    html_file = script_directory / "index.html"
     html_content = html_file.read_text()
     return HTMLResponse(content=html_content)
 
 @app.get("/manual", response_class=HTMLResponse, tags=["ui"])
 async def manual():
-    html_file = Path("manual.html")
+    script_directory = Path(__file__).parent
+    html_file = script_directory / "manual.html"
     html_content = html_file.read_text()
     return HTMLResponse(content=html_content)
 
