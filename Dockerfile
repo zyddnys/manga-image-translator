@@ -1,9 +1,8 @@
 FROM pytorch/pytorch:2.5.1-cuda11.8-cudnn9-runtime
 
-WORKDIR /app
+# not apt update: most effective code in pytorch base image is in /opt/conda
 
-RUN apt-get update
-RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y install tzdata
+WORKDIR /app
 
 # Install pip dependencies
 
