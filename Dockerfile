@@ -8,9 +8,14 @@ WORKDIR /app
 
 COPY requirements.txt /app/requirements.txt
 
-RUN pip install -r /app/requirements.txt
+RUN apt update \
+        && apt upgrade --yes \
+        && apt install g++ ffmpeg libsm6 libxext6 libvulkan-dev \
+        && pip install -r /app/requirements.txt \
+        && apt remove g++ --yes \
+        && apt autoremove --yes \
+        && rm -rf /var/cache/apt
 
-# Copy app
 COPY . /app
 
 # Prepare models
