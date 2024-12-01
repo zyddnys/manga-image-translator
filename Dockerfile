@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:latest
+FROM pytorch/pytorch:2.5.1-cuda11.8-cudnn9-runtime
 
 WORKDIR /app
 
@@ -12,11 +12,6 @@ RUN apt-get install -y git g++ ffmpeg libsm6 libxext6 libvulkan-dev
 COPY requirements.txt /app/requirements.txt
 
 RUN pip install -r /app/requirements.txt
-RUN pip install torchvision --force-reinstall
-RUN pip install "numpy<2.0"
-
-RUN apt-get remove -y g++ && \
-    apt-get autoremove -y
 
 # Copy app
 COPY . /app
