@@ -12,19 +12,15 @@ import networkx as nx
 from shapely.geometry import Polygon
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 from manga_ocr import MangaOcr
 
-from .xpos_relative_position import XPOS
-
 from .common import OfflineOCR
 from .model_48px import OCR
+from ..config import OcrConfig
 from ..textline_merge import split_text_region
 from ..utils import TextBlock, Quadrilateral, quadrilateral_can_merge_region, chunks
 from ..utils.generic import AvgMeter
-from ..utils.bubble import is_ignore
 
 async def merge_bboxes(bboxes: List[Quadrilateral], width: int, height: int) -> Tuple[List[Quadrilateral], int]:
     # step 1: divide into multiple text region candidates
@@ -133,7 +129,7 @@ class ModelMangaOCR(OfflineOCR):
         del self.model
         del self.mocr
     
-    async def _infer(self, image: np.ndarray, textlines: List[Quadrilateral], args: dict, verbose: bool = False, ignore_bubble: int = 0) -> List[TextBlock]:
+    async def _infer(self, image: np.ndarray, textlines: List[Quadrilateral], config: OcrConfig, verbose: bool = False, ignore_bubble: int = 0) -> List[TextBlock]:
         text_height = 48
         max_chunk_size = 16
 
@@ -147,7 +143,7 @@ class ModelMangaOCR(OfflineOCR):
             is_quadrilaterals = True
         
         texts = {}
-        if args.get('use_mocr_merge', False):
+        if config.use_mocr_merge:
             merged_textlines, merged_idx = await merge_bboxes(textlines, image.shape[1], image.shape[0])
             merged_quadrilaterals = list(self._generate_text_direction(merged_textlines))
         else:

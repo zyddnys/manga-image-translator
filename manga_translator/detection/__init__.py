@@ -6,18 +6,18 @@ from .ctd import ComicTextDetector
 from .craft import CRAFTDetector
 from .none import NoneDetector
 from .common import CommonDetector, OfflineDetector
+from ..config import Detector
 
 DETECTORS = {
-    'default': DefaultDetector,
-    'dbconvnext': DBConvNextDetector,
-    'ctd': ComicTextDetector,
-    # craft: Character-Region Awareness For Text detection // https://github.com/clovaai/CRAFT-pytorch
-    'craft': CRAFTDetector,
-    'none': NoneDetector,
+    Detector.default: DefaultDetector,
+    Detector.dbconvnext: DBConvNextDetector,
+    Detector.ctd: ComicTextDetector,
+    Detector.craft: CRAFTDetector,
+    Detector.none: NoneDetector,
 }
 detector_cache = {}
 
-def get_detector(key: str, *args, **kwargs) -> CommonDetector:
+def get_detector(key: Detector, *args, **kwargs) -> CommonDetector:
     if key not in DETECTORS:
         raise ValueError(f'Could not find detector for: "{key}". Choose from the following: %s' % ','.join(DETECTORS))
     if not detector_cache.get(key):
@@ -25,12 +25,12 @@ def get_detector(key: str, *args, **kwargs) -> CommonDetector:
         detector_cache[key] = detector(*args, **kwargs)
     return detector_cache[key]
 
-async def prepare(detector_key: str):
+async def prepare(detector_key: Detector):
     detector = get_detector(detector_key)
     if isinstance(detector, OfflineDetector):
         await detector.download()
 
-async def dispatch(detector_key: str, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float, unclip_ratio: float,
+async def dispatch(detector_key: Detector, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float, unclip_ratio: float,
                    invert: bool, gamma_correct: bool, rotate: bool, auto_rotate: bool = False, device: str = 'cpu', verbose: bool = False):
     detector = get_detector(detector_key)
     if isinstance(detector, OfflineDetector):

@@ -11,7 +11,6 @@ from functools import cached_property
 
 from .generic import (
     BASE_PATH,
-    Context,
     download_url_with_progressbar,
     prompt_yes_no,
     replace_prefix,
@@ -19,6 +18,7 @@ from .generic import (
     get_filename_from_url,
 )
 from .log import get_logger
+from ..config import TranslatorConfig
 
 
 class InfererModule(ABC):
@@ -26,7 +26,7 @@ class InfererModule(ABC):
         self.logger = get_logger(self.__class__.__name__)
         super().__init__()
 
-    def parse_args(self, args: Context):
+    def parse_args(self, args: TranslatorConfig):
         """May be overwritten by super classes to parse commandline arguments"""
         pass
 

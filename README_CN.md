@@ -106,132 +106,19 @@ FIL: Filipino (Tagalog)
 ## 选项
 
 ```text
--h, --help                                   show this help message and exit
--m, --mode {demo,batch,web,web_client,ws,api}
-                                             Run demo in single image demo mode (demo), batch
-                                             translation mode (batch), web service mode (web)
--i, --input INPUT [INPUT ...]                Path to an image file if using demo mode, or path to an
-                                             image folder if using batch mode
--o, --dest DEST                              Path to the destination folder for translated images in
-                                             batch mode
--l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA,CNR,SRP,HRV,THA,IND,FIL}
-                                             Destination language
--v, --verbose                                Print debug info and save intermediate images in result
-                                             folder
--f, --format {png,webp,jpg,xcf,psd,pdf}      Output format of the translation.
---attempts ATTEMPTS                          Retry attempts on encountered error. -1 means infinite
-                                             times.
---ignore-errors                              Skip image on encountered error.
---overwrite                                  Overwrite already translated images in batch mode.
---skip-no-text                               Skip image without text (Will not be saved).
---model-dir MODEL_DIR                        Model directory (by default ./models in project root)
---use-gpu                                   Turn on/off gpu (automatic selection between mps or cuda)
---use-gpu-limited                           Turn on/off gpu (excluding offline translator)
---detector {default,ctd,craft,none}          Text detector used for creating a text mask from an
-                                             image, DO NOT use craft for manga, it's not designed
-                                             for it
---ocr {32px,48px,48px_ctc,mocr}              Optical character recognition (OCR) model to use
---use-mocr-merge                             Use bbox merge when Manga OCR inference.
---inpainter {default,lama_large,lama_mpe,sd,none,original}
-                                             Inpainting model to use
---upscaler {waifu2x,esrgan,4xultrasharp}     Upscaler to use. --upscale-ratio has to be set for it
-                                             to take effect
---upscale-ratio UPSCALE_RATIO                Image upscale ratio applied before detection. Can
-                                             improve text detection.
---colorizer {mc2}                            Colorization model to use.
---translator {google,youdao,baidu,deepl,papago,caiyun,gpt3,gpt3.5,gpt4,deepseek,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,sakura}
-                                             Language translator to use
---translator-chain TRANSLATOR_CHAIN          Output of one translator goes in another. Example:
-                                             --translator-chain "google:JPN;sugoi:ENG".
---selective-translation SELECTIVE_TRANSLATION
-                                             Select a translator based on detected language in
-                                             image. Note the first translation service acts as
-                                             default if the language isn't defined. Example:
-                                             --translator-chain "google:JPN;sugoi:ENG".
---revert-upscaling                           Downscales the previously upscaled image after
-                                             translation back to original size (Use with --upscale-
-                                             ratio).
---detection-size DETECTION_SIZE              Size of image used for detection
---det-rotate                                 Rotate the image for detection. Might improve
-                                             detection.
---det-auto-rotate                            Rotate the image for detection to prefer vertical
-                                             textlines. Might improve detection.
---det-invert                                 Invert the image colors for detection. Might improve
-                                             detection.
---det-gamma-correct                          Applies gamma correction for detection. Might improve
-                                             detection.
---unclip-ratio UNCLIP_RATIO                  How much to extend text skeleton to form bounding box
---box-threshold BOX_THRESHOLD                Threshold for bbox generation
---text-threshold TEXT_THRESHOLD              Threshold for text detection
---min-text-length MIN_TEXT_LENGTH            Minimum text length of a text region
---no-text-lang-skip                          Dont skip text that is seemingly already in the target
-                                             language.
---inpainting-size INPAINTING_SIZE            Size of image used for inpainting (too large will
-                                             result in OOM)
---inpainting-precision {fp32,fp16,bf16}      Inpainting precision for lama, use bf16 while you can.
---colorization-size COLORIZATION_SIZE        Size of image used for colorization. Set to -1 to use
-                                             full image size
---denoise-sigma DENOISE_SIGMA                Used by colorizer and affects color strength, range
-                                             from 0 to 255 (default 30). -1 turns it off.
---mask-dilation-offset MASK_DILATION_OFFSET  By how much to extend the text mask to remove left-over
-                                             text pixels of the original image.
---font-size FONT_SIZE                        Use fixed font size for rendering
---font-size-offset FONT_SIZE_OFFSET          Offset font size by a given amount, positive number
-                                             increase font size and vice versa
---font-size-minimum FONT_SIZE_MINIMUM        Minimum output font size. Default is
-                                             image_sides_sum/200
---font-color FONT_COLOR                      Overwrite the text fg/bg color detected by the OCR
-                                             model. Use hex string without the "#" such as FFFFFF
-                                             for a white foreground or FFFFFF:000000 to also have a
-                                             black background around the text.
---line-spacing LINE_SPACING                  Line spacing is font_size * this value. Default is 0.01
-                                             for horizontal text and 0.2 for vertical.
---force-horizontal                           Force text to be rendered horizontally
---force-vertical                             Force text to be rendered vertically
---align-left                                 Align rendered text left
---align-center                               Align rendered text centered
---align-right                                Align rendered text right
---uppercase                                  Change text to uppercase
---lowercase                                  Change text to lowercase
---no-hyphenation                             If renderer should be splitting up words using a hyphen
-                                             character (-)
---manga2eng                                  Render english text translated from manga with some
-                                             additional typesetting. Ignores some other argument
-                                             options
---gpt-config GPT_CONFIG                      Path to GPT config file, more info in README
---use-mtpe                                   Turn on/off machine translation post editing (MTPE) on
-                                             the command line (works only on linux right now)
---save-text                                  Save extracted text and translations into a text file.
---save-text-file SAVE_TEXT_FILE              Like --save-text but with a specified file path.
---filter-text FILTER_TEXT                    Filter regions by their text with a regex. Example
-                                             usage: --text-filter ".*badtext.*"
---pre-dict FILE_PATH                         Path to the pre-translation dictionary file. One entry per line,
-                                             Comments can be added with `#` and `//`.
-                                             usage: //Example
-                                                    dog cat #Example
-                                                    abc def
-                                                    abc
---post-dict FILE_PATH                        Path to the post-translation dictionary file. Same as above.
---skip-lang                                  Skip translation if source image is one of the provide languages, 
-                                             use comma to separate multiple languages. Example: JPN,ENG
---prep-manual                                Prepare for manual typesetting by outputting blank,
-                                             inpainted images, plus copies of the original for
-                                             reference
---font-path FONT_PATH                        Path to font file
---gimp-font GIMP_FONT                        Font family to use for gimp rendering.
---host HOST                                  Used by web module to decide which host to attach to
---port PORT                                  Used by web module to decide which port to attach to
---nonce NONCE                                Used by web module as secret for securing internal web
-                                             server communication
---ws-url WS_URL                              Server URL for WebSocket mode
---save-quality SAVE_QUALITY                  Quality of saved JPEG image, range from 0 to 100 with
-                                             100 being best
---ignore-bubble IGNORE_BUBBLE                The threshold for ignoring text in non bubble areas,
-                                             with valid values ranging from 1 to 50, does not ignore
-                                             others. Recommendation 5 to 10. If it is too low,
-                                             normal bubble areas may be ignored, and if it is too
-                                             large, non bubble areas may be considered normal
-                                             bubbles
+-h, --help                     show this help message and exit
+-v, --verbose                  Print debug info and save intermediate images in result folder
+--attempts ATTEMPTS            Retry attempts on encountered error. -1 means infinite times.
+--ignore-errors                Skip image on encountered error.
+--model-dir MODEL_DIR          Model directory (by default ./models in project root)
+--use-gpu                      Turn on/off gpu (auto switch between mps and cuda)
+--use-gpu-limited              Turn on/off gpu (excluding offline translator)
+--font-path FONT_PATH          Path to font file
+--pre-dict PRE_DICT            Path to the pre-translation dictionary file
+--post-dict POST_DICT          Path to the post-translation dictionary file
+--kernel-size KERNEL_SIZE      Set the convolution kernel size of the text erasure area to
+                               completely clean up text residues
+--config-file CONFIG_FILE      path to the config file
 ```
 
 <!-- Auto generated end -->

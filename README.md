@@ -39,6 +39,7 @@ Some manga/images will never be translated, therefore this project is born.
     - [Options](#options)
     - [Language Code Reference](#language-code-reference)
     - [Translators Reference](#translators-reference)
+    - [Config Documentation](#config-file)
     - [GPT Config Reference](#gpt-config-reference)
     - [Using Gimp for rendering](#using-gimp-for-rendering)
     - [Api Documentation](#api-documentation)
@@ -270,43 +271,22 @@ make run-web-server
 
 ## Usage
 
-### Batch mode (default)
+### Local mode
 
 ```bash
-# use `--use-gpu` for speedup if you have a compatible NVIDIA GPU.
-# use `--target-lang <language_code>` to specify a target language.
-# use `--inpainter=none` to disable inpainting.
-# use `--translator=none` if you only want to use inpainting (blank bubbles)
 # replace <path> with the path to the image folder or file.
-$ python -m manga_translator -v --translator=google -l ENG -i <path>
+$ python -m manga_translator local -v -i <path>
 # results can be found under `<path_to_image_folder>-translated`.
-```
-
-### Demo mode
-
-```bash
-# saves singular image into /result folder for demonstration purposes
-# use `--mode demo` to enable demo translation.
-# replace <path> with the path to the image file.
-$ python -m manga_translator --mode demo -v --translator=google -l ENG -i <path>
-# result can be found in `result/`.
 ```
 
 ### Web Mode
 
 ```bash
 # use `--mode web` to start a web server.
-$ python -m manga_translator -v --mode web --use-gpu
+$ cd server && python main.py --use-gpu
 # the demo will be serving on http://127.0.0.1:5003
 ```
 
-### Api Mode
-
-```bash
-# use `--mode web` to start a web server.
-$ python -m manga_translator -v --mode api --use-gpu
-# the demo will be serving on http://127.0.0.1:5003
-```
 ## Related Projects
 GUI implementation: [BallonsTranslator](https://github.com/dmMaze/BallonsTranslator)
 
@@ -318,7 +298,7 @@ Detector:
 - JPN: ??
 - CHS: ??
 - KOR: ??
-- Using `--detector ctd` can increase the amount of text lines detected
+- Using `{"detector":{"detector": "ctd"}}` can increase the amount of text lines detected
 
 
 OCR:
@@ -352,139 +332,26 @@ Colorizer: **mc2**
 ### Options
 
 ```text
--h, --help                                   show this help message and exit
--m, --mode {demo,batch,web,web_client,ws,api}
-                                             Run demo in single image demo mode (demo), batch
-                                             translation mode (batch), web service mode (web)
--i, --input INPUT [INPUT ...]                Path to an image file if using demo mode, or path to an
-                                             image folder if using batch mode
--o, --dest DEST                              Path to the destination folder for translated images in
-                                             batch mode
--l, --target-lang {CHS,CHT,CSY,NLD,ENG,FRA,DEU,HUN,ITA,JPN,KOR,PLK,PTB,ROM,RUS,ESP,TRK,UKR,VIN,ARA,CNR,SRP,HRV,THA,IND,FIL}
-                                             Destination language
--v, --verbose                                Print debug info and save intermediate images in result
-                                             folder
--f, --format {png,webp,jpg,xcf,psd,pdf}      Output format of the translation.
---attempts ATTEMPTS                          Retry attempts on encountered error. -1 means infinite
-                                             times.
---ignore-errors                              Skip image on encountered error.
---overwrite                                  Overwrite already translated images in batch mode.
---skip-no-text                               Skip image without text (Will not be saved).
---model-dir MODEL_DIR                        Model directory (by default ./models in project root)
---use-gpu                                   Turn on/off gpu
---use-gpu-limited                           Turn on/off gpu (excluding offline translator)
---detector {default,ctd,craft,none}          Text detector used for creating a text mask from an
-                                             image, DO NOT use craft for manga, it's not designed
-                                             for it
---ocr {32px,48px,48px_ctc,mocr}              Optical character recognition (OCR) model to use
---use-mocr-merge                             Use bbox merge when Manga OCR inference.
---inpainter {default,lama_large,lama_mpe,sd,none,original}
-                                             Inpainting model to use
---upscaler {waifu2x,esrgan,4xultrasharp}     Upscaler to use. --upscale-ratio has to be set for it
-                                             to take effect
---upscale-ratio UPSCALE_RATIO                Image upscale ratio applied before detection. Can
-                                             improve text detection.
---colorizer {mc2}                            Colorization model to use.
---translator {google,youdao,baidu,deepl,papago,caiyun,gpt3,gpt3.5,gpt4,none,original,offline,nllb,nllb_big,sugoi,jparacrawl,jparacrawl_big,m2m100,m2m100_big,sakura}
-                                             Language translator to use
---translator-chain TRANSLATOR_CHAIN          Output of one translator goes in another. Example:
-                                             --translator-chain "google:JPN;sugoi:ENG".
---selective-translation SELECTIVE_TRANSLATION
-                                             Select a translator based on detected language in
-                                             image. Note the first translation service acts as
-                                             default if the language isn't defined. Example:
-                                             --translator-chain "google:JPN;sugoi:ENG".
---revert-upscaling                           Downscales the previously upscaled image after
-                                             translation back to original size (Use with --upscale-
-                                             ratio).
---detection-size DETECTION_SIZE              Size of image used for detection
---det-rotate                                 Rotate the image for detection. Might improve
-                                             detection.
---det-auto-rotate                            Rotate the image for detection to prefer vertical
-                                             textlines. Might improve detection.
---det-invert                                 Invert the image colors for detection. Might improve
-                                             detection.
---det-gamma-correct                          Applies gamma correction for detection. Might improve
-                                             detection.
---unclip-ratio UNCLIP_RATIO                  How much to extend text skeleton to form bounding box
---box-threshold BOX_THRESHOLD                Threshold for bbox generation
---text-threshold TEXT_THRESHOLD              Threshold for text detection
---min-text-length MIN_TEXT_LENGTH            Minimum text length of a text region
---no-text-lang-skip                          Dont skip text that is seemingly already in the target
-                                             language.
---inpainting-size INPAINTING_SIZE            Size of image used for inpainting (too large will
-                                             result in OOM)
---inpainting-precision {fp32,fp16,bf16}      Inpainting precision for lama, use bf16 while you can.
---colorization-size COLORIZATION_SIZE        Size of image used for colorization. Set to -1 to use
-                                             full image size
---denoise-sigma DENOISE_SIGMA                Used by colorizer and affects color strength, range
-                                             from 0 to 255 (default 30). -1 turns it off.
---mask-dilation-offset MASK_DILATION_OFFSET  By how much to extend the text mask to remove left-over
-                                             text pixels of the original image.
---font-size FONT_SIZE                        Use fixed font size for rendering
---font-size-offset FONT_SIZE_OFFSET          Offset font size by a given amount, positive number
-                                             increase font size and vice versa
---font-size-minimum FONT_SIZE_MINIMUM        Minimum output font size. Default is
-                                             image_sides_sum/200
---font-color FONT_COLOR                      Overwrite the text fg/bg color detected by the OCR
-                                             model. Use hex string without the "#" such as FFFFFF
-                                             for a white foreground or FFFFFF:000000 to also have a
-                                             black background around the text.
---line-spacing LINE_SPACING                  Line spacing is font_size * this value. Default is 0.01
-                                             for horizontal text and 0.2 for vertical.
---force-horizontal                           Force text to be rendered horizontally
---force-vertical                             Force text to be rendered vertically
---align-left                                 Align rendered text left
---align-center                               Align rendered text centered
---align-right                                Align rendered text right
---uppercase                                  Change text to uppercase
---lowercase                                  Change text to lowercase
---no-hyphenation                             If renderer should be splitting up words using a hyphen
-                                             character (-)
---manga2eng                                  Render english text translated from manga with some
-                                             additional typesetting. Ignores some other argument
-                                             options
---gpt-config GPT_CONFIG                      Path to GPT config file, more info in README
---use-mtpe                                   Turn on/off machine translation post editing (MTPE) on
-                                             the command line (works only on linux right now)
---save-text                                  Save extracted text and translations into a text file.
---save-text-file SAVE_TEXT_FILE              Like --save-text but with a specified file path.
---filter-text FILTER_TEXT                    Filter regions by their text with a regex. Example
-                                             usage: --text-filter ".*badtext.*"
---pre-dict FILE_PATH                         Path to the pre-translation dictionary file. One entry per line,
-                                             Comments can be added with `#` and `//`.
-                                             usage: //Example
-                                                    dog cat #Example
-                                                    abc def
-                                                    abc
---post-dict FILE_PATH                        Path to the post-translation dictionary file. Same as above.
---skip-lang                                  Skip translation if source image is one of the provide languages, 
-                                             use comma to separate multiple languages. Example: JPN,ENG
---prep-manual                                Prepare for manual typesetting by outputting blank,
-                                             inpainted images, plus copies of the original for
-                                             reference
---font-path FONT_PATH                        Path to font file
---gimp-font GIMP_FONT                        Font family to use for gimp rendering.
---host HOST                                  Used by web module to decide which host to attach to
---port PORT                                  Used by web module to decide which port to attach to
---nonce NONCE                                Used by web module as secret for securing internal web
-                                             server communication
---ws-url WS_URL                              Server URL for WebSocket mode
---save-quality SAVE_QUALITY                  Quality of saved JPEG image, range from 0 to 100 with
-                                             100 being best
---ignore-bubble IGNORE_BUBBLE                The threshold for ignoring text in non bubble areas,
-                                             with valid values ranging from 1 to 50, does not ignore
-                                             others. Recommendation 5 to 10. If it is too low,
-                                             normal bubble areas may be ignored, and if it is too
-                                             large, non bubble areas may be considered normal
-                                             bubbles
+-h, --help                     show this help message and exit
+-v, --verbose                  Print debug info and save intermediate images in result folder
+--attempts ATTEMPTS            Retry attempts on encountered error. -1 means infinite times.
+--ignore-errors                Skip image on encountered error.
+--model-dir MODEL_DIR          Model directory (by default ./models in project root)
+--use-gpu                      Turn on/off gpu (auto switch between mps and cuda)
+--use-gpu-limited              Turn on/off gpu (excluding offline translator)
+--font-path FONT_PATH          Path to font file
+--pre-dict PRE_DICT            Path to the pre-translation dictionary file
+--post-dict POST_DICT          Path to the post-translation dictionary file
+--kernel-size KERNEL_SIZE      Set the convolution kernel size of the text erasure area to
+                               completely clean up text residues
+--config-file CONFIG_FILE      path to the config file
 ```
 
 <!-- Auto generated end -->
 
 ### Language Code Reference
 
-Used by the `--target-lang` or `-l` argument.
+Used by the `translator/language` in the config
 
 ```yaml
 CHS: Chinese (Simplified)
@@ -546,7 +413,535 @@ DEEPL_AUTH_KEY=xxxxxxxx...
 - Offline: Whether the translator can be used offline.
 
 - Sugoi is created by mingshiba, please support him in https://www.patreon.com/mingshiba
+### Config file
+run `python -m manga_translator config-help >> config-info.json` 
 
+an example can be found in example/config-example.json
+```json
+{
+  "$defs": {
+    "Alignment": {
+      "enum": [
+        "auto",
+        "left",
+        "center",
+        "right"
+      ],
+      "title": "Alignment",
+      "type": "string"
+    },
+    "Colorizer": {
+      "enum": [
+        "none",
+        "mc2"
+      ],
+      "title": "Colorizer",
+      "type": "string"
+    },
+    "ColorizerConfig": {
+      "properties": {
+        "colorization_size": {
+          "default": 576,
+          "title": "Colorization Size",
+          "type": "integer"
+        },
+        "denoise_sigma": {
+          "default": 30,
+          "title": "Denoise Sigma",
+          "type": "integer"
+        },
+        "colorizer": {
+          "$ref": "#/$defs/Colorizer",
+          "default": "none"
+        }
+      },
+      "title": "ColorizerConfig",
+      "type": "object"
+    },
+    "Detector": {
+      "enum": [
+        "default",
+        "dbconvnext",
+        "ctd",
+        "craft",
+        "none"
+      ],
+      "title": "Detector",
+      "type": "string"
+    },
+    "DetectorConfig": {
+      "properties": {
+        "detector": {
+          "$ref": "#/$defs/Detector",
+          "default": "default"
+        },
+        "detection_size": {
+          "default": 1536,
+          "title": "Detection Size",
+          "type": "integer"
+        },
+        "text_threshold": {
+          "default": 0.5,
+          "title": "Text Threshold",
+          "type": "number"
+        },
+        "det_rotate": {
+          "default": false,
+          "title": "Det Rotate",
+          "type": "boolean"
+        },
+        "det_auto_rotate": {
+          "default": false,
+          "title": "Det Auto Rotate",
+          "type": "boolean"
+        },
+        "det_invert": {
+          "default": false,
+          "title": "Det Invert",
+          "type": "boolean"
+        },
+        "det_gamma_correct": {
+          "default": false,
+          "title": "Det Gamma Correct",
+          "type": "boolean"
+        },
+        "box_threshold": {
+          "default": 0.7,
+          "title": "Box Threshold",
+          "type": "number"
+        },
+        "unclip_ratio": {
+          "default": 2.3,
+          "title": "Unclip Ratio",
+          "type": "number"
+        }
+      },
+      "title": "DetectorConfig",
+      "type": "object"
+    },
+    "Direction": {
+      "enum": [
+        "auto",
+        "horizontal",
+        "vertical"
+      ],
+      "title": "Direction",
+      "type": "string"
+    },
+    "InpaintPrecision": {
+      "enum": [
+        "fp32",
+        "fp16",
+        "bf16"
+      ],
+      "title": "InpaintPrecision",
+      "type": "string"
+    },
+    "Inpainter": {
+      "enum": [
+        "default",
+        "lama_large",
+        "lama_mpe",
+        "sd",
+        "none",
+        "original"
+      ],
+      "title": "Inpainter",
+      "type": "string"
+    },
+    "InpainterConfig": {
+      "properties": {
+        "inpainter": {
+          "$ref": "#/$defs/Inpainter",
+          "default": "none"
+        },
+        "inpainting_size": {
+          "default": 2048,
+          "title": "Inpainting Size",
+          "type": "integer"
+        },
+        "inpainting_precision": {
+          "$ref": "#/$defs/InpaintPrecision",
+          "default": "fp32"
+        }
+      },
+      "title": "InpainterConfig",
+      "type": "object"
+    },
+    "Ocr": {
+      "enum": [
+        "32px",
+        "48px",
+        "48px_ctc",
+        "mocr"
+      ],
+      "title": "Ocr",
+      "type": "string"
+    },
+    "OcrConfig": {
+      "properties": {
+        "use_mocr_merge": {
+          "default": false,
+          "title": "Use Mocr Merge",
+          "type": "boolean"
+        },
+        "ocr": {
+          "$ref": "#/$defs/Ocr",
+          "default": "48px"
+        },
+        "min_text_length": {
+          "default": 0,
+          "title": "Min Text Length",
+          "type": "integer"
+        },
+        "ignore_bubble": {
+          "default": 0,
+          "title": "Ignore Bubble",
+          "type": "integer"
+        }
+      },
+      "title": "OcrConfig",
+      "type": "object"
+    },
+    "RenderConfig": {
+      "properties": {
+        "renderer": {
+          "$ref": "#/$defs/Renderer",
+          "default": "default"
+        },
+        "alignment": {
+          "$ref": "#/$defs/Alignment",
+          "default": "auto"
+        },
+        "disable_font_border": {
+          "default": false,
+          "title": "Disable Font Border",
+          "type": "boolean"
+        },
+        "font_size_offset": {
+          "default": 0,
+          "title": "Font Size Offset",
+          "type": "integer"
+        },
+        "font_size_minimum": {
+          "default": -1,
+          "title": "Font Size Minimum",
+          "type": "integer"
+        },
+        "direction": {
+          "$ref": "#/$defs/Direction",
+          "default": "auto"
+        },
+        "uppercase": {
+          "default": false,
+          "title": "Uppercase",
+          "type": "boolean"
+        },
+        "lowercase": {
+          "default": false,
+          "title": "Lowercase",
+          "type": "boolean"
+        },
+        "gimp_font": {
+          "default": "Sans-serif",
+          "title": "Gimp Font",
+          "type": "string"
+        },
+        "no_hyphenation": {
+          "default": false,
+          "title": "No Hyphenation",
+          "type": "boolean"
+        },
+        "font_color": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Font Color"
+        },
+        "line_spacing": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line Spacing"
+        },
+        "font_size": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Font Size"
+        }
+      },
+      "title": "RenderConfig",
+      "type": "object"
+    },
+    "Renderer": {
+      "enum": [
+        "default",
+        "manga2eng",
+        "none"
+      ],
+      "title": "Renderer",
+      "type": "string"
+    },
+    "Translator": {
+      "enum": [
+        "youdao",
+        "baidu",
+        "deepl",
+        "papago",
+        "caiyun",
+        "gpt3",
+        "gpt3.5",
+        "gpt4",
+        "none",
+        "original",
+        "sakura",
+        "deepseek",
+        "groq",
+        "offline",
+        "nllb",
+        "nllb_big",
+        "sugoi",
+        "jparacrawl",
+        "jparacrawl_big",
+        "m2m100",
+        "m2m100_big",
+        "mbart50",
+        "qwen2",
+        "qwen2_big"
+      ],
+      "title": "Translator",
+      "type": "string"
+    },
+    "TranslatorConfig": {
+      "properties": {
+        "translator": {
+          "$ref": "#/$defs/Translator",
+          "default": "sugoi"
+        },
+        "target_lang": {
+          "default": "ENG",
+          "title": "Target Lang",
+          "type": "string"
+        },
+        "no_text_lang_skip": {
+          "default": false,
+          "title": "No Text Lang Skip",
+          "type": "boolean"
+        },
+        "skip_lang": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Skip Lang"
+        },
+        "gpt_config": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gpt Config"
+        },
+        "translator_chain": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Translator Chain"
+        },
+        "selective_translation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Selective Translation"
+        }
+      },
+      "title": "TranslatorConfig",
+      "type": "object"
+    },
+    "UpscaleConfig": {
+      "properties": {
+        "upscaler": {
+          "$ref": "#/$defs/Upscaler",
+          "default": "esrgan"
+        },
+        "revert_upscaling": {
+          "default": false,
+          "title": "Revert Upscaling",
+          "type": "boolean"
+        },
+        "upscale_ratio": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Upscale Ratio"
+        }
+      },
+      "title": "UpscaleConfig",
+      "type": "object"
+    },
+    "Upscaler": {
+      "enum": [
+        "waifu2x",
+        "esrgan",
+        "4xultrasharp"
+      ],
+      "title": "Upscaler",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "filter_text": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Filter Text"
+    },
+    "render": {
+      "$ref": "#/$defs/RenderConfig",
+      "default": {
+        "renderer": "default",
+        "alignment": "auto",
+        "disable_font_border": false,
+        "font_size_offset": 0,
+        "font_size_minimum": -1,
+        "direction": "auto",
+        "uppercase": false,
+        "lowercase": false,
+        "gimp_font": "Sans-serif",
+        "no_hyphenation": false,
+        "font_color": null,
+        "line_spacing": null,
+        "font_size": null
+      }
+    },
+    "upscale": {
+      "$ref": "#/$defs/UpscaleConfig",
+      "default": {
+        "upscaler": "esrgan",
+        "revert_upscaling": false,
+        "upscale_ratio": null
+      }
+    },
+    "translator": {
+      "$ref": "#/$defs/TranslatorConfig",
+      "default": {
+        "translator": "sugoi",
+        "target_lang": "ENG",
+        "no_text_lang_skip": false,
+        "skip_lang": null,
+        "gpt_config": null,
+        "translator_chain": null,
+        "selective_translation": null
+      }
+    },
+    "detector": {
+      "$ref": "#/$defs/DetectorConfig",
+      "default": {
+        "detector": "default",
+        "detection_size": 1536,
+        "text_threshold": 0.5,
+        "det_rotate": false,
+        "det_auto_rotate": false,
+        "det_invert": false,
+        "det_gamma_correct": false,
+        "box_threshold": 0.7,
+        "unclip_ratio": 2.3
+      }
+    },
+    "colorizer": {
+      "$ref": "#/$defs/ColorizerConfig",
+      "default": {
+        "colorization_size": 576,
+        "denoise_sigma": 30,
+        "colorizer": "none"
+      }
+    },
+    "inpainter": {
+      "$ref": "#/$defs/InpainterConfig",
+      "default": {
+        "inpainter": "none",
+        "inpainting_size": 2048,
+        "inpainting_precision": "fp32"
+      }
+    },
+    "ocr": {
+      "$ref": "#/$defs/OcrConfig",
+      "default": {
+        "use_mocr_merge": false,
+        "ocr": "48px",
+        "min_text_length": 0,
+        "ignore_bubble": 0
+      }
+    },
+    "kernel_size": {
+      "default": 3,
+      "title": "Kernel Size",
+      "type": "integer"
+    },
+    "mask_dilation_offset": {
+      "default": 0,
+      "title": "Mask Dilation Offset",
+      "type": "integer"
+    }
+  },
+  "title": "Config",
+  "type": "object"
+}
+
+```
 ### GPT Config Reference
 
 Used by the `--gpt-config` argument.
@@ -622,125 +1017,7 @@ Limitations:
 
 ### Api Documentation
 
-<details closed>
-<summary>API V2</summary>
-<br>
-
-```bash
-# use `--mode api` to start a web server.
-$ python -m manga_translator -v --mode api --use-gpu
-# the api will be serving on http://127.0.0.1:5003
-```
-
-Api is accepting json(post) and multipart.
-<br>
-Api endpoints are `/colorize_translate`, `/inpaint_translate`, `/translate`, `/get_text`.
-<br>
-Valid arguments for the api are:
-
-```
-// These are taken from args.py. For more info see README.md
-detector: String
-ocr: String
-inpainter: String
-upscaler: String
-translator: String 
-target_language: String
-upscale_ratio: Integer
-translator_chain: String
-selective_translation: String
-attempts: Integer
-detection_size: Integer // 1024 => 'S', 1536 => 'M', 2048 => 'L', 2560 => 'X'
-text_threshold: Float
-box_threshold: Float
-unclip_ratio: Float
-inpainting_size: Integer
-det_rotate: Bool
-det_auto_rotate: Bool
-det_invert: Bool
-det_gamma_correct: Bool
-min_text_length: Integer
-colorization_size: Integer
-denoise_sigma: Integer
-mask_dilation_offset: Integer
-ignore_bubble: Integer
-gpt_config: String
-filter_text: String
-overlay_type: String
-
-// These are api specific args
-direction: String // {'auto', 'h', 'v'}
-base64Images: String //Image in base64 format
-image: Multipart // image upload from multipart
-url: String // an url string
-```
-
-</details>
-
-Manual translation replaces machine translation with human translators.
-Basic manual translation demo can be found at <http://127.0.0.1:5003/manual> when using web mode.
-<details closed>
-<summary>API</summary>
-<br>
-
-Two modes of translation service are provided by the demo: synchronous mode and asynchronous mode.\
-In synchronous mode your HTTP POST request will finish once the translation task is finished.\
-In asynchronous mode your HTTP POST request will respond with a `task_id` immediately, you can use this `task_id` to
-poll for translation task state.
-
-#### Synchronous mode
-
-1. POST a form request with form data `file:<content-of-image>` to <http://127.0.0.1:5003/run>
-2. Wait for response
-3. Use the resultant `task_id` to find translation result in `result/` directory, e.g. using Nginx to expose `result/`
-
-#### Asynchronous mode
-
-1. POST a form request with form data `file:<content-of-image>` to <http://127.0.0.1:5003/submit>
-2. Acquire translation `task_id`
-3. Poll for translation task state by posting JSON `{"taskid": <task-id>}` to <http://127.0.0.1:5003/task-state>
-4. Translation is finished when the resultant state is either `finished`, `error` or `error-lang`
-5. Find translation result in `result/` directory, e.g. using Nginx to expose `result/`
-
-#### Manual translation
-
-POST a form request with form data `file:<content-of-image>` to <http://127.0.0.1:5003/manual-translate>
-and wait for response.
-
-You will obtain a JSON response like this:
-
-```json
-{
-  "task_id": "12c779c9431f954971cae720eb104499",
-  "status": "pending",
-  "trans_result": [
-    {
-      "s": "☆上司来ちゃった……",
-      "t": ""
-    }
-  ]
-}
-```
-
-Fill in translated texts:
-
-```json
-{
-  "task_id": "12c779c9431f954971cae720eb104499",
-  "status": "pending",
-  "trans_result": [
-    {
-      "s": "☆上司来ちゃった……",
-      "t": "☆Boss is here..."
-    }
-  ]
-}
-```
-
-Post translated JSON to <http://127.0.0.1:5003/post-manual-result> and wait for response.\
-Then you can find the translation result in `result/` directory, e.g. using Nginx to expose `result/`.
-
-</details>
+Read openapi docs: `127.0.0.1:5003/docs`
 
 ## Next steps
 
