@@ -16,6 +16,7 @@ from ..utils import natural_sort, replace_prefix, get_color_name, rgb2hex
 class MangaTranslatorLocal(MangaTranslator):
     def __init__(self, params: dict = None):
         super().__init__(params)
+        self.textlines = []
         self.attempts = params.get('attempts', None)
         self.skip_no_text = params.get('skip_no_text', False)
         self.text_output_file = params.get('text_output_file', None)
