@@ -279,7 +279,7 @@ class MangaTranslator:
 
         if self.verbose:
             inpaint_input_img = await dispatch_inpainting(Inpainter.none, ctx.img_rgb, ctx.mask, config.inpainter,config.inpainter.inpainting_size,
-                                                          self.using_gpu, self.verbose)
+                                                          self.device, self.verbose)
             cv2.imwrite(self._result_path('inpaint_input.png'), cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
             cv2.imwrite(self._result_path('mask_final.png'), ctx.mask)
 
@@ -534,7 +534,7 @@ class MangaTranslator:
                                               config.mask_dilation_offset, config.ocr.ignore_bubble, self.verbose,self.kernel_size)
 
     async def _run_inpainting(self, config: Config, ctx: Context):
-        return await dispatch_inpainting(config.inpainter.inpainter, ctx.img_rgb, ctx.mask, self.device,
+        return await dispatch_inpainting(config.inpainter.inpainter, ctx.img_rgb, ctx.mask, config.inpainter, config.inpainter.inpainting_size, self.device,
                                          self.verbose)
 
     async def _run_text_rendering(self, config: Config, ctx: Context):
