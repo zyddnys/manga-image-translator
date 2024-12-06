@@ -8,9 +8,14 @@ WORKDIR /app
 
 COPY requirements.txt /app/requirements.txt
 
-RUN pip install -r /app/requirements.txt
+RUN export TZ=Etc/UTC ; \
+        apt update --yes \
+        && apt install g++ ffmpeg libsm6 libxext6 --yes \
+        && pip install -r /app/requirements.txt \
+        && apt remove g++ --yes \
+        && apt autoremove --yes \
+        && rm -rf /var/cache/apt
 
-# Copy app
 COPY . /app
 
 # Prepare models
@@ -19,7 +24,7 @@ RUN python -u docker_prepare.py --continue-on-error
 RUN rm -rf /tmp
 
 # Add /app to Python module path
-ENV PYTHONPATH="${PYTHONPATH}:/app"
+ENV PYTHONPATH="/app"
 
 WORKDIR /app
 
