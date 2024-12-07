@@ -1,10 +1,8 @@
 import asyncio
-from typing import Sequence
 import uuid
 import logging
 from pathlib import Path
 from PIL import Image
-from regex import F
 from .detection import (
     mit_detect_text_default_params,
 )
@@ -17,9 +15,11 @@ import manga_translator.utils.generic as utils_generic
 import manga_translator.detection as mit_detection
 import manga_translator.ocr as mit_ocr
 from .model import FileProcessResult, TextBlock
-from threading import RLock
+from .translate import translate_text
+from threading import Lock
+import itertools
 
-load_model_mutex = RLock()
+load_model_mutex = Lock()
 
 _storage_dir = Path(__file__).parent.parent.parent / "storage"
 
@@ -31,10 +31,12 @@ storage_dir = _storage_dir.resolve()
 logger.info("temp storage dir: %s", storage_dir)
 
 
-def log_file(basename: str | Path, result: list[textline_merge.TextBlock]):
-    logger.info("file: %s", basename)
-    for i, b in enumerate(result):
-        logger.info("  block %d: %s", i, b.text)
+def log_file(f: FileProcessResult):
+    logger.info("file: %s", f.local_path.name)
+    for i, (b, translated) in enumerate(
+        itertools(itertools.zip_longest(f.text_blocks, f.translated or []))
+    ):
+        logger.info("  block %d: %s => %s", i, b.text, translated)
 
 
 def copy_files(gradio_temp_files: list[str]) -> list[Path]:
@@ -57,8 +59,10 @@ async def process_file(
     detector_key: str,
     ocr_key: str,
     device: str,
+    translator_key: str | None = None,
+    target_language: str | None = None,
 ) -> FileProcessResult:
-    pil_img = Image.open(img_path)
+    pil_img = Image.open(storage_dir / img_path)
     img, mask = utils_generic.load_image(pil_img)
     img_w, img_h = img.shape[:2]
 
@@ -86,22 +90,36 @@ async def process_file(
     else:
         logger.debug("processed %s", img_path)
 
+    text_blocks = [TextBlock.from_mit(t) for t in text_blocks]
+
+    if translator_key is not None and target_language is not None and text_blocks:
+        translated = {
+            target_language: await translate_text(
+                [t for b in text_blocks for t in b.textlines],
+                translator_key=translator_key,
+                target_lang=target_language,
+            )
+        }
+    else:
+        translated = None
+
     return FileProcessResult(
         local_path=img_path,
         ocr_key=ocr_key,
         detector_key=detector_key,
-        text_blocks=[TextBlock.from_mit(t) for t in text_blocks],
+        text_blocks=text_blocks,
+        translated=translated,
     )
 
 
-async def _translate_text_blocks(
-    blocks: list[TextBlock], translator_key: str, languages: Sequence[str]
-) -> list[str]:
-    return []
-
-
 async def process_files(
-    filename_list: list[str], *, detector_key: str, ocr_key: str, device: str
+    filename_list: list[str],
+    *,
+    detector_key: str,
+    ocr_key: str,
+    device: str,
+    # translator_key: str | None = None,
+    target_language: str | None = None,
 ) -> list[FileProcessResult]:
     path_list = copy_files(filename_list)
 
@@ -116,8 +134,8 @@ async def process_files(
                 detector_key=detector_key,
                 ocr_key=ocr_key,
                 device=device,
-                # translator_key="gpt4",
-                # target_languages=["zh-trad"],  # FIXME
+                translator_key="gpt4",
+                target_language=target_language,
             )
             for p in path_list
         ]

@@ -23,6 +23,8 @@ with gr.Blocks() as demo:
         type="filepath",
     )
 
+    target_language_input = gr.Radio(("ENG", "CHS", "CHT"), label="target language")
+
     ocr_output = gr.JSON(
         label="OCR output",
     )
@@ -49,14 +51,29 @@ with gr.Blocks() as demo:
     file_output = gr.File(label="download moeflow project zip", type="filepath")
 
     @run_button.click(
-        inputs=[file_input, detector_key_input, ocr_key_input, device_input],
+        inputs=[
+            file_input,
+            detector_key_input,
+            ocr_key_input,
+            device_input,
+            target_language_input,
+        ],
         outputs=[ocr_output, file_output],
     )
     async def on_run_button(
-        gradio_temp_files: list[str], detector_key: str, ocr_key: str, device: str
+        gradio_temp_files: list[str],
+        detector_key: str,
+        ocr_key: str,
+        device: str,
+        target_language: str | None,
     ) -> tuple[str, bytes]:
         res = await process_files(
-            gradio_temp_files, detector_key=detector_key, ocr_key=ocr_key, device=device
+            gradio_temp_files,
+            detector_key=detector_key,
+            ocr_key=ocr_key,
+            device=device,
+            # translator_key="gpt4",
+            target_language=target_language,
         )
         output_json = {
             "project_name": "unnamed",

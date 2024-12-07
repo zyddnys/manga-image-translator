@@ -27,6 +27,7 @@ class FileProcessResult(BaseModel):
 class FileBatchProcessResult(BaseModel):
     project_name: str
     files: list[FileProcessResult]
+    target_languages: list[str] | None = None
 
 
 class JSONEncoder(json.JSONEncoder):
