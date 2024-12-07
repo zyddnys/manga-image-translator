@@ -1,5 +1,4 @@
 import asyncio
-import uuid
 import logging
 from pathlib import Path
 from PIL import Image
@@ -14,21 +13,16 @@ import manga_translator.textline_merge as textline_merge
 import manga_translator.utils.generic as utils_generic
 import manga_translator.detection as mit_detection
 import manga_translator.ocr as mit_ocr
-from .model import FileProcessResult, TextBlock
+from .model import FileBatchProcessResult, FileProcessResult, TextBlock
 from .translate import translate_text
+from ._const import create_unique_dir
 from threading import Lock
 import itertools
 
 load_model_mutex = Lock()
 
-_storage_dir = Path(__file__).parent.parent.parent / "storage"
-
 
 logger = logging.getLogger(__name__)
-
-storage_dir = _storage_dir.resolve()
-
-logger.info("temp storage dir: %s", storage_dir)
 
 
 def log_file(f: FileProcessResult):
@@ -40,14 +34,14 @@ def log_file(f: FileProcessResult):
 
 
 def copy_files(gradio_temp_files: list[str]) -> list[Path]:
-    new_root: Path = _storage_dir / uuid.uuid4().hex
+    new_root: Path = create_unique_dir("upload")
     new_root.mkdir(parents=True, exist_ok=True)
 
     ret: list[str] = []
     for f in gradio_temp_files:
         new_file = new_root / f.split("/")[-1]
         new_file.write_bytes(Path(f).read_bytes())
-        ret.append(new_file.relative_to(_storage_dir))
+        ret.append(new_file)
         logger.debug("copied %s to %s", f, new_file)
 
     return ret
@@ -62,7 +56,7 @@ async def process_file(
     translator_key: str | None = None,
     target_language: str | None = None,
 ) -> FileProcessResult:
-    pil_img = Image.open(storage_dir / img_path)
+    pil_img = Image.open(img_path)
     img, mask = utils_generic.load_image(pil_img)
     img_w, img_h = img.shape[:2]
 
@@ -105,7 +99,8 @@ async def process_file(
 
     return FileProcessResult(
         local_path=img_path,
-        ocr_key=ocr_key,
+        image_w=img_w,
+        image_h=img_h,
         detector_key=detector_key,
         text_blocks=text_blocks,
         translator_key=translator_key,
@@ -121,7 +116,7 @@ async def process_files(
     device: str,
     # translator_key: str | None = None,
     target_language: str | None = None,
-) -> list[FileProcessResult]:
+) -> FileBatchProcessResult:
     path_list = copy_files(filename_list)
 
     with load_model_mutex:
@@ -145,4 +140,6 @@ async def process_files(
     for r in results:
         log_file(r)
 
-    return results
+    return FileBatchProcessResult(
+        files=results, target_languages=[target_language] if target_language else None
+    )

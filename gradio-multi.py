@@ -1,6 +1,7 @@
 import logging
 import gradio as gr
 from manga_translator.moeflow.process_file import process_files
+from manga_translator.moeflow.export_moeflow_project import export_moeflow_project
 
 if gr.NO_RELOAD:
     logging.basicConfig(
@@ -24,7 +25,7 @@ with gr.Blocks() as demo:
     )
 
     target_language_input = gr.Radio(
-        ("ENG", "CHS", "CHT", None), label="translate into language"
+        ("ENG", "CHS", "CHT", None), label="translate into language", value="CHS"
     )
 
     device_input = gr.Radio(choices=["cpu", "cuda"], label="device", value="cuda")
@@ -40,6 +41,8 @@ with gr.Blocks() as demo:
         value="default",
         label="detector",
     )
+
+    export_moeflow_project_name = gr.Text(None, label="moeflow project name")
 
     ocr_key_input = gr.Radio(
         choices=["48px", "48px_ctc", "mocr"], label="ocr", value="48px"
@@ -68,6 +71,7 @@ with gr.Blocks() as demo:
         ocr_key: str,
         device: str,
         target_language: str | None,
+        export_moeflow_project_name: str | None,
     ) -> tuple[str, bytes]:
         res = await process_files(
             gradio_temp_files,
@@ -77,12 +81,17 @@ with gr.Blocks() as demo:
             # translator_key="gpt4",
             target_language=target_language,
         )
+        if res:
+            moeflow_zip = str(export_moeflow_project(res, export_moeflow_project_name))
+        else:
+            moeflow_zip = None
+
         output_json = {
             "project_name": "unnamed",
-            "files": [f.model_dump() for f in res],
+            "files": [f.model_dump() for f in res.files],
         }
-        output_filename = "output.zip"
-        return output_json, None
+
+        return output_json, moeflow_zip
 
 
 if __name__ == "__main__":

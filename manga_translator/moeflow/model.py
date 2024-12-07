@@ -1,3 +1,4 @@
+from email.mime import image
 import json
 from pathlib import Path
 import numpy as np
@@ -8,16 +9,27 @@ from pydantic import BaseModel
 
 class TextBlock(BaseModel):
     xyxy: tuple[int, int, int, int]
+    center_x: float
+    center_y: float
     text: str
     textlines: list[str]
 
     @classmethod
     def from_mit(cls, textblock: utils_textblock.TextBlock):
-        return cls(xyxy=textblock.xyxy, text=textblock.text, textlines=textblock.texts)
+        center_x, center_y = textblock.center.tolist()
+        return cls(
+            xyxy=textblock.xyxy,
+            center_x=center_x,
+            center_y=center_y,
+            text=textblock.text,
+            textlines=textblock.texts,
+        )
 
 
 class FileProcessResult(BaseModel):
     local_path: Path
+    image_w: int
+    image_h: int
     text_blocks: list[TextBlock]
     translated: dict[str, list[str]] | None = None
     ocr_key: str | None = None
@@ -26,7 +38,6 @@ class FileProcessResult(BaseModel):
 
 
 class FileBatchProcessResult(BaseModel):
-    project_name: str
     files: list[FileProcessResult]
     target_languages: list[str] | None = None
 
