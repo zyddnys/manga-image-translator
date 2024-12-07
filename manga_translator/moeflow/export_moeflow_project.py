@@ -2,7 +2,11 @@ from pydantic import BaseModel
 from .model import FileBatchProcessResult, FileProcessResult
 from ._const import create_unique_dir
 import zipfile
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 def export_moeflow_project(
@@ -45,12 +49,21 @@ def _build_file(files: list[FileProcessResult]) -> str:
             translated_texts: list[str] = next(iter(file.translated.values()))
         else:
             translated_texts = None
+        logging.debug(
+            "file: %s %s x %s", file.local_path.name, file.image_w, file.image_h
+        )
 
         for idx, block in enumerate(file.text_blocks):
             t = translated_texts[idx] if translated_texts else ""
-            x = block.center_x / file.image_w
-            y = block.center_y / file.image_h
+            x = (
+                block.center_x / file.image_h
+            )  # this works but IDK why. Is mit using a swapped coordinate system?
+            y = block.center_y / file.image_w
+            logging.debug(
+                "block: %s,%s / %s", block.center_x, block.center_y, block.text
+            )
             position_type = 1
             result.append(f"----[{idx}]----[{x},{y},{position_type}]")
+            logging.debug("serialized block: %s,%s / %s", x, y, result[-1])
             result.append(t)
     return "\n".join(result + [""])
