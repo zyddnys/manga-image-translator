@@ -29,6 +29,7 @@ protobuf
 ctranslate2
 colorama
 openai==1.35.9
+httpx==0.27.2 # stop before blocking change in 0.28.0
 open_clip_torch
 safetensors
 pandas

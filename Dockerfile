@@ -1,19 +1,21 @@
 FROM pytorch/pytorch:2.5.1-cuda11.8-cudnn9-runtime
 
-WORKDIR /app
+# not apt update: most effective code in pytorch base image is in /opt/conda
 
-RUN apt-get update
-RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y install tzdata
-# Assume root to install required dependencies
-RUN apt-get install -y git g++ ffmpeg libsm6 libxext6 libvulkan-dev
+WORKDIR /app
 
 # Install pip dependencies
 
 COPY requirements.txt /app/requirements.txt
 
-RUN pip install -r /app/requirements.txt
+RUN export TZ=Etc/UTC ; \
+        apt update --yes \
+        && apt install g++ ffmpeg libsm6 libxext6 --yes \
+        && pip install -r /app/requirements.txt \
+        && apt remove g++ --yes \
+        && apt autoremove --yes \
+        && rm -rf /var/cache/apt
 
-# Copy app
 COPY . /app
 
 # Prepare models
@@ -22,7 +24,7 @@ RUN python -u docker_prepare.py --continue-on-error
 RUN rm -rf /tmp
 
 # Add /app to Python module path
-ENV PYTHONPATH="${PYTHONPATH}:/app"
+ENV PYTHONPATH="/app"
 
 WORKDIR /app
 
