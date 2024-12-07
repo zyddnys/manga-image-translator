@@ -10,7 +10,7 @@ import manga_translator.detection as mit_detection
 import manga_translator.ocr as mit_ocr
 import manga_translator.textline_merge as textline_merge
 import manga_translator.utils.generic as utils_generic
-from manga_translator.gradio import (
+from manga_translator.moeflow import (
     mit_detect_text_default_params,
     mit_ocr_default_params,
     storage_dir,

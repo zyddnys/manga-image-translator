@@ -6,6 +6,9 @@ CONDA_YML ?= conda.yaml
 default:
 	@echo Please use other targets
 
+run-gradio:
+	venv/bin/gradio gradio-multi.py
+
 run-worker:
 	conda run -n mit-py311 --no-capture-output celery --app moeflow_worker worker --queues mit --loglevel=debug --concurrency=1
 
