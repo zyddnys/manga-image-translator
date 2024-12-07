@@ -23,10 +23,8 @@ with gr.Blocks() as demo:
         type="filepath",
     )
 
-    target_language_input = gr.Radio(("ENG", "CHS", "CHT"), label="target language")
-
-    ocr_output = gr.JSON(
-        label="OCR output",
+    target_language_input = gr.Radio(
+        ("ENG", "CHS", "CHT", None), label="translate into language"
     )
 
     device_input = gr.Radio(choices=["cpu", "cuda"], label="device", value="cuda")
@@ -46,9 +44,13 @@ with gr.Blocks() as demo:
     ocr_key_input = gr.Radio(
         choices=["48px", "48px_ctc", "mocr"], label="ocr", value="48px"
     )
-    run_button = gr.Button("upload + text detection + OCR + textline_merge")
+    run_button = gr.Button("run")
 
-    file_output = gr.File(label="download moeflow project zip", type="filepath")
+    file_output = gr.File(label="moeflow project zip", type="filepath")
+
+    ocr_output = gr.JSON(
+        label="process result",
+    )
 
     @run_button.click(
         inputs=[
@@ -80,7 +82,7 @@ with gr.Blocks() as demo:
             "files": [f.model_dump() for f in res],
         }
         output_filename = "output.zip"
-        return output_json, __file__
+        return output_json, None
 
 
 if __name__ == "__main__":
