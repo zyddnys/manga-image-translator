@@ -34,7 +34,7 @@ logger.info("temp storage dir: %s", storage_dir)
 def log_file(f: FileProcessResult):
     logger.info("file: %s", f.local_path.name)
     for i, (b, translated) in enumerate(
-        itertools(itertools.zip_longest(f.text_blocks, f.translated or []))
+        itertools.zip_longest(f.text_blocks, f.translated or [])
     ):
         logger.info("  block %d: %s => %s", i, b.text, translated)
 
@@ -95,7 +95,7 @@ async def process_file(
     if translator_key is not None and target_language is not None and text_blocks:
         translated = {
             target_language: await translate_text(
-                [t for b in text_blocks for t in b.textlines],
+                [b.text for b in text_blocks],
                 translator_key=translator_key,
                 target_lang=target_language,
             )
@@ -108,6 +108,7 @@ async def process_file(
         ocr_key=ocr_key,
         detector_key=detector_key,
         text_blocks=text_blocks,
+        translator_key=translator_key,
         translated=translated,
     )
 
@@ -142,6 +143,6 @@ async def process_files(
     )
 
     for r in results:
-        log_file(r.local_path.name, r.text_blocks)
+        log_file(r)
 
     return results

@@ -22,6 +22,7 @@ class FileProcessResult(BaseModel):
     translated: dict[str, list[str]] | None = None
     ocr_key: str | None = None
     detector_key: str | None = None
+    translator_key: str | None = None
 
 
 class FileBatchProcessResult(BaseModel):
