@@ -1,7 +1,33 @@
 import json
+from pathlib import Path
 import numpy as np
 import manga_translator.utils.generic as utils_generic
 import manga_translator.utils.textblock as utils_textblock
+from pydantic import BaseModel
+
+
+class TextBlock(BaseModel):
+    xyxy: tuple[int, int, int, int]
+    text: str
+    textlines: list[str]
+
+    @classmethod
+    def from_mit(cls, textblock: utils_textblock.TextBlock):
+        return cls(xyxy=textblock.xyxy, text=textblock.text, textlines=textblock.texts)
+
+
+class FileProcessResult(BaseModel):
+    local_path: Path
+    text_blocks: list[TextBlock]
+    translated: dict[str, list[str]] | None = None
+    ocr_key: str | None = None
+    detector_key: str | None = None
+    translator_key: str | None = None
+
+
+class FileBatchProcessResult(BaseModel):
+    project_name: str
+    files: list[FileProcessResult]
 
 
 class JSONEncoder(json.JSONEncoder):

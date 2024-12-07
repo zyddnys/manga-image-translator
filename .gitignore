@@ -46,3 +46,4 @@ MANIFEST
 # Input and Output
 /input/
 /input-translated/
+/storage
