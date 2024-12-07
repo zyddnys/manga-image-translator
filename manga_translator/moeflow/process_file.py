@@ -45,7 +45,7 @@ def copy_files(gradio_temp_files: list[str]) -> list[Path]:
     for f in gradio_temp_files:
         new_file = new_root / f.split("/")[-1]
         new_file.write_bytes(Path(f).read_bytes())
-        ret.append(new_file)
+        ret.append(new_file.relative_to(_storage_dir))
         logger.debug("copied %s to %s", f, new_file)
 
     return ret
