@@ -219,7 +219,7 @@ class ModelWrapper(ABC):
 
             if is_archive:
                 extracted_path = os.path.join(os.path.dirname(download_path), 'extracted')
-                print(f' -- Extracting files')
+                print(' -- Extracting files')
                 shutil.unpack_archive(download_path, extracted_path)
 
                 def get_real_archive_files():

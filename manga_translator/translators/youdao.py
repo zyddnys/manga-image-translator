@@ -4,7 +4,6 @@ import uuid
 import hashlib
 import time
 import aiohttp
-import time
 
 from .common import CommonTranslator, InvalidServerResponse, MissingAPIKeyException
 from .keys import YOUDAO_APP_KEY, YOUDAO_SECRET_KEY

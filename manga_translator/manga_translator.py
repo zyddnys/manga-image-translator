@@ -9,8 +9,8 @@ import numpy as np
 from PIL import Image
 from typing import Optional, Any
 
-from .config import Config, Colorizer, Detector, Translator, Renderer, Inpainter
-from .utils import (
+from manga_translator.config import Config, Colorizer, Detector, Translator, Renderer, Inpainter
+from manga_translator.utils import (
     BASE_PATH,
     LANGUAGE_ORIENTATION_PRESETS,
     ModelWrapper,

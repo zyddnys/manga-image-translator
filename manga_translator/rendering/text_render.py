@@ -10,7 +10,7 @@ from hyphen import Hyphenator
 from hyphen.dictools import LANGUAGES as HYPHENATOR_LANGUAGES
 from langcodes import standardize_tag
 
-from ..utils import BASE_PATH, is_punctuation, is_whitespace
+from ..utils import MODULE_PATH, is_punctuation
 
 try:
     HYPHENATOR_LANGUAGES.remove('fr')
@@ -150,9 +150,9 @@ def add_color(bw_char_map, color, stroke_char_map, stroke_color):
     return bg#, alpha_char_map
 
 FALLBACK_FONTS = [
-    os.path.join(BASE_PATH, 'fonts/Arial-Unicode-Regular.ttf'),
-    os.path.join(BASE_PATH, 'fonts/msyh.ttc'),
-    os.path.join(BASE_PATH, 'fonts/msgothic.ttc'),
+    os.path.join(MODULE_PATH, 'fonts/Arial-Unicode-Regular.ttf'),
+    os.path.join(MODULE_PATH, 'fonts/msyh.ttc'),
+    os.path.join(MODULE_PATH, 'fonts/msgothic.ttc'),
 ]
 FONT_SELECTION: List[freetype.Face] = []
 font_cache = {}

@@ -1012,7 +1012,7 @@ def det_rearrange_forward(
         return None, None
 
     if verbose:
-        print(f'Input image will be rearranged to square batches before fed into network.\
+        print('Input image will be rearranged to square batches before fed into network.\
             \n Rearranged batches will be saved to result/rearrange_%d.png')
 
     if transpose:

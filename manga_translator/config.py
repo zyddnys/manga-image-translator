@@ -27,9 +27,9 @@ class TranslatorChain:
             else:
                 translator = Translator[trans]
             if translator not in TRANSLATORS:
-                raise ValueError(f'Invalid choice: %s (choose from %s)' % (trans, ', '.join(map(repr, TRANSLATORS))))
+                raise ValueError('Invalid choice: %s (choose from %s)' % (trans, ', '.join(map(repr, TRANSLATORS))))
             if lang not in VALID_LANGUAGES:
-                raise ValueError(f'Invalid choice: %s (choose from %s)' % (lang, ', '.join(map(repr, VALID_LANGUAGES))))
+                raise ValueError('Invalid choice: %s (choose from %s)' % (lang, ', '.join(map(repr, VALID_LANGUAGES))))
             self.chain.append((translator, lang))
         self.translators, self.langs = list(zip(*self.chain))
 

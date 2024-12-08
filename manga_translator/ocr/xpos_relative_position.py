@@ -2,7 +2,6 @@
 # Licensed under The MIT License [see LICENSE for details]
 
 import einops
-import numpy as np
 import torch
 import torch.nn as nn
 

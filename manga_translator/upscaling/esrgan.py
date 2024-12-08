@@ -75,7 +75,7 @@ class ESRGANUpscaler(OfflineUpscaler):
             self._run_esrgan_executable(in_dir, out_dir, upscale_ratio, 0)
         except Exception:
             # Maybe throw exception instead
-            self.logger.warn(f'Process returned non-zero exit status. Skipping upscaling.')
+            self.logger.warn('Process returned non-zero exit status. Skipping upscaling.')
             return image_batch
 
         output_batch = []

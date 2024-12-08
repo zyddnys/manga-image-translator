@@ -1,6 +1,6 @@
 
 import math
-from typing import Callable, List, Optional, Tuple, Union
+from typing import List, Optional
 from collections import defaultdict
 import os
 import shutil
@@ -20,7 +20,6 @@ from .xpos_relative_position import XPOS
 from .common import OfflineOCR
 from ..utils import TextBlock, Quadrilateral, chunks
 from ..utils.generic import AvgMeter
-from ..utils.bubble import is_ignore
 
 # Roformer with Xpos
 

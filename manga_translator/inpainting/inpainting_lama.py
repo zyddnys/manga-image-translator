@@ -149,7 +149,7 @@ class BaseDiscriminator(nn.Module):
         Predict scores and get intermediate activations. Useful for feature matching loss
         :return tuple (scores, list of intermediate activations)
         """
-        raise NotImplemented()
+        raise NotImplementedError()
 
 
 def get_conv_block_ctor(kind='default'):
@@ -687,7 +687,6 @@ def get_discriminator():
     }
     return FFCNLayerDiscriminator(3, norm_layer = nn.Identity, init_conv_kwargs = init_conv_kwargs, conv_kwargs = conv_kwargs)
 
-from torchsummary import summary
 
 def test_model():
     dis = get_generator()

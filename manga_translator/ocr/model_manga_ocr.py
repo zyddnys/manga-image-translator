@@ -1,7 +1,6 @@
 import itertools
-import math
-from typing import Callable, List, Set, Optional, Tuple, Union
-from collections import defaultdict, Counter
+from typing import List, Set, Tuple
+from collections import Counter
 import os
 import shutil
 import cv2

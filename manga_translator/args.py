@@ -2,12 +2,6 @@ import argparse
 import os
 from urllib.parse import unquote
 
-from .detection import DETECTORS
-from .ocr import OCRS
-from .inpainting import INPAINTERS
-from .translators import VALID_LANGUAGES, TRANSLATORS, TranslatorChain
-from .upscaling import UPSCALERS
-from .colorization import COLORIZERS
 from .save import OUTPUT_FORMATS
 
 def url_decode(s):
