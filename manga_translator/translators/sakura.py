@@ -1,13 +1,12 @@
 import re
 import os
-from venv import logger
 
 try:
     import openai
 except ImportError:
     openai = None
 import asyncio
-from typing import List, Dict, Callable, Tuple
+from typing import List, Callable, Tuple
 
 from .common import CommonTranslator
 from .keys import SAKURA_API_BASE, SAKURA_VERSION, SAKURA_DICT_PATH

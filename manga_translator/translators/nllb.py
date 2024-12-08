@@ -113,7 +113,7 @@ class NLLBTranslator(OfflineTranslator):
         return result
 
     def _map_detected_lang_to_translator(self, lang):
-        if not lang in ISO_639_1_TO_FLORES_200:
+        if lang not in ISO_639_1_TO_FLORES_200:
             return None
 
         return ISO_639_1_TO_FLORES_200[lang]

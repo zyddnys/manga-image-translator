@@ -1,9 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.models as M
-import math
-from torch import Tensor
 from torch.nn import Parameter
 
 from .extractor import SEResNeXt_Origin, BottleneckX_Origin

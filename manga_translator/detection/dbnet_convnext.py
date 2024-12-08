@@ -6,13 +6,9 @@ import cv2
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.nn.init as init
 
-from torchvision.models import resnet34
 
 import einops
-import math
 
 from timm.layers import trunc_normal_, AvgPool2dSame, DropPath, Mlp, GlobalResponseNormMlp, \
 	LayerNorm2d, LayerNorm, create_conv2d, get_act_layer, make_divisible, to_ntuple
@@ -493,7 +489,7 @@ class DBNetConvNext(nn.Module) :
 import os
 from .default_utils import imgproc, dbnet_utils, craft_utils
 from .common import OfflineDetector
-from ..utils import TextBlock, Quadrilateral, det_rearrange_forward
+from ..utils import Quadrilateral, det_rearrange_forward
 
 MODEL = None
 def det_batch_forward_default(batch: np.ndarray, device: str):

@@ -5,7 +5,6 @@ A Translation module.
 You can translate text using this module.
 """
 import random
-import typing
 import time
 import json
 import urllib
@@ -25,7 +24,7 @@ from googletrans.constants import (
     DEFAULT_USER_AGENT, LANGCODES, LANGUAGES, SPECIAL_CASES,
     DEFAULT_RAISE_EXCEPTION, DUMMY_DATA
 )
-from googletrans.models import Translated, Detected, TranslatedPart
+from googletrans.models import Translated, Detected
 
 from .common import CommonTranslator
 from .keys import OPENAI_HTTP_PROXY

@@ -1,10 +1,9 @@
 import os
-import sys
 import cv2
 import pytest
 import numpy as np
 
-from manga_translator.rendering import dispatch as dispatch_rendering, dispatch_eng_render
+from manga_translator.rendering import dispatch as dispatch_rendering
 from manga_translator.utils import (
     TextBlock,
     visualize_textblocks,

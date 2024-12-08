@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 from functools import cached_property
 import uuid
-import hmac, base64
+import hmac
+import base64
 import aiohttp
 import time
 import requests

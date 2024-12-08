@@ -10,7 +10,7 @@ from .ctd_utils.basemodel import TextDetBase, TextDetBaseDNN
 from .ctd_utils.utils.yolov5_utils import non_max_suppression
 from .ctd_utils.utils.db_utils import SegDetectorRepresenter
 from .ctd_utils.utils.imgproc_utils import letterbox
-from .ctd_utils.textmask import REFINEMASK_INPAINT, refine_mask
+from .ctd_utils.textmask import refine_mask
 from .common import OfflineDetector
 from ..utils import Quadrilateral, det_rearrange_forward
 
