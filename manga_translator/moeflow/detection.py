@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
-from gradio_client import file
-from .json_encoder import to_json
+from .model import to_json
 import manga_translator.utils.generic as utils_generic
 import numpy as np
 

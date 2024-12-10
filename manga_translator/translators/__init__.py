@@ -3,13 +3,13 @@ from typing import Optional
 import py3langid as langid
 
 from .common import *
-from .baidu import BaiduTranslator
-from .deepseek import DeepseekTranslator
+# from .baidu import BaiduTranslator
+# from .deepseek import DeepseekTranslator
 # from .google import GoogleTranslator
-from .youdao import YoudaoTranslator
+# from .youdao import YoudaoTranslator
 # from .deepl import DeeplTranslator
-from .papago import PapagoTranslator
-from .caiyun import CaiyunTranslator
+# from .papago import PapagoTranslator
+# from .caiyun import CaiyunTranslator
 from .chatgpt import GPT3Translator, GPT35TurboTranslator, GPT4Translator
 # from .nllb import NLLBTranslator, NLLBBigTranslator
 # from .sugoi import JparacrawlTranslator, JparacrawlBigTranslator, SugoiTranslator
@@ -18,40 +18,41 @@ from .chatgpt import GPT3Translator, GPT35TurboTranslator, GPT4Translator
 # from .selective import SelectiveOfflineTranslator, prepare as prepare_selective_translator
 from .none import NoneTranslator
 from .original import OriginalTranslator
-from .sakura import SakuraTranslator
-from .qwen2 import Qwen2Translator, Qwen2BigTranslator
-from .groq import GroqTranslator
+# from .sakura import SakuraTranslator
+# from .qwen2 import Qwen2Translator, Qwen2BigTranslator
+# from .groq import GroqTranslator
 from ..config import Translator, TranslatorConfig, TranslatorChain
 from ..utils import Context
 
 OFFLINE_TRANSLATORS = {
-    Translator.offline: SelectiveOfflineTranslator,
-    Translator.nllb: NLLBTranslator,
-    Translator.nllb_big: NLLBBigTranslator,
-    Translator.sugoi: SugoiTranslator,
-    Translator.jparacrawl: JparacrawlTranslator,
-    Translator.jparacrawl_big: JparacrawlBigTranslator,
-    Translator.m2m100: M2M100Translator,
-    Translator.m2m100_big: M2M100BigTranslator,
-    Translator.mbart50: MBart50Translator,
-    Translator.qwen2: Qwen2Translator,
-    Translator.qwen2_big: Qwen2BigTranslator,
+    # Translator.offline: SelectiveOfflineTranslator,
+    # Translator.nllb: NLLBTranslator,
+    # Translator.nllb_big: NLLBBigTranslator,
+    # Translator.sugoi: SugoiTranslator,
+    # Translator.jparacrawl: JparacrawlTranslator,
+    # Translator.jparacrawl_big: JparacrawlBigTranslator,
+    # Translator.m2m100: M2M100Translator,
+    # Translator.m2m100_big: M2M100BigTranslator,
+    # Translator.mbart50: MBart50Translator,
+    # Translator.qwen2: Qwen2Translator,
+    # Translator.qwen2_big: Qwen2BigTranslator,
 }
 
 TRANSLATORS = {
-    Translator.youdao: YoudaoTranslator,
-    Translator.baidu: BaiduTranslator,
-    Translator.deepl: DeeplTranslator,
-    Translator.papago: PapagoTranslator,
-    Translator.caiyun: CaiyunTranslator,
+    # 'google': GoogleTranslator,
+    # Translator.youdao: YoudaoTranslator,
+    # Translator.baidu: BaiduTranslator,
+    # Translator.deepl: DeeplTranslator,
+    # Translator.papago: PapagoTranslator,
+    # Translator.caiyun: CaiyunTranslator,
     Translator.gpt3: GPT3Translator,
     Translator.gpt3_5: GPT35TurboTranslator,
     Translator.gpt4: GPT4Translator,
     Translator.none: NoneTranslator,
     Translator.original: OriginalTranslator,
-    Translator.sakura: SakuraTranslator,
-    Translator.deepseek: DeepseekTranslator,
-    Translator.groq:GroqTranslator,
+    # Translator.sakura: SakuraTranslator,
+    # Translator.deepseek: DeepseekTranslator,
+    # Translator.groq:GroqTranslator,
     **OFFLINE_TRANSLATORS,
 }
 translator_cache = {}

@@ -1,25 +1,10 @@
 import logging
-from typing import List
 import gradio as gr
-import asyncio
-from pathlib import Path
-import json
-import uuid
-from PIL import Image
-import manga_translator.detection as mit_detection
-import manga_translator.ocr as mit_ocr
-import manga_translator.textline_merge as textline_merge
-import manga_translator.utils.generic as utils_generic
-from manga_translator.gradio import (
-    mit_detect_text_default_params,
-    mit_ocr_default_params,
-    storage_dir,
-    load_model_mutex,
-    MitJSONEncoder,
+from manga_translator.moeflow import (
+    process_files,
+    export_moeflow_project,
+    is_cuda_avaiable,
 )
-from manga_translator.utils.textblock import TextBlock
-
-STORAGE_DIR_RESOLVED = storage_dir.resolve()
 
 if gr.NO_RELOAD:
     logging.basicConfig(
@@ -35,87 +20,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-async def copy_files(gradio_temp_files: list[str]) -> list[str]:
-    new_root: Path = storage_dir / uuid.uuid4().hex
-    new_root.mkdir(parents=True, exist_ok=True)
-
-    ret: list[str] = []
-    for f in gradio_temp_files:
-        new_file = new_root / f.split("/")[-1]
-        new_file.write_bytes(Path(f).read_bytes())
-        ret.append(str(new_file.relative_to(storage_dir)))
-        logger.debug("copied %s to %s", f, new_file)
-
-    return ret
-
-
-def log_file(basename: str, result: List[TextBlock]):
-    logger.info("file: %s", basename)
-    for i, b in enumerate(result):
-        logger.info("  block %d: %s", i, b.text)
-
-
-async def process_files(
-    filename_list: list[str], detector_key: str, ocr_key: str, device: str
-) -> str:
-    path_list: list[Path] = []
-    for f in filename_list:
-        assert f
-        # p = (storage_dir / f).resolve()
-        # assert p.is_file() and STORAGE_DIR_RESOLVED in p.parents, f"illegal path: {f}"
-        path_list.append(Path(f))
-
-    with load_model_mutex:
-        await mit_detection.prepare(detector_key)
-        await mit_ocr.prepare(ocr_key, device)
-
-    result = await asyncio.gather(
-        *[process_file(p, detector_key, ocr_key, device) for p in path_list]
-    )
-
-    for r in result:
-        log_file(r["filename"], r["text_blocks"])
-
-    return json.dumps(result, cls=MitJSONEncoder)
-
-
-async def process_file(
-    img_path: Path, detector: str, ocr_key: str, device: str
-) -> dict:
-    pil_img = Image.open(img_path)
-    img, mask = utils_generic.load_image(pil_img)
-    img_w, img_h = img.shape[:2]
-
-    try:
-        # detector
-        detector_args = {
-            **mit_detect_text_default_params,
-            "detector_key": detector,
-            "device": device,
-        }
-        regions, mask_raw, mask = await mit_detection.dispatch(
-            image=img, **detector_args
-        )
-        # ocr
-        ocr_args = {**mit_ocr_default_params, "ocr_key": ocr_key, "device": device}
-        textlines = await mit_ocr.dispatch(image=img, regions=regions, **ocr_args)
-        # textline merge
-        text_blocks = await textline_merge.dispatch(
-            textlines=textlines, width=img_w, height=img_h
-        )
-    except Exception as e:
-        logger.error("error processing %s: %s", img_path, e)
-        print(e)
-        text_blocks = []
-    else:
-        logger.debug("processed %s", img_path)
-
-    return {
-        "filename": img_path.name,
-        "text_blocks": text_blocks,
-    }
-
-
 with gr.Blocks() as demo:
     file_input = gr.File(
         label="upload file",
@@ -123,11 +27,15 @@ with gr.Blocks() as demo:
         type="filepath",
     )
 
-    ocr_output = gr.JSON(
-        label="OCR output",
+    target_language_input = gr.Radio(
+        ("ENG", "CHS", "CHT", None), label="translate into language", value="CHS"
     )
 
-    device_input = gr.Radio(choices=["cpu", "cuda"], label="device", value="cuda")
+    device_input = gr.Radio(
+        choices=["cpu", "cuda"],
+        label="device",
+        value="cuda" if is_cuda_avaiable() else "cpu",
+    )
     detector_key_input = gr.Radio(
         choices=[
             "default",
@@ -141,20 +49,56 @@ with gr.Blocks() as demo:
         label="detector",
     )
 
+    export_moeflow_project_name = gr.Text(None, label="moeflow project name")
+
     ocr_key_input = gr.Radio(
         choices=["48px", "48px_ctc", "mocr"], label="ocr", value="48px"
     )
-    run_button = gr.Button("upload + text detection + OCR + textline_merge")
+    run_button = gr.Button("run")
+
+    file_output = gr.File(label="moeflow project zip", type="filepath")
+
+    ocr_output = gr.JSON(
+        label="process result",
+    )
 
     @run_button.click(
-        inputs=[file_input, detector_key_input, ocr_key_input, device_input],
-        outputs=[ocr_output],
+        inputs=[
+            file_input,
+            detector_key_input,
+            ocr_key_input,
+            device_input,
+            target_language_input,
+        ],
+        outputs=[ocr_output, file_output],
     )
     async def on_run_button(
-        gradio_temp_files: list[str], detector_key: str, ocr_key: str, device: str
-    ) -> str:
-        res = await process_files(gradio_temp_files, detector_key, ocr_key, device)
-        return res
+        gradio_temp_files: list[str],
+        detector_key: str,
+        ocr_key: str,
+        device: str,
+        target_language: str | None,
+        export_moeflow_project_name: str | None,
+    ) -> tuple[str, bytes]:
+        res = await process_files(
+            gradio_temp_files,
+            detector_key=detector_key,
+            ocr_key=ocr_key,
+            device=device,
+            # translator_key="gpt4",
+            target_language=target_language,
+        )
+        if res:
+            moeflow_zip = str(export_moeflow_project(res, export_moeflow_project_name))
+        else:
+            moeflow_zip = None
+
+        output_json = {
+            "project_name": "unnamed",
+            "files": [f.model_dump() for f in res.files],
+        }
+
+        return output_json, moeflow_zip
 
 
 if __name__ == "__main__":
