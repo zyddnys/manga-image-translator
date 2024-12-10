@@ -1,7 +1,10 @@
 import logging
 import gradio as gr
-from manga_translator.moeflow.process_file import process_files
-from manga_translator.moeflow.export_moeflow_project import export_moeflow_project
+from manga_translator.moeflow import (
+    process_files,
+    export_moeflow_project,
+    is_cuda_avaiable,
+)
 
 if gr.NO_RELOAD:
     logging.basicConfig(
@@ -28,7 +31,11 @@ with gr.Blocks() as demo:
         ("ENG", "CHS", "CHT", None), label="translate into language", value="CHS"
     )
 
-    device_input = gr.Radio(choices=["cpu", "cuda"], label="device", value="cuda")
+    device_input = gr.Radio(
+        choices=["cpu", "cuda"],
+        label="device",
+        value="cuda" if is_cuda_avaiable() else "cpu",
+    )
     detector_key_input = gr.Radio(
         choices=[
             "default",
