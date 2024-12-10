@@ -395,6 +395,7 @@ FIL: Filipino (Tagalog)
 | gpt4       | ✔️      |         | Implements gpt-4. Requires `OPENAI_API_KEY`            |
 | papago     |         |         |                                                        |
 | sakura     |         |         |Requires `SAKURA_API_BASE`                               |
+| ollama     |         |         |Requires  `OLLAMA_API_BASE` `OLLAMA_MODEL`               |
 | offline    |         | ✔️      | Chooses most suitable offline translator for language  |
 | sugoi      |         | ✔️      | Sugoi V4.0 Models                                      |
 | m2m100     |         | ✔️      | Supports every language                                |
