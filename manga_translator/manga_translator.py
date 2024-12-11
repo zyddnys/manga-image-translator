@@ -326,32 +326,29 @@ class MangaTranslator:
     async def _run_textline_merge(self, config: Config, ctx: Context):
         text_regions = await dispatch_textline_merge(ctx.textlines, ctx.img_rgb.shape[1], ctx.img_rgb.shape[0],
                                                      verbose=self.verbose)
-        # First, filter out languages to skip  
-        if ctx.skip_lang is not None:  
-            skip_langs = [lang.strip().upper() for lang in ctx.skip_lang.split(',')]  
-            filtered_text_regions = []  
-                for region in text_regions:  
+        # Filter out languages to skip  
+        if config.translator.skip_lang is not None:  
+            skip_langs = [lang.strip().upper() for lang in config.translator.skip_lang.split(',')]  
+            filtered_textlines = []  
+            for txtln in ctx.textlines:  
                 try:  
-                    detected_lang = langdetect.detect(region.text)  
+                    detected_lang = langdetect.detect(txtln.text)  
                     source_language = LANGDETECT_MAP.get(detected_lang.lower(), 'UNKNOWN').upper()  
                 except Exception:  
                     source_language = 'UNKNOWN'  
     
                 # Print detected source_language and whether it's in skip_langs  
-                # logger.info(f'Detected source language: {source_language}, in skip_langs: {source_language in skip_langs}, text: "{region.text}"')  
+                # logger.info(f'Detected source language: {source_language}, in skip_langs: {source_language in skip_langs}, text: "{txtln.text}"')  
     
                 if source_language in skip_langs:  
-                    logger.info(f'Filtered out: {region.text}')  
+                    logger.info(f'Filtered out: {txtln.text}')  
                     logger.info(f'Reason: Detected language {source_language} is in skip_langs')  
                     continue  # Skip this region  
-                filtered_text_regions.append(region)  
-            text_regions = filtered_text_regions  
+                filtered_textlines.append(txtln)  
+            ctx.textlines = filtered_textlines  
     
-        if not text_regions:  
-            await self._report_progress('skip-no-text', True)  
-            # If all text regions are filtered out, return an empty list  
-            ctx.result = ctx.upscaled  
-            return []
+        text_regions = await dispatch_textline_merge(ctx.textlines, ctx.img_rgb.shape[1], ctx.img_rgb.shape[0],  
+                                                     verbose=self.verbose)  
 
         new_text_regions = []
         for region in text_regions:
