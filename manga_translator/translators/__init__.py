@@ -21,6 +21,7 @@ from .original import OriginalTranslator
 from .sakura import SakuraTranslator
 from .qwen2 import Qwen2Translator, Qwen2BigTranslator
 from .groq import GroqTranslator
+from .ollama import OllamaTranslator
 from ..config import Translator, TranslatorConfig, TranslatorChain
 from ..utils import Context
 
@@ -53,6 +54,7 @@ TRANSLATORS = {
     Translator.sakura: SakuraTranslator,
     Translator.deepseek: DeepseekTranslator,
     Translator.groq:GroqTranslator,
+    Translator.ollama: OllamaTranslator,
     **OFFLINE_TRANSLATORS,
 }
 translator_cache = {}
