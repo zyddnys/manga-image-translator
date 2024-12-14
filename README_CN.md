@@ -63,6 +63,7 @@ $ pip install -r requirements.txt
 | deepseek        | ✔️      |        | 需要 DEEPSEEK_API_KEY                                    |
 | papago          |         |        |                                                        |
 | sakura          |         |        | 需要`SAKURA_API_BASE`                                    |
+| ollama          |         |        |需要 `OLLAMA_API_BASE` `OLLAMA_MODEL`                     |
 | offline         |         | ✔️     | 自动选择可用的离线模型，只是选择器                                      |
 | sugoi           |         | ✔️     | 只能翻译英文                                                 |
 | m2m100          |         | ✔️     | 可以翻译所有语言                                               |
