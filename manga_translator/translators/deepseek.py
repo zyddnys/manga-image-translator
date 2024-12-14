@@ -271,7 +271,7 @@ class DeepseekTranslator(CommonTranslator):
 
         try:
             response = await self.client.chat.completions.create(
-                model='gpt-4o-2024-08-06',
+                model='deepseek-chat',
                 messages=messages,
                 max_tokens=self._MAX_TOKENS // 2,
                 temperature=self.temperature,
