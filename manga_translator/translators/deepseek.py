@@ -69,11 +69,9 @@ class DeepseekTranslator(CommonTranslator):
         'If there is any issue in the text, '
         'output it as is.\n'
         'Translate the following text into {to_lang} and keep the prefix format.\n'
-
     )
     _CHAT_SAMPLE = [
         (
-          
             '<|1|>恥ずかしい… 目立ちたくない… 私が消えたい…\n'
             '<|2|>きみ… 大丈夫⁉\n'
             '<|3|>なんだこいつ 空気読めて ないのか…？'
