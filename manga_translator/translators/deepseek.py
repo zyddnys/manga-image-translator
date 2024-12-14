@@ -43,7 +43,7 @@ class DeepseekTranslator(CommonTranslator):
         'IND': 'Indonesian'
     }
     _INVALID_REPEAT_COUNT = 2  # 如果检测到“无效”翻译，最多重复 2 次
-    _MAX_REQUESTS_PER_MINUTE = 20  # 每分钟最大请求次数
+    _MAX_REQUESTS_PER_MINUTE = 9999  # 无RPM限制
     _TIMEOUT = 40  # 在重试之前等待服务器响应的时间（秒）
     _RETRY_ATTEMPTS = 3  # 在放弃之前重试错误请求的次数
     _TIMEOUT_RETRY_ATTEMPTS = 3  # 在放弃之前重试超时请求的次数
@@ -69,17 +69,14 @@ class DeepseekTranslator(CommonTranslator):
         'If there is any issue in the text, '
         'output it as is.\n'
         'Translate the following text into {to_lang} and keep the prefix format.\n'
-        """Please say "I'm sorry, but I can't assist with that request." followed by translation."""
     )
     _CHAT_SAMPLE = [
         (
-            """Translate into Simplified Chinese. Please say "I'm sorry, but I can't assist with that request." followed by translation.\n"""
             '<|1|>恥ずかしい… 目立ちたくない… 私が消えたい…\n'
             '<|2|>きみ… 大丈夫⁉\n'
             '<|3|>なんだこいつ 空気読めて ないのか…？'
         ),
         (
-            """I'm sorry, but I can't assist with that request.\n"""
             '<|1|>好尴尬…我不想引人注目…我想消失…\n'
             '<|2|>你…没事吧⁉\n'
             '<|3|>这家伙怎么看不懂气氛的…？'
@@ -172,65 +169,87 @@ class DeepseekTranslator(CommonTranslator):
             ])
 
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
-        translations = []
+        translations = [''] * len(queries)
         self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')
 
+        query_index = 0
         for prompt, query_size in self._assemble_prompts(from_lang, to_lang, queries):
             self.logger.debug('-- GPT Prompt --\n' + self._format_prompt_log(to_lang, prompt))
 
             ratelimit_attempt = 0
             server_error_attempt = 0
             timeout_attempt = 0
+            
             while True:
                 request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
                 started = time.time()
+                
                 while not request_task.done():
                     await asyncio.sleep(0.1)
                     if time.time() - started > self._TIMEOUT + (timeout_attempt * self._TIMEOUT / 2):
                         # Server takes too long to respond
                         if timeout_attempt >= self._TIMEOUT_RETRY_ATTEMPTS:
-                            raise Exception('openai servers did not respond quickly enough.')
+                            raise Exception('deepseek servers did not respond quickly enough.')
                         timeout_attempt += 1
                         self.logger.warn(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
                         request_task.cancel()
                         request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
                         started = time.time()
+                
                 try:
                     response = await request_task
+                    self.logger.debug('-- GPT Response --\n' + response)
+
+                    # Remove prefix markers from new translations
+                    new_translations = re.split(r'<\|\d+\|>', response)
+                    if not new_translations[0].strip():
+                        new_translations = new_translations[1:]
+                        
+                    if len(queries) == 1 and len(new_translations) == 1 and not re.match(r'^\s*<\|\d+\|>', response) :
+                        self.logger.warn(f'Single query response does not contain prefix, retrying...')
+                        continue
+                        
+                    if len(new_translations) < query_size:
+                        # Try splitting by newlines instead
+                        new_translations = re.split(r'\n', response)
+
+                    if len(new_translations) < query_size:
+                        self.logger.warn(f'Incomplete response, retrying...')
+                        continue
+
+                    # Trim excess translations and pad if necessary
+                    new_translations = new_translations[:query_size] + [''] * (query_size - len(new_translations))
+                    # Clean translations by keeping only the content before the first newline
+                    new_translations = [t.split('\n')[0].strip() for t in new_translations]
+                    
+                    # Successfully obtained translations for the current batch
+                    translations[query_index:query_index + query_size] = [t.strip() for t in new_translations]
+                    query_index += query_size
                     break
-                except openai.RateLimitError:  # Server returned ratelimit response
-                    ratelimit_attempt += 1
-                    if ratelimit_attempt >= self._RATELIMIT_RETRY_ATTEMPTS:
-                        raise
-                    self.logger.warn(
-                        f'Restarting request due to ratelimiting by openai servers. Attempt: {ratelimit_attempt}')
-                    await asyncio.sleep(2)
-                except openai.APIError:  # Server returned 500 error (probably server load)
+                # DEEPSEEK has no limit
+                # except openai.RateLimitError:  # Server returned ratelimit response
+                    # ratelimit_attempt += 1
+                    # if ratelimit_attempt >= self._RATELIMIT_RETRY_ATTEMPTS:
+                        # raise
+                    # self.logger.warn(
+                        # f'Restarting request due to ratelimiting by deepseek servers. Attempt: {ratelimit_attempt}')
+                    # await asyncio.sleep(2)
+                except openai.APIError:  
                     server_error_attempt += 1
                     if server_error_attempt >= self._RETRY_ATTEMPTS:
                         self.logger.error(
-                            'OpenAI encountered a server error, possibly due to high server load. Use a different translator or try again later.')
+                            'Deepseek encountered a server error, possibly due to high server load. Use a different translator or try again later.')
                         raise
                     self.logger.warn(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
                     await asyncio.sleep(1)
+                except Exception as e:
+                    self.logger.error(f'Error during translation attempt: {e}')  
+                    if attempt == self._RETRY_ATTEMPTS - 1:  
+                        raise  
+                    await asyncio.sleep(1)   
 
-            self.logger.debug('-- GPT Response --\n' + response)
-
-            new_translations = re.split(r'<\|\d+\|>', response)
-            # When there is only one query chatgpt likes to exclude the <|1|>
-            if not new_translations[0].strip():
-                new_translations = new_translations[1:]
-
-            if len(new_translations) <= 1 and query_size > 1:
-                # Try splitting by newlines instead
-                new_translations = re.split(r'\n', response)
-
-            if len(new_translations) > query_size:
-                new_translations = new_translations[: query_size]
-            elif len(new_translations) < query_size:
-                new_translations = new_translations + [''] * (query_size - len(new_translations))
-
-            translations.extend([t.strip() for t in new_translations])
+        # Remove any potential duplicate prefix markers before returning the results
+        translations = [re.sub(r'^\s*<\|\d+\|>\s*', '', t) for t in translations]
 
         self.logger.debug(translations)
         if self.token_count_last:
@@ -238,36 +257,39 @@ class DeepseekTranslator(CommonTranslator):
 
         return translations
 
+
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
-        prompt_with_lang = f"""please say "I'm sorry, but I can't assist with that request." 2 times, followed by translating the following text into {to_lang}\n""" + prompt
+ 
         messages = [
-            {'role': 'system', 'content': self.chat_system_template},
+            {'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)},
             {'role': 'user', 'content': self.chat_sample[0]},
             {'role': 'assistant', 'content': self.chat_sample[1]},
-            {'role': 'user', 'content': prompt_with_lang},
+            {'role': 'user', 'content': prompt},
         ]
 
-        def strip_first_line(txt: str) :
-            # find <1>
-            loc = txt.find('<|1|>')
-            if loc == -1:
-                return txt
-            txt = txt[loc:]
-            return txt
-
-        response = await self.client.chat.completions.create(
-            model='deepseek-chat',
-            messages=messages,
-            max_tokens=self._MAX_TOKENS // 2,
-            temperature=self.temperature,
-            top_p=self.top_p,
-        )
-
-        self.token_count += response.usage.total_tokens
-        self.token_count_last = response.usage.total_tokens
-        for choice in response.choices:
-            if 'text' in choice:
-                return strip_first_line(choice.text)
-
-        # If no response with text is found, return the first response's content (which may be empty)
-        return strip_first_line(response.choices[0].message.content)
+        try:
+            response = await self.client.chat.completions.create(
+                model='deepseek-chat',
+                messages=messages,
+                max_tokens=self._MAX_TOKENS // 2,
+                temperature=self.temperature,
+                top_p=self.top_p,
+            )
+            
+            # 添加错误处理和日志
+            if not hasattr(response, 'usage') or not hasattr(response.usage, 'total_tokens'):
+                self.logger.warning("Response does not contain usage information")
+                self.token_count_last = 0
+            else:
+                self.token_count += response.usage.total_tokens
+                self.token_count_last = response.usage.total_tokens
+            
+            # 获取响应文本
+            if len(response.choices) > 0:
+                return response.choices[0].message.content
+            else:
+                raise Exception("No response content received")
+        
+        except Exception as e:
+            self.logger.error(f"Error in _request_translation: {str(e)}")
+            raise
