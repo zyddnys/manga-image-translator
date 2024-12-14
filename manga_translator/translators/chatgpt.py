@@ -253,14 +253,12 @@ class GPT35TurboTranslator(GPT3Translator):
        
     )
     _CHAT_SAMPLE = [
-        (
-            
+        (            
             '<|1|>恥ずかしい… 目立ちたくない… 私が消えたい…\n'
             '<|2|>きみ… 大丈夫⁉\n'
             '<|3|>なんだこいつ 空気読めて ないのか…？'
         ),
-        (
-        
+        (        
             '<|1|>好尴尬…我不想引人注目…我想消失…\n'
             '<|2|>你…没事吧⁉\n'
             '<|3|>这家伙怎么看不懂气氛的…？'
@@ -358,7 +356,7 @@ class GPT4Translator(GPT35TurboTranslator):
         
         try:
             response = await self.client.chat.completions.create(
-                model='claude-3-5-sonnet-20240620',
+                model='gpt-4o-2024-08-06',
                 messages=messages,
                 max_tokens=self._MAX_TOKENS // 2,
                 temperature=self.temperature,
