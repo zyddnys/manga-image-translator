@@ -213,18 +213,6 @@ class MangaTranslator:
         # -- OCR
         await self._report_progress('ocr')
         ctx.textlines = await self._run_ocr(config, ctx)
-        
-        if config.translator.skip_lang is not None :
-            filtered_textlines = []
-            skip_langs = config.translator.skip_lang.split(',')
-            for txtln in ctx.textlines :
-                try :
-                    source_language = LANGDETECT_MAP.get(langdetect.detect(txtln.text), 'UNKNOWN')
-                except Exception :
-                    source_language = 'UNKNOWN'
-                if source_language not in skip_langs :
-                    filtered_textlines.append(txtln)
-            ctx.textlines = filtered_textlines
 
         if not ctx.textlines:
             await self._report_progress('skip-no-text', True)
@@ -338,8 +326,79 @@ class MangaTranslator:
     async def _run_textline_merge(self, config: Config, ctx: Context):
         text_regions = await dispatch_textline_merge(ctx.textlines, ctx.img_rgb.shape[1], ctx.img_rgb.shape[0],
                                                      verbose=self.verbose)
+        # Filter out languages to skip  
+        if config.translator.skip_lang is not None:  
+            skip_langs = [lang.strip().upper() for lang in config.translator.skip_lang.split(',')]  
+            filtered_textlines = []  
+            for txtln in ctx.textlines:  
+                try:  
+                    detected_lang = langdetect.detect(txtln.text)  
+                    source_language = LANGDETECT_MAP.get(detected_lang.lower(), 'UNKNOWN').upper()  
+                except Exception:  
+                    source_language = 'UNKNOWN'  
+    
+                # Print detected source_language and whether it's in skip_langs  
+                # logger.info(f'Detected source language: {source_language}, in skip_langs: {source_language in skip_langs}, text: "{txtln.text}"')  
+    
+                if source_language in skip_langs:  
+                    logger.info(f'Filtered out: {txtln.text}')  
+                    logger.info(f'Reason: Detected language {source_language} is in skip_langs')  
+                    continue  # Skip this region  
+                filtered_textlines.append(txtln)  
+            ctx.textlines = filtered_textlines  
+    
+        text_regions = await dispatch_textline_merge(ctx.textlines, ctx.img_rgb.shape[1], ctx.img_rgb.shape[0],  
+                                                     verbose=self.verbose)  
+
         new_text_regions = []
         for region in text_regions:
+
+            # Remove leading spaces and specified characters from each line (after pre-translation dictionary replacement)
+            original_text = region.text
+            stripped_text = original_text.lstrip('、？！')
+
+            # Record the removed leading characters
+            removed_start_chars = original_text[:len(original_text) - len(stripped_text)]
+            if removed_start_chars:
+                logger.info(f'Removed leading characters: "{removed_start_chars}" from "{original_text}"')
+
+            # Filter condition modification: Handle incomplete brackets
+            # Combine left brackets and left quotation marks into a single list
+            left_symbols = ['(', '（', '[', '【', '{', '〔', '〈', '「',
+                            '“', '‘', '《', '『', '"', '〝', '﹁', '﹃',
+                            '⸂', '⸄', '⸉', '⸌', '⸜', '⸠', '‹', '«']
+
+            # Combine right brackets and right quotation marks into a single list
+            right_symbols = [')', '）', ']', '】', '}', '〕', '〉', '」',
+                             '”', '’', '》', '』', '"', '〞', '﹂', '﹄',
+                             '⸃', '⸅', '⸊', '⸍', '⸝', '⸡', '›', '»']
+
+            # Combine all symbols
+            all_symbols = left_symbols + right_symbols
+
+            # Count the number of left and right symbols
+            left_count = sum(stripped_text.count(s) for s in left_symbols)
+            right_count = sum(stripped_text.count(s) for s in right_symbols)
+
+            # Check if the number of left and right symbols match
+            if left_count != right_count:
+                # Symbols are not paired, remove all symbols
+                for s in all_symbols:
+                    stripped_text = stripped_text.replace(s, '')
+                logger.info(f'Removed unpaired symbols from "{stripped_text}"')
+
+            # Check if the text ends with an Arabic numeral, "、", or "？"
+            stripped_text = stripped_text.rstrip()
+            end_char = stripped_text[-1] if stripped_text else ''
+
+            # If the end is a specified character, remove it instead of skipping the whole sentence
+            if end_char in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '０', '１', '２', '３', '４', '５', '６', '７', '８', '９', '、']:
+                stripped_text = stripped_text[:-1]  # Remove the last character
+                logger.info(f'Removed last character: {end_char} from "{stripped_text}"')
+
+            # Update region.text
+            region.text = stripped_text.strip()            
+
             if len(region.text) >= config.ocr.min_text_length \
                     and not is_valuable_text(region.text) \
                     or (not config.translator.no_text_lang_skip and langcodes.tag_distance(region.source_lang, config.translator.target_lang) == 0):
