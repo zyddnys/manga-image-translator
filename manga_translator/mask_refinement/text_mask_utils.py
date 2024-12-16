@@ -11,7 +11,7 @@ from shapely.geometry import Polygon
 # from collections import defaultdict
 # from scipy.optimize import linear_sum_assignment
 
-from ..utils import Quadrilateral, image_resize
+from ..utils import Quadrilateral
 
 COLOR_RANGE_SIGMA = 1.5 # how many stddev away is considered the same color
 
@@ -65,7 +65,7 @@ def complete_mask_fill(text_lines: List[Tuple[int, int, int, int]]):
         final_mask = cv2.rectangle(final_mask, (x, y), (x + w, y + h), (255), -1)
     return final_mask
 
-from pydensecrf.utils import compute_unary, unary_from_softmax
+from pydensecrf.utils import unary_from_softmax
 import pydensecrf.densecrf as dcrf
 
 def refine_mask(rgbimg, rawmask):

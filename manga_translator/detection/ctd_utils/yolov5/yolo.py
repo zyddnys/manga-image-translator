@@ -1,5 +1,3 @@
-from operator import mod
-from cv2 import imshow
 # from utils.yolov5_utils import scale_img
 from copy import deepcopy
 from .common import *

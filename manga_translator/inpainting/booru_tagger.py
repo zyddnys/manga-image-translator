@@ -1,16 +1,12 @@
 import os
-import gc
 import pandas as pd
 import numpy as np
 from onnxruntime import InferenceSession
-from typing import Tuple, List, Dict
-from io import BytesIO
+from typing import Dict
 from PIL import Image
 
 import cv2
-from pathlib import Path
 
-from tqdm import tqdm
 
 def make_square(img, target_size):
     old_size = img.shape[:2]

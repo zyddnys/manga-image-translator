@@ -11,17 +11,14 @@ version. You should have received a copy of this license along
 this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import os
-import argparse
-import time
 
 
 import numpy as np
 import cv2
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 from .models import FFDNet
-from .utils import normalize, variable_to_cv2_image, remove_dataparallel_wrapper, is_rgb
+from .utils import normalize, variable_to_cv2_image, remove_dataparallel_wrapper
     
 class FFDNetDenoiser:
     def __init__(self, _device, _sigma = 25, _weights_dir = 'denoising/models/', _in_ch = 3):

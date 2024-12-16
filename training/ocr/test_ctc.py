@@ -5,7 +5,6 @@ import custom_ctc_gpu
 
 import numpy as np
 
-import torch.nn.functional as F
 from torch.autograd import gradcheck
 
 custom_ctc_f = custom_ctc.CustomCTCLossFunction.apply

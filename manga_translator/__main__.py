@@ -3,13 +3,12 @@ import asyncio
 import logging
 from argparse import Namespace
 
-from manga_translator import Config
+from manga_translator.config import Config
 from manga_translator.args import parser, reparse
-from .manga_translator import (
+from manga_translator.manga_translator import (
     set_main_logger, load_dictionary, apply_dictionary,
 )
-from .args import parser
-from .utils import (
+from manga_translator.utils import (
     BASE_PATH,
     init_logging,
     get_logger,
@@ -21,7 +20,8 @@ from .utils import (
 
 async def dispatch(args: Namespace):
     args_dict = vars(args)
-
+    global logger
+    logger = get_logger(args.mode)
     logger.info(f'Running in {args.mode} mode')
 
     if args.mode == 'local':
@@ -77,9 +77,7 @@ async def dispatch(args: Namespace):
         config = Config.schema()
         print(json.dumps(config, indent=2))
 
-
-
-if __name__ == '__main__':
+def main():
     args = None
     init_logging()
     try:
@@ -98,3 +96,6 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f'{e.__class__.__name__}: {e}',
                      exc_info=e if args and args.verbose else None)
+
+if __name__ == '__main__':
+    main()

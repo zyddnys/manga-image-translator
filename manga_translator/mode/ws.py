@@ -103,7 +103,7 @@ class MangaTranslatorWS(MangaTranslator):
                     await asyncio.sleep(0)
                     return False, False
 
-            logger_task.info(f'-- Translating image')
+            logger_task.info('-- Translating image')
             if translation_params:
                 for p, default_value in translation_params.items():
                     current_value = params.get(p)
@@ -141,7 +141,7 @@ class MangaTranslatorWS(MangaTranslator):
                 await server_send_status(websocket, task.id, 'uploading')
                 async with session.put(task.translation_mask, data=img_bytes) as resp:
                     if resp.status != 200:
-                        logger_task.error(f'-- Failed to upload result:')
+                        logger_task.error('-- Failed to upload result:')
                         logger_task.error(f'{resp.status}: {resp.reason}')
                         msg = ws_pb2.WebSocketMessage()
                         msg.status.id = task.id
@@ -158,7 +158,7 @@ class MangaTranslatorWS(MangaTranslator):
                 (success, has_translation_mask) = await server_process_inner(main_loop, logger_task, session, websocket,
                                                                              task)
             except Exception as e:
-                logger_task.error(f'-- Task failed with exception:')
+                logger_task.error('-- Task failed with exception:')
                 logger_task.error(f'{e.__class__.__name__}: {e}', exc_info=e if self.verbose else None)
                 (success, has_translation_mask) = False, False
             finally:
@@ -168,7 +168,7 @@ class MangaTranslatorWS(MangaTranslator):
                 result.finish_task.has_translation_mask = has_translation_mask
                 await websocket.send(result.SerializeToString())
                 await asyncio.sleep(0)
-                logger_task.info(f'-- Task finished')
+                logger_task.info('-- Task finished')
 
         async def async_server_thread(main_loop):
             from aiohttp import ClientSession, ClientTimeout
