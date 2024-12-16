@@ -285,10 +285,12 @@ class DeepseekTranslator(CommonTranslator):
                 self.token_count_last = response.usage.total_tokens
             
             # 获取响应文本
-            if len(response.choices) > 0:
-                return response.choices[0].message.content
-            else:
-                raise Exception("No response content received")
+            for choice in response.choices:
+                if 'text' in choice:
+                    return choice.text
+
+            # If no response with text is found, return the first response's content (which may be empty)
+            return response.choices[0].message.content
         
         except Exception as e:
             self.logger.error(f"Error in _request_translation: {str(e)}")
