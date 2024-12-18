@@ -99,7 +99,7 @@ def seg_eng(text: str) -> List[str]:
     """
     # TODO: replace with regexes
 
-    text = text.upper().replace('  ', ' ').replace(' .', '.').replace('\n', ' ')
+    text = text.strip().upper().replace('  ', ' ').replace(' .', '.').replace('\n', ' ')
     processed_text = ''
 
     # dumb way to ensure spaces between words
@@ -345,6 +345,7 @@ def render_textblock_list_eng(
     ballonarea_thresh: float = 2,
     downscale_constraint: float = 0.7,
     original_img: np.ndarray = None,
+    disable_font_border: bool = False
 ) -> np.ndarray:
 
     r"""

@@ -45,8 +45,8 @@ class DefaultDetector(OfflineDetector):
         self.model.load_state_dict(sd['model'] if 'model' in sd else sd)
         self.model.eval()
         self.device = device
-        if device == 'cuda':
-            self.model = self.model.cuda()
+        if device == 'cuda' or device == 'mps':
+            self.model = self.model.to(self.device)
         global MODEL
         MODEL = self.model
 
@@ -83,7 +83,7 @@ class DefaultDetector(OfflineDetector):
             polys, _ = boxes[idx], scores[idx]
             polys = polys.astype(np.float64)
             polys = craft_utils.adjustResultCoordinates(polys, ratio_w, ratio_h, ratio_net=1)
-            polys = polys.astype(np.int16)
+            polys = polys.astype(np.int64)
 
         textlines = [Quadrilateral(pts.astype(int), '', score) for pts, score in zip(polys, scores)]
         textlines = list(filter(lambda q: q.area > 16, textlines))

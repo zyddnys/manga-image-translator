@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Upload and Translation</title>
+    <style>
+        .hidden {
+            display: none;
+            visibility: hidden;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload Image and Translate</h1>
+    <input type="file" id="fileInput" accept="image/*">
+    <label for="generate-image">generate image</label><input type="checkbox" id="generate-image">
+    <label for="config-json">Config JSON</label><br>
+    <textarea id="config-json" rows="10" cols="50" placeholder='{"translator": {"translator": "none"}}'></textarea><br>
+    <h3 id="error"></h3>
+    <h3 id="status"></h3>
+    <button id="submit-button" onclick="uploadAndTranslate()">Upload and Translate</button>
+    <script>
+        var gdata = null;
+        function downloadFile() {
+            download("text.json", gdata)
+        }
+
+        function download(filename, text) {
+          let element = document.createElement('a');
+          element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+          element.setAttribute('download', filename);
+
+          element.style.display = 'none';
+          document.body.appendChild(element);
+
+          element.click();
+
+          document.body.removeChild(element);
+        }
+
+        function download_bytes() {
+            const url = URL.createObjectURL(gdata);
+            const element = document.createElement('a');
+            element.setAttribute('href', url);
+            element.setAttribute('download', "image.png");
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+            URL.revokeObjectURL(url);
+        }
+
+        async function uploadAndTranslate() {
+            const errorField = document.getElementById('error');
+            const statusField = document.getElementById('status');
+            let submitButton = document.getElementById("submit-button")
+            const fileInput = document.getElementById('fileInput');
+            const generateImage = document.getElementById('generate-image');
+            const configField = document.getElementById('config-json');
+
+            submitButton.classList.add("hidden");
+            fileInput.classList.add("hidden");
+            generateImage.classList.add("hidden");
+            configField.classList.add("hidden");
+            statusField.innerHTML = '';
+            errorField.innerHTML = '';
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select an image file.');
+                return;
+            }
+            statusField.innerHTML = 'Uploading...';
+
+            const formData = new FormData();
+            formData.append('image', file);
+            const text = configField.innerText;
+            if (text.length > 2) {
+                formData.append('config', text)
+            }
+
+            try {
+                const response = await fetch( generateImage.checked ? '/translate/with-form/image/stream' : '/translate/with-form/json/stream', {
+                    method: 'POST',
+                    body: formData,
+                    /*headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        image: base64Image,
+                        config: {
+                            translator: {
+                                target_lang: "ENG"
+                            }
+                        }
+                    }) */
+                });
+                await process(response, statusField, errorField, generateImage.checked)
+            } catch (error) {
+                errorField.innerHTML = response.statusText;
+            } finally {
+                submitButton.classList.remove("hidden");
+                fileInput.classList.remove("hidden");
+                generateImage.classList.remove("hidden");
+                configField.classList.remove("hidden");
+            }
+        }
+
+        async function process(response, statusField, errorField, image) {
+             if (response.ok) {
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder('utf-8');
+                    let buffer = new Uint8Array();
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        const newBuffer = new Uint8Array(buffer.length + value.length);
+                        newBuffer.set(buffer);
+                        newBuffer.set(value, buffer.length);
+                        buffer = newBuffer;
+                        while (buffer.length >= 5) {
+                            const dataSize = new DataView(buffer.buffer).getUint32(1, false);
+                            const totalSize = 5 + dataSize;
+                            if (buffer.length < totalSize) {
+                                break;
+                            }
+
+                            const statusCode = buffer[0];
+                            const data = buffer.slice(5, totalSize);
+
+                            if(statusCode === 0) {
+                                if(image) {
+                                    gdata = new Blob([data], { type: 'application/octet-stream' });
+                                    statusField.innerHTML = '<button onclick="download_bytes()">download data</button>';
+                                }else {
+                                    gdata = decoder.decode(data);
+                                    statusField.innerHTML = '<button onclick="downloadFile()">download data</button>';
+                                }
+                            }else if(statusCode === 1) {
+                            const parsed_data = decoder.decode(data);
+                                statusField.innerHTML = `translation step ${parsed_data}`;
+                            }else if(statusCode === 2) {
+                                statusField.innerHTML = decoder.decode(data);
+                                errorField.innerHTML = "";
+                            }else if(statusCode === 3) {
+                                const parsed_data = decoder.decode(data);
+                                statusField.innerHTML = `in queue: ${parsed_data}`;
+                            }else if(statusCode === 4) {
+                                statusField.innerHTML = `started translation`;
+                            }
+                            buffer = buffer.slice(totalSize);
+                        }
+                    }
+
+                } else {
+                    errorField.innerHTML = response.statusText;
+                }
+        }
+    </script>
+</body>
+</html>

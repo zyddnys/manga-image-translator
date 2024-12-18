@@ -122,7 +122,10 @@ def add_color(bw_char_map, color, stroke_char_map, stroke_color):
     # plt.show()
 
     # since bg rect is always larger than fg rect, we can just use the bg rect
-    x, y, w, h = cv2.boundingRect(stroke_char_map)
+    if stroke_color is None :
+        x, y, w, h = cv2.boundingRect(bw_char_map)
+    else :
+        x, y, w, h = cv2.boundingRect(stroke_char_map)
 
     fg = np.zeros((h, w, 4), dtype = np.uint8)
     fg[:,:,0] = color[0]
@@ -130,6 +133,8 @@ def add_color(bw_char_map, color, stroke_char_map, stroke_color):
     fg[:,:,2] = color[2]
     fg[:,:,3] = bw_char_map[y:y+h, x:x+w]
 
+    if stroke_color is None :
+        stroke_color = color
     bg = np.zeros((stroke_char_map.shape[0], stroke_char_map.shape[1], 4), dtype = np.uint8)
     bg[:,:,0] = stroke_color[0]
     bg[:,:,1] = stroke_color[1]
@@ -305,6 +310,8 @@ def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_
 
 def put_text_vertical(font_size: int, text: str, h: int, alignment: str, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]], line_spacing: int):
     text = compact_special_symbols(text)
+    if not text :
+        return
     bg_size = int(max(font_size * 0.07, 1)) if bg is not None else 0
     spacing_x = int(font_size * (line_spacing or 0.2))
 
@@ -338,7 +345,6 @@ def put_text_vertical(font_size: int, text: str, h: int, alignment: str, fg: Tup
     # colorize
     canvas_border = np.clip(canvas_border, 0, 255)
     line_box = add_color(canvas_text, fg, canvas_border, bg)
-
     # rect
     x, y, w, h = cv2.boundingRect(canvas_border)
     return line_box[y:y+h, x:x+w]
@@ -675,6 +681,8 @@ def put_text_horizontal(font_size: int, text: str, width: int, height: int, alig
                         reversed_direction: bool, fg: Tuple[int, int, int], bg: Tuple[int, int, int],
                         lang: str = 'en_US', hyphenate: bool = True, line_spacing: int = 0):
     text = compact_special_symbols(text)
+    if not text :
+        return
     bg_size = int(max(font_size * 0.07, 1)) if bg is not None else 0
     spacing_y = int(font_size * (line_spacing or 0.01))
 
@@ -725,9 +733,8 @@ def put_text_horizontal(font_size: int, text: str, width: int, height: int, alig
     canvas_border = np.clip(canvas_border, 0, 255)
     line_box = add_color(canvas_text, fg, canvas_border, bg)
 
-    # rect
-    x, y, width, height = cv2.boundingRect(canvas_border)
-    return line_box[y:y+height, x:x+width]
+    x, y, w, h = cv2.boundingRect(canvas_border)
+    return line_box[y:y+h, x:x+w]
 
 # def put_text(img: np.ndarray, text: str, line_count: int, x: int, y: int, w: int, h: int, fg: Tuple[int, int, int], bg: Optional[Tuple[int, int, int]]):
 #     pass

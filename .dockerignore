@@ -7,3 +7,5 @@ __pycache__
 ocrs
 models/*
 test/testdata/bboxes
+/venv
+.git

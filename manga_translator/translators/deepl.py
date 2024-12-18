@@ -5,8 +5,8 @@ from .keys import DEEPL_AUTH_KEY
 
 class DeeplTranslator(CommonTranslator):
     _LANGUAGE_CODE_MAP = {
-        'CHS': 'ZH',
-        'CHT': 'ZH',
+        'CHS': 'ZH-HANS',
+        'CHT': 'ZH-HANT',
         'JPN': 'JA',
         'ENG': 'EN-US',
         'CSY': 'CS',
@@ -20,7 +20,26 @@ class DeeplTranslator(CommonTranslator):
         'ROM': 'RO',
         'RUS': 'RU',
         'ESP': 'ES',
-        'IND': 'ID'
+        'IND': 'ID',
+        'ARA': 'AR',
+        'BGR': 'BG',
+        'BUL': 'BG',
+        'DAN': 'DA',
+        'ELL': 'EL',
+        'EST': 'ET',
+        'FIN': 'FI',
+        'KOR': 'KO',
+        'LTH': 'LT',
+        'LIT': 'LT',
+        'LAV': 'LV',
+        'NOB': 'NB',
+        'SVK': 'SK',
+        'SLO': 'SK',
+        'SLV': 'SL',
+        'SWE': 'SV',
+        'TRK': 'TR',
+        'TUR': 'TR',
+        'UKR': 'UK'
     }
 
     def __init__(self):

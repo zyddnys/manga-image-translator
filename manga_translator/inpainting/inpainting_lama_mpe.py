@@ -12,6 +12,7 @@ import shutil
 from torch import Tensor
 
 from .common import OfflineInpainter
+from ..config import InpainterConfig
 from ..utils import resize_keep_aspect
 
 
@@ -45,14 +46,14 @@ class LamaMPEInpainter(OfflineInpainter):
     async def _load(self, device: str):
         self.model = load_lama_mpe(self._get_file_path('inpainting_lama_mpe.ckpt'), device='cpu')
         self.model.eval()
-        self.use_cuda = device == 'cuda'
-        if self.use_cuda:
-            self.model = self.model.cuda()
+        self.device = device
+        if device.startswith('cuda') or device == 'mps':
+            self.model.to(device)
 
     async def _unload(self):
         del self.model
 
-    async def _infer(self, image: np.ndarray, mask: np.ndarray, inpainting_size: int = 1024, verbose: bool = False) -> np.ndarray:
+    async def _infer(self, image: np.ndarray, mask: np.ndarray, config: InpainterConfig, inpainting_size: int = 1024, verbose: bool = False) -> np.ndarray:
         img_original = np.copy(image)
         mask_original = np.copy(mask)
         mask_original[mask_original < 127] = 0
@@ -84,17 +85,19 @@ class LamaMPEInpainter(OfflineInpainter):
         mask_torch = torch.from_numpy(mask).unsqueeze_(0).unsqueeze_(0).float() / 255.0
         mask_torch[mask_torch < 0.5] = 0
         mask_torch[mask_torch >= 0.5] = 1
-        if self.use_cuda:
-            img_torch = img_torch.cuda()
-            mask_torch = mask_torch.cuda()
+        if self.device.startswith('cuda') or self.device == 'mps':
+            img_torch = img_torch.to(self.device)
+            mask_torch = mask_torch.to(self.device)
         with torch.no_grad():
             img_torch *= (1 - mask_torch)
-            if not self.use_cuda:
+            if not (self.device.startswith('cuda')):
+                # mps devices here
                 img_inpainted_torch = self.model(img_torch, mask_torch)
             else:
                 # Note: lama's weight shouldn't be convert to fp16 or bf16 otherwise it produces darkened results.
                 # but it can inference under torch.autocast
-                precision = TORCH_DTYPE_MAP[os.environ.get("INPAINTING_PRECISION", "fp32")]
+
+                precision = TORCH_DTYPE_MAP[str(config.inpainting_precision)]
                 
                 if precision == torch.float16:
                     precision = torch.bfloat16
@@ -126,9 +129,10 @@ class LamaLargeInpainter(LamaMPEInpainter):
     async def _load(self, device: str):
         self.model = load_lama_mpe(self._get_file_path('lama_large_512px.ckpt'), device='cpu', use_mpe=False, large_arch=True)
         self.model.eval()
-        self.use_cuda = device == 'cuda'
-        if self.use_cuda:
-            self.model = self.model.cuda()
+        self.device = device
+        if device.startswith('cuda') or device == 'mps':
+            self.model.to(device)
+
 
 
 def set_requires_grad(module, value):
@@ -687,6 +691,7 @@ class LamaFourier:
             self.discriminator.to(device)
         if self.mpe is not None:
             self.mpe.to(device)
+        return self
 
     def eval(self):
         self.inpaint_only = True

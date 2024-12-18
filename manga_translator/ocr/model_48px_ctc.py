@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from manga_translator.config import OcrConfig
 from .common import OfflineOCR
 from ..utils import TextBlock, Quadrilateral, AvgMeter, chunks
 from ..utils.bubble import is_ignore
@@ -46,17 +47,22 @@ class Model48pxCTCOCR(OfflineOCR):
         del sd['encoders.layers.2.pe.pe']
         self.model.load_state_dict(sd, strict = False)
         self.model.eval()
-        self.use_cuda = device == 'cuda'
-        if self.use_cuda:
-            self.model = self.model.cuda()
+        self.device = device
+        if (device == 'cuda' or device == 'mps'):
+            self.use_gpu = True
+        else:
+            self.use_gpu = False
+        if self.use_gpu:
+            self.model = self.model.to(device)
+
     
     async def _unload(self):
         del self.model
 
-    async def _infer(self, image: np.ndarray, textlines: List[Quadrilateral], args: dict, verbose: bool = False) -> List[TextBlock]:
+    async def _infer(self, image: np.ndarray, textlines: List[Quadrilateral], config: OcrConfig, verbose: bool = False) -> List[TextBlock]:
         text_height = 48
         max_chunk_size = 16
-        ignore_bubble = args.get('ignore_bubble', 0)
+        ignore_bubble = config.ignore_bubble
 
         quadrilaterals = list(self._generate_text_direction(textlines))
         region_imgs = [q.get_transformed_region(image, d, text_height) for q, d in quadrilaterals]
@@ -93,8 +99,8 @@ class Model48pxCTCOCR(OfflineOCR):
                 ix += 1
             images = (torch.from_numpy(region).float() - 127.5) / 127.5
             images = einops.rearrange(images, 'N H W C -> N C H W')
-            if self.use_cuda:
-                images = images.cuda()
+            if self.use_gpu:
+                images = images.to(self.device)
             with torch.inference_mode():
                 texts = self.model.decode(images, widths, 0, verbose = verbose)
             for i, single_line in enumerate(texts):

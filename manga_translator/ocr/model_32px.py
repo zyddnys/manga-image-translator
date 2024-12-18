@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from manga_translator.config import OcrConfig
 from .common import OfflineOCR
 from ..utils import TextBlock, Quadrilateral, chunks
 from ..utils.bubble import is_ignore
@@ -43,17 +44,22 @@ class Model32pxOCR(OfflineOCR):
         sd = torch.load(self._get_file_path('ocr.ckpt'), map_location = 'cpu')
         self.model.load_state_dict(sd['model'] if 'model' in sd else sd)
         self.model.eval()
-        self.use_cuda = device == 'cuda'
-        if self.use_cuda:
-            self.model = self.model.cuda()
+        self.device = device
+        if (device == 'cuda' or device == 'mps'):
+            self.use_gpu = True
+        else:
+            self.use_gpu = False
+        if self.use_gpu:
+            self.model = self.model.to(device)
+
 
     async def _unload(self):
         del self.model
 
-    async def _infer(self, image: np.ndarray, textlines: List[Quadrilateral], args: dict, verbose: bool = False) -> List[TextBlock]:
+    async def _infer(self, image: np.ndarray, textlines: List[Quadrilateral], config: OcrConfig, verbose: bool = False) -> List[TextBlock]:
         text_height = 32
         max_chunk_size = 16
-        ignore_bubble = args.get('ignore_bubble', 0)
+        ignore_bubble = config.ignore_bubble
 
         quadrilaterals = list(self._generate_text_direction(textlines))
         region_imgs = [q.get_transformed_region(image, d, text_height) for q, d in quadrilaterals]
@@ -88,8 +94,8 @@ class Model32pxOCR(OfflineOCR):
                 ix += 1
             image_tensor = (torch.from_numpy(region).float() - 127.5) / 127.5
             image_tensor = einops.rearrange(image_tensor, 'N H W C -> N C H W')
-            if self.use_cuda:
-                image_tensor = image_tensor.cuda()
+            if self.use_gpu:
+                image_tensor = image_tensor.to(self.device)
             with torch.no_grad():
                 ret = self.model.infer_beam_batch(image_tensor, widths, beams_k = 5, max_seq_length = 255)
             for i, (pred_chars_index, prob, fr, fg, fb, br, bg, bb) in enumerate(ret):

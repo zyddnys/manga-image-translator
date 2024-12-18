@@ -38,3 +38,9 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.history
+/venv
+
+# Input and Output
+/input/
+/input-translated/
