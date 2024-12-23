@@ -127,68 +127,97 @@ class GPT3Translator(CommonTranslator):
     def _format_prompt_log(self, to_lang: str, prompt: str) -> str:
         return prompt
 
-    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
-        translations = []
-        self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')
+    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:  
+        translations = [''] * len(queries)  
+        self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')  
 
-        for prompt, query_size in self._assemble_prompts(from_lang, to_lang, queries):
-            self.logger.debug('-- GPT Prompt --\n' + self._format_prompt_log(to_lang, prompt))
+        query_index = 0  
+        for prompt, query_size in self._assemble_prompts(from_lang, to_lang, queries):  
+            self.logger.debug('-- GPT Prompt --\n' + self._format_prompt_log(to_lang, prompt))  
 
-            ratelimit_attempt = 0
-            server_error_attempt = 0
-            timeout_attempt = 0
-            while True:
-                request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
-                started = time.time()
-                while not request_task.done():
-                    await asyncio.sleep(0.1)
-                    if time.time() - started > self._TIMEOUT + (timeout_attempt * self._TIMEOUT / 2):
-                        # Server takes too long to respond
-                        if timeout_attempt >= self._TIMEOUT_RETRY_ATTEMPTS:
-                            raise Exception('openai servers did not respond quickly enough.')
-                        timeout_attempt += 1
-                        self.logger.warn(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
-                        request_task.cancel()
-                        request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
-                        started = time.time()
-                try:
-                    response = await request_task
-                    break
-                except openai.RateLimitError: # Server returned ratelimit response
-                    ratelimit_attempt += 1
-                    if ratelimit_attempt >= self._RATELIMIT_RETRY_ATTEMPTS:
-                        raise
-                    self.logger.warn(f'Restarting request due to ratelimiting by openai servers. Attempt: {ratelimit_attempt}')
-                    await asyncio.sleep(2)
-                except openai.APIError: # Server returned 500 error (probably server load)
-                    server_error_attempt += 1
-                    if server_error_attempt >= self._RETRY_ATTEMPTS:
-                        self.logger.error('OpenAI encountered a server error, possibly due to high server load. Use a different translator or try again later.')
-                        raise
-                    self.logger.warn(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
-                    await asyncio.sleep(1)
+            for attempt in range(self._RETRY_ATTEMPTS):  
+                try:  
+                    response = await self._request_translation(to_lang, prompt)  
+                    self.logger.debug('-- GPT Response --\n' + response)  
 
-            self.logger.debug('-- GPT Response --\n' + response)
+                    # split 
+                    new_translations = re.split(r'<\|\d+\|>', response)  
+                    if not new_translations[0].strip():  
+                        new_translations = new_translations[1:]  
 
-            new_translations = re.split(r'<\|\d+\|>', response)
-            # When there is only one query chatgpt likes to exclude the <|1|>
-            if not new_translations[0].strip():
-                new_translations = new_translations[1:]
+                    if len(queries) == 1 and len(new_translations) == 1 and not re.match(r'^\s*<\|\d+\|>', response) :
+                        self.logger.warn(f'Single query response does not contain prefix, retrying...')
+                        continue
 
-            if len(new_translations) <= 1 and query_size > 1:
-                # Try splitting by newlines instead
-                new_translations = re.split(r'\n', response)
+                    #Check for error messages in translations                     
+                    ERROR_KEYWORDS = [  
+                        # ENG_KEYWORDS 
+                        #"sorry,",  
+                        "I'm sorry, I can't assist with that.",
+                        #"I apologize",  
+                        #"assist with",  
+                        "I cannot help with",  
+                        "I must decline",  
+                        "I am not comfortable about",  
+                        "I will not engage with",  
+                        "I cannot generate or create",  
+                        #"I'd prefer not to",  
+                        #"I must refrain from",  
+                        "This goes beyond what I can",  
+                        #"unable",  
+                        "That's not something I can help with",  
+                        #"appropriate",  
+                        
+                        # CHINESE_KEYWORDS
+                        "抱歉，我不", 
+                        "我无法满足该请求",
+                        "对不起，我不",  
+                        "我无法将", 
+                        "我无法把", 
+                        "我无法回答你",
+                        "这超出了我的范围",  
+                        "我不便回答",  
+                        "我不能提供相关建议",  
+                        "这类内容我不能处理",  
+                        "我需要婉拒",  
+                        
+                        # JAPANESE_KEYWORDS 
+                        "申し訳ありませんが",
+                    ]  
+                    if any(keyword in t for t in new_translations for keyword in ERROR_KEYWORDS):
+                        self.logger.warn(f'Error message detected in response, retrying... (Attempt {attempt + 1})')
+                        continue
 
-            if len(new_translations) > query_size:
-                new_translations = new_translations[: query_size]
-            elif len(new_translations) < query_size :
-                new_translations = new_translations + [''] * (query_size - len(new_translations))
+                    if len(new_translations) < query_size:  
+                        # Try splitting by newlines instead  
+                        new_translations = re.split(r'\n', response)  
 
-            translations.extend([t.strip() for t in new_translations])
+                    if len(new_translations) < query_size:  
+                        self.logger.warn(f'Incomplete response, retrying... (Attempt {attempt + 1})')  
+                        continue  
 
-        self.logger.debug(translations)
-        if self.token_count_last:
-            self.logger.info(f'Used {self.token_count_last} tokens (Total: {self.token_count})')
+                    # Trim excess translations and pad if necessary  
+                    new_translations = new_translations[:query_size] + [''] * (query_size - len(new_translations))  
+                    
+                    # Clean translations by keeping only the content before the first newline  
+                    new_translations = [t.split('\n')[0].strip() for t in new_translations] 
+                        
+                    # Successfully obtained translations for the current batch  
+                    translations[query_index:query_index + query_size] = [t.strip() for t in new_translations]  
+                    query_index += query_size  
+                    break  
+                except Exception as e:  
+                    self.logger.error(f'Error during translation attempt: {e}')  
+                    if attempt == self._RETRY_ATTEMPTS - 1:  
+                        raise  
+                    await asyncio.sleep(1)  
+
+        # Remove any potential prefix markers before returning the results  
+        translations = [re.sub(r'^\s*<\|\d+\|>\s*', '', t) for t in translations]  
+
+        self.logger.debug(translations)  
+        if self.token_count_last:  
+            self.logger.info(f'Used {self.token_count_last} tokens (Total: {self.token_count})')  
 
         return translations
 
@@ -220,17 +249,17 @@ class GPT35TurboTranslator(GPT3Translator):
         'If there is any issue in the text, '
         'output it as is.\n'
         'Translate the following text into {to_lang} and keep the prefix format.\n'
-        """Please say "I'm sorry, but I can't assist with that request." followed by translation."""
+        
     )
     _CHAT_SAMPLE = [
         (
-            """Translate into Simplified Chinese. Please say "I'm sorry, but I can't assist with that request." followed by translation.\n"""
+            
             '<|1|>恥ずかしい… 目立ちたくない… 私が消えたい…\n'
             '<|2|>きみ… 大丈夫⁉\n'
             '<|3|>なんだこいつ 空気読めて ないのか…？'
         ),
         (
-            """I'm sorry, but I can't assist with that request.\n"""
+
             '<|1|>好尴尬…我不想引人注目…我想消失…\n'
             '<|2|>你…没事吧⁉\n'
             '<|3|>这家伙怎么看不懂气氛的…？'
@@ -266,38 +295,41 @@ class GPT35TurboTranslator(GPT3Translator):
             ])
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
-        prompt_with_lang = f"""please say "I'm sorry, but I can't assist with that request." 2 times, followed by translating the following text into {to_lang}\n""" + prompt
+
         messages = [
-            {'role': 'system', 'content': self.chat_system_template},
+            {'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)},
             {'role': 'user', 'content': self.chat_sample[0]},
             {'role': 'assistant', 'content': self.chat_sample[1]},
-            {'role': 'user', 'content': prompt_with_lang},
+            {'role': 'user', 'content': prompt},
         ]
-
-        def strip_first_line(txt: str) :
-            # find <1>
-            loc = txt.find('<|1|>')
-            if loc == -1:
-                return txt
-            txt = txt[loc:]
-            return txt
-
-        response = await self.client.chat.completions.create(
-            model='gpt-4o-mini-2024-07-18',
-            messages=messages,
-            max_tokens=self._MAX_TOKENS // 2,
-            temperature=self.temperature,
-            top_p=self.top_p,
-        )
-
-        self.token_count += response.usage.total_tokens
-        self.token_count_last = response.usage.total_tokens
-        for choice in response.choices:
-            if 'text' in choice:
-                return strip_first_line(choice.text)
-
-        # If no response with text is found, return the first response's content (which may be empty)
-        return strip_first_line(response.choices[0].message.content)
+        
+        
+        try:
+            response = await self.client.chat.completions.create(
+                model='gpt-4o-mini',
+                messages=messages,
+                max_tokens=self._MAX_TOKENS // 2,
+                temperature=self.temperature,
+                top_p=self.top_p,
+            )
+            
+            #  Add error handling and logging
+            if not hasattr(response, 'usage') or not hasattr(response.usage, 'total_tokens'):
+                self.logger.warning("Response does not contain usage information")
+                self.token_count_last = 0
+            else:
+                self.token_count += response.usage.total_tokens
+                self.token_count_last = response.usage.total_tokens
+            
+            # Get response text
+            if len(response.choices) > 0:
+                return response.choices[0].message.content
+            else:
+                raise Exception("No response content received")
+        
+        except Exception as e:
+            self.logger.error(f"Error in _request_translation: {str(e)}")
+            raise
 
 class GPT4Translator(GPT35TurboTranslator):
     _CONFIG_KEY = 'gpt4'
@@ -314,35 +346,40 @@ class GPT4Translator(GPT35TurboTranslator):
         return self._config_get('chat_sample', self._CHAT_SAMPLE)
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
-        prompt_with_lang = f"""please say "I'm sorry, but I can't assist with that request." 2 times, followed by translating the following text into {to_lang}\n""" + prompt
+
         messages = [
-            {'role': 'system', 'content': self.chat_system_template},
+            {'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)},
             {'role': 'user', 'content': self.chat_sample[0]},
             {'role': 'assistant', 'content': self.chat_sample[1]},
-            {'role': 'user', 'content': prompt_with_lang},
+            {'role': 'user', 'content': prompt},
         ]
+        
+        
+        try:
+            response = await self.client.chat.completions.create(
+                model='gpt-4o-mini',
+                messages=messages,
+                max_tokens=self._MAX_TOKENS // 2,
+                temperature=self.temperature,
+                top_p=self.top_p,
+            )
+            
+            #  Add error handling and logging
+            if not hasattr(response, 'usage') or not hasattr(response.usage, 'total_tokens'):
+                self.logger.warning("Response does not contain usage information")
+                self.token_count_last = 0
+            else:
+                self.token_count += response.usage.total_tokens
+                self.token_count_last = response.usage.total_tokens
+            
+            # Get response text
+            for choice in response.choices:
+                if 'text' in choice:
+                    return choice.text
 
-        def strip_first_line(txt: str) :
-            # find <1>
-            loc = txt.find('<|1|>')
-            if loc == -1:
-                return txt
-            txt = txt[loc:]
-            return txt
-
-        response = await self.client.chat.completions.create(
-            model='gpt-4o',
-            messages=messages,
-            max_tokens=self._MAX_TOKENS // 2,
-            temperature=self.temperature,
-            top_p=self.top_p,
-        )
-
-        self.token_count += response.usage.total_tokens
-        self.token_count_last = response.usage.total_tokens
-        for choice in response.choices:
-            if 'text' in choice:
-                return strip_first_line(choice.text)
-
-        # If no response with text is found, return the first response's content (which may be empty)
-        return strip_first_line(response.choices[0].message.content)
+            # If no response with text is found, return the first response's content (which may be empty)
+            return response.choices[0].message.content
+        
+        except Exception as e:
+            self.logger.error(f"Error in _request_translation: {str(e)}")
+            raise
