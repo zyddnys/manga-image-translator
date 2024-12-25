@@ -385,7 +385,7 @@ class MangaTranslator:
                     stripped_text = stripped_text.replace(s, '')  
                 logger.info(f'Removed unpaired symbols from "{stripped_text}"')  
               
-            stripped_text = stripped_text.rstrip()  
+            stripped_text = stripped_text.strip()  
             
             # Replace double quotes with 『』, for translators often incorrectly change quotation marks from the source language to those commonly used in the target language, which is not align with some established translation conventions.   
             #while True:  
