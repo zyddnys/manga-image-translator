@@ -352,6 +352,69 @@ class MangaTranslator:
 
         new_text_regions = []
         for region in text_regions:
+            # Remove leading spaces and specified characters (after pre-translation dictionary replacement)  
+            original_text = region.text  
+            stripped_text = original_text.lstrip('、？！')  
+            
+            # Record removed leading characters  
+            removed_start_chars = original_text[:len(original_text) - len(stripped_text)]  
+            if removed_start_chars:  
+                logger.info(f'Removed leading characters: "{removed_start_chars}" from "{original_text}"')  
+            
+            # Modified filtering condition: handle incomplete parentheses  
+            # Combine left parentheses and left quotation marks into one list  
+            left_symbols = ['(', '（', '[', '【', '{', '〔', '〈', '「',  
+                            '“', '‘', '《', '『', '"', '〝', '﹁', '﹃',  
+                            '⸂', '⸄', '⸉', '⸌', '⸜', '⸠', '‹', '«']  
+            
+            # Combine right parentheses and right quotation marks into one list
+            right_symbols = [')', '）', ']', '】', '}', '〕', '〉', '」',  
+                             '”', '’', '》', '』', '"', '〞', '﹂', '﹄',  
+                             '⸃', '⸅', '⸊', '⸍', '⸝', '⸡', '›', '»']  
+            # Combine all symbols  
+            all_symbols = left_symbols + right_symbols  
+            
+            # Count the number of left and right symbols  
+            left_count = sum(stripped_text.count(s) for s in left_symbols)  
+            right_count = sum(stripped_text.count(s) for s in right_symbols)  
+            
+            # Check if the number of left and right symbols match  
+            if left_count != right_count:  
+                # Symbols don't match, remove all symbols  
+                for s in all_symbols:  
+                    stripped_text = stripped_text.replace(s, '')  
+                logger.info(f'Removed unpaired symbols from "{stripped_text}"')  
+              
+            stripped_text = stripped_text.rstrip()  
+            
+            # Replace double quotes with 『』, for translators often incorrectly change quotation marks from the source language to those commonly used in the target language, which is not align with some established translation conventions.   
+            #while True:  
+            #    double_quote_index = -1  
+                
+            #    for i in range(len(stripped_text)):  
+            #        if stripped_text[i] in ['"',"“","”"]:  
+            #            double_quote_index = i  
+            #            break  
+            
+            #    if double_quote_index == -1:  
+            #        break  # No more double quotes found  
+            
+            #    left_quote_index = -1  
+            #    for i in range(double_quote_index -1, -2, -1):  
+            #        if i == -1 or stripped_text[i] in all_symbols :  
+            #           left_quote_index = i  
+            #            break  
+            
+            #    right_quote_index = -1  
+            #    for i in range(double_quote_index + 1, len(stripped_text) + 1):  
+            #        if i == len(stripped_text) or stripped_text[i] in all_symbols:  
+            #            right_quote_index = i  
+            #            break  
+            
+            #    if left_quote_index != -1 and right_quote_index != -1:  
+            #        stripped_text = stripped_text[:left_quote_index + 1] + '『' + stripped_text[left_quote_index + 2:right_quote_index-1] + '』' + stripped_text[right_quote_index:]  
+             
+            region.text = stripped_text.strip()
             if len(region.text) >= config.ocr.min_text_length \
                     and not is_valuable_text(region.text) \
                     or (not config.translator.no_text_lang_skip and langcodes.tag_distance(region.source_lang, config.translator.target_lang) == 0):
