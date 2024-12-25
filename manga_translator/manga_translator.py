@@ -477,7 +477,7 @@ class MangaTranslator:
         new_text_regions = []  
 
         # List of languages with specific language detection  
-        special_langs = ['CHS', 'CHT', 'JPN', 'KOR', 'IND', 'UKR', 'RUS', 'THA', 'ARA']  
+        special_langs = ['CHS', 'CHT', 'KOR', 'IND', 'UKR', 'RUS', 'THA', 'ARA']  
 
         # Process special language scenarios  
         if config.translator.target_lang in special_langs:
