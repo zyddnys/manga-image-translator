@@ -352,9 +352,9 @@ class MangaTranslator:
 
         new_text_regions = []
         for region in text_regions:
-            # Remove leading spaces and specified characters (after pre-translation dictionary replacement)  
+            # Remove leading spaces after pre-translation dictionary replacement                
             original_text = region.text  
-            stripped_text = original_text.lstrip('、？！')  
+            stripped_text = original_text.strip()  
             
             # Record removed leading characters  
             removed_start_chars = original_text[:len(original_text) - len(stripped_text)]  
