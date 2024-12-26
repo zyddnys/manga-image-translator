@@ -385,36 +385,8 @@ class MangaTranslator:
                     stripped_text = stripped_text.replace(s, '')  
                 logger.info(f'Removed unpaired symbols from "{stripped_text}"')  
               
-            stripped_text = stripped_text.strip()  
+            region.text = stripped_text.strip()     
             
-            # Replace double quotes with 『』, for translators often incorrectly change quotation marks from the source language to those commonly used in the target language, which is not align with some established translation conventions.   
-            #while True:  
-            #    double_quote_index = -1  
-                
-            #    for i in range(len(stripped_text)):  
-            #        if stripped_text[i] in ['"',"“","”"]:  
-            #            double_quote_index = i  
-            #            break  
-            
-            #    if double_quote_index == -1:  
-            #        break  # No more double quotes found  
-            
-            #    left_quote_index = -1  
-            #    for i in range(double_quote_index -1, -2, -1):  
-            #        if i == -1 or stripped_text[i] in all_symbols :  
-            #           left_quote_index = i  
-            #            break  
-            
-            #    right_quote_index = -1  
-            #    for i in range(double_quote_index + 1, len(stripped_text) + 1):  
-            #        if i == len(stripped_text) or stripped_text[i] in all_symbols:  
-            #            right_quote_index = i  
-            #            break  
-            
-            #    if left_quote_index != -1 and right_quote_index != -1:  
-            #        stripped_text = stripped_text[:left_quote_index + 1] + '『' + stripped_text[left_quote_index + 2:right_quote_index-1] + '』' + stripped_text[right_quote_index:]  
-             
-            region.text = stripped_text.strip()
             if len(region.text) >= config.ocr.min_text_length \
                     and not is_valuable_text(region.text) \
                     or (not config.translator.no_text_lang_skip and langcodes.tag_distance(region.source_lang, config.translator.target_lang) == 0):
@@ -456,6 +428,56 @@ class MangaTranslator:
             region.target_lang = config.translator.target_lang
             region._alignment = config.render.alignment
             region._direction = config.render.direction
+
+        # Punctuation correction logic. for translators often incorrectly change quotation marks from the source language to those commonly used in the target language.
+        check_items = [
+            ["(", "（", "「"],
+            ["（", "(", "「"],
+            [")", "）", "」"],
+            ["）", ")", "」"],
+            ["「", "“", "‘", "『"],
+            ["」", "”", "’", "』"],
+            ["『", "“", "‘", "「"],
+            ["』", "”", "’", "」"],
+        ]
+        
+        replace_items = [
+            ["「", "“"],
+            ["「", "‘"],
+            ["」", "”"],
+            ["」", "’"],
+        ]
+        
+        for region in ctx.text_regions:
+            if region.text and region.translation:
+                # Detect 「」 or 『』 in the source text
+                if '「' in region.text and '」' in region.text:
+                    quote_type = '「」'
+                elif '『' in region.text and '』' in region.text:
+                    quote_type = '『』'
+                else:
+                    quote_type = None
+        
+                # If the source text has 「」 or 『』, and the translation has "", replace them
+                if quote_type and '"' in region.translation:
+                    # Replace "" with 「」 or 『』
+                    if quote_type == '「」':
+                        region.translation = re.sub(r'"([^"]*)"', r'「\1」', region.translation)
+                    elif quote_type == '『』':
+                        region.translation = re.sub(r'"([^"]*)"', r'『\1』', region.translation)
+        
+                # Correct ellipsis
+                region.translation = re.sub(r'\.{3}', '…', region.translation)
+        
+                # Check and replace other symbols
+                for v in check_items:
+                    num_s = region.text.count(v[0])
+                    num_t = sum(region.translation.count(t) for t in v[1:])
+                    if num_s == num_t:
+                        for t in v[1:]:
+                            region.translation = region.translation.replace(t, v[0])
+                for v in replace_items:
+                    region.translation = region.translation.replace(v[1], v[0])
 
         # Apply post dictionary after translating
         post_dict = load_dictionary(self.post_dict)
