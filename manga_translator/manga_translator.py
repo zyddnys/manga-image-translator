@@ -1,4 +1,5 @@
 import cv2
+import json
 import langcodes
 import langdetect
 import os
@@ -137,6 +138,12 @@ class MangaTranslator:
             ModelWrapper._MODEL_DIR = params.get('model_dir')
         #todo: fix why is kernel size loaded in the constructor
         self.kernel_size=int(params.get('kernel_size'))
+        # Set input files
+        self.input_files = params.get('input', [])
+        # Set save_text
+        self.save_text = params.get('save_text', False)
+        # Set load_text
+        self.load_text = params.get('load_text', False)
 
     @property
     def using_gpu(self):
@@ -173,7 +180,6 @@ class MangaTranslator:
         return await self._translate(config, ctx)
 
     async def _translate(self, config: Config, ctx: Context) -> Context:
-
         # -- Colorization
         if config.colorizer.colorizer != Colorizer.none:
             await self._report_progress('colorizing')
@@ -248,7 +254,6 @@ class MangaTranslator:
         await self._report_progress('translating')
         ctx.text_regions = await self._run_text_translation(config, ctx)
         await self._report_progress('after-translating')
-
 
         if not ctx.text_regions:
             await self._report_progress('error-translating', True)
@@ -377,12 +382,25 @@ class MangaTranslator:
         return text_regions
 
     async def _run_text_translation(self, config: Config, ctx: Context):
-        translated_sentences = \
-            await dispatch_translation(config.translator.translator_gen,
-                                       [region.text for region in ctx.text_regions],
-                                       config.translator,
-                                       self.use_mtpe,
-                                       ctx, 'cpu' if self._gpu_limited_memory else self.device)
+        if self.load_text:
+            input_filename = os.path.splitext(os.path.basename(self.input_files[0]))[0]
+            with open(self._result_path(f"{input_filename}_translations.txt"), "r") as f:
+                    translated_sentences = json.load(f)
+        else:
+            translated_sentences = \
+                await dispatch_translation(config.translator.translator_gen,
+                                           [region.text for region in ctx.text_regions],
+                                           config.translator,
+                                           self.use_mtpe,
+                                           ctx, 'cpu' if self._gpu_limited_memory else self.device)
+
+            # Save translation if args.save_text is set and quit
+            if self.save_text:
+                input_filename = os.path.splitext(os.path.basename(self.input_files[0]))[0]
+                with open(self._result_path(f"{input_filename}_translations.txt"), "w") as f:
+                    json.dump(translated_sentences, f, indent=4)
+                print("Don't continue if --save-text is used")
+                exit(-1)
 
         for region, translation in zip(ctx.text_regions, translated_sentences):
             if config.render.uppercase:
