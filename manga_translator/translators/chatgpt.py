@@ -357,7 +357,7 @@ class GPT4Translator(GPT35TurboTranslator):
         
         try:
             response = await self.client.chat.completions.create(
-                model='gpt-4o-mini',
+                model='gpt-4o',
                 messages=messages,
                 max_tokens=self._MAX_TOKENS // 2,
                 temperature=self.temperature,
