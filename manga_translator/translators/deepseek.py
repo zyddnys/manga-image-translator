@@ -42,7 +42,7 @@ class DeepseekTranslator(CommonTranslator):
         'THA': 'Thai',
         'IND': 'Indonesian'
     }
-    _INVALID_REPEAT_COUNT = 2  # 如果检测到“无效”翻译，最多重复 2 次
+    _INVALID_REPEAT_COUNT = 0  # 现在这个参数没意义了
     _MAX_REQUESTS_PER_MINUTE = 9999  # 无RPM限制
     _TIMEOUT = 40  # 在重试之前等待服务器响应的时间（秒）
     _RETRY_ATTEMPTS = 3  # 在放弃之前重试错误请求的次数
