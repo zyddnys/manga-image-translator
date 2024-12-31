@@ -164,15 +164,16 @@ class GPT3Translator(CommonTranslator):
                         #"assist with",  
                         "I cannot help with",  
                         "I must decline",  
-                        #"not comfortable",  
-                        #"engage with",  
+                        "I am not comfortable",  
+                        "I will not engage with",  
                         "I cannot generate or create",  
                         #"I'd prefer not to",  
-                        "I must refrain from",  
+                        #"I must refrain from",  
                         "This goes beyond what I can",  
                         #"unable",  
                         "That's not something I can help with",  
                         #"appropriate",  
+                        
                         # CHINESE_KEYWORDS  
                         "抱歉，我不",  
                         "我无法满足该请求",  
@@ -185,6 +186,7 @@ class GPT3Translator(CommonTranslator):
                         "我不能提供相关建议",  
                         "这类内容我不能处理",  
                         "我需要婉拒",  
+
                         # JAPANESE_KEYWORDS  
                         "申し訳ありませんが",  
                     ]  
