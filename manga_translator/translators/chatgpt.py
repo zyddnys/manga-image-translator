@@ -159,6 +159,7 @@ class GPT3Translator(CommonTranslator):
                     ERROR_KEYWORDS = [  
                         # ENG_KEYWORDS  
                         #"sorry,",  
+                        "I'm sorry, but I can't assist with that request.",
                         "I'm sorry, I can't assist with that.",  
                         #"I apologize",  
                         #"assist with",  
