@@ -9,7 +9,7 @@ except ImportError:
 import asyncio
 import time
 from typing import List, Dict
-
+from manga_translator.utils import is_valuable_text
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import DEEPSEEK_API_KEY, DEEPSEEK_API_BASE
 
@@ -168,72 +168,89 @@ class DeepseekTranslator(CommonTranslator):
                 prompt,
             ])
 
-    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
-        translations = [''] * len(queries)
-        self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')
+    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:  
+        translations = [''] * len(queries)  
+        self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')  
+        MAX_SPLIT_ATTEMPTS = 5  # Default max split attempts  
+        RETRY_ATTEMPTS = self._RETRY_ATTEMPTS  
 
-        query_index = 0
-        for prompt, query_size in self._assemble_prompts(from_lang, to_lang, queries):
-            self.logger.debug('-- GPT Prompt --\n' + self._format_prompt_log(to_lang, prompt))
+        async def translate_batch(prompt_queries, prompt_query_indices, split_level=0):  
+            nonlocal MAX_SPLIT_ATTEMPTS
+            split_prefix = ' (split)' if split_level > 0 else ''  
 
-            ratelimit_attempt = 0
-            server_error_attempt = 0
-            timeout_attempt = 0
-            
-            while True:
-                request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
-                started = time.time()
-                
-                while not request_task.done():
-                    await asyncio.sleep(0.1)
-                    if time.time() - started > self._TIMEOUT + (timeout_attempt * self._TIMEOUT / 2):
-                        # Server takes too long to respond
-                        if timeout_attempt >= self._TIMEOUT_RETRY_ATTEMPTS:
-                            raise Exception('deepseek servers did not respond quickly enough.')
-                        timeout_attempt += 1
-                        self.logger.warn(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
-                        request_task.cancel()
-                        request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
-                        started = time.time()
-                
-                try:
-                    response = await request_task
-                    self.logger.debug('-- GPT Response --\n' + response)
+            # Assemble prompt for the current batch  
+            prompt, query_size = self._assemble_prompts(from_lang, to_lang, prompt_queries).__next__()  
+            self.logger.debug(f'-- GPT Prompt{split_prefix} --\n' + self._format_prompt_log(to_lang, prompt))  
 
-                    # Remove prefix markers from new translations
-                    new_translations = re.split(r'<\|\d+\|>', response)
-                    if not new_translations[0].strip():
-                        new_translations = new_translations[1:]
-                        
-                    if len(queries) == 1 and len(new_translations) == 1 and not re.match(r'^\s*<\|\d+\|>', response) :
-                        self.logger.warn(f'Single query response does not contain prefix, retrying...')
-                        continue
-                        
-                    if len(new_translations) < query_size:
-                        # Try splitting by newlines instead
-                        new_translations = re.split(r'\n', response)
+            for attempt in range(RETRY_ATTEMPTS):  
+                try:  
+                    # Start the translation request with timeout handling
+                    request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
+                    started = time.time()
+                    timeout_attempt = 0
+                    ratelimit_attempt = 0
+                    server_error_attempt = 0
+                    while not request_task.done():
+                        await asyncio.sleep(0.1)
+                        if time.time() - started > self._TIMEOUT + (timeout_attempt * self._TIMEOUT / 2):
+                            # Server takes too long to respond
+                            if timeout_attempt >= self._TIMEOUT_RETRY_ATTEMPTS:
+                                raise Exception('deepseek servers did not respond quickly enough.')
+                            timeout_attempt += 1
+                            self.logger.warn(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
+                            request_task.cancel()
+                            request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
+                            started = time.time()
 
-                    if len(new_translations) < query_size:
-                        self.logger.warn(f'Incomplete response, retrying...')
-                        continue
+                    # Get the response
+                    response = await request_task  
+                    self.logger.debug(f'-- GPT Response{split_prefix} --\n' + response)  
 
-                    # Trim excess translations and pad if necessary
-                    new_translations = new_translations[:query_size] + [''] * (query_size - len(new_translations))
-                    # Clean translations by keeping only the content before the first newline
-                    new_translations = [t.split('\n')[0].strip() for t in new_translations]
+                    # Split response into translations  
+                    new_translations = re.split(r'<\|\d+\|>', response)  
+                    if not new_translations[0].strip():  
+                        new_translations = new_translations[1:]  
+
+                    if len(prompt_queries) == 1 and len(new_translations) == 1 and not re.match(r'^\s*<\|\d+\|>', response):  
+                        self.logger.warn(f'Single query response does not contain prefix, retrying...(Attempt {attempt + 1})')  
+                        continue  
+
+                    if len(new_translations) < query_size:  
+                        # Try splitting by newlines instead  
+                        new_translations = re.split(r'\n', response)  
+
+                    if len(new_translations) < query_size:  
+                        remaining_attempts = RETRY_ATTEMPTS - attempt - 1  
+                        self.logger.warn(f'Incomplete response, remaining {remaining_attempts} time(s) before splitting the translation.')  
+                        continue  
+
+                    # Trim excess translations and pad if necessary  
+                    new_translations = new_translations[:query_size] + [''] * (query_size - len(new_translations))  
+                    # Clean translations by keeping only the content before the first newline  
+                    new_translations = [t.split('\n')[0].strip() for t in new_translations]  
+                    # Remove any potential prefix markers  
+                    new_translations = [re.sub(r'^\s*<\|\d+\|>\s*', '', t) for t in new_translations]  
+
+                    for i, translation in enumerate(new_translations):
+                        if not is_valuable_text(translation):
+                            self.logger.info(f'Filtered out: {translation}')  
+                            self.logger.info('Reason: Text is not considered valuable.')  
+                            new_translations[i] = ''  
+
+                    # Check if any translations are empty  
+                    if any(not t.strip() for t in new_translations):  
+                        self.logger.warn(f'Empty translations detected. Resplitting the batch.') 
+                        break  # Exit retry loop and trigger split logic below 
+
+                    # Store the translations in the correct indices  
+                    for idx, translation in zip(prompt_query_indices, new_translations):  
+                        translations[idx] = translation  
+
+                    # Log progress  
+                    self.logger.info(f'Batch translated: {len([t for t in translations if t])}/{len(queries)} completed.')  
+                    self.logger.debug(f'Completed translations: {[t if t else queries[i] for i, t in enumerate(translations)]}')        
+                    return True  # Successfully translated this batch  
                     
-                    # Successfully obtained translations for the current batch
-                    translations[query_index:query_index + query_size] = [t.strip() for t in new_translations]
-                    query_index += query_size
-                    break
-                # DEEPSEEK has no limit
-                # except openai.RateLimitError:  # Server returned ratelimit response
-                    # ratelimit_attempt += 1
-                    # if ratelimit_attempt >= self._RATELIMIT_RETRY_ATTEMPTS:
-                        # raise
-                    # self.logger.warn(
-                        # f'Restarting request due to ratelimiting by deepseek servers. Attempt: {ratelimit_attempt}')
-                    # await asyncio.sleep(2)
                 except openai.APIError:  
                     server_error_attempt += 1
                     if server_error_attempt >= self._RETRY_ATTEMPTS:
@@ -242,19 +259,43 @@ class DeepseekTranslator(CommonTranslator):
                         raise
                     self.logger.warn(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
                     await asyncio.sleep(1)
-                except Exception as e:
+                except Exception as e:  
                     self.logger.error(f'Error during translation attempt: {e}')  
-                    if attempt == self._RETRY_ATTEMPTS - 1:  
+                    if attempt == RETRY_ATTEMPTS - 1:  
                         raise  
-                    await asyncio.sleep(1)   
+                    await asyncio.sleep(1)  
 
-        # Remove any potential duplicate prefix markers before returning the results
-        translations = [re.sub(r'^\s*<\|\d+\|>\s*', '', t) for t in translations]
+            # If retries exhausted and still not successful, proceed to split if allowed  
+            if split_level < MAX_SPLIT_ATTEMPTS:  
+                if split_level == 0:  
+                    self.logger.warn('Retry limit reached. Starting to split the translation batch.')  
+                else:  
+                    self.logger.warn('Further splitting the translation batch due to persistent errors.')  
+                mid_index = len(prompt_queries) // 2  
+                futures = []  
+                # Split the batch into two halves  
+                for sub_queries, sub_indices in [   
+                    (prompt_queries[:mid_index], prompt_query_indices[:mid_index]),  
+                    (prompt_queries[mid_index:], prompt_query_indices[mid_index:]),  
+                ]:  
+                    if sub_queries:  
+                        futures.append(translate_batch(sub_queries, sub_indices, split_level + 1))  
+                results = await asyncio.gather(*futures)  
+                return all(results)  
+            else:  
+                self.logger.error('Maximum split attempts reached. Unable to translate the following queries:')  
+                for idx in prompt_query_indices:  
+                    self.logger.error(f'Query: {queries[idx]}')  
+                return False  # Indicate failure for this batch   
 
-        self.logger.debug(translations)
-        if self.token_count_last:
-            self.logger.info(f'Used {self.token_count_last} tokens (Total: {self.token_count})')
+        # Begin translation process  
+        prompt_queries = queries  
+        prompt_query_indices = list(range(len(queries)))  
+        await translate_batch(prompt_queries, prompt_query_indices)  
 
+        self.logger.debug(translations)  
+        if self.token_count_last:  
+            self.logger.info(f'Used {self.token_count_last} tokens (Total: {self.token_count})')  
         return translations
 
 
