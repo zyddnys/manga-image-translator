@@ -249,7 +249,7 @@ class GPT3Translator(CommonTranslator):
                     self.logger.debug(f'Completed translations: {[t if t else queries[i] for i, t in enumerate(translations)]}')        
                     return True  # Successfully translated this batch  
 
-                 except openai.RateLimitError:  # Server returned ratelimit response
+                except openai.RateLimitError:  # Server returned ratelimit response
                     ratelimit_attempt += 1
                     if ratelimit_attempt >= self._RATELIMIT_RETRY_ATTEMPTS:
                         raise
