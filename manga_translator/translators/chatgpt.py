@@ -42,7 +42,7 @@ class GPT3Translator(CommonTranslator):
         'THA': 'Thai',
         'IND': 'Indonesian'
     }
-    _INVALID_REPEAT_COUNT = 2 # repeat up to 2 times if "invalid" translation was detected
+    _INVALID_REPEAT_COUNT = 0 # useless
     _MAX_REQUESTS_PER_MINUTE = 20
     _TIMEOUT = 40 # Seconds to wait for a response from the server before retrying
     _RETRY_ATTEMPTS = 3 # Number of times to retry an errored request before giving up
