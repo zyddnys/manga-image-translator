@@ -381,7 +381,7 @@ class GPT35TurboTranslator(GPT3Translator):
 class GPT4Translator(GPT35TurboTranslator):
     _CONFIG_KEY = 'gpt4'
     _MAX_REQUESTS_PER_MINUTE = 200
-    _RETRY_ATTEMPTS = 5
+    _RETRY_ATTEMPTS = 3
     _MAX_TOKENS = 8192
 
     @property
