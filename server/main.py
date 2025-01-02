@@ -126,14 +126,14 @@ async def queue_size() -> int:
 async def index() -> HTMLResponse:
     script_directory = Path(__file__).parent
     html_file = script_directory / "index.html"
-    html_content = html_file.read_text()
+    html_content = html_file.read_text(encoding="utf-8")
     return HTMLResponse(content=html_content)
 
 @app.get("/manual", response_class=HTMLResponse, tags=["ui"])
 async def manual():
     script_directory = Path(__file__).parent
     html_file = script_directory / "manual.html"
-    html_content = html_file.read_text()
+    html_content = html_file.read_text(encoding="utf-8")
     return HTMLResponse(content=html_content)
 
 def generate_nonce():
