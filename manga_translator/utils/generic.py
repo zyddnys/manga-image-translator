@@ -33,10 +33,12 @@ class Context(dict):
     
     def __getattr__(self, item):
         return self.get(item)
+    
+    def __delattr__(self, key) -> None:
+        return self.__delitem__(key)
 
-    def __setattr__(self, name, value):
-        self[name] = value
-        super().__setattr__(name, value)
+    def __setattr__(self, key, value):
+        return self.__setitem__(key, value)
 
     def __getstate__(self):
         return self.copy()
