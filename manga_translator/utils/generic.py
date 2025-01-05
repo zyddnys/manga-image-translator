@@ -27,17 +27,22 @@ BASE_PATH = os.path.dirname(MODULE_PATH)
 # Adapted from argparse.Namespace
 class Context(dict):
     def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         for name in kwargs:
             setattr(self, name, kwargs[name])
     
     def __getattr__(self, item):
         return self.get(item)
-    
-    def __delattr__(self, key) -> None:
-        return self.__delitem__(key)
 
-    def __setattr__(self, key, value):
-        return self.__setitem__(key, value)
+    def __setattr__(self, name, value):
+        self[name] = value
+        super().__setattr__(name, value)
+
+    def __getstate__(self):
+        return self.copy()
+
+    def __setstate__(self, state):
+        self.update(state)
 
     def __eq__(self, other):
         if not isinstance(other, Context):
@@ -67,6 +72,7 @@ class Context(dict):
 
     def _get_args(self):
         return []
+
 
 # TODO: Add TranslationContext for type linting
 
