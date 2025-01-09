@@ -39,6 +39,12 @@ class Context(dict):
     def __setattr__(self, key, value):
         return self.__setitem__(key, value)
 
+    def __getstate__(self):
+        return self.copy()
+
+    def __setstate__(self, state):
+        self.update(state)
+
     def __eq__(self, other):
         if not isinstance(other, Context):
             return NotImplemented
