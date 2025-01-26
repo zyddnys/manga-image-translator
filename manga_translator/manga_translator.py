@@ -1,4 +1,5 @@
 import cv2
+import json
 import langcodes
 import langdetect
 import os
@@ -137,6 +138,12 @@ class MangaTranslator:
             ModelWrapper._MODEL_DIR = params.get('model_dir')
         #todo: fix why is kernel size loaded in the constructor
         self.kernel_size=int(params.get('kernel_size'))
+        # Set input files
+        self.input_files = params.get('input', [])
+        # Set save_text
+        self.save_text = params.get('save_text', False)
+        # Set load_text
+        self.load_text = params.get('load_text', False)
 
     @property
     def using_gpu(self):
@@ -173,7 +180,6 @@ class MangaTranslator:
         return await self._translate(config, ctx)
 
     async def _translate(self, config: Config, ctx: Context) -> Context:
-
         # -- Colorization
         if config.colorizer.colorizer != Colorizer.none:
             await self._report_progress('colorizing')
@@ -213,18 +219,6 @@ class MangaTranslator:
         # -- OCR
         await self._report_progress('ocr')
         ctx.textlines = await self._run_ocr(config, ctx)
-        
-        if config.translator.skip_lang is not None :
-            filtered_textlines = []
-            skip_langs = config.translator.skip_lang.split(',')
-            for txtln in ctx.textlines :
-                try :
-                    source_language = LANGDETECT_MAP.get(langdetect.detect(txtln.text), 'UNKNOWN')
-                except Exception :
-                    source_language = 'UNKNOWN'
-                if source_language not in skip_langs :
-                    filtered_textlines.append(txtln)
-            ctx.textlines = filtered_textlines
 
         if not ctx.textlines:
             await self._report_progress('skip-no-text', True)
@@ -260,7 +254,6 @@ class MangaTranslator:
         await self._report_progress('translating')
         ctx.text_regions = await self._run_text_translation(config, ctx)
         await self._report_progress('after-translating')
-
 
         if not ctx.text_regions:
             await self._report_progress('error-translating', True)
@@ -338,8 +331,67 @@ class MangaTranslator:
     async def _run_textline_merge(self, config: Config, ctx: Context):
         text_regions = await dispatch_textline_merge(ctx.textlines, ctx.img_rgb.shape[1], ctx.img_rgb.shape[0],
                                                      verbose=self.verbose)
+        # Filter out languages to skip  
+        if config.translator.skip_lang is not None:  
+            skip_langs = [lang.strip().upper() for lang in config.translator.skip_lang.split(',')]  
+            filtered_textlines = []  
+            for txtln in ctx.textlines:  
+                try:  
+                    detected_lang = langdetect.detect(txtln.text)  
+                    source_language = LANGDETECT_MAP.get(detected_lang.lower(), 'UNKNOWN').upper()  
+                except Exception:  
+                    source_language = 'UNKNOWN'  
+    
+                # Print detected source_language and whether it's in skip_langs  
+                # logger.info(f'Detected source language: {source_language}, in skip_langs: {source_language in skip_langs}, text: "{txtln.text}"')  
+    
+                if source_language in skip_langs:  
+                    logger.info(f'Filtered out: {txtln.text}')  
+                    logger.info(f'Reason: Detected language {source_language} is in skip_langs')  
+                    continue  # Skip this region  
+                filtered_textlines.append(txtln)  
+            ctx.textlines = filtered_textlines  
+    
+        text_regions = await dispatch_textline_merge(ctx.textlines, ctx.img_rgb.shape[1], ctx.img_rgb.shape[0],  
+                                                     verbose=self.verbose)  
+
         new_text_regions = []
         for region in text_regions:
+            # Remove leading spaces after pre-translation dictionary replacement                
+            original_text = region.text  
+            stripped_text = original_text.strip()  
+            
+            # Record removed leading characters  
+            removed_start_chars = original_text[:len(original_text) - len(stripped_text)]  
+            if removed_start_chars:  
+                logger.info(f'Removed leading characters: "{removed_start_chars}" from "{original_text}"')  
+            
+            # Modified filtering condition: handle incomplete parentheses  
+            # Combine left parentheses and left quotation marks into one list  
+            left_symbols = ['(', '（', '[', '【', '{', '〔', '〈', '「',  
+                            '“', '‘', '《', '『', '"', '〝', '﹁', '﹃',  
+                            '⸂', '⸄', '⸉', '⸌', '⸜', '⸠', '‹', '«']  
+            
+            # Combine right parentheses and right quotation marks into one list
+            right_symbols = [')', '）', ']', '】', '}', '〕', '〉', '」',  
+                             '”', '’', '》', '』', '"', '〞', '﹂', '﹄',  
+                             '⸃', '⸅', '⸊', '⸍', '⸝', '⸡', '›', '»']  
+            # Combine all symbols  
+            all_symbols = left_symbols + right_symbols  
+            
+            # Count the number of left and right symbols  
+            left_count = sum(stripped_text.count(s) for s in left_symbols)  
+            right_count = sum(stripped_text.count(s) for s in right_symbols)  
+            
+            # Check if the number of left and right symbols match  
+            if left_count != right_count:  
+                # Symbols don't match, remove all symbols  
+                for s in all_symbols:  
+                    stripped_text = stripped_text.replace(s, '')  
+                logger.info(f'Removed unpaired symbols from "{stripped_text}"')  
+              
+            region.text = stripped_text.strip()     
+            
             if len(region.text) >= config.ocr.min_text_length \
                     and not is_valuable_text(region.text) \
                     or (not config.translator.no_text_lang_skip and langcodes.tag_distance(region.source_lang, config.translator.target_lang) == 0):
@@ -365,12 +417,25 @@ class MangaTranslator:
         return text_regions
 
     async def _run_text_translation(self, config: Config, ctx: Context):
-        translated_sentences = \
-            await dispatch_translation(config.translator.translator_gen,
-                                       [region.text for region in ctx.text_regions],
-                                       config.translator,
-                                       self.use_mtpe,
-                                       ctx, 'cpu' if self._gpu_limited_memory else self.device)
+        if self.load_text:
+            input_filename = os.path.splitext(os.path.basename(self.input_files[0]))[0]
+            with open(self._result_path(f"{input_filename}_translations.txt"), "r") as f:
+                    translated_sentences = json.load(f)
+        else:
+            translated_sentences = \
+                await dispatch_translation(config.translator.translator_gen,
+                                           [region.text for region in ctx.text_regions],
+                                           config.translator,
+                                           self.use_mtpe,
+                                           ctx, 'cpu' if self._gpu_limited_memory else self.device)
+
+            # Save translation if args.save_text is set and quit
+            if self.save_text:
+                input_filename = os.path.splitext(os.path.basename(self.input_files[0]))[0]
+                with open(self._result_path(f"{input_filename}_translations.txt"), "w") as f:
+                    json.dump(translated_sentences, f, indent=4)
+                print("Don't continue if --save-text is used")
+                exit(-1)
 
         for region, translation in zip(ctx.text_regions, translated_sentences):
             if config.render.uppercase:
@@ -381,6 +446,56 @@ class MangaTranslator:
             region.target_lang = config.translator.target_lang
             region._alignment = config.render.alignment
             region._direction = config.render.direction
+
+        # Punctuation correction logic. for translators often incorrectly change quotation marks from the source language to those commonly used in the target language.
+        check_items = [
+            ["(", "（", "「"],
+            ["（", "(", "「"],
+            [")", "）", "」"],
+            ["）", ")", "」"],
+            ["「", "“", "‘", "『"],
+            ["」", "”", "’", "』"],
+            ["『", "“", "‘", "「"],
+            ["』", "”", "’", "」"],
+        ]
+        
+        replace_items = [
+            ["「", "“"],
+            ["「", "‘"],
+            ["」", "”"],
+            ["」", "’"],
+        ]
+        
+        for region in ctx.text_regions:
+            if region.text and region.translation:
+                # Detect 「」 or 『』 in the source text
+                if '「' in region.text and '」' in region.text:
+                    quote_type = '「」'
+                elif '『' in region.text and '』' in region.text:
+                    quote_type = '『』'
+                else:
+                    quote_type = None
+        
+                # If the source text has 「」 or 『』, and the translation has "", replace them
+                if quote_type and '"' in region.translation:
+                    # Replace "" with 「」 or 『』
+                    if quote_type == '「」':
+                        region.translation = re.sub(r'"([^"]*)"', r'「\1」', region.translation)
+                    elif quote_type == '『』':
+                        region.translation = re.sub(r'"([^"]*)"', r'『\1』', region.translation)
+        
+                # Correct ellipsis
+                region.translation = re.sub(r'\.{3}', '…', region.translation)
+        
+                # Check and replace other symbols
+                for v in check_items:
+                    num_s = region.text.count(v[0])
+                    num_t = sum(region.translation.count(t) for t in v[1:])
+                    if num_s == num_t:
+                        for t in v[1:]:
+                            region.translation = region.translation.replace(t, v[0])
+                for v in replace_items:
+                    region.translation = region.translation.replace(v[1], v[0])
 
         # Apply post dictionary after translating
         post_dict = load_dictionary(self.post_dict)
@@ -402,7 +517,7 @@ class MangaTranslator:
         new_text_regions = []  
 
         # List of languages with specific language detection  
-        special_langs = ['CHS', 'CHT', 'JPN', 'KOR', 'IND', 'UKR', 'RUS', 'THA', 'ARA']  
+        special_langs = ['CHS', 'CHT', 'KOR', 'IND', 'UKR', 'RUS', 'THA', 'ARA']  
 
         # Process special language scenarios  
         if config.translator.target_lang in special_langs:
