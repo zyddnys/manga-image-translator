@@ -136,8 +136,8 @@ class Qwen2Translator(OfflineTranslator):
 
         translations = []
         self.logger.debug('-- Qwen2 Response --\n' + response)
-
         new_translations = re.split(r'<\|\d+\|>', response)
+
         # When there is only one query chatgpt likes to exclude the <|1|>
         if not new_translations[0].strip():
             new_translations = new_translations[1:]
