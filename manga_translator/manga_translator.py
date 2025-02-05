@@ -303,7 +303,14 @@ class MangaTranslator:
 
     async def _run_colorizer(self, config: Config, ctx: Context):
         #todo: im pretty sure the ctx is never used. does it need to be passed in?
-        return await dispatch_colorization(config.colorizer.colorizer, device=self.device, image=ctx.input, **ctx)
+        return await dispatch_colorization(
+            config.colorizer.colorizer,
+            colorization_size=config.colorizer.colorization_size,
+            denoise_sigma=config.colorizer.denoise_sigma,
+            device=self.device,
+            image=ctx.input,
+            **ctx
+        )
 
     async def _run_upscaling(self, config: Config, ctx: Context):
         return (await dispatch_upscaling(config.upscale.upscaler, [ctx.img_colorized], config.upscale.upscale_ratio, self.device))[0]
