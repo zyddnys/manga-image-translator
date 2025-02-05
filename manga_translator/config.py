@@ -88,6 +88,7 @@ class Detector(str, Enum):
     dbconvnext = "dbconvnext"
     ctd = "ctd"
     craft = "craft"
+    paddle = "paddle"
     none = "none"
 
 class Inpainter(str, Enum):

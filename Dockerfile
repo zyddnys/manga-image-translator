@@ -10,7 +10,7 @@ COPY requirements.txt /app/requirements.txt
 
 RUN export TZ=Etc/UTC ; \
         apt update --yes \
-        && apt install g++ ffmpeg libsm6 libxext6 gimp --yes \
+        && apt install g++ ffmpeg libsm6 libxext6 gimp libcudnn8-dev --yes \
         && pip install -r /app/requirements.txt \
         && apt remove g++ --yes \
         && apt autoremove --yes \
@@ -21,7 +21,7 @@ COPY . /app
 # Prepare models
 RUN python -u docker_prepare.py --continue-on-error
 
-RUN rm -rf /tmp
+RUN rm -rf /tmp && mkdir /tmp && chmod 1777 /tmp
 
 # Add /app to Python module path
 ENV PYTHONPATH="/app"

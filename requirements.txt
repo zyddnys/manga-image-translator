@@ -54,3 +54,5 @@ uvicorn
 fastapi
 pydantic
 python-multipart
+paddleocr
+paddlepaddle-gpu==2.5.2
