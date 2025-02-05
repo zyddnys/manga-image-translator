@@ -41,3 +41,6 @@ async def dispatch(detector_key: Detector, image: np.ndarray, detect_size: int, 
         else:
             await detector.load(device)
     return await detector.detect(image, detect_size, text_threshold, box_threshold, unclip_ratio, invert, gamma_correct, rotate, auto_rotate, verbose)
+
+async def unload(detector_key: Detector):
+    detector_cache.pop(detector_key, None)

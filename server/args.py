@@ -12,6 +12,7 @@ def parse_arguments():
                         help='If a translator should be launched automatically')
     parser.add_argument('--ignore-errors', action='store_true', help='Skip image on encountered error.')
     parser.add_argument('--nonce', default=os.getenv('MT_WEB_NONCE', ''), type=str, help='Nonce for securing internal web server communication')
+    parser.add_argument('--models-ttl', default='0', type=int, help='models TTL in memory in seconds')
     g = parser.add_mutually_exclusive_group()
     g.add_argument('--use-gpu', action='store_true', help='Turn on/off gpu (auto switch between mps and cuda)')
     g.add_argument('--use-gpu-limited', action='store_true', help='Turn on/off gpu (excluding offline translator)')

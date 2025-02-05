@@ -120,6 +120,8 @@ FIL: Filipino (Tagalog)
 --kernel-size KERNEL_SIZE      Set the convolution kernel size of the text erasure area to
                                completely clean up text residues
 --config-file CONFIG_FILE      path to the config file
+--models-ttl MODELS_TTL        How long to keep models in memory in seconds after last use (0 means
+                               forever)
 ```
 
 <!-- Auto generated end -->

@@ -135,3 +135,6 @@ LANGDETECT_MAP = {
     'id': 'IND',
     'tl': 'FIL'
 }
+
+async def unload(key: Translator):
+    translator_cache.pop(key, None)
