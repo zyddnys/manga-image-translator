@@ -26,7 +26,7 @@ numpy==1.26.4
 tensorboardX
 websockets
 protobuf
-ctranslate2
+ctranslate2<=3.24.0 # last version compatible with CUDA 11
 colorama
 openai==1.35.9
 httpx==0.27.2 # stop before blocking change in 0.28.0
@@ -55,4 +55,4 @@ fastapi
 pydantic
 python-multipart
 paddleocr
-paddlepaddle-gpu==2.5.2
+paddlepaddle-gpu
