@@ -1,4 +1,3 @@
-from ..config import TranslatorConfig
 from typing import List, Dict
 from omegaconf import OmegaConf
 
