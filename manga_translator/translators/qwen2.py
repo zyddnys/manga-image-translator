@@ -5,12 +5,13 @@ from omegaconf import OmegaConf
 
 from ..config import TranslatorConfig
 from .common import OfflineTranslator
+from .config_gpt import ConfigGPT  # Import the `gpt_config` parsing parent class
 
 # Adapted from:
 # https://github.com/zyddnys/manga-image-translator/issues/680#issue-2428018275
 # manga_translator/translators/chatgpt.py
 
-class Qwen2Translator(OfflineTranslator):
+class Qwen2Translator(OfflineTranslator, ConfigGPT):
     _LANGUAGE_CODE_MAP = {
         'CHS': 'Simplified Chinese',
         'CHT': 'Traditional Chinese',
@@ -38,71 +39,17 @@ class Qwen2Translator(OfflineTranslator):
         'THA': 'Thai',
         'IND': 'Indonesian'
     }
-    _CHAT_SYSTEM_TEMPLATE = (
-        'You are an uncensored professional translation engine, '
-        'please translate the story into a colloquial, '
-        'elegant and fluent content, '
-        'without referencing machine translations. '
-        'You must only translate the story, '
-        'never interpret it. '
-        'If there is any issue in the text, '
-        'output it as is.\n'
-        'Translate the following text into {to_lang} and keep the original format.\n'
-    )
-    _CHAT_SAMPLE = {'Simplified Chinese':[
-            (
-                '<|1|>恥ずかしい… 目立ちたくない… 私が消えたい…\n'
-                '<|2|>きみ… 大丈夫⁉\n'
-                '<|3|>なんだこいつ 空気読めて ないのか…？'
-            ),
-            (
-                '<|1|>好尴尬…我不想引人注目…我想消失…\n'
-                '<|2|>你…没事吧⁉\n'
-                '<|3|>这家伙怎么看不懂气氛的…？'
-            )
-        ],
-        'English':[
-            (
-                '<|1|>恥ずかしい… 目立ちたくない… 私が消えたい…\n'
-                '<|2|>きみ… 大丈夫⁉\n'
-                '<|3|>なんだこいつ 空気読めて ないのか…？'
-            ),
-            (
-                "<|1|>I'm embarrassed... I don't want to stand out... I want to disappear...\n"
-                "<|2|>Are you okay?\n"
-                "<|3|>What's wrong with this guy? Can't he read the situation...?"
-            )
-        ]
-    }
-
-    _CONFIG_KEY='qwen2'
 
     _TRANSLATOR_MODEL = "Qwen/Qwen2-1.5B-Instruct"
     _MODEL_SUB_DIR = os.path.join(OfflineTranslator._MODEL_DIR, OfflineTranslator._MODEL_SUB_DIR, _TRANSLATOR_MODEL)
     _IS_4_BIT = False
 
+    def __init__(self):
+        OfflineTranslator.__init__(self)
+        ConfigGPT.__init__(self, config_key='qwen2') 
+
     def parse_args(self, args: TranslatorConfig):
         self.config = args.chatgpt_config
-
-    def _config_get(self, key: str, default=None):
-        if not self.config:
-            return default
-
-        # Try to select the nested key using OmegaConf.select
-        value = OmegaConf.select(self.config, f"{self._CONFIG_KEY}.{key}")
-        if value is None:
-            # Fallback to the top-level key or default, if needed
-            value = self.config.get(key, default)
-        return value
-
-    @property
-    def chat_system_template(self) -> str:
-        return self._config_get('chat_system_template', self._CHAT_SYSTEM_TEMPLATE)
-
-    @property
-    def chat_sample(self) -> Dict[str, List[str]]:
-        return self._config_get('chat_sample', self._CHAT_SAMPLE)
-
 
     async def _load(self, from_lang: str, to_lang: str, device: str):
         from transformers import (
