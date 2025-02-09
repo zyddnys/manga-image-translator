@@ -10,6 +10,7 @@ import asyncio
 import time
 from typing import List, Dict
 
+from omegaconf import OmegaConf
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import OLLAMA_API_KEY, OLLAMA_API_BASE, OLLAMA_MODEL
 
@@ -100,7 +101,13 @@ class OllamaTranslator(CommonTranslator):
     def _config_get(self, key: str, default=None):
         if not self.config:
             return default
-        return self.config.get(self._CONFIG_KEY + '.' + key, self.config.get(key, default))
+
+        # Try to select the nested key using OmegaConf.select
+        value = OmegaConf.select(self.config, f"{self._CONFIG_KEY}.{key}") # type: ignore
+        if value is None:
+            # Fallback to the top-level key if needed
+            value = self.config.get(key, default)
+        return value
 
     @property
     def chat_system_template(self) -> str:
