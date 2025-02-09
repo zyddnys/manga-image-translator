@@ -9,7 +9,6 @@ except ImportError:
 import asyncio
 import time
 from typing import List, Dict
-
 from omegaconf import OmegaConf
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import OLLAMA_API_KEY, OLLAMA_API_BASE, OLLAMA_MODEL
@@ -103,7 +102,7 @@ class OllamaTranslator(CommonTranslator):
             return default
 
         # Try to select the nested key using OmegaConf.select
-        value = OmegaConf.select(self.config, f"{self._CONFIG_KEY}.{key}") # type: ignore
+        value = OmegaConf.select(self.config, f"{self._CONFIG_KEY}.{key}")
         if value is None:
             # Fallback to the top-level key if needed
             value = self.config.get(key, default)
