@@ -40,6 +40,9 @@ class ConfigGPT:
             )
         ]
     }
+    # Extract text within the capture group that matches this pattern.
+    # By default: Capture everything.
+    _RGX_REMOVE='(.*)'
 
     def __init__(self, config_key: str):
         # This key is used to locate nested configuration entries
@@ -47,23 +50,26 @@ class ConfigGPT:
         self.config = None
 
     def _config_get(self, key: str, default=None):
-        # self.logger.debug("----- config_get -----")
-        # self.logger.debug("_CONFIG_KEY: " + self._CONFIG_KEY)
-        # self.logger.debug("key: " + key)
-
         if not self.config:
             return default
 
-        # Try to fetch the nested value using OmegaConf.select
-        value = OmegaConf.select(self.config, f"{self._CONFIG_KEY}.{key}")
-        if value is None:
-            # Fallback to a top-level key or default value
-            value = self.config.get(key, default)
-        
-        # self.logger.debug("value: ")
-        # self.logger.debug(value)
-        # self.logger.debug('\n--------------------------------------------\n')
-        return value
+        parts = self._CONFIG_KEY.split('.') if self._CONFIG_KEY else []
+        value = None
+
+        # Traverse from the deepest part up to the root
+        for i in range(len(parts), -1, -1):
+            prefix = '.'.join(parts[:i])
+            lookup_key = f"{prefix}.{key}" if prefix else key
+            value = OmegaConf.select(self.config, lookup_key)
+            
+            if value is not None:
+                break
+
+        return value if value is not None else default
+
+    @property
+    def prompt_template(self) -> str:
+        return self._config_get('prompt_template', default=self._PROMPT_TEMPLATE)
 
     @property
     def chat_system_template(self) -> str:
@@ -72,3 +78,16 @@ class ConfigGPT:
     @property
     def chat_sample(self) -> Dict[str, List[str]]:
         return self._config_get('chat_sample', self._CHAT_SAMPLE)
+
+    @property
+    def rgx_capture(self) -> str:
+        return self._config_get('rgx_capture', self._RGX_REMOVE)
+
+    @property
+    def temperature(self) -> float:
+        return self._config_get('temperature', default=0.5)
+
+    @property
+    def top_p(self) -> float:
+        return self._config_get('top_p', default=1)
+    
