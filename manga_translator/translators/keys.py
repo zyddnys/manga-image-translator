@@ -33,3 +33,4 @@ DEEPSEEK_API_BASE  = os.getenv('DEEPSEEK_API_BASE', 'https://api.deepseek.com')
 OLLAMA_API_KEY = os.getenv('OLLAMA_API_KEY', 'ollama') # Unsed for ollama, but maybe useful for other LLM tools.
 OLLAMA_API_BASE = os.getenv('OLLAMA_API_BASE', 'http://localhost:11434/v1') # Use OLLAMA_HOST env to change binding IP and Port.
 OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', '') # e.g "qwen2.5:7b". Make sure to pull and run it before use.
+OLLAMA_MODEL_CONF = os.getenv('OLLAMA_MODEL_CONF', '') # e.g "qwen2". 

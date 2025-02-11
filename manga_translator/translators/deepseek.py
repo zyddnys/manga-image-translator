@@ -9,6 +9,7 @@ except ImportError:
 import asyncio
 import time
 from typing import List, Dict
+from omegaconf import OmegaConf
 from manga_translator.utils import is_valuable_text
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import DEEPSEEK_API_KEY, DEEPSEEK_API_BASE
@@ -100,7 +101,13 @@ class DeepseekTranslator(CommonTranslator):
     def _config_get(self, key: str, default=None):
         if not self.config:
             return default
-        return self.config.get(self._CONFIG_KEY + '.' + key, self.config.get(key, default))
+
+        # Try to select the nested key using OmegaConf.select
+        value = OmegaConf.select(self.config, f"{self._CONFIG_KEY}.{key}")
+        if value is None:
+            # Fallback to the top-level key or default, if needed
+            value = self.config.get(key, default)
+        return value
 
     @property
     def chat_system_template(self) -> str:
