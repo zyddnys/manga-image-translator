@@ -22,10 +22,7 @@ class TranslatorChain:
         self.target_lang = None
         for g in string.split(';'):
             trans, lang = g.split(':')
-            if trans == "gpt3.5":
-                translator = Translator["gpt3_5"]
-            else:
-                translator = Translator[trans]
+            translator = Translator[trans]
             if translator not in TRANSLATORS:
                 raise ValueError(f'Invalid choice: %s (choose from %s)' % (trans, ', '.join(map(repr, TRANSLATORS))))
             if lang not in VALID_LANGUAGES:
@@ -115,9 +112,7 @@ class Translator(str, Enum):
     deepl = "deepl"
     papago = "papago"
     caiyun = "caiyun"
-    gpt3 = "gpt3"
-    gpt3_5 = "gpt3.5"
-    gpt4 = "gpt4"
+    chatgpt = "chatgpt"
     none = "none"
     original = "original"
     sakura = "sakura"
@@ -138,6 +133,14 @@ class Translator(str, Enum):
 
     def __str__(self):
         return self.name
+
+    # Map 'openai' and any translator starting with 'gpt'* to 'chatgpt'
+    @classmethod
+    def _missing_(cls, value):
+        if value.startswith('gpt') or value == 'openai':
+            return cls.chatgpt
+        raise ValueError(f"{value} is not a valid {cls.__name__}")
+
 
 class Upscaler(str, Enum):
     waifu2x = "waifu2x"
