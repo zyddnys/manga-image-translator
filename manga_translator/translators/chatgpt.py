@@ -4,7 +4,7 @@ import time
 from typing import List, Dict
 
 from .config_gpt import ConfigGPT
-from .common import CommonTranslator, MissingAPIKeyException
+from .common import CommonTranslator, MissingAPIKeyException, VALID_LANGUAGES
 from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE, OPENAI_MODEL
 
 try:
@@ -13,34 +13,7 @@ except ImportError:
     openai = None
 
 class OpenAITranslator(ConfigGPT, CommonTranslator):
-    _LANGUAGE_CODE_MAP = {
-        'CHS': 'Simplified Chinese',
-        'CHT': 'Traditional Chinese',
-        'CSY': 'Czech',
-        'NLD': 'Dutch',
-        'ENG': 'English',
-        'FRA': 'French',
-        'DEU': 'German',
-        'HUN': 'Hungarian',
-        'ITA': 'Italian',
-        'JPN': 'Japanese',
-        'KOR': 'Korean',
-        'PLK': 'Polish',
-        'PTB': 'Portuguese',
-        'ROM': 'Romanian',
-        'RUS': 'Russian',
-        'ESP': 'Spanish',
-        'TRK': 'Turkish',
-        'UKR': 'Ukrainian',
-        'VIN': 'Vietnamese',
-        'CNR': 'Montenegrin',
-        'SRP': 'Serbian',
-        'HRV': 'Croatian',
-        'ARA': 'Arabic',
-        'THA': 'Thai',
-        'IND': 'Indonesian'
-    }
-    
+    _LANGUAGE_CODE_MAP = VALID_LANGUAGES
     _MAX_REQUESTS_PER_MINUTE = 200
     _TIMEOUT = 40
     _RETRY_ATTEMPTS = 3
@@ -174,16 +147,13 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         return translations
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
-        messages = [{
-            "role": "system",
-            "content": self.chat_system_template.format(to_lang=to_lang)
-        }, 
-            {'role': 'user', 'content': self.chat_sample[to_lang][0]},
-            {'role': 'assistant', 'content': self.chat_sample[to_lang][1]},
-        {
-            "role": "user",
-            "content": prompt
-        }]
+        messages = [{'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)}]
+        
+        if to_lang in self.chat_sample:
+            messages.append({'role': 'user', 'content': self.chat_sample[to_lang][0]})
+            messages.append({'role': 'assistant', 'content': self.chat_sample[to_lang][1]})
+            
+        messages.append({'role': 'user', 'content': prompt})
 
         self.logger.debug("-- GPT prompt --\n" + 
                 "\n".join(f"{msg['role'].capitalize()}:\n {msg['content']}" for msg in messages) +
