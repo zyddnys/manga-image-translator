@@ -1,7 +1,6 @@
 import re
 import asyncio
 import time
-import logging
 from typing import List, Dict
 
 from .config_gpt import ConfigGPT
