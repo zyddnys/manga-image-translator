@@ -11,38 +11,13 @@ import asyncio
 import time
 from typing import List, Dict
 from omegaconf import OmegaConf
-from .common import CommonTranslator, MissingAPIKeyException
+from .common import CommonTranslator, MissingAPIKeyException, VALID_LANGUAGES
 from .keys import OLLAMA_API_KEY, OLLAMA_API_BASE, OLLAMA_MODEL, OLLAMA_MODEL_CONF
 
 
 class OllamaTranslator(ConfigGPT, CommonTranslator):
-    _LANGUAGE_CODE_MAP = {
-        'CHS': 'Simplified Chinese',
-        'CHT': 'Traditional Chinese',
-        'CSY': 'Czech',
-        'NLD': 'Dutch',
-        'ENG': 'English',
-        'FRA': 'French',
-        'DEU': 'German',
-        'HUN': 'Hungarian',
-        'ITA': 'Italian',
-        'JPN': 'Japanese',
-        'KOR': 'Korean',
-        'PLK': 'Polish',
-        'PTB': 'Portuguese',
-        'ROM': 'Romanian',
-        'RUS': 'Russian',
-        'ESP': 'Spanish',
-        'TRK': 'Turkish',
-        'UKR': 'Ukrainian',
-        'VIN': 'Vietnamese',
-        'CNR': 'Montenegrin',
-        'SRP': 'Serbian',
-        'HRV': 'Croatian',
-        'ARA': 'Arabic',
-        'THA': 'Thai',
-        'IND': 'Indonesian'
-    }
+    _LANGUAGE_CODE_MAP=VALID_LANGUAGES
+
     _INVALID_REPEAT_COUNT = 2  # 如果检测到“无效”翻译，最多重复 2 次
     _MAX_REQUESTS_PER_MINUTE = 40  # 每分钟最大请求次数
     _TIMEOUT = 40  # 在重试之前等待服务器响应的时间（秒）
@@ -236,12 +211,13 @@ class OllamaTranslator(ConfigGPT, CommonTranslator):
         return translations
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
-        messages = [
-            {'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)},
-            {'role': 'user', 'content': self.chat_sample[to_lang][0]},
-            {'role': 'assistant', 'content': self.chat_sample[to_lang][1]},
-            {'role': 'user', 'content': prompt},
-        ]
+        messages = [{'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)}]
+
+        if to_lang in self.chat_sample:
+            messages.append({'role': 'user', 'content': self.chat_sample[to_lang][0]})
+            messages.append({'role': 'assistant', 'content': self.chat_sample[to_lang][1]})
+
+        messages.append({'role': 'user', 'content': prompt})
 
         def strip_first_line(txt: str) :
             # find <1>
@@ -252,16 +228,16 @@ class OllamaTranslator(ConfigGPT, CommonTranslator):
             return txt
 
 
-        # self.logger.debug('-- Completion Request --\n')
+        self.logger.debug('-- Completion Request --\n')
                     
-        # self.logger.debug( 
-        #     f"""\tmodel={OLLAMA_MODEL},\n
-        #         \tmessages={messages},\n
-        #         \tmax_tokens={self._MAX_TOKENS // 2},\n
-        #         \ttemperature={self.temperature},\n
-        #         \ttop_p={self.top_p},\n
-        #     """
-        # )
+        self.logger.debug( 
+            f"""\tmodel={OLLAMA_MODEL},\n
+                \tmessages={messages},\n
+                \tmax_tokens={self._MAX_TOKENS // 2},\n
+                \ttemperature={self.temperature},\n
+                \ttop_p={self.top_p},\n
+            """
+        )
 
 
         response = await self.client.chat.completions.create(
