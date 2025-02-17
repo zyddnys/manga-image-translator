@@ -219,27 +219,6 @@ class OllamaTranslator(ConfigGPT, CommonTranslator):
 
         messages.append({'role': 'user', 'content': prompt})
 
-        def strip_first_line(txt: str) :
-            # find <1>
-            loc = txt.find('<|1|>')
-            if loc == -1:
-                return txt
-            txt = txt[loc:]
-            return txt
-
-
-        self.logger.debug('-- Completion Request --\n')
-                    
-        self.logger.debug( 
-            f"""\tmodel={OLLAMA_MODEL},\n
-                \tmessages={messages},\n
-                \tmax_tokens={self._MAX_TOKENS // 2},\n
-                \ttemperature={self.temperature},\n
-                \ttop_p={self.top_p},\n
-            """
-        )
-
-
         response = await self.client.chat.completions.create(
             model=OLLAMA_MODEL,
             messages=messages,
