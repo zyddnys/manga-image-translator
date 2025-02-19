@@ -38,6 +38,19 @@ class ConfigGPT:
                 "<|2|>Are you okay?\n"
                 "<|3|>What's wrong with this guy? Can't he read the situation...?"
             )
+        ],
+        'Korean': [
+            (
+                '<|1|>恥ずかしい… 目立ちたくない… 私が消えたい…\n'
+                '<|2|>きみ… 大丈夫⁉\n'
+                '<|3|>なんだこいつ 空気読めて ないのか…？'
+            ),
+            (
+                
+                "<|1|>부끄러워... 눈에 띄고 싶지 않아... 나 숨고 싶어...\n"
+                "<|2|>너 괜찮아?\n"
+                "<|3|>이 녀석, 뭐야? 분위기 못 읽는 거야...?\n"
+            )
         ]
     }
     # Extract text within the capture group that matches this pattern.
