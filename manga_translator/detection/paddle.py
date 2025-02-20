@@ -90,7 +90,6 @@ class PaddleDetector(OfflineDetector, ModelWrapper):
 
         # Check for `None` result
         # - Seems to occur in rare edge-case scenarios
-        #   (encountered when only text on page was '.....?')
         if result[0] is not None:
             # Parse OCR results and filter by text threshold
             for line in result[0]:
