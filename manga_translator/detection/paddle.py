@@ -84,31 +84,36 @@ class PaddleDetector(OfflineDetector, ModelWrapper):
         result = MODEL.ocr(image, det=True, rec=False)
 
         textlines = []
-
-        # Parse OCR results and filter by text threshold
-        for line in result[0]:
-            points = np.array(line).astype(np.int32)
-            # paddleocr does not return score, so we use a fixed value: 1
-            textlines.append(Quadrilateral(points, '', 1))
-
+        
         # Create a binary mask
         mask = np.zeros((image.shape[0], image.shape[1]), dtype=np.uint8)
-        for textline in textlines:
-            cv2.fillPoly(mask, [textline.pts], color=255)
 
-        # Additional polygon refinement
-        refined_polys = []
-        for textline in textlines:
-            poly = cv2.minAreaRect(textline.pts)
-            box = cv2.boxPoints(poly)
-            box = np.int0(box)
-            refined_polys.append(np.roll(box, 2, axis=0))  # Ensure clockwise order
+        # Check for `None` result
+        # - Seems to occur in rare edge-case scenarios
+        #   (encountered when only text on page was '.....?')
+        if result[0] is not None:
+            # Parse OCR results and filter by text threshold
+            for line in result[0]:
+                points = np.array(line).astype(np.int32)
+                # paddleocr does not return score, so we use a fixed value: 1
+                textlines.append(Quadrilateral(points, '', 1))
 
-        # Update mask with refined polygons
-        for poly in refined_polys:
-            mask = cv2.fillPoly(mask, [poly], color=255)
+            for textline in textlines:
+                cv2.fillPoly(mask, [textline.pts], color=255)
 
-        # Return textlines with refined polygons
-        textlines = [Quadrilateral(poly, '', 1) for poly, textline in zip(refined_polys, textlines)]
+            # Additional polygon refinement
+            refined_polys = []
+            for textline in textlines:
+                poly = cv2.minAreaRect(textline.pts)
+                box = cv2.boxPoints(poly)
+                box = np.int0(box)
+                refined_polys.append(np.roll(box, 2, axis=0))  # Ensure clockwise order
+
+            # Update mask with refined polygons
+            for poly in refined_polys:
+                mask = cv2.fillPoly(mask, [poly], color=255)
+
+            # Return textlines with refined polygons
+            textlines = [Quadrilateral(poly, '', 1) for poly, textline in zip(refined_polys, textlines)]
 
         return textlines, mask, None
