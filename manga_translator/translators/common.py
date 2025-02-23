@@ -325,4 +325,4 @@ class OfflineTranslator(CommonTranslator, ModelWrapper):
         pass
 
     async def unload(self, device: str):
-        return await super().unload(device)
+        return await super().unload()
