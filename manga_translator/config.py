@@ -236,7 +236,7 @@ class TranslatorConfig(BaseModel):
                 self._translator_gen = trans
             elif self.translator_chain is not None:
                 trans = translator_chain(self.translator_chain)
-                trans.target_lang = trans.langs[-1]
+                trans.target_lang = trans.langs[0]
                 self._translator_gen = trans
             else:
                 self._translator_gen = TranslatorChain(f'{str(self.translator)}:{self.target_lang}')
