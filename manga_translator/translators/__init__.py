@@ -94,7 +94,7 @@ async def dispatch(chain: TranslatorChain, queries: List[str], translator_config
             if translator_config:
                 translator.parse_args(translator_config)
             queries = await translator.translate('auto', chain.langs[flag], queries, use_mtpe)
-            await translator.unload(device)
+            await translator.unload()
             flag+=1
         return queries
     if args is not None:
