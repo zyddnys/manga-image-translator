@@ -22,7 +22,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
     _RETRY_ATTEMPTS = 2          # 对同一个批次的最大整体重试次数
     _TIMEOUT_RETRY_ATTEMPTS = 3  # 请求因超时被取消后，最大尝试次数
     _RATELIMIT_RETRY_ATTEMPTS = 3# 遇到 429 等限流时的最大尝试次数
-    _MAX_SPLIT_ATTEMPTS = 5      # 递归拆分批次的最大层数
+    _MAX_SPLIT_ATTEMPTS = 3      # 递归拆分批次的最大层数
     _MAX_TOKENS = 8192           # prompt+completion 的最大 token (可按模型类型调整)
 
     # 原脚本里的关键模板或分割标记
