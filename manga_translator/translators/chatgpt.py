@@ -169,9 +169,19 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 top_p=self.top_p,
                 timeout=self._TIMEOUT
             )
+
+            # Get the raw response text  
+            raw_response = response.choices[0].message.content
+            
+            # Remove <think></think> tags and their contents
+            think_pattern = re.compile(r'<think>.*?</think>', re.DOTALL)
+            cleaned_response = re.sub(think_pattern, '', raw_response)
+            
+            # Remove extra blank lines and strip leading/trailing whitespace
+            cleaned_response = re.sub(r'\n\s*\n', '\n', cleaned_response).strip() 
             
             self.logger.debug("\n-- GPT Response --\n" +
-                                response.choices[0].message.content +
+                                cleaned_response +
                                 "\n------------------\n"
                             )
 
