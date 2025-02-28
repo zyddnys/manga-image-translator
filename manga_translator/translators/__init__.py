@@ -82,17 +82,20 @@ async def dispatch(chain: TranslatorChain, queries: List[str], translator_config
     if chain.target_lang is not None:
         text_lang = ISO_639_1_TO_VALID_LANGUAGES.get(langid.classify('\n'.join(queries))[0])
         translator = None
-        for key, lang in chain.chain:
-            if text_lang == lang:
-                translator = get_translator(key)
-                break
-        if translator is None:
-            translator = get_translator(chain.langs[0])
-        if isinstance(translator, OfflineTranslator):
-            await translator.load('auto', chain.target_lang, device)
-        if translator_config:
-            translator.parse_args(translator_config)
-        queries = await translator.translate('auto', chain.target_lang, queries, use_mtpe)
+        flag=0
+        for key, lang in chain.chain:           
+            #if text_lang == lang:
+                #translator = get_translator(key)
+            #if translator is None:
+            translator = get_translator(chain.translators[flag])
+            if isinstance(translator, OfflineTranslator):
+                await translator.load('auto', chain.langs[flag], device)
+                pass
+            if translator_config:
+                translator.parse_args(translator_config)
+            queries = await translator.translate('auto', chain.langs[flag], queries, use_mtpe)
+            await translator.unload(device)
+            flag+=1
         return queries
     if args is not None:
         args['translations'] = {}
