@@ -24,6 +24,7 @@ VALID_LANGUAGES = {
     'JPN': 'Japanese',
     'KOR': 'Korean',
     'MSL': 'Malaysian',
+    'MSL': 'Malaysian',
     'POL': 'Polish',
     'PTB': 'Portuguese (Brazil)',
     'ROM': 'Romanian',
