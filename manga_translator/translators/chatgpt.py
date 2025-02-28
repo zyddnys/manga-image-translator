@@ -28,6 +28,7 @@ class GPT3Translator(CommonTranslator):
         'ITA': 'Italian',
         'JPN': 'Japanese',
         'KOR': 'Korean',
+        'MSL': 'Malaysian',
         'PLK': 'Polish',
         'PTB': 'Portuguese',
         'ROM': 'Romanian',
