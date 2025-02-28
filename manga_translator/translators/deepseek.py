@@ -237,13 +237,6 @@ class DeepseekTranslator(CommonTranslator):
                     new_translations = [t.split('\n')[0].strip() for t in new_translations]  
                     # Remove any potential prefix markers  
                     new_translations = [re.sub(r'^\s*<\|\d+\|>\s*', '', t) for t in new_translations]  
-
-                    for i, translation in enumerate(new_translations):
-                        if not is_valuable_text(translation):
-                            self.logger.info(f'Filtered out: {translation}')  
-                            self.logger.info('Reason: Text is not considered valuable.')  
-                            new_translations[i] = ''  
-
                     # Check if any translations are empty  
                     if any(not t.strip() for t in new_translations):  
                         self.logger.warn(f'Empty translations detected. Resplitting the batch.') 
