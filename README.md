@@ -14,41 +14,41 @@
 Some manga/images will never be translated, therefore this project is born.
 
 - [Image/Manga Translator](#imagemanga-translator)
-  - [Samples](#samples)
-  - [Online Demo](#online-demo)
-  - [Disclaimer](#disclaimer)
-  - [Installation](#installation)
-    - [Local setup](#local-setup)
-      - [Pip/venv](#pipvenv)
-      - [Additional instructions for **Windows**](#additional-instructions-for-windows)
-    - [Docker](#docker)
-      - [Hosting the web server](#hosting-the-web-server)
-      - [Using as CLI](#using-as-cli)
-      - [Setting Translation Secrets](#setting-translation-secrets)
-      - [Using with Nvidia GPU](#using-with-nvidia-gpu)
-      - [Building locally](#building-locally)
-  - [Usage](#usage)
-    - [Batch mode (default)](#batch-mode-default)
-    - [Demo mode](#demo-mode)
-    - [Web Mode](#web-mode)
-    - [Api Mode](#api-mode)
-  - [Related Projects](#related-projects)
-  - [Docs](#docs)
-    - [Recommended Modules](#recommended-modules)
-      - [Tips to improve translation quality](#tips-to-improve-translation-quality)
-    - [Options](#options)
-    - [Language Code Reference](#language-code-reference)
-    - [Translators Reference](#translators-reference)
-    - [Config Documentation](#config-file)
-    - [GPT Config Reference](#gpt-config-reference)
-    - [Using Gimp for rendering](#using-gimp-for-rendering)
-    - [Api Documentation](#api-documentation)
-      - [Synchronous mode](#synchronous-mode)
-      - [Asynchronous mode](#asynchronous-mode)
-      - [Manual translation](#manual-translation)
-  - [Next steps](#next-steps)
-  - [Support Us](#support-us)
-    - [Thanks To All Our Contributors :](#thanks-to-all-our-contributors-)
+    - [Samples](#samples)
+    - [Online Demo](#online-demo)
+    - [Disclaimer](#disclaimer)
+    - [Installation](#installation)
+        - [Local setup](#local-setup)
+            - [Pip/venv](#pipvenv)
+            - [Additional instructions for **Windows**](#additional-instructions-for-windows)
+        - [Docker](#docker)
+            - [Hosting the web server](#hosting-the-web-server)
+            - [Using as CLI](#using-as-cli)
+            - [Setting Translation Secrets](#setting-translation-secrets)
+            - [Using with Nvidia GPU](#using-with-nvidia-gpu)
+            - [Building locally](#building-locally)
+    - [Usage](#usage)
+        - [Batch mode (default)](#batch-mode-default)
+        - [Demo mode](#demo-mode)
+        - [Web Mode](#web-mode)
+        - [Api Mode](#api-mode)
+    - [Related Projects](#related-projects)
+    - [Docs](#docs)
+        - [Recommended Modules](#recommended-modules)
+            - [Tips to improve translation quality](#tips-to-improve-translation-quality)
+        - [Options](#options)
+        - [Language Code Reference](#language-code-reference)
+        - [Translators Reference](#translators-reference)
+        - [Config Documentation](#config-file)
+        - [GPT Config Reference](#gpt-config-reference)
+        - [Using Gimp for rendering](#using-gimp-for-rendering)
+        - [Api Documentation](#api-documentation)
+            - [Synchronous mode](#synchronous-mode)
+            - [Asynchronous mode](#asynchronous-mode)
+            - [Manual translation](#manual-translation)
+    - [Next steps](#next-steps)
+    - [Support Us](#support-us)
+        - [Thanks To All Our Contributors :](#thanks-to-all-our-contributors-)
 
 ## Samples
 
@@ -141,11 +141,13 @@ Browser Userscript (by QiroNT): <https://greasyfork.org/scripts/437569>
 - Note this online demo is using the current main branch version.
 
 ## Disclaimer
+
 Successor to [MMDOCR-HighPerformance](https://github.com/PatchyVideo/MMDOCR-HighPerformance).\
 **This is a hobby project, you are welcome to contribute!**\
 Currently this only a simple demo, many imperfections exist, we need your support to make this project better!\
 Primarily designed for translating Japanese text, but also supports Chinese, English and Korean.\
 Supports inpainting, text rendering and colorization.
+
 ## Installation
 
 ### Local setup
@@ -288,26 +290,30 @@ $ cd server && python main.py --use-gpu
 ```
 
 ## Related Projects
+
 GUI implementation: [BallonsTranslator](https://github.com/dmMaze/BallonsTranslator)
 
 ## Docs
 
 ### Recommended Modules
+
 Detector:
+
 - ENG: ??
 - JPN: ??
 - CHS: ??
 - KOR: ??
 - Using `{"detector":{"detector": "ctd"}}` can increase the amount of text lines detected
 
-
 OCR:
+
 - ENG: ??
 - JPN: ??
 - CHS: ??
 - KOR: 48px
 
 Translator:
+
 - JPN -> ENG: **Sugoi**
 - CHS -> ENG: ??
 - CHS -> JPN: ??
@@ -385,25 +391,25 @@ FIL: Filipino (Tagalog)
 
 ### Translators Reference
 
-| Name       | API Key | Offline | Note                                                   |
-|------------|---------|---------|--------------------------------------------------------|
-| <s>google</s>     |         |         |         Disabled temporarily                                               |
-| youdao     | ✔️      |         | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`      |
-| baidu      | ✔️      |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`         |
-| deepl      | ✔️      |         | Requires `DEEPL_AUTH_KEY`                              |
-| caiyun     | ✔️      |         | Requires `CAIYUN_TOKEN`                                |
-| gpt3       | ✔️      |         | Implements text-davinci-003. Requires `OPENAI_API_KEY` |
-| gpt3.5     | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`    |
-| gpt4       | ✔️      |         | Implements gpt-4. Requires `OPENAI_API_KEY`            |
-| papago     |         |         |                                                        |
-| sakura     |         |         |Requires `SAKURA_API_BASE`                               |
-| ollama     |         |         |Requires  `OLLAMA_API_BASE` `OLLAMA_MODEL`               |
-| offline    |         | ✔️      | Chooses most suitable offline translator for language  |
-| sugoi      |         | ✔️      | Sugoi V4.0 Models                                      |
-| m2m100     |         | ✔️      | Supports every language                                |
-| m2m100_big |         | ✔️      |                                                        |
-| none       |         | ✔️      | Translate to empty texts                               |
-| original   |         | ✔️      | Keep original texts                                    |
+| Name          | API Key | Offline | Note                                                     |
+|---------------|---------|---------|----------------------------------------------------------|
+| <s>google</s> |         |         | Disabled temporarily                                     |
+| youdao        | ✔️      |         | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`        |
+| baidu         | ✔️      |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`           |
+| deepl         | ✔️      |         | Requires `DEEPL_AUTH_KEY`                                |
+| caiyun        | ✔️      |         | Requires `CAIYUN_TOKEN`                                  |
+| gpt3          | ✔️      |         | Implements text-davinci-003. Requires `OPENAI_API_KEY`   |
+| gpt3.5        | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`      |
+| gpt4          | ✔️      |         | Implements gpt-4. Requires `OPENAI_API_KEY`              |
+| papago        |         |         |                                                          |
+| sakura        |         |         | Requires `SAKURA_API_BASE`                               |
+| custom openai |         |         | Requires  `CUSTOM_OPENAI_API_BASE` `CUSTOM_OPENAI_MODEL` |
+| offline       |         | ✔️      | Chooses most suitable offline translator for language    |
+| sugoi         |         | ✔️      | Sugoi V4.0 Models                                        |
+| m2m100        |         | ✔️      | Supports every language                                  |
+| m2m100_big    |         | ✔️      |                                                          |
+| none          |         | ✔️      | Translate to empty texts                                 |
+| original      |         | ✔️      | Keep original texts                                      |
 
 - API Key: Whether the translator requires an API key to be set as environment variable.
   For this you can create a .env file in the project root directory containing your api keys like so:
@@ -416,10 +422,13 @@ DEEPL_AUTH_KEY=xxxxxxxx...
 - Offline: Whether the translator can be used offline.
 
 - Sugoi is created by mingshiba, please support him in https://www.patreon.com/mingshiba
+
 ### Config file
-run `python -m manga_translator config-help >> config-info.json` 
+
+run `python -m manga_translator config-help >> config-info.json`
 
 an example can be found in example/config-example.json
+
 ```json
 {
   "$defs": {
@@ -945,6 +954,7 @@ an example can be found in example/config-example.json
 }
 
 ```
+
 ### GPT Config Reference
 
 Used by the `--gpt-config` argument.
