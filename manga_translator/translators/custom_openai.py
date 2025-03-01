@@ -32,19 +32,19 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
 
     # 是否包含模板，用于决定是否使用预设的提示模板
     _INCLUDE_TEMPLATE = False
-    
-    def __init__(self, check_openai_key=False):
+
+    def __init__(self, model=None, api_base=None, api_key=None, check_openai_key=False):
         # If the user has specified a nested key to use for the model, append the key
         #   Otherwise: Use the `ollama` defaults.
         _CONFIG_KEY='ollama'
         if CUSTOM_OPENAI_MODEL_CONF:
             _CONFIG_KEY+=f".{CUSTOM_OPENAI_MODEL_CONF}"
-        
-        ConfigGPT.__init__(self, config_key=_CONFIG_KEY) 
-        CommonTranslator.__init__(self)
 
-        self.client = openai.AsyncOpenAI(api_key=CUSTOM_OPENAI_API_KEY or "ollama") # required, but unused for ollama
-        self.client.base_url = CUSTOM_OPENAI_API_BASE
+        ConfigGPT.__init__(self, config_key=_CONFIG_KEY)
+        self.model = model
+        CommonTranslator.__init__(self)
+        self.client = openai.AsyncOpenAI(api_key=api_key or CUSTOM_OPENAI_API_KEY or "ollama") # required, but unused for ollama
+        self.client.base_url = api_base or CUSTOM_OPENAI_API_BASE
         self.token_count = 0
         self.token_count_last = 0
 
@@ -219,7 +219,7 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
         messages.append({'role': 'user', 'content': prompt})
 
         response = await self.client.chat.completions.create(
-            model=CUSTOM_OPENAI_MODEL,
+            model=self.model or CUSTOM_OPENAI_MODEL,
             messages=messages,
             max_tokens=self._MAX_TOKENS // 2,
             temperature=self.temperature,
