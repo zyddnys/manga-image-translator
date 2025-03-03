@@ -9,15 +9,12 @@ except ImportError:
     openai = None
 import asyncio
 import time
-from typing import List, Dict
-from omegaconf import OmegaConf
-from .common import CommonTranslator, MissingAPIKeyException, VALID_LANGUAGES
+from typing import List
+from .common import CommonTranslator, MissingAPIKeyException
 from .keys import OLLAMA_API_KEY, OLLAMA_API_BASE, OLLAMA_MODEL, OLLAMA_MODEL_CONF
 
 
 class OllamaTranslator(ConfigGPT, CommonTranslator):
-    _LANGUAGE_CODE_MAP=VALID_LANGUAGES
-
     _INVALID_REPEAT_COUNT = 2  # 如果检测到“无效”翻译，最多重复 2 次
     _MAX_REQUESTS_PER_MINUTE = 40  # 每分钟最大请求次数
     _TIMEOUT = 40  # 在重试之前等待服务器响应的时间（秒）
@@ -213,9 +210,11 @@ class OllamaTranslator(ConfigGPT, CommonTranslator):
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
         messages = [{'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)}]
 
-        if to_lang in self.chat_sample:
-            messages.append({'role': 'user', 'content': self.chat_sample[to_lang][0]})
-            messages.append({'role': 'assistant', 'content': self.chat_sample[to_lang][1]})
+        # Add chat samples if available
+        lang_chat_samples = self.get_chat_sample(to_lang)
+        if lang_chat_samples:
+            messages.append({'role': 'user', 'content': lang_chat_samples[0]})
+            messages.append({'role': 'assistant', 'content': lang_chat_samples[1]})
 
         messages.append({'role': 'user', 'content': prompt})
 

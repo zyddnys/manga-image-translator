@@ -1,10 +1,10 @@
 import re
 import asyncio
 import time
-from typing import List, Dict
+from typing import List
 
 from .config_gpt import ConfigGPT
-from .common import CommonTranslator, MissingAPIKeyException, VALID_LANGUAGES
+from .common import CommonTranslator, MissingAPIKeyException
 from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE, OPENAI_MODEL
 
 try:
@@ -14,8 +14,6 @@ except ImportError:
 
 
 class OpenAITranslator(ConfigGPT, CommonTranslator):
-    _LANGUAGE_CODE_MAP = VALID_LANGUAGES
-
     # ---- 关键参数 ----
     _MAX_REQUESTS_PER_MINUTE = 200
     _TIMEOUT = 30                # 每次请求的超时时间
@@ -359,10 +357,13 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         messages = [
             {'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)},
         ]
+
         # 如果需要先给出示例对话
-        if to_lang in self.chat_sample:
-            messages.append({'role': 'user', 'content': self.chat_sample[to_lang][0]})
-            messages.append({'role': 'assistant', 'content': self.chat_sample[to_lang][1]})
+        # Add chat samples if available
+        lang_chat_samples = self.get_chat_sample(to_lang)
+        if lang_chat_samples:
+            messages.append({'role': 'user', 'content': lang_chat_samples[0]})
+            messages.append({'role': 'assistant', 'content': lang_chat_samples[1]})
 
         # 最终用户请求
         messages.append({'role': 'user', 'content': prompt})
