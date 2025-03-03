@@ -107,9 +107,80 @@
                         <i class="iconify absolute top-1.5 right-1 pointer-events-none"
                            data-icon="carbon:chevron-down"></i>
                     </div>
-                </div>
+                </div>			
             </div>
         </div>
+
+		<div class="flex mx-4 justify-start items-end">
+			<div class="flex gap-4">
+				<div class="flex items-center" title="Inpainting Size">
+					<i class="iconify" data-icon="carbon:paint-brush"></i>
+					<div class="relative">
+						<select class="w-9ch appearance-none bg-transparent border-b border-gray-300"
+								v-model="inpaintingSize">
+							<option value="516">516px</option>	
+							<option value="1024">1024px</option>
+							<option value="2048">2048px</option>
+							<option value="2560">2560px</option>
+						</select>
+						<i class="iconify absolute top-1.5 right-1 pointer-events-none"
+						   data-icon="carbon:chevron-down"></i>
+					</div>
+				</div>
+                <div class="flex items-center" title="Unclip Ratio">
+                    <i class="iconify" data-icon="weui:max-window-filled"></i>
+                    <div class="relative">
+                        <input type="number"
+                               class="w-9ch appearance-none bg-transparent border-b border-gray-300"
+                               v-model="customUnclipRatio" 
+                               placeholder="2.3 (Default)" 
+                               step="0.01" 
+                               value="2.3" /> 
+                    </div>
+				</div>	
+                <div class="flex items-center gap-1" title="Box Threshold">
+                    <i class="iconify" data-icon="weui:photo-wall-outlined"></i>
+                    <div class="relative">
+                        <input type="number"
+                               class="w-9ch appearance-none bg-transparent border-b border-gray-300"
+                               v-model="customBoxThreshold" 
+                               placeholder="0.7 (Default)" 
+                               step="0.01" 
+                               value="0.7" /> 
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-1" title="Mask Dilation Offset">
+                    <i class="iconify" data-icon="material-symbols:adjust-outline"></i>
+                    <div class="relative">
+                        <input type="number"
+                               class="w-9ch appearance-none bg-transparent border-b border-gray-300"
+                               v-model="maskDilationOffset"
+                               placeholder="30 (Default)"
+                               step="1"
+                               value="30" />
+                    </div>
+                </div>
+                <div class="flex items-center gap-1" title="Inpainter">
+                    <i class="iconify" data-icon="carbon:paint-brush"></i>
+                    <div class="relative">
+                        <select class="w-12ch appearance-none bg-transparent border-b border-gray-300"
+                                v-model="inpainter">
+                            <option value="default">Default</option>
+                            <option value="lama_large">Lama Large</option>
+                            <option value="lama_mpe">Lama MPE</option>
+                            <option value="sd">SD</option>
+                            <option value="none">None</option>
+							<option value="original">Original</option>
+                        </select>
+                        <i class="iconify absolute top-1.5 right-1 pointer-events-none"
+                           data-icon="carbon:chevron-down"></i>
+                    </div>
+                </div>				
+				
+			</div>
+		</div>		
+		
         <div v-if="result" class="flex flex-col items-center">
             <img class="my-2" :src="resultUri"/>
             <button class="px-2 py-1 text-center rounded-md text-blue-800 border-2 border-blue-300" @click="clear">
@@ -204,13 +275,20 @@
         textDetector: 'default',
         renderTextDirection: 'auto',
         translator: 'youdao',
-        validTranslators: ['youdao', 'baidu', 'deepl', 'papago', 'caiyun', 'sakura', 'offline', 'gpt3.5', 'deepseek', 'none'],
+        validTranslators: ['youdao', 'baidu', 'deepl', 'papago', 'caiyun', 'sakura', 'offline', 'openai', 'deepseek', 'none'],
         getTranslatorName(key) {
             if (key === 'none')
                 return "No Text"
             return key ? key[0].toUpperCase() + key.slice(1) : "";
         },
         targetLanguage: 'CHS',
+        
+        inpaintingSize: '2048', 
+        customUnclipRatio: 2.3,
+        customBoxThreshold: 0.7,  
+		maskDilationOffset: 30,
+        inpainter: 'default',
+		
         ondrop(e) {
             const file = e.dataTransfer?.files?.[0]
             if (file && acceptTypes.includes(file.type)) {
@@ -308,19 +386,26 @@
             const formData = new FormData()
             formData.append('image', this.file)
 
-            const config = `{
-                "detector": {
-                    "detector": "${this.textDetector}",
-                    "detection_size": ${this.detectionResolution}
-                },
-                "render": {
-                    "direction": "${this.renderTextDirection}"
-                },
-                "translator": {
-                    "translator": "${this.translator}",
-                    "target_lang": "${this.targetLanguage}"
-                }
-            }`;
+			const config = `{
+				"detector": {
+					"detector": "${this.textDetector}",
+					"detection_size": ${this.detectionResolution},
+					"box_threshold": ${this.customBoxThreshold},
+					"unclip_ratio": ${this.customUnclipRatio}
+				},
+				"render": {
+					"direction": "${this.renderTextDirection}"
+				},
+				"translator": {
+					"translator": "${this.translator}",
+					"target_lang": "${this.targetLanguage}"
+				},
+				"inpainter": {
+					"inpainter": "${this.inpainter}",					
+					"inpainting_size": ${this.inpaintingSize}
+				},
+				"mask_dilation_offset": ${this.maskDilationOffset}
+			}`;
 
             formData.append('config', config)
 
