@@ -118,7 +118,7 @@ class Translator(str, Enum):
     sakura = "sakura"
     deepseek = "deepseek"
     groq = "groq"
-    ollama = "ollama"
+    custom_openai = "custom_openai"
     offline = "offline"
     nllb = "nllb"
     nllb_big = "nllb_big"
