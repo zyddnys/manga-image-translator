@@ -33,4 +33,4 @@ ENV PYTHONPATH="/app"
 
 WORKDIR /app
 
-ENTRYPOINT ["python"]
+ENTRYPOINT ["python", "-m", "manga_translator"]
