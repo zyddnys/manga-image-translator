@@ -9,13 +9,12 @@ except ImportError:
     openai = None
 import asyncio
 import time
-from typing import List, Dict
-from omegaconf import OmegaConf
-from .common import CommonTranslator, MissingAPIKeyException, VALID_LANGUAGES
-from .keys import OLLAMA_API_KEY, OLLAMA_API_BASE, OLLAMA_MODEL, OLLAMA_MODEL_CONF
+from typing import List
+from .common import CommonTranslator, VALID_LANGUAGES
+from .keys import CUSTOM_OPENAI_API_KEY, CUSTOM_OPENAI_API_BASE, CUSTOM_OPENAI_MODEL, CUSTOM_OPENAI_MODEL_CONF
 
 
-class OllamaTranslator(ConfigGPT, CommonTranslator):
+class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
     _LANGUAGE_CODE_MAP=VALID_LANGUAGES
 
     _INVALID_REPEAT_COUNT = 2  # 如果检测到“无效”翻译，最多重复 2 次
@@ -33,19 +32,19 @@ class OllamaTranslator(ConfigGPT, CommonTranslator):
 
     # 是否包含模板，用于决定是否使用预设的提示模板
     _INCLUDE_TEMPLATE = False
-    
-    def __init__(self, check_openai_key=False):
+
+    def __init__(self, model=None, api_base=None, api_key=None, check_openai_key=False):
         # If the user has specified a nested key to use for the model, append the key
         #   Otherwise: Use the `ollama` defaults.
         _CONFIG_KEY='ollama'
-        if OLLAMA_MODEL_CONF:
-            _CONFIG_KEY+=f".{OLLAMA_MODEL_CONF}" 
-        
-        ConfigGPT.__init__(self, config_key=_CONFIG_KEY) 
-        CommonTranslator.__init__(self)
+        if CUSTOM_OPENAI_MODEL_CONF:
+            _CONFIG_KEY+=f".{CUSTOM_OPENAI_MODEL_CONF}"
 
-        self.client = openai.AsyncOpenAI(api_key=OLLAMA_API_KEY or "ollama") # required, but unused for ollama
-        self.client.base_url = OLLAMA_API_BASE
+        ConfigGPT.__init__(self, config_key=_CONFIG_KEY)
+        self.model = model
+        CommonTranslator.__init__(self)
+        self.client = openai.AsyncOpenAI(api_key=api_key or CUSTOM_OPENAI_API_KEY or "ollama") # required, but unused for ollama
+        self.client.base_url = api_base or CUSTOM_OPENAI_API_BASE
         self.token_count = 0
         self.token_count_last = 0
 
@@ -220,7 +219,7 @@ class OllamaTranslator(ConfigGPT, CommonTranslator):
         messages.append({'role': 'user', 'content': prompt})
 
         response = await self.client.chat.completions.create(
-            model=OLLAMA_MODEL,
+            model=self.model or CUSTOM_OPENAI_MODEL,
             messages=messages,
             max_tokens=self._MAX_TOKENS // 2,
             temperature=self.temperature,
