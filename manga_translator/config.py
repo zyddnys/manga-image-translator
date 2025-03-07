@@ -305,7 +305,7 @@ class Config(BaseModel):
     upscale: UpscaleConfig = UpscaleConfig()
     """upscaler configs"""
     translator: TranslatorConfig = TranslatorConfig()
-    """tanslator configs"""
+    """translator configs"""
     detector: DetectorConfig = DetectorConfig()
     """detector configs"""
     colorizer: ColorizerConfig = ColorizerConfig()
@@ -320,6 +320,9 @@ class Config(BaseModel):
     mask_dilation_offset: int = 0
     """By how much to extend the text mask to remove left-over text pixels of the original image."""
     _filter_text = None
+    """The concurrency of image file processing."""
+    """If concurrency=3, there will be at most 3 files be processed at the same time"""
+    concurrency: int = 3
 
     @property
     def re_filter_text(self):
