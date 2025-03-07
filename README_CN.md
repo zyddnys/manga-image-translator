@@ -253,7 +253,7 @@ OCR：
 ### 提升翻译质量的技巧
 
 -   低分辨率有时会让检测器出错，它不太擅长识别不规则的文本大小。为了解决这个问题，您可以使用 `--upscale-ratio 2` 或任何其他值来使用放大器
--   如果渲染的文本太小而无法阅读，请指定 `--font-size-minimum 30` 或使用 `--manga2eng` 渲染器，它将尝试适应检测到的文本气泡
+-   如果渲染的文本太小而无法阅读，请指定 `--font-size-minimum 30` 或使用 `--manga2eng` （注意：只在目标语言为英文时使用）渲染器，它将尝试适应检测到的文本气泡
 -   使用 `--font-path fonts/anime_ace_3.ttf` 指定字体
 -   设置 `mask_dilation_offset` 20~40。
 -   使用 `lama_large` 作为修补器。
