@@ -411,7 +411,7 @@ shared              Run in API mode
 ## config-help mode
 
 ```bash
-python manga_translator config-help
+python -m manga_translator config-help
 ```
 
 ### Language Code Reference
