@@ -14,7 +14,7 @@ from manga_translator.utils import is_valuable_text
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import DEEPSEEK_API_KEY, DEEPSEEK_API_BASE, DEEPSEEK_MODEL
 from .config_gpt import ConfigGPT
-from .tokenizers.deepseek import deepseekTokenCounter
+from .tokenizers.token_counters import deepseekTokenCounter
 
 
 class DeepseekTranslator(ConfigGPT, CommonTranslator):
