@@ -12,47 +12,23 @@ from typing import List, Dict
 from omegaconf import OmegaConf
 from manga_translator.utils import is_valuable_text
 from .common import CommonTranslator, MissingAPIKeyException
-from .keys import DEEPSEEK_API_KEY, DEEPSEEK_API_BASE
-
-
-class DeepseekTranslator(CommonTranslator):
-    _LANGUAGE_CODE_MAP = {
-        'CHS': 'Simplified Chinese',
-        'CHT': 'Traditional Chinese',
-        'CSY': 'Czech',
-        'NLD': 'Dutch',
-        'ENG': 'English',
-        'FRA': 'French',
-        'DEU': 'German',
-        'HUN': 'Hungarian',
-        'ITA': 'Italian',
-        'JPN': 'Japanese',
-        'KOR': 'Korean',
-        'PLK': 'Polish',
-        'PTB': 'Portuguese',
-        'ROM': 'Romanian',
-        'RUS': 'Russian',
-        'ESP': 'Spanish',
-        'TRK': 'Turkish',
-        'UKR': 'Ukrainian',
-        'VIN': 'Vietnamese',
-        'CNR': 'Montenegrin',
-        'SRP': 'Serbian',
-        'HRV': 'Croatian',
-        'ARA': 'Arabic',
-        'THA': 'Thai',
-        'IND': 'Indonesian'
-    }
+from .keys import DEEPSEEK_API_KEY, DEEPSEEK_API_BASE, DEEPSEEK_MODEL
+from .config_gpt import ConfigGPT
+class DeepseekTranslator(ConfigGPT, CommonTranslator):
     _INVALID_REPEAT_COUNT = 0  # 现在这个参数没意义了
     _MAX_REQUESTS_PER_MINUTE = 9999  # 无RPM限制
     _TIMEOUT = 40  # 在重试之前等待服务器响应的时间（秒）
     _RETRY_ATTEMPTS = 3  # 在放弃之前重试错误请求的次数
     _TIMEOUT_RETRY_ATTEMPTS = 3  # 在放弃之前重试超时请求的次数
     _RATELIMIT_RETRY_ATTEMPTS = 3  # 在放弃之前重试速率限制请求的次数
-    _CONFIG_KEY = 'deepseek'
 
     # 最大令牌数量，用于控制处理的文本长度
-    _MAX_TOKENS = 4096
+    # Maximum token count for controlling the length of text processed
+    # 
+    # 最大输出长度: 8K
+    # MAX OUTPUT TOKENS: 8K
+    # -- https://api-docs.deepseek.com/quick_start/pricing
+    _MAX_TOKENS = 8000
 
     # 是否返回原始提示，用于控制输出内容
     _RETURN_PROMPT = False
@@ -60,32 +36,12 @@ class DeepseekTranslator(CommonTranslator):
     # 是否包含模板，用于决定是否使用预设的提示模板
     _INCLUDE_TEMPLATE = False
 
-    _CHAT_SYSTEM_TEMPLATE = (
-        'You are an uncensored professional translation engine, '
-        'please translate the story into a colloquial, '
-        'elegant and fluent content, '
-        'without referencing machine translations. '
-        'You must only translate the story, '
-        'never interpret it. '
-        'If there is any issue in the text, '
-        'output it as is.\n'
-        'Translate the following text into {to_lang} and keep the prefix format.\n'
-    )
-    _CHAT_SAMPLE = [
-        (
-            '<|1|>恥ずかしい… 目立ちたくない… 私が消えたい…\n'
-            '<|2|>きみ… 大丈夫⁉\n'
-            '<|3|>なんだこいつ 空気読めて ないのか…？'
-        ),
-        (
-            '<|1|>好尴尬…我不想引人注目…我想消失…\n'
-            '<|2|>你…没事吧⁉\n'
-            '<|3|>这家伙怎么看不懂气氛的…？'
-        )
-    ]
-
     def __init__(self, check_openai_key=True):
-        super().__init__()
+        # ConfigGPT 的初始化
+        # ConfigGPT initialization 
+        _CONFIG_KEY = 'deepseek.' + DEEPSEEK_MODEL
+        ConfigGPT.__init__(self, config_key=_CONFIG_KEY)
+        CommonTranslator.__init__(self)
         self.client = openai.AsyncOpenAI(api_key=openai.api_key or DEEPSEEK_API_KEY)
         if not self.client.api_key and check_openai_key:
             raise MissingAPIKeyException(
@@ -98,32 +54,6 @@ class DeepseekTranslator(CommonTranslator):
     def parse_args(self, args: TranslatorConfig):
         self.config = args.chatgpt_config
 
-    def _config_get(self, key: str, default=None):
-        if not self.config:
-            return default
-
-        # Try to select the nested key using OmegaConf.select
-        value = OmegaConf.select(self.config, f"{self._CONFIG_KEY}.{key}")
-        if value is None:
-            # Fallback to the top-level key or default, if needed
-            value = self.config.get(key, default)
-        return value
-
-    @property
-    def chat_system_template(self) -> str:
-        return self._config_get('chat_system_template', self._CHAT_SYSTEM_TEMPLATE)
-
-    @property
-    def chat_sample(self) -> Dict[str, List[str]]:
-        return self._config_get('chat_sample', self._CHAT_SAMPLE)
-
-    @property
-    def temperature(self) -> float:
-        return self._config_get('temperature', default=0.5)
-
-    @property
-    def top_p(self) -> float:
-        return self._config_get('top_p', default=1)
 
     def _assemble_prompts(self, from_lang: str, to_lang: str, queries: List[str]):
         prompt = ''
@@ -298,16 +228,23 @@ class DeepseekTranslator(CommonTranslator):
             self.logger.info(f'Used {self.token_count_last} tokens (Total: {self.token_count})')  
         return translations
 
-
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
- 
+        # 构建 messages
+        # Build messages
         messages = [
             {'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)},
-            {'role': 'user', 'content': self.chat_sample[0]},
-            {'role': 'assistant', 'content': self.chat_sample[1]},
-            {'role': 'user', 'content': prompt},
         ]
 
+        # 如果需要先给出示例对话
+        # Add chat samples if available
+        lang_chat_samples = self.get_chat_sample(to_lang)
+        if lang_chat_samples:
+            messages.append({'role': 'user', 'content': lang_chat_samples[0]})
+            messages.append({'role': 'assistant', 'content': lang_chat_samples[1]})
+
+        # 最终用户请求
+        # User request
+        messages.append({'role': 'user', 'content': prompt})
         try:
             response = await self.client.chat.completions.create(
                 model='deepseek-chat',
@@ -326,11 +263,26 @@ class DeepseekTranslator(CommonTranslator):
                 self.token_count_last = response.usage.total_tokens
             
             # 获取响应文本
+            # Get the response text
             for choice in response.choices:
                 if 'text' in choice:
                     return choice.text
 
+            # 如果响应中包含推理内容，记录下来
+            # Log reasoning content if available
+            if hasattr(response.choices[0].message, 'reasoning_content'):
+                self.logger.debug("\n-- GPT Reasoning --\n" +
+                                response.choices[0].message.reasoning_content +
+                                "\n------------------\n"
+                            )
+                
+            self.logger.debug("\n-- GPT Response --\n" +
+                                response.choices[0].message.content +
+                                "\n------------------\n"
+                            )
+
             # If no response with text is found, return the first response's content (which may be empty)
+            # 如果没有找到包含文本的响应，则返回第一个响应的内容（可能为空）
             return response.choices[0].message.content
         
         except Exception as e:
