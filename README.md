@@ -339,7 +339,7 @@ Colorizer: **mc2**
 - Increasing the `box_threshold` can help filter out gibberish from OCR error detection to some extent.
 - Using glossory file.
 
-### Options
+### Basic Options
 
 ```text
 -h, --help                     show this help message and exit
@@ -354,12 +354,65 @@ Colorizer: **mc2**
 --post-dict POST_DICT          Path to the post-translation replacement dictionary file
 --kernel-size KERNEL_SIZE      Set the convolution kernel size of the text erasure area to
                                completely clean up text residues
---config-file CONFIG_FILE      path to the config file
---models-ttl MODELS_TTL        How long to keep models in memory in seconds after last use (0 means
-                               forever)
 ```
 
-<!-- Auto generated end -->
+### Additional Options:
+
+## Batch Mode Options
+
+```text
+local                         Run in batch translation mode
+-i, --input INPUT [INPUT ...] Path to an image folder (required)
+-o, --dest DEST               Path to the destination folder for translated images (default: '')
+-f, --format FORMAT           Output format of the translation.  Choices: [list the OUTPUT_FORMATS here, png,webp,jpg,jpeg,xcf,psd,pdf]
+--overwrite                   Overwrite already translated images
+--skip-no-text                Skip image without text (Will not be saved).
+--use-mtpe                    Turn on/off machine translation post editing (MTPE) on the command line (works only on linux right now)
+--save-text                   Save extracted text and translations into a text file.
+--load-text                   Load extracted text and translations from a text file.
+--save-text-file SAVE_TEXT_FILE  Like --save-text but with a specified file path. (default: '')
+--prep-manual                 Prepare for manual typesetting by outputting blank, inpainted images, plus copies of the original for reference
+--save-quality SAVE_QUALITY   Quality of saved JPEG image, range from 0 to 100 with 100 being best (default: 100)
+--config-file CONFIG_FILE     path to the config file (default: None)                          
+```
+
+## WebSocket Mode Options
+
+```text
+ws                  Run in WebSocket mode
+--host HOST         Host for WebSocket service (default: 127.0.0.1)
+--port PORT         Port for WebSocket service (default: 5003)
+--nonce NONCE       Nonce for securing internal WebSocket communication
+--ws-url WS_URL     Server URL for WebSocket mode (default: ws://localhost:5000)
+--models-ttl MODELS_TTL  How long to keep models in memory in seconds after last use (0 means forever)
+```
+
+## API Mode Options
+
+```text
+shared              Run in API mode
+--host HOST         Host for API service (default: 127.0.0.1)
+--port PORT         Port for API service (default: 5003)
+--nonce NONCE       Nonce for securing internal API server communication
+--report REPORT     reports to server to register instance (default: None)
+--models-ttl MODELS_TTL  models TTL in memory in seconds (0 means forever)
+```
+
+## Web Mode Options (Missing some basic options, need readded)
+
+```text
+--host HOST           The host address (default: 127.0.0.1)
+--port PORT           The port number (default: 8000)
+--start-instance      If a translator should be launched automatically
+--nonce NONCE         Nonce for securing internal web server communication
+--models-ttl MODELS_TTL  models TTL in memory in seconds (0 means forever)
+```
+
+## config-help mode
+
+```bash
+python manga_translator config-help
+```
 
 ### Language Code Reference
 
