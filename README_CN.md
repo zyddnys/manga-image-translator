@@ -5,7 +5,7 @@
 > 欢迎加入我们的 Discord <https://discord.gg/Ak8APNy4vb>
 
 本项目旨在翻译那些不太可能有人专门翻译的图片，例如各种群聊、图站上的漫画/图片，让像我这样的日语小白也能大致理解图片内容。\
-主要支持日语，同时也支持中文、英文和韩语。\
+主要支持日语，同时也支持简繁中文、英文及其他20种小语言。\
 支持图片修复（去字）和嵌字。\
 该项目是[求闻转译志](https://github.com/PatchyVideo/MMDOCR-HighPerformance)的 v2 版本。
 
@@ -541,7 +541,7 @@ chat_sample:
 
 阅读 openapi 文档：`127.0.0.1:8000/docs`
 
-html截取：<https://cfbed.1314883.xyz/file/1741386061808_FastAPI - Swagger UI.html>
+html截取：<<https://cfbed.1314883.xyz/file/1741386061808_FastAPI%20-%20Swagger%20UI.html>>
 
 ## 后续计划
 
