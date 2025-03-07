@@ -286,7 +286,7 @@ $ python -m manga_translator local -v -i <path>
 ```bash
 # use `--mode web` to start a web server.
 $ cd server && python main.py --use-gpu
-# the demo will be serving on http://127.0.0.1:5003
+# the demo will be serving on http://127.0.0.1:8000
 ```
 
 ## Related Projects
@@ -308,7 +308,7 @@ Detector:
 OCR:
 
 - ENG: ??
-- JPN: ??
+- JPN: 48px
 - CHS: ??
 - KOR: 48px
 
@@ -321,7 +321,7 @@ Translator:
 - ENG -> JPN: ??
 - ENG -> CHS: ??
 
-Inpainter: ??
+Inpainter: lama_large
 
 Colorizer: **mc2**
 
@@ -334,6 +334,10 @@ Colorizer: **mc2**
 - If the text being rendered is too small to read specify `--font-size-minimum 30` for instance or use the `--manga2eng`
   renderer that will try to adapt to detected textbubbles
 - Specify a font with `--font-path fonts/anime_ace_3.ttf` for example
+- Set `mask_dilation_offset` 20~40.
+- Using `lama_large` as impaiter. 
+- Increasing the `box_threshold` can help filter out gibberish from OCR error detection to some extent.
+- Using glossory file.
 
 ### Options
 
@@ -346,8 +350,8 @@ Colorizer: **mc2**
 --use-gpu                      Turn on/off gpu (auto switch between mps and cuda)
 --use-gpu-limited              Turn on/off gpu (excluding offline translator)
 --font-path FONT_PATH          Path to font file
---pre-dict PRE_DICT            Path to the pre-translation dictionary file
---post-dict POST_DICT          Path to the post-translation dictionary file
+--pre-dict PRE_DICT            Path to the pre-translation replacement dictionary file
+--post-dict POST_DICT          Path to the post-translation replacement dictionary file
 --kernel-size KERNEL_SIZE      Set the convolution kernel size of the text erasure area to
                                completely clean up text residues
 --config-file CONFIG_FILE      path to the config file
@@ -398,9 +402,7 @@ FIL: Filipino (Tagalog)
 | baidu         | ✔️      |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`           |
 | deepl         | ✔️      |         | Requires `DEEPL_AUTH_KEY`                                |
 | caiyun        | ✔️      |         | Requires `CAIYUN_TOKEN`                                  |
-| gpt3          | ✔️      |         | Implements text-davinci-003. Requires `OPENAI_API_KEY`   |
-| gpt3.5        | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`      |
-| gpt4          | ✔️      |         | Implements gpt-4. Requires `OPENAI_API_KEY`              |
+| openai        | ✔️      |         | Implements Requires `OPENAI_API_KEY`                     |
 | papago        |         |         |                                                          |
 | sakura        |         |         | Requires `SAKURA_API_BASE`                               |
 | custom openai |         |         | Requires  `CUSTOM_OPENAI_API_BASE` `CUSTOM_OPENAI_MODEL` |
@@ -418,6 +420,16 @@ FIL: Filipino (Tagalog)
 OPENAI_API_KEY=sk-xxxxxxx...
 DEEPL_AUTH_KEY=xxxxxxxx...
 ```
+### glossory
+- mit_glossory: Sending a glossory to the AI model to guide its translation can effectively improve translation quality, for example, to ensure consistent translations of proprietary names and personal names. It will automatically extract the effective entries from the glossary for the current translation, so there is no need to worry that a large number of entries in the glossary will affect the translation quality. (Only valid for the openaitranslator, Compatible with sakura_dict and galtransl_dict.)
+
+- sakura_dict: sakura glossory, only valid for sakuratranslator. No automated glossary feature.
+
+```env
+OPENAI_GLOSSARY_PATH=PATH_TO_YOUR_FILE
+SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
+```  
+  
 
 - Offline: Whether the translator can be used offline.
 
@@ -976,6 +988,9 @@ temperature: 0.5
 # where the model considers the results of the tokens with top_p probability mass.
 # So 0.1 means only the tokens comprising the top 10% probability mass are considered.
 top_p: 1
+
+#Whether to hide _CHAT_SYSTEM_TEMPLATE and _CHAT_SAMPLE in the command line output
+verbose_logging: False
 
 # The prompt being feed into ChatGPT before the text to translate.
 # Use {to_lang} to indicate where the target language name should be inserted.
