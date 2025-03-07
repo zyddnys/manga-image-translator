@@ -14,6 +14,9 @@ from manga_translator.utils import is_valuable_text
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import DEEPSEEK_API_KEY, DEEPSEEK_API_BASE, DEEPSEEK_MODEL
 from .config_gpt import ConfigGPT
+from .tokenizers.deepseek import deepseekTokenCounter
+
+
 class DeepseekTranslator(ConfigGPT, CommonTranslator):
     _INVALID_REPEAT_COUNT = 0  # 现在这个参数没意义了
     _MAX_REQUESTS_PER_MINUTE = 9999  # 无RPM限制
@@ -42,6 +45,11 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
         _CONFIG_KEY = 'deepseek.' + DEEPSEEK_MODEL
         ConfigGPT.__init__(self, config_key=_CONFIG_KEY)
         CommonTranslator.__init__(self)
+
+        # Initialize the token counter
+        tokenizer = deepseekTokenCounter()
+        self.count_tokens = tokenizer.count_tokens
+
         self.client = openai.AsyncOpenAI(api_key=openai.api_key or DEEPSEEK_API_KEY)
         if not self.client.api_key and check_openai_key:
             raise MissingAPIKeyException(
@@ -56,34 +64,52 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
 
 
     def _assemble_prompts(self, from_lang: str, to_lang: str, queries: List[str]):
-        prompt = ''
+        """
+        原脚本中用来把多个 query 组装到一个 Prompt。
+        同时可以做长度控制，如果过长就切分成多个 prompt。
+        这里演示一个简单的 chunk 逻辑：
+          - 根据字符长度 roughly 判断
+          - 也可以用更准确的 tokens 估算
+        ps.实际没啥用
+        
+        Original script's method to assemble multiple queries into prompts.
+        Handles length control by splitting long queries into multiple prompts.
+        Use tokenizer to count token.
+        PS. Not very practical in reality
+        """
+        chunk_queries = []
+        current_length = 0
+        batch = []
 
-        if self._INCLUDE_TEMPLATE:
-            prompt += self.prompt_template.format(to_lang=to_lang)
+        for q in queries:
+            # +10 给一些余量，比如加上 <|1|> 的标记等
+            # +10 buffer for markers like <|1|>
+            if (current_length + self.count_tokens(q) + 10) > self._MAX_TOKENS and batch:
+                # 输出当前 batch
+                # Output current batch
+                chunk_queries.append(batch)
+                batch = []
+                current_length = 0
+            
+            batch.append(q)
+            current_length += self.count_tokens(q) + 10
+        if batch:
+            chunk_queries.append(batch)
 
-        if self._RETURN_PROMPT:
-            prompt += '\nOriginal:'
-
-        i_offset = 0
-        for i, query in enumerate(queries):
-            prompt += f'\n<|{i + 1 - i_offset}|>{query}'
-
-            # If prompt is growing too large and there's still a lot of text left
-            # split off the rest of the queries into new prompts.
-            # 1 token = ~4 characters according to https://platform.openai.com/tokenizer
-            # TODO: potentially add summarizations from special requests as context information
-            if self._MAX_TOKENS * 2 and len(''.join(queries[i + 1:])) > self._MAX_TOKENS:
-                if self._RETURN_PROMPT:
-                    prompt += '\n<|1|>'
-                yield prompt.lstrip(), i + 1 - i_offset
+        # 逐个批次生成 prompt
+        # Generate prompts batch by batch
+        for this_batch in chunk_queries:
+            prompt = ""
+            if self.include_template:
                 prompt = self.prompt_template.format(to_lang=to_lang)
-                # Restart counting at 1
-                i_offset = i + 1
+            
+            # 加上分行内容
+            # Add line breaks
+            for i, query in enumerate(this_batch):
+                prompt += f"\n<|{i+1}|>{query}"
+            
+            yield prompt.lstrip(), len(this_batch)
 
-        if self._RETURN_PROMPT:
-            prompt += '\n<|1|>'
-
-        yield prompt.lstrip(), len(queries) - i_offset
 
     def _format_prompt_log(self, to_lang: str, prompt: str) -> str:
         if to_lang in self.chat_sample:
