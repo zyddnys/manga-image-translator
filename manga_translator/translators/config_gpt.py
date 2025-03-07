@@ -153,7 +153,7 @@ class ConfigGPT:
     
     @property  
     def verbose_logging(self) -> bool:  
-        return self._config_get('verbose_logging', default=True)  
+        return self._config_get('verbose_logging', default=False)  
 
     @property  
     def glossary_system_template(self) -> str:  
