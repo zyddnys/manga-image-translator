@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 from typing import Union, List
@@ -95,13 +96,15 @@ class MangaTranslatorLocal(MangaTranslator):
                 raise FileExistsError(_dest)
 
             translated_count = 0
-            for root, subdirs, files in os.walk(path):
-                files = natural_sort(files)
-                dest_root = replace_prefix(root, path, _dest)
-                os.makedirs(dest_root, exist_ok=True)
-                for f in files:
+            max_concurrency = 10  # 可配置为参数
+            semaphore = asyncio.Semaphore(max_concurrency)
+            lock = asyncio.Lock()
+
+            async def just_do_it(f):
+                nonlocal translated_count
+                async with semaphore:
                     if f.lower() == '.thumb':
-                        continue
+                     return
 
                     file_path = os.path.join(root, f)
                     output_dest = replace_prefix(file_path, path, _dest)
@@ -109,10 +112,21 @@ class MangaTranslatorLocal(MangaTranslator):
                     output_dest = f'{p}.{file_ext or ext[1:]}'
                     try:
                         if await self.translate_file(file_path, output_dest, params, config):
-                            translated_count += 1
+                            async with lock:
+                                translated_count += 1
                     except Exception as e:
                         logger.error(e)
-                        raise e
+
+
+            tasks = []
+            for root, subdirs, files in os.walk(path):
+                files = natural_sort(files)
+                dest_root = replace_prefix(root, path, _dest)
+                os.makedirs(dest_root, exist_ok=True)
+                tasks.extend(just_do_it(f) for f in files)
+
+            await asyncio.gather(*tasks)
+
             if translated_count == 0:
                 logger.info('No further untranslated files found. Use --overwrite to write over existing translations.')
             else:
