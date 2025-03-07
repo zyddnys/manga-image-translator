@@ -1,8 +1,13 @@
 import re
 from typing import List, Dict
 from omegaconf import OmegaConf
+from langcodes import Language, closest_match
+from .common import VALID_LANGUAGES
+
 
 class ConfigGPT:
+    _LANGUAGE_CODE_MAP = VALID_LANGUAGES
+
     _CHAT_SYSTEM_TEMPLATE = (
         # TODO:
         # Adding the feature to automatically select different default prompt based on the target language.
@@ -72,7 +77,8 @@ class ConfigGPT:
         # This key is used to locate nested configuration entries
         self._CONFIG_KEY = config_key
         self.config = None
-
+        self.langSamples = None # Cache chat_samples[to_lang]
+        
     def _config_get(self, key: str, default=None):
         if not self.config:
             return default
@@ -106,6 +112,53 @@ class ConfigGPT:
     @property
     def chat_sample(self) -> Dict[str, List[str]]:
         return self._config_get('chat_sample', self._CHAT_SAMPLE)
+
+    def get_chat_sample(self, to_lang: str) -> List[str]:
+        """
+        Use `langcodes` to search for the language labeling and return the chat sample.
+        If the language is not found, return an empty list.
+        """
+
+        if self.langSamples is not None:
+            return self.langSamples
+        
+        all_samples=self.chat_sample
+        self.langSamples=[]
+        
+        # Use `closest_match` to find the closest language tag
+        # `foundLang` = tuple(language tag, distance)
+        # 
+        # Note: maximum distance = how similar the language must be.
+        # e.g. 
+        #     'en-GB' vs 'en-US' -> distance 5 
+        #     'en-GB' vs 'en-AU' -> distance 3 
+        #     'pt-BR' vs 'pt-PT' -> distance 5 
+        #     'en-US' vs 'pt-PT' -> distance 1000 (Undefined)
+        # 
+        # If no sufficient match is found: foundLang=tuple('Und', 1000)
+        try:
+            foundLang = closest_match(
+                                Language.find(to_lang), 
+                                [
+                                    Language.find(sampleLang).to_tag() 
+                                    for sampleLang in list(all_samples.keys())
+                                ],
+                                max_distance=5 
+                            )
+        except:
+            self.logger.error(f"Requested chat sample of unknown language: {to_lang}")
+            return self.langSamples
+        
+        # If a match is found: find, cache, and return the chat sample:
+        if foundLang[0] != 'Und':
+            for sampleLang, samples in all_samples.items():
+                if foundLang[0] == Language.find(sampleLang).to_tag():
+                    self.langSamples = samples
+                    return self.langSamples
+            
+        return self.langSamples
+
+
 
     @property
     def rgx_capture(self) -> str:
