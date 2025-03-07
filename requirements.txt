@@ -57,3 +57,4 @@ python-multipart
 paddleocr
 paddlepaddle
 paddlepaddle-gpu; sys_platform != 'darwin'
+rich
