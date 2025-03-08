@@ -334,7 +334,7 @@ Colorizer: **mc2**
 - Set `mask_dilation_offset` 20~40.
 - Using `lama_large` as impaiter. 
 - Increasing the `box_threshold` can help filter out gibberish from OCR error detection to some extent.
-- Using glossory file.
+- Using glossary file.
 
 ### Options
 
@@ -478,10 +478,10 @@ DEEPL_AUTH_KEY=xxxxxxxx...
 - Sugoi is created by mingshiba, please support him in https://www.patreon.com/mingshiba
 
 
-#### glossory
-- mit_glossory: Sending a glossory to the AI model to guide its translation can effectively improve translation quality, for example, to ensure consistent translations of proprietary names and personal names. It will automatically extract the effective entries from the glossary for the current translation, so there is no need to worry that a large number of entries in the glossary will affect the translation quality. (Only valid for the openaitranslator, Compatible with sakura_dict and galtransl_dict.)
+#### glossary
+- mit_glossary: Sending a glossary to the AI model to guide its translation can effectively improve translation quality, for example, to ensure consistent translations of proprietary names and personal names. It will automatically extract the effective entries from the glossary for the current translation, so there is no need to worry that a large number of entries in the glossary will affect the translation quality. (Only valid for the openaitranslator, Compatible with sakura_dict and galtransl_dict.)
 
-- sakura_dict: sakura glossory, only valid for sakuratranslator. No automated glossary feature.
+- sakura_dict: sakura glossary, only valid for sakuratranslator. No automated glossary feature.
 
 ```env
 OPENAI_GLOSSARY_PATH=PATH_TO_YOUR_FILE
@@ -500,7 +500,7 @@ SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
 | `OPENAI_API_KEY`              | OpenAI API Key                                                                 | `''`                              |                                                                                                          |
 | `OPENAI_MODEL`                | OpenAI Model (Optional)                                                        | `''`                              |                                                                                                          |
 | `OPENAI_HTTP_PROXY`           | OpenAI HTTP Proxy (Optional)                                                   | `''`                              | Alternative to `--proxy`                                                                                |
-| `OPENAI_GLOSSARY_PATH`        | OpenAI Glossary Path (Optional)                                                 | `./dict/mit_glossory.txt`         |                                                                                                          |
+| `OPENAI_GLOSSARY_PATH`        | OpenAI Glossary Path (Optional)                                                 | `./dict/mit_glossary.txt`         |                                                                                                          |
 | `OPENAI_API_BASE`             | OpenAI API Base URL (Optional)                                                 | `https://api.openai.com/v1`       | Defaults to the official URL.                                                                            |
 |`GROQ_API_KEY`| Groq API Key |||
 | `SAKURA_API_BASE`             | SAKURA API URL (Optional)                                                      | `http://127.0.0.1:8080/v1`        |                                                                                                          |
