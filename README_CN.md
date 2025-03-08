@@ -1,5 +1,6 @@
-# 漫画/图片翻译器 (中文说明)
-
+# 漫画/图片翻译器 (中文说明) 
+最后更新时间：2025年3月8日
+---
 > 一键翻译各类图片内文字\
 > [English](README.md) | [更新日志](CHANGELOG_CN.md) \
 > 欢迎加入我们的 Discord <https://discord.gg/Ak8APNy4vb>
