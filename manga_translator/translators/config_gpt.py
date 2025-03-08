@@ -21,6 +21,7 @@ class ConfigGPT:
         'If you find that the statement is unfinished, '
         'you should logically infer the continuation of the sentence to ensure the translation is coherent.'
         'You must only translate the story, never interpret it. '
+        'Do not include any notes, supplimentary text, or any other text beyond the translations. '
         'Translate the following text into {to_lang} and keep the original format.\n'
     )
 

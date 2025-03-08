@@ -8,9 +8,7 @@ except ImportError:
     openai = None
 import asyncio
 import time
-from typing import List, Dict
-from omegaconf import OmegaConf
-from manga_translator.utils import is_valuable_text
+from typing import List
 from .common import CommonTranslator, MissingAPIKeyException
 from .keys import DEEPSEEK_API_KEY, DEEPSEEK_API_BASE, DEEPSEEK_MODEL
 from .config_gpt import ConfigGPT
@@ -32,6 +30,13 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
     # MAX OUTPUT TOKENS: 8K
     # -- https://api-docs.deepseek.com/quick_start/pricing
     _MAX_TOKENS = 8000
+
+    # 将每个 prompt 限制为最大输出 tokens 的 50％。
+    # （这是一个任意比率，用于解释语言之间的差异。）
+    # 
+    # Limit each prompt to 50% max output tokens. 
+    # (This is an arbitrary ratio to account for variance between languages.)
+    _MAX_TOKENS_IN = _MAX_TOKENS // 2
 
     # 是否返回原始提示，用于控制输出内容
     _RETURN_PROMPT = False
@@ -67,24 +72,40 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
         """
         原脚本中用来把多个 query 组装到一个 Prompt。
         同时可以做长度控制，如果过长就切分成多个 prompt。
-        这里演示一个简单的 chunk 逻辑：
-          - 根据字符长度 roughly 判断
-          - 也可以用更准确的 tokens 估算
-        ps.实际没啥用
+
+        通过字符估计标记很困难，并且因语言而异:
+        - 1 个英文字符 ≈ 0.3 个 token。
+        - 1 个中文字符 ≈ 0.6 个 token。
+        -- https://api-docs.deepseek.com/zh-cn/quick_start/token_usage
+
+        因此：使用 deepseek 的 tokenizer 来准确计算 token 的数量。
+
         
         Original script's method to assemble multiple queries into prompts.
         Handles length control by splitting long queries into multiple prompts.
-        Use tokenizer to count token.
-        PS. Not very practical in reality
+
+        Estimating tokens by characters is tricky and varies by language:
+        - 1 English character ≈ 0.3 token.
+        - 1 Chinese character ≈ 0.6 token.
+        -- https://api-docs.deepseek.com/quick_start/token_usage
+    
+        Thus: Use deepseek's tokenizer to accurately count tokens.
         """
         chunk_queries = []
         current_length = 0
         batch = []
 
+        # Buffer for ID tag prepended to each query. 
+        # Assume 1 token per char (worst case scenario)
+        # 
+        # - Use `len(queries)` to get max digit count
+        #   (i.e. 0-9 => 1, 10-99 => 2, 100-999 => 3, etc.)
+        IDTagBuffer=len(f"\n<|{len(queries)}|>")
+        
         for q in queries:
-            # +10 给一些余量，比如加上 <|1|> 的标记等
-            # +10 buffer for markers like <|1|>
-            if (current_length + self.count_tokens(q) + 10) > self._MAX_TOKENS and batch:
+            qTokens=self.count_tokens(q) + IDTagBuffer
+
+            if batch and ( (current_length + qTokens) > self._MAX_TOKENS_IN):
                 # 输出当前 batch
                 # Output current batch
                 chunk_queries.append(batch)
@@ -92,7 +113,7 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
                 current_length = 0
             
             batch.append(q)
-            current_length += self.count_tokens(q) + 10
+            current_length += qTokens
         if batch:
             chunk_queries.append(batch)
 
@@ -271,14 +292,19 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
         # 最终用户请求
         # User request
         messages.append({'role': 'user', 'content': prompt})
+
+        kwargs = {
+            'model': DEEPSEEK_MODEL,
+            'messages': messages,
+            
+            # `max_tokens` only affects output token length. Set to max.
+            'max_tokens': self._MAX_TOKENS, 
+            
+            'temperature': self.temperature,
+            'top_p': self.top_p,
+        }
         try:
-            response = await self.client.chat.completions.create(
-                model='deepseek-chat',
-                messages=messages,
-                max_tokens=self._MAX_TOKENS // 2,
-                temperature=self.temperature,
-                top_p=self.top_p,
-            )
+            response = await self.client.beta.chat.completions.parse(**kwargs)
             
             # 添加错误处理和日志
             if not hasattr(response, 'usage') or not hasattr(response.usage, 'total_tokens'):
@@ -297,12 +323,12 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
             # 如果响应中包含推理内容，记录下来
             # Log reasoning content if available
             if hasattr(response.choices[0].message, 'reasoning_content'):
-                self.logger.debug("\n-- GPT Reasoning --\n" +
+                self.logger.debug("-- GPT Reasoning --\n" +
                                 response.choices[0].message.reasoning_content +
                                 "\n------------------\n"
                             )
                 
-            self.logger.debug("\n-- GPT Response --\n" +
+            self.logger.debug("-- GPT Response --\n" +
                                 response.choices[0].message.content +
                                 "\n------------------\n"
                             )
