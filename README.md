@@ -28,10 +28,8 @@ Some manga/images will never be translated, therefore this project is born.
             - [Using with Nvidia GPU](#using-with-nvidia-gpu)
             - [Building locally](#building-locally)
     - [Usage](#usage)
-        - [Batch mode (default)](#batch-mode-default)
-        - [Demo mode](#demo-mode)
-        - [Web Mode](#web-mode)
-        - [Api Mode](#api-mode)
+        - [Batch mode (default)](#local-mode)
+        - [Web / API Mode](#web-mode)
     - [Related Projects](#related-projects)
     - [Docs](#docs)
         - [Recommended Modules](#recommended-modules)
@@ -43,12 +41,10 @@ Some manga/images will never be translated, therefore this project is born.
         - [GPT Config Reference](#gpt-config-reference)
         - [Using Gimp for rendering](#using-gimp-for-rendering)
         - [Api Documentation](#api-documentation)
-            - [Synchronous mode](#synchronous-mode)
-            - [Asynchronous mode](#asynchronous-mode)
-            - [Manual translation](#manual-translation)
     - [Next steps](#next-steps)
     - [Support Us](#support-us)
         - [Thanks To All Our Contributors :](#thanks-to-all-our-contributors-)
+    - [Star history chart](#star-history-chart)
 
 ## Samples
 
@@ -216,8 +212,9 @@ or
 docker-compose -f demo/doc/docker-compose-web-with-cpu.yml up
 ```
 
-depending on which you prefer. The web server should start on port [5003](http://localhost:5003)
-and images should become in the `/result` folder.
+depending on which you prefer. The web server should start on port [8000](http://localhost:8000)
+<s>and images should become in the `/result` folder.</s>
+images will not be saved at this point.
 
 #### Using as CLI
 
@@ -1083,7 +1080,7 @@ temperature: 0.5
 # So 0.1 means only the tokens comprising the top 10% probability mass are considered.
 top_p: 1
 
-#Whether to hide _CHAT_SYSTEM_TEMPLATE and _CHAT_SAMPLE in the command line output
+#Whether to show _CHAT_SYSTEM_TEMPLATE and _CHAT_SAMPLE in the command line output
 verbose_logging: False
 
 # The prompt being feed into ChatGPT before the text to translate.
@@ -1107,18 +1104,27 @@ chat_system_template: >
 #
 # If you'd like to disable this feature, just set this to an empty list.
 chat_sample:
-  Simplified Chinese: # Tokens used in this example: 88 + 84
+  Chinese (Simplified): # Tokens used in this example: 88 + 84
     - <|1|>恥ずかしい… 目立ちたくない… 私が消えたい…
       <|2|>きみ… 大丈夫⁉
       <|3|>なんだこいつ 空気読めて ないのか…？
     - <|1|>好尴尬…我不想引人注目…我想消失…
       <|2|>你…没事吧⁉
       <|3|>这家伙怎么看不懂气氛的…？
-
-# Overwrite configs for a specific model.
-# For now the list is: gpt3, gpt35, gpt4
-gpt35:
-  temperature: 0.3
+  English: 
+    - <|1|>恥ずかしい… 目立ちたくない… 私が消えたい…
+      <|2|>きみ… 大丈夫⁉
+      <|3|>なんだこいつ 空気読めて ないのか…？
+    - <|1|>I'm embarrassed... I don't want to stand out... I want to disappear...
+      <|2|>Are you okay?
+      <|3|>What's wrong with this guy? Can't he read the situation...?
+  Korean:
+    - <|1|>恥ずかしい… 目立ちたくない… 私が消えたい…
+      <|2|>きみ… 大丈夫⁉
+      <|3|>なんだこいつ 空気読めて ないのか…？
+    - <|1|>부끄러워... 눈에 띄고 싶지 않아... 나 숨고 싶어...
+      <|2|>너 괜찮아?
+      <|3|>이 녀석, 뭐야? 분위기 못 읽는 거야...?
 ```
 
 #### Using Gimp for rendering
@@ -1139,8 +1145,8 @@ Limitations:
 
 #### Api Documentation
 
-Read openapi docs: `127.0.0.1:5003/docs`
-
+Read openapi docs: `127.0.0.1:8000/docs`
+HTML scraping：
 ## Next steps
 
 A list of what needs to be done next, you're welcome to contribute.
@@ -1171,4 +1177,6 @@ GPU server is not cheap, please consider to donate to us.
   <a href="https://github.com/zyddnys/manga-image-translator/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=zyddnys/manga-image-translator" />
 
+## Star History Chart
+[![Star History Chart](https://api.star-history.com/svg?repos=zyddnys/manga-image-translator&type=Date)](https://star-history.com/#zyddnys/manga-image-translator&Date)
 </a>
