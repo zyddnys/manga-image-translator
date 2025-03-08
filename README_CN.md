@@ -11,13 +11,37 @@
 
 **注意：本项目仍处于早期开发阶段，存在许多不足，我们需要您的帮助来完善它！**
 
-## 支持我们
+## 目录
 
-GPU 服务器开销较大，请考虑支持我们，非常感谢！
-
-- Ko-fi: <https://ko-fi.com/voilelabs>
-- Patreon: <https://www.patreon.com/voilelabs>
-- 爱发电: <https://afdian.net/@voilelabs>
+*   [在线版本](#在线版本)
+*   [本地安装与使用](#本地安装与使用)
+    *   [使用 Pip/venv (推荐)](#使用-pipvenv-推荐)
+    *   [Windows 用户注意事项](#windows-用户注意事项)
+    *   [Docker](#docker)
+        *   [运行 Web 服务器](#运行-web-服务器)
+        *   [作为 CLI 使用](#作为-cli-使用)
+        *   [设置翻译服务的密钥](#设置翻译服务的密钥)
+        *   [使用 Nvidia GPU](#使用-nvidia-gpu)
+*   [命令行用法](#命令行用法)
+*   [效果图](#效果图)
+*   [选项(Options)及配置](#选项options及配置)
+    *   [推荐模块](#推荐模块)
+        *   [提升翻译质量的技巧](#提升翻译质量的技巧)
+    *   [详细选项](#详细选项)
+        *   [基本选项](#基本选项)
+        *    [附加选项](#附加选项)
+    *   [语言代码参考](#语言代码参考)
+    *   [翻译器参考](#翻译器参考)
+    *    [术语表](#术语表)
+    *   [环境变量汇总](#环境变量汇总)
+    *   [配置文件](#配置文件)
+    *   [GPT 配置参考](#gpt-配置参考)
+    *   [使用 Gimp 进行渲染](#使用-gimp-进行渲染)
+    *   [API 文档](#api-文档)
+*   [后续计划](#后续计划)
+*   [支持我们](#支持我们)
+    *   [感谢所有贡献者](#感谢所有贡献者)
+*   [Star 增长曲线](#star-增长曲线)
 
 ## 在线版
 
@@ -564,3 +588,20 @@ html截取：<<https://cfbed.1314883.xyz/file/1741386061808_FastAPI%20-%20Swagge
 7. 求闻转译志针对视频设计，未来这个项目要能优化到可以处理视频，提取文本颜色用于生成 ass 字幕，进一步辅助东方视频字幕组工作。甚至可以涂改视频内容，去掉视频内字幕。
 8. ~~结合传统算法的 mask 生成优化，目前在测试 CRF 相关算法。~~
 9. ~~尚不支持倾斜文本区域合并~~
+
+
+## 支持我们
+
+GPU 服务器开销较大，请考虑支持我们，非常感谢！
+
+- Ko-fi: <https://ko-fi.com/voilelabs>
+- Patreon: <https://www.patreon.com/voilelabs>
+- 爱发电: <https://afdian.net/@voilelabs>
+
+  ### Thanks To All Our Contributors :
+  <a href="https://github.com/zyddnys/manga-image-translator/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=zyddnys/manga-image-translator" />
+
+## Star 增长曲线
+
+[![Star History Chart](https://api.star-history.com/svg?repos=zyddnys/manga-image-translator&type=Date)](https://star-history.com/#zyddnys/manga-image-translator&Date)
