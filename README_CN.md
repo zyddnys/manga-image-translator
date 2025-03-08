@@ -414,6 +414,11 @@ FIL: 菲律宾语（他加禄语）
 OPENAI_API_KEY=sk-xxxxxxx...
 DEEPL_AUTH_KEY=xxxxxxxx...
 ```
+
+-   Offline：翻译器是否可以离线使用。
+
+-   Sugoi 由 mingshiba 创建，请在 <https://www.patreon.com/mingshiba> 支持他
+
 #### 术语表
 
 -   mit_glossory: 向 AI 模型发送术语表以指导其翻译可以有效提高翻译质量，例如，确保专有名称和人名的一致翻译。它会自动从术语表中提取与待发送文本相关的有效条目，因此无需担心术语表中的大量条目会影响翻译质量。 （仅对 openaitranslator 有效，兼容 sakura_dict 和 galtransl_dict。）
@@ -424,10 +429,6 @@ DEEPL_AUTH_KEY=xxxxxxxx...
 OPENAI_GLOSSARY_PATH=PATH_TO_YOUR_FILE
 SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
 ```
-
--   Offline：翻译器是否可以离线使用。
-
--   Sugoi 由 mingshiba 创建，请在 <https://www.patreon.com/mingshiba> 支持他
 
 #### 环境变量汇总
 
