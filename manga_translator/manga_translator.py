@@ -715,6 +715,13 @@ class MangaTranslator:
     async def _run_text_rendering(self, config: Config, ctx: Context):
         current_time = time.time()
         self._model_usage_timestamps[("rendering", config.render.renderer)] = current_time
+        
+        inpainter_type = config.inpainter.inpainter  # Defaults to the inpainter specified in the configuration file.
+        if ctx.prep_manual:
+            inpainter_type = Inpainter.none  # If prep_manual is True, forces the use of the 'none' inpainter.
+        return await dispatch_inpainting(inpainter_type, ctx.img_rgb, ctx.mask, config.inpainter, config.inpainter.inpainting_size, self.device,
+                                         self.verbose)
+        
         if config.render.renderer == Renderer.none:
             output = ctx.img_inpainted
         # manga2eng currently only supports horizontal left to right rendering
