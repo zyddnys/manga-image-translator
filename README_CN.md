@@ -599,7 +599,7 @@ GPU 服务器开销较大，请考虑支持我们，非常感谢！
 - Patreon: <https://www.patreon.com/voilelabs>
 - 爱发电: <https://afdian.net/@voilelabs>
 
-  ### Thanks To All Our Contributors :
+  ### 感谢所有贡献者
   <a href="https://github.com/zyddnys/manga-image-translator/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=zyddnys/manga-image-translator" />
 
