@@ -1,6 +1,13 @@
 # 漫画/图片翻译器 (中文说明) 
 最后更新时间：2025年3月8日
 ---
+![Commit activity](https://img.shields.io/github/commit-activity/m/zyddnys/manga-image-translator)
+![Lines of code](https://img.shields.io/tokei/lines/github/zyddnys/manga-image-translator?label=lines%20of%20code)
+![License](https://img.shields.io/github/license/zyddnys/manga-image-translator)
+![Contributors](https://img.shields.io/github/contributors/zyddnys/manga-image-translator)
+[![Discord](https://img.shields.io/discord/739305951085199490?logo=discord&label=discord&logoColor=white)](https://discord.gg/Ak8APNy4vb)
+
+
 > 一键翻译各类图片内文字\
 > [English](README.md) | [更新日志](CHANGELOG_CN.md) \
 > 欢迎加入我们的 Discord <https://discord.gg/Ak8APNy4vb>
