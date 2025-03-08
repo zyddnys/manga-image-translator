@@ -1145,8 +1145,8 @@ Limitations:
 
 #### Api Documentation
 
-Read openapi docs: `127.0.0.1:8000/docs`
-HTML scraping：
+- Read openapi docs: `127.0.0.1:8000/docs`
+- HTML scraping <https://cfbed.1314883.xyz/file/1741386061808_FastAPI%20-%20Swagger%20UI.html>
 ## Next steps
 
 A list of what needs to be done next, you're welcome to contribute.
