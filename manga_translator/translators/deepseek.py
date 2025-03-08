@@ -53,6 +53,22 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
 
         # Initialize the token counter
         tokenizer = deepseekTokenCounter()
+
+        '''
+        通过字符估计标记很困难，并且因语言而异:
+        - 1 个英文字符 ≈ 0.3 个 token。
+        - 1 个中文字符 ≈ 0.6 个 token。
+        -- https://api-docs.deepseek.com/zh-cn/quick_start/token_usage
+        
+        因此：使用 deepseek 的 tokenizer 来准确计算 token 的数量。
+        
+        Estimating tokens by characters is tricky and varies by language:
+        - 1 English character ≈ 0.3 token.
+        - 1 Chinese character ≈ 0.6 token.
+        -- https://api-docs.deepseek.com/quick_start/token_usage
+        
+        Thus: Use deepseek's tokenizer to accurately count tokens.
+        '''
         self.count_tokens = tokenizer.count_tokens
 
         self.client = openai.AsyncOpenAI(api_key=openai.api_key or DEEPSEEK_API_KEY)
@@ -73,23 +89,9 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
         原脚本中用来把多个 query 组装到一个 Prompt。
         同时可以做长度控制，如果过长就切分成多个 prompt。
 
-        通过字符估计标记很困难，并且因语言而异:
-        - 1 个英文字符 ≈ 0.3 个 token。
-        - 1 个中文字符 ≈ 0.6 个 token。
-        -- https://api-docs.deepseek.com/zh-cn/quick_start/token_usage
-
-        因此：使用 deepseek 的 tokenizer 来准确计算 token 的数量。
-
-        
         Original script's method to assemble multiple queries into prompts.
         Handles length control by splitting long queries into multiple prompts.
 
-        Estimating tokens by characters is tricky and varies by language:
-        - 1 English character ≈ 0.3 token.
-        - 1 Chinese character ≈ 0.6 token.
-        -- https://api-docs.deepseek.com/quick_start/token_usage
-    
-        Thus: Use deepseek's tokenizer to accurately count tokens.
         """
         chunk_queries = []
         current_length = 0
