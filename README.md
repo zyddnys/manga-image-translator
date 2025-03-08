@@ -327,7 +327,7 @@ Colorizer: **mc2**
 
 <!-- Auto generated start (See devscripts/make_readme.py) -->
 
-#### Tips to improve translation quality
+### Tips to improve translation quality
 
 - Small resolutions can sometimes trip up the detector, which is not so good at picking up irregular text sizes. To
   circumvent this you can use an upscaler by specifying `--upscale-ratio 2` or any other value
@@ -339,7 +339,9 @@ Colorizer: **mc2**
 - Increasing the `box_threshold` can help filter out gibberish from OCR error detection to some extent.
 - Using glossory file.
 
-### Basic Options
+### Options
+
+#### Basic Options
 
 ```text
 -h, --help                     show this help message and exit
@@ -356,9 +358,9 @@ Colorizer: **mc2**
                                completely clean up text residues
 ```
 
-### Additional Options:
+#### Additional Options:
 
-## Batch Mode Options
+##### Batch Mode Options
 
 ```text
 local                         Run in batch translation mode
@@ -376,7 +378,7 @@ local                         Run in batch translation mode
 --config-file CONFIG_FILE     path to the config file (default: None)                          
 ```
 
-## WebSocket Mode Options
+##### WebSocket Mode Options
 
 ```text
 ws                  Run in WebSocket mode
@@ -387,7 +389,7 @@ ws                  Run in WebSocket mode
 --models-ttl MODELS_TTL  How long to keep models in memory in seconds after last use (0 means forever)
 ```
 
-## API Mode Options
+##### API Mode Options
 
 ```text
 shared              Run in API mode
@@ -398,7 +400,7 @@ shared              Run in API mode
 --models-ttl MODELS_TTL  models TTL in memory in seconds (0 means forever)
 ```
 
-## Web Mode Options (Missing some basic options, need readded)
+##### Web Mode Options (Missing some basic options, need readded)
 
 ```text
 --host HOST           The host address (default: 127.0.0.1)
@@ -408,13 +410,13 @@ shared              Run in API mode
 --models-ttl MODELS_TTL  models TTL in memory in seconds (0 means forever)
 ```
 
-## config-help mode
+##### config-help mode
 
 ```bash
 python -m manga_translator config-help
 ```
 
-### Language Code Reference
+#### Language Code Reference
 
 Used by the `translator/language` in the config
 
@@ -446,7 +448,7 @@ IND: Indonesian
 FIL: Filipino (Tagalog)
 ```
 
-### Translators Reference
+#### Translators Reference
 
 | Name          | API Key | Offline | Note                                                     |
 |---------------|---------|---------|----------------------------------------------------------|
@@ -473,7 +475,7 @@ FIL: Filipino (Tagalog)
 OPENAI_API_KEY=sk-xxxxxxx...
 DEEPL_AUTH_KEY=xxxxxxxx...
 ```
-### glossory
+#### glossory
 - mit_glossory: Sending a glossory to the AI model to guide its translation can effectively improve translation quality, for example, to ensure consistent translations of proprietary names and personal names. It will automatically extract the effective entries from the glossary for the current translation, so there is no need to worry that a large number of entries in the glossary will affect the translation quality. (Only valid for the openaitranslator, Compatible with sakura_dict and galtransl_dict.)
 
 - sakura_dict: sakura glossory, only valid for sakuratranslator. No automated glossary feature.
@@ -488,7 +490,46 @@ SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
 
 - Sugoi is created by mingshiba, please support him in https://www.patreon.com/mingshiba
 
-### Config file
+
+
+#### Environment Variables Summary
+
+| Environment Variable Name      | Description                                                                    | Default Value                     | Notes                                                                                                    |
+| :----------------------------- | :----------------------------------------------------------------------------- | :-------------------------------- | :------------------------------------------------------------------------------------------------------- |
+| `BAIDU_APP_ID`                 | Baidu Translate App ID                                                         | `''`                              |                                                                                                          |
+| `BAIDU_SECRET_KEY`             | Baidu Translate Secret Key                                                     | `''`                              |                                                                                                          |
+| `YOUDAO_APP_KEY`               | Youdao Translate App ID                                                        | `''`                              |                                                                                                          |
+| `YOUDAO_SECRET_KEY`            | Youdao Translate App Secret Key                                                | `''`                              |                                                                                                          |
+| `DEEPL_AUTH_KEY`              | DeepL Translate AUTH_KEY                                                      | `''`                              |                                                                                                          |
+| `OPENAI_API_KEY`              | OpenAI API Key                                                                 | `''`                              |                                                                                                          |
+| `OPENAI_MODEL`                | OpenAI Model (Optional)                                                        | `''`                              |                                                                                                          |
+| `OPENAI_HTTP_PROXY`           | OpenAI HTTP Proxy (Optional)                                                   | `''`                              | Alternative to `--proxy`                                                                                |
+| `OPENAI_GLOSSARY_PATH`        | OpenAI Glossary Path (Optional)                                                 | `./dict/mit_glossory.txt`         |                                                                                                          |
+| `OPENAI_API_BASE`             | OpenAI API Base URL (Optional)                                                 | `https://api.openai.com/v1`       | Defaults to the official URL.                                                                            |
+|`GROQ_API_KEY`| Groq API Key |||
+| `SAKURA_API_BASE`             | SAKURA API URL (Optional)                                                      | `http://127.0.0.1:8080/v1`        |                                                                                                          |
+| `SAKURA_VERSION`               | SAKURA API Version (Optional)                                                  | `'0.9'`                           | `'0.9'` or `'0.10'`                                                                                      |
+| `SAKURA_DICT_PATH`            | SAKURA Glossary Path (Optional)                                                 | `./dict/sakura_dict.txt`          |                                                                                                          |
+| `CAIYUN_TOKEN`                | Caiyun Xiaoyi (Colorful Clouds) API Access Token                               | `''`                              |                                                                                                          |
+| `DEEPSEEK_API_KEY`           | DeepSeek API Key                                                        | `''`                              |                                                                          |
+| `DEEPSEEK_API_BASE`           | DeepSeek API Base URL (Optional)                                              |   `https://api.deepseek.com`                                                              |    |
+| `CUSTOM_OPENAI_API_KEY`        | Custom OpenAI API Key (Not needed for Ollama, but other tools might require it) | `'ollama'`                         |                                                                                                          |
+| `CUSTOM_OPENAI_API_BASE`       | Custom OpenAI API Base URL (Use OLLAMA_HOST environment variable to change bind IP and port) | `http://localhost:11434/v1` |                                                                                                          |
+| `CUSTOM_OPENAI_MODEL`          | Custom OpenAI Model (e.g., "qwen2.5:7b", make sure to pull and run it before using)  | `''`                              |                                                                                                          |
+| `CUSTOM_OPENAI_MODEL_CONF`     | For example "qwen2"          | `''` |                                                                                                       |
+
+**Instructions:**
+
+1.  **Create a `.env` file:**  Create a file named `.env` in the root directory of your project.
+2.  **Copy and Paste:** Copy the text above into the `.env` file.
+3.  **Fill in your keys:** Replace the contents within the `''` (empty strings) with your own API keys, IDs, and other information.
+
+**Important Notes:**
+
+*   The `.env` file contains sensitive information.  Take extra care to prevent accidental leaks.
+
+
+#### Config file
 
 run `python -m manga_translator config-help >> config-info.json`
 
@@ -1020,7 +1061,7 @@ an example can be found in example/config-example.json
 
 ```
 
-### GPT Config Reference
+#### GPT Config Reference
 
 Used by the `--gpt-config` argument.
 
@@ -1080,7 +1121,7 @@ gpt35:
   temperature: 0.3
 ```
 
-### Using Gimp for rendering
+#### Using Gimp for rendering
 
 When setting output format to {`xcf`, `psd`, `pdf`} Gimp will be used to generate the file.
 
@@ -1096,7 +1137,7 @@ Limitations:
   by an outside program.
 - Font family is controlled separately, with the `--gimp-font` argument.
 
-### Api Documentation
+#### Api Documentation
 
 Read openapi docs: `127.0.0.1:5003/docs`
 
