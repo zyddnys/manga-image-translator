@@ -1,0 +1,26 @@
+\\ Galtransl 格式术语表 (格式：源词[Tab/四个空格]目标词)  
+\\ Galtransl Format Glossary (Format: source term[Tab/Four spaces]target term)  
+
+\\ 动漫类型  
+热血    Shounen  
+魔法少女	Magical Girl  
+校园	School Life  
+恋爱喜剧    Romantic Comedy  
+
+\\ 游戏术语  
+角色扮演	Role-Playing Game  
+视觉小说	Visual Novel  
+抽卡	Gacha  
+养成游戏	Simulation Game  
+
+\\ 场景设定  
+异世界	Isekai  
+学园都市	Academy City  
+未来世界	Future World  
+魔法王国	Magic Kingdom  
+
+\\ 角色关系  
+青梅竹马	Childhood Friend  
+后宫	Harem  
+双马尾	Twin-tails  
+制服	School Uniform  
