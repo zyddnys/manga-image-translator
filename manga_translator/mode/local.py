@@ -96,8 +96,8 @@ class MangaTranslatorLocal(MangaTranslator):
                 raise FileExistsError(dest_translated_dir)
 
             translated_count = 0
-            max_concurrency = 1  # TODO: 需要配置为参数
-            semaphore = asyncio.Semaphore(max_concurrency)
+            concurrency = params.get('concurrency', None)
+            semaphore = asyncio.Semaphore(concurrency)
             lock = asyncio.Lock()
 
             async def translate_single_file(image_file):
@@ -125,8 +125,8 @@ class MangaTranslatorLocal(MangaTranslator):
                 os.makedirs(dest_root, exist_ok=True)
                 for image_file in files:
                     tasks.append(translate_single_file(image_file))
-                    # To avoid out of memory if there are too much files
-                    if len(tasks) >= 10 * max_concurrency:
+                    # Build and run tasks in several batches, to avoid out of memory if there are too much files
+                    if len(tasks) >= 10 * concurrency:
                         await asyncio.gather(*tasks)
                         logger.info(f"A batch of files have been processed: {len(tasks)}")
                         tasks = []

@@ -122,6 +122,7 @@ FIL: Filipino (Tagalog)
 --config-file CONFIG_FILE      path to the config file
 --models-ttl MODELS_TTL        How long to keep models in memory in seconds after last use (0 means
                                forever)
+--concurrency CONCURRENCY      The concurrency of the overall process (including OCR, translation, and image rendering).
 ```
 
 <!-- Auto generated end -->
