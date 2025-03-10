@@ -1,9 +1,18 @@
 import re
 from typing import List, Dict
 from omegaconf import OmegaConf
-from langcodes import Language, closest_match
+from langcodes import Language, closest_supported_match
 from .common import VALID_LANGUAGES
+from pydantic import BaseModel
 
+# Define the schema for the response
+class TextValue(BaseModel):
+    ID: int
+    text: str
+
+class TranslationList(BaseModel):
+    TextList: list[TextValue]
+    
 
 class ConfigGPT:
     _LANGUAGE_CODE_MAP = VALID_LANGUAGES
@@ -65,6 +74,59 @@ class ConfigGPT:
         ]
     }
 
+    _JSON_SAMPLE = {
+        'Simplified Chinese': [
+            TranslationList(
+                TextList=[
+                    TextValue(ID=1,text="恥ずかしい… 目立ちたくない… 私が消えたい…"),
+                    TextValue(ID=2,text="きみ… 大丈夫⁉"),
+                    TextValue(ID=3,text="なんだこいつ 空気読めて ないのか…？")
+                ]
+            ),
+            TranslationList(
+                TextList=[
+                    TextValue(ID=1,text="好尴尬…我不想引人注目…我想消失…"),
+                    TextValue(ID=2,text="你…没事吧⁉"),
+                    TextValue(ID=3,text="这家伙怎么看不懂气氛的…？")
+                ]
+            )
+        ],
+        'English': [
+            TranslationList(
+                TextList=[
+                    TextValue(ID=1,text="恥ずかしい… 目立ちたくない… 私が消えたい…"),
+                    TextValue(ID=2,text="きみ… 大丈夫⁉"),
+                    TextValue(ID=3,text="なんだこいつ 空気読めて ないのか…？")
+                ]
+            ),
+            TranslationList(
+                TextList=[
+                    TextValue(ID=1,text="I'm so embarrassed... I don't want to stand out... I want to disappear..."),
+                    TextValue(ID=2,text="Are you okay?!"),
+                    TextValue(ID=3,text="What the hell is this person? Can't they read the room...?")
+                ]
+            )
+        ],
+        'Korean': [
+            TranslationList(
+                TextList=[
+                    TextValue(ID=1,text="恥ずかしい… 目立ちたくない… 私が消えたい…"),
+                    TextValue(ID=2,text="きみ… 大丈夫⁉"),
+                    TextValue(ID=3,text="なんだこいつ 空気読めて ないのか…？")
+                ]
+            ),
+            TranslationList(
+                TextList=[
+                    TextValue(ID=1,text="부끄러워... 눈에 띄고 싶지 않아... 나 숨고 싶어..."),
+                    TextValue(ID=2,text="괜찮아?!"),
+                    TextValue(ID=3,text="이 녀석, 뭐야? 분위기 못 읽는 거야...?")
+                ]
+            )
+        ]
+    }
+
+    _JSON_MODE=False
+
     _PROMPT_TEMPLATE = ('Please help me to translate the following text from a manga to {to_lang}.'
                         'If it\'s already in {to_lang} or looks like gibberish'
                         'you have to output it as it is instead. Keep prefix format.\n'
@@ -78,8 +140,9 @@ class ConfigGPT:
         # This key is used to locate nested configuration entries
         self._CONFIG_KEY = config_key
         self.config = None
-        self.langSamples = None # Cache chat_samples[to_lang]
-        
+        self.langSamples = None # Cache chat/json_samples[to_lang]
+        self._json_sample = None
+
     def _config_get(self, key: str, default=None):
         if not self.config:
             return default
@@ -114,53 +177,108 @@ class ConfigGPT:
     def chat_sample(self) -> Dict[str, List[str]]:
         return self._config_get('chat_sample', self._CHAT_SAMPLE)
 
-    def get_chat_sample(self, to_lang: str) -> List[str]:
-        """
-        Use `langcodes` to search for the language labeling and return the chat sample.
-        If the language is not found, return an empty list.
-        """
 
+    def _closest_sample_match(self, all_samples: Dict, to_lang: str, max_distance=5) -> List:
+        """
+        Use `langcodes` to find the `all_samples` entry with a key that is sufficiently similar to `to_lang`.
+        
+        Parameters
+        ----------
+        all_samples : Dict
+            A dictionary containing all available samples, keyed by language
+        to_lang : str
+            The target language code to find the closest match for.
+        max_distance : int (Defaults to 5)
+            How similar the match must be to `to_lang`.\n
+                                e.g. \n
+                                    'en-GB' vs 'en-US' -> distance=5 \n
+                                    'en-GB' vs 'en-AU' -> distance=3 \n
+                                    'pt-BR' vs 'pt-PT' -> distance=5 \n
+                                    'en-US' vs 'pt-PT' -> distance=1000 (Undefined)
+    
+        Returns:
+            list: A list of samples that best match the target language or an 
+                    empty list if no sufficient match is found.
+        """
         if self.langSamples is not None:
             return self.langSamples
         
-        all_samples=self.chat_sample
         self.langSamples=[]
-        
-        # Use `closest_match` to find the closest language tag
-        # `foundLang` = tuple(language tag, distance)
-        # 
-        # Note: maximum distance = how similar the language must be.
-        # e.g. 
-        #     'en-GB' vs 'en-US' -> distance 5 
-        #     'en-GB' vs 'en-AU' -> distance 3 
-        #     'pt-BR' vs 'pt-PT' -> distance 5 
-        #     'en-US' vs 'pt-PT' -> distance 1000 (Undefined)
-        # 
-        # If no sufficient match is found: foundLang=tuple('Und', 1000)
+
         try:
-            foundLang = closest_match(
+            foundLang = closest_supported_match(
                                 Language.find(to_lang), 
                                 [
                                     Language.find(sampleLang).to_tag() 
                                     for sampleLang in list(all_samples.keys())
                                 ],
-                                max_distance=5 
+                                max_distance=max_distance 
                             )
         except:
             self.logger.error(f"Requested chat sample of unknown language: {to_lang}")
             return self.langSamples
         
         # If a match is found: find, cache, and return the chat sample:
-        if foundLang[0] != 'Und':
+        if foundLang:
             for sampleLang, samples in all_samples.items():
-                if foundLang[0] == Language.find(sampleLang).to_tag():
+                if foundLang == Language.find(sampleLang).to_tag():
                     self.langSamples = samples
                     return self.langSamples
-            
+
         return self.langSamples
 
+    def get_chat_sample(self, to_lang: str) -> List[str]:
+        """
+        Use `langcodes` to search for the language labeling and return the chat sample.
+        If the language is not found, return an empty list.
+        """
+        
+        return self._closest_sample_match(self.chat_sample, to_lang)
 
+    @property
+    def json_mode(self) -> bool:
+        return self._config_get('json_mode', False)
 
+    @property
+    def json_sample(self) -> Dict[str, List[TranslationList]]:
+        if self._json_sample:
+            return self._json_sample
+        
+        # Try to get sample from config file:
+        raw_samples = self._config_get('json_sample', None)
+        
+        # Use fallback if no configuration found
+        if raw_samples is None:
+            return self._JSON_SAMPLE
+        
+        self._json_sample={}
+        
+        # Convert OmegaConf structures to Python primitives
+        if OmegaConf.is_config(raw_samples):
+            raw_samples = OmegaConf.to_container(raw_samples, resolve=True)
+        
+        _json_sample = {}
+        for lang, samples in raw_samples.items():
+            self._json_sample[lang] = [
+                TranslationList(
+                    TextList=[
+                        TextValue(ID=item['ID'], text=item['text'])
+                        for item in aSample.get('TextList', aSample) 
+                    ]
+                )
+                for aSample in samples
+            ]
+        
+        return self._json_sample
+    
+    def get_json_sample(self, to_lang: str) -> List[TranslationList]:
+        """
+        Use `langcodes` to search for the language labeling and return the json sample.
+        If the language is not found, return an empty list.
+        """
+
+        return self._closest_sample_match(self.json_sample, to_lang)
+    
     @property
     def rgx_capture(self) -> str:
         return self._config_get('rgx_capture', self._RGX_REMOVE)

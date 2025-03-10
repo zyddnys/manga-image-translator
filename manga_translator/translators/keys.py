@@ -27,6 +27,11 @@ SAKURA_DICT_PATH = os.getenv('SAKURA_DICT_PATH', './sakura_dict.txt') #SAKURA �
 
 CAIYUN_TOKEN = os.getenv('CAIYUN_TOKEN', '') # 彩云小译API访问令牌
 
+# Gemini
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-1.5-flash-002')
+
+
 # deepseek
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')
 DEEPSEEK_API_BASE  = os.getenv('DEEPSEEK_API_BASE', 'https://api.deepseek.com')

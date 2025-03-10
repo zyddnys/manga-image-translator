@@ -61,3 +61,57 @@ chat_sample:
     - <|1|>I'm embarrassed... I don't want to stand out... I want to disappear...
       <|2|>Are you okay?
       <|3|>What's wrong with this guy? Can't he read the situation...?
+  Korean: 
+    - <|1|>恥ずかしい… 目立ちたくない… 私が消えたい…
+      <|2|>きみ… 大丈夫⁉
+      <|3|>なんだこいつ 空気読めて ないのか…？
+    - <|1|>부끄러워... 눈에 띄고 싶지 않아... 나 숨고 싶어...
+      <|2|>괜찮아?!
+      <|3|>이 녀석, 뭐야? 분위기 못 읽는 거야...?
+
+
+
+# Sample input & output for when using `json_mode: True`.
+# In a [prompt, response] format, keyed by the target language name.
+#
+# Generally, samples should include some examples of translation preferences, and ideally
+# some names of characters it's likely to encounter.
+# 
+# NOTE: If no JSON sample for the target language is provided, 
+#       it will look for a sample from the `chat_sample` section and convert it to JSON if found.
+json_sample:
+  Simplified Chinese:
+    - TextList:  &JSON-Sample-In
+        - ID: 1
+          text: "恥ずかしい… 目立ちたくない… 私が消えたい…"
+        - ID: 2
+          text: "きみ… 大丈夫⁉"
+        - ID: 3
+          text: "なんだこいつ 空気読めて ないのか…？"
+    - TextList:
+        - ID: 1
+          text: "好尴尬…我不想引人注目…我想消失…"
+        - ID: 2
+          text: "你…没事吧⁉"
+        - ID: 3
+          text: "这家伙怎么看不懂气氛的…？"
+  English: 
+    - TextList: *JSON-Sample-In
+    - TextList:
+        - ID: 1
+          text: "I'm embarrassed... I don't want to stand out... I want to disappear..."
+        - ID: 2
+          text: "Are you okay?!"
+        - ID: 3
+          text: "What the hell is this person? Can't they read the room...?"
+  Korean: 
+    - TextList: *JSON-Sample-In
+    - TextList:
+        - ID: 1
+          text: "부끄러워... 눈에 띄고 싶지 않아... 나 숨고 싶어..."
+        - ID: 2
+          text: "괜찮아?!"
+        - ID: 3
+          text: "이 녀석, 뭐야? 분위기 못 읽는 거야...?"
+
+
