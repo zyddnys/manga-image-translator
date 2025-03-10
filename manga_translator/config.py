@@ -305,7 +305,7 @@ class Config(BaseModel):
     upscale: UpscaleConfig = UpscaleConfig()
     """upscaler configs"""
     translator: TranslatorConfig = TranslatorConfig()
-    """tanslator configs"""
+    """translator configs"""
     detector: DetectorConfig = DetectorConfig()
     """detector configs"""
     colorizer: ColorizerConfig = ColorizerConfig()

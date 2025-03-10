@@ -353,6 +353,9 @@ Colorizer: **mc2**
 --config-file CONFIG_FILE      path to the config file
 --models-ttl MODELS_TTL        How long to keep models in memory in seconds after last use (0 means
                                forever)
+--concurrency CONCURRENCY      (Only works in local mode)
+                               The concurrency of the overall process ,including OCR, translation, and image rendering.
+                               If the concurrency is 3, there will be at most 3 files be processed at the same time.
 ```
 
 <!-- Auto generated end -->

@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 from typing import Union, List
@@ -73,46 +74,65 @@ class MangaTranslatorLocal(MangaTranslator):
             if not dest:
                 # Use the same folder as the source
                 p, ext = os.path.splitext(path)
-                _dest = f'{p}-translated.{file_ext or ext[1:]}'
+                dest_translated_dir = f'{p}-translated.{file_ext or ext[1:]}'
             elif not os.path.basename(dest):
                 p, ext = os.path.splitext(os.path.basename(path))
                 # If the folders differ use the original filename from the source
                 if os.path.dirname(path) != dest:
-                    _dest = os.path.join(dest, f'{p}.{file_ext or ext[1:]}')
+                    dest_translated_dir = os.path.join(dest, f'{p}.{file_ext or ext[1:]}')
                 else:
-                    _dest = os.path.join(dest, f'{p}-translated.{file_ext or ext[1:]}')
+                    dest_translated_dir = os.path.join(dest, f'{p}-translated.{file_ext or ext[1:]}')
             else:
                 p, ext = os.path.splitext(dest)
-                _dest = f'{p}.{file_ext or ext[1:]}'
-            await self.translate_file(path, _dest, params,config)
+                dest_translated_dir = f'{p}.{file_ext or ext[1:]}'
+            await self.translate_file(path, dest_translated_dir, params,config)
 
         elif os.path.isdir(path):
             # Determine destination folder path
             if path[-1] == '\\' or path[-1] == '/':
                 path = path[:-1]
-            _dest = dest or path + '-translated'
-            if os.path.exists(_dest) and not os.path.isdir(_dest):
-                raise FileExistsError(_dest)
+            dest_translated_dir = dest or path + '-translated'
+            if os.path.exists(dest_translated_dir) and not os.path.isdir(dest_translated_dir):
+                raise FileExistsError(dest_translated_dir)
 
             translated_count = 0
-            for root, subdirs, files in os.walk(path):
-                files = natural_sort(files)
-                dest_root = replace_prefix(root, path, _dest)
-                os.makedirs(dest_root, exist_ok=True)
-                for f in files:
-                    if f.lower() == '.thumb':
-                        continue
+            concurrency = params.get('concurrency', None)
+            semaphore = asyncio.Semaphore(concurrency)
+            lock = asyncio.Lock()
 
-                    file_path = os.path.join(root, f)
-                    output_dest = replace_prefix(file_path, path, _dest)
+            async def translate_single_file(image_file):
+                nonlocal translated_count
+                async with semaphore:
+                    if image_file.lower() == '.thumb':
+                        return
+                    file_path = os.path.join(root, image_file)
+                    output_dest = replace_prefix(file_path, path, dest_translated_dir)
                     p, ext = os.path.splitext(output_dest)
                     output_dest = f'{p}.{file_ext or ext[1:]}'
                     try:
                         if await self.translate_file(file_path, output_dest, params, config):
-                            translated_count += 1
+                            async with lock:
+                                translated_count += 1
+                                if translated_count % 10 == 0:
+                                    logger.info(f'{translated_count} files has been translated')
                     except Exception as e:
                         logger.error(e)
-                        raise e
+
+            tasks = []
+            for root, _, files in os.walk(path):
+                files = natural_sort(files)
+                dest_root = replace_prefix(root, path, dest_translated_dir)
+                os.makedirs(dest_root, exist_ok=True)
+                for image_file in files:
+                    tasks.append(translate_single_file(image_file))
+                    # Build and run tasks in several batches, to avoid out of memory if there are too much files
+                    if len(tasks) >= 10 * concurrency:
+                        await asyncio.gather(*tasks)
+                        logger.info(f"A batch of files have been processed: {len(tasks)}")
+                        tasks = []
+            if len(tasks) > 0:
+                await asyncio.gather(*tasks)
+
             if translated_count == 0:
                 logger.info('No further untranslated files found. Use --overwrite to write over existing translations.')
             else:
@@ -137,7 +157,12 @@ class MangaTranslatorLocal(MangaTranslator):
                 logger.info(f'Retrying translation! Attempt {attempts}'
                             + (f' of {self.attempts}' if self.attempts != -1 else ''))
             try:
-                return await self._translate_file(path, dest, config, ctx)
+                if await self._translate_file(path, dest, config, ctx):
+                    logger.info(f'Successfully translated "{path}"')
+                    return True
+                else:
+                    logger.info(f'Failed to translate "{path}"')
+                    return False
 
             except TranslationInterrupt:
                 break

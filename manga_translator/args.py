@@ -122,6 +122,7 @@ g_batch.add_argument('--save-text-file', default='', type=str, help='Like --save
 parser_batch.add_argument('--prep-manual', action='store_true', help='Prepare for manual typesetting by outputting blank, inpainted images, plus copies of the original for reference')
 parser_batch.add_argument('--save-quality', default=100, type=int, help='Quality of saved JPEG image, range from 0 to 100 with 100 being best')
 parser_batch.add_argument('--config-file', default=None, type=str, help='path to the config file')
+parser_batch.add_argument('--concurrency', default=3, type=int, help='The concurrency of the overall process (including OCR, translation, and image rendering). If the concurrency is 3, there will be at most 3 files be processed at the same time.')
 
 # WebSocket mode
 parser_ws = subparsers.add_parser('ws', help='Run in WebSocket mode')
