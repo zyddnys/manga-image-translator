@@ -1,3 +1,28 @@
+# Values will be search for upwards. 
+#   
+# If you wish to set a global default: 
+#   Set it as a top-level entry.
+# If you wish to set a different value for a specific translator configuration:
+#   Set it beneath the configuration name 
+#   Top-level configuration options: 'chatgpt', 'ollama', 'deepseek', 'groq'
+#     For translators that support model specification: 
+#         The model name can be used as an addition level of specification
+#     Some translators also support additional leveling options (e.g. CUSTOM_OPENAI_MODEL_CONF)
+# 
+# Current available values:
+#   temperature           | float: (0.0 - 1.0) or (0.0 - 2.0), depending on the AI
+#   top_p                 | float: (0.0 - 1.0)
+#   include_template      | bool
+#   prompt_template       | String
+#   chat_system_template  | String
+#   chat_sample           | String
+#   json_mode             | bool
+#   json_sample           | JSON
+#   rgx_capture           | String
+# 
+# Last updated: 2025-03-11
+
+
 # What sampling temperature to use, between 0 and 2.
 # Higher values like 0.8 will make the output more random,
 # while lower values like 0.2 will make it more focused and deterministic.
@@ -21,10 +46,17 @@ chat_system_template: >
   Translate to {to_lang}.
 
 
+ollama:
+  deepseek-r1:  # CUSTOM_OPENAI_MODEL_CONF
+    # Regex with capture group for parsing model output
+    #   This example removes reasoning text, extracting final output:
+    rgx_capture: '<think>.*</think>\s*(.*)|(.*)'
+
+
 chatgpt:
   # Should the `Prompt Template` (defined below) text be prepended to the translation requests?
   include_template: True
-  # Overwrite configs for a specific model.
+  # Override default configs for a specific models:
   gpt-4o-mini:
     temperature: 0.4
   gpt-3.5-turbo:
@@ -33,10 +65,6 @@ chatgpt:
 # The text to prepend to `User` messages to GPT before the text to translate.
 # Use {to_lang} to indicate where the target language name should be inserted.
 prompt_template: 'Please help me to translate the following text from a manga to {to_lang}:'
-
-
-#  If it's already in {to_lang} or looks like gibberish you have to output it as it is instead.
-#  Keep prefix format.
 
 
 # Samples being feed into ChatGPT to show an example conversation.
