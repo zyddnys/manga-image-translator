@@ -29,6 +29,19 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
 
     @abstractmethod
     def count_tokens(self, text: str) -> int:
+        """
+        Counts the number of tokens in a given text string.
+
+        This method should use the appropriate tokenizer for the
+        GPT model being used to accurately estimate the number of tokens
+        that will be sent to the API.
+
+        Args:
+            text (str): The input text string.
+
+        Returns:
+            int: The estimated number of tokens in the text.
+        """
         pass
 
     def supports_languages(self, from_lang: str, to_lang: str, fatal: bool = False) -> bool:
@@ -37,17 +50,22 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
         return True
 
     def fallback_fewShot(self) -> str:
-        """Generates a few-shot example string for the GPT model.
+        """
+        Generates a few-shot example string for the GPT model.
+            
+        If the translator does not natively support input / output examples, this 
+        formats the examples as a string, to attached to the prompt, formatted as:
 
-            This function constructs a few-shot example string that can be used to guide the GPT model's translation.
-            It retrieves chat samples for the target language and formats them into an example string.
-
-            Returns:
-                str: A string containing the few-shot example, or None if no chat samples are available.
-                 The string is formatted as follows:
-                 "<EXAMPLE>\nINPUT:\n{input_text}\nOUTPUT:\n{output_text}\n</EXAMPLE>"
-                 Returns None if self.get_chat_sample(self.to_lang) returns None.
-            """
+            <EXAMPLE>
+            INPUT:
+            {input_text}
+            OUTPUT:
+            {output_text}
+            </EXAMPLE>
+        
+        Returns:
+            str: A string containing the few-shot example or `None` If no sample is available
+        """
         fewshot=None
 
         lang_chat_samples = self.get_sample(self.to_lang)
@@ -183,9 +201,6 @@ class _CommonGPTTranslator_JSON:
             for this_batch in chunk_queries:
                 yield this_batch.model_dump_json(), len(this_batch.TextList)
 
-    def _formatContent(self, content: json) -> str:
-        return '\n'.join(json.dumps(val) for val in json.loads(content)['TextList'])
-
     def _assemble_request(self, to_lang: str, prompt: str, response_format=True) -> Dict:
         messages = [{'role': 'system', 'content': self.translator.chat_system_template.format(to_lang=to_lang)}]
         
@@ -244,12 +259,7 @@ class _CommonGPTTranslator_JSON:
             List[str]: A list of translations in the same order as the input queries.
                        If a translation is missing, the original query is preserved.
         """
-
-        # # If passed in as JSON: Extract `text` values
-        # if isinstance(queries, json):
-        #     queries= [item['text'] for item in json.loads(queries)['TextList']]
-        
-        translations = queries.copy()  # Initialize with the original queries
+       translations = queries.copy()  # Initialize with the original queries
         expected_count = len(translations)
 
         try:

@@ -283,12 +283,11 @@ class ConfigGPT:
         """
         Fetch the appropriate sample according to the value of `json_mode`
         """
-        return self._closest_sample_match(  (   self.chat_sample
-                                                if not self.json_mode
-                                                else 
-                                                    self.json_sample
-                                            ),
-                                            to_lang)
+
+        if not self.json_mode:
+            return self._closest_sample_match(self.chat_sample, to_lang)
+        
+        return self._closest_sample_match(self.json_sample, to_lang)
 
 
     @property
