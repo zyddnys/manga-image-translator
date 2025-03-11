@@ -53,6 +53,11 @@ ollama:
     rgx_capture: '<think>.*</think>\s*(.*)|(.*)'
 
 
+gemini:
+  # Gemini 1.5 + uses a temperature range of 0.0 - 2.0
+  temperature: 0.5
+  top_p: 0.95
+
 chatgpt:
   # Should the `Prompt Template` (defined below) text be prepended to the translation requests?
   include_template: True
@@ -67,7 +72,7 @@ chatgpt:
 prompt_template: 'Please help me to translate the following text from a manga to {to_lang}:'
 
 
-# Samples being feed into ChatGPT to show an example conversation.
+# Samples fed into ChatGPT to show an example conversation.
 # In a [prompt, response] format, keyed by the target language name.
 #
 # Generally, samples should include some examples of translation preferences, and ideally
@@ -98,6 +103,11 @@ chat_sample:
       <|3|>이 녀석, 뭐야? 분위기 못 읽는 거야...?
 
 
+
+# Use JSON mode for translators that support it.
+# Currently, support is limited to: 
+#   - Gemini
+json_mode: false
 
 # Sample input & output for when using `json_mode: True`.
 # In a [prompt, response] format, keyed by the target language name.

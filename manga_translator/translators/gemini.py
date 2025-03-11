@@ -5,10 +5,8 @@ from google.genai import types
 import asyncio
 import time
 from typing import List
-from ..config import TranslatorConfig
-from .common import CommonTranslator, MissingAPIKeyException, InvalidServerResponse
+from .common import MissingAPIKeyException, InvalidServerResponse
 from .keys import GEMINI_API_KEY, GEMINI_MODEL
-from .config_gpt import ConfigGPT
 from .common_gpt import CommonGPTTranslator, _CommonGPTTranslator_JSON
 
 
@@ -86,6 +84,7 @@ class GeminiTranslator(CommonGPTTranslator):
 
         # By default: Do not assume Context Cache support
         self.useCache = False
+        self.cached_content = None
 
         if not GEMINI_API_KEY:
             raise MissingAPIKeyException(
@@ -120,32 +119,40 @@ class GeminiTranslator(CommonGPTTranslator):
                             )
             raise
         
-        # List of models that support content caching:
-        canCacheModels=[m.name.lstrip('models/')
-                        for m in model_list
-                            if 'createCachedContent' in m.supported_actions
-                    ]
-
         # Use index of model name to get full model info
         model_info = model_list[model_names.index(GEMINI_MODEL)]
-    
-        # If the model supports Context Caching: Enable
-        # Else: Inform the user
-        if 'createCachedContent' in model_info.supported_actions:
-            self.useCache = True
-            self.cached_content = None
-        else:
-            MSG= "ALERT:\n" + \
-                f"Model '{GEMINI_MODEL}' does not support Context Caching.\n" + \
-                "Context Caching allows you reduce token usage by storing " + \
-                "and reusing `System Prompt` and `Chat Samples`, " + \
-                "rather than re-sending it each time.\n\n" + \
-                "If you wish to use this feature, " + \
-                "set the GEMINI_MODEL key to one of the following values:\n\n" + \
-                '\n'.join(canCacheModels) + '\n\n' + \
-                "Note that the model name must be set to the precise version-name listed.\n" + \
-                "\te.g. 'gemini-1.5-flash-001' rather than 'gemini-1.5-flash'\n"
-            self.logger.warning(MSG)
+        
+
+        
+        def canCache(model_list, model_info) -> bool:
+            """
+            Checks if the selected model is capable of using context caching.
+            Made into a function purely to help with code readability.
+            """
+            # List of models that support content caching:
+            canCacheModels=[m.name.lstrip('models/')
+                            for m in model_list
+                                if 'createCachedContent' in m.supported_actions
+                        ]
+            
+            # If the model supports Context Caching: Enable
+            # Else: Inform the user, list supported models
+            if 'createCachedContent' in model_info.supported_actions:
+                return True
+            else:
+                MSG= "ALERT:\n" + \
+                    f"Model '{GEMINI_MODEL}' does not support Context Caching.\n" + \
+                    "Context Caching allows you reduce token usage by storing " + \
+                    "and reusing `System Prompt` and `Chat Samples`, " + \
+                    "rather than re-sending it each time.\n\n" + \
+                    "If you wish to use this feature, " + \
+                    "set the GEMINI_MODEL key to one of the following values:\n\n" + \
+                    '\n'.join(canCacheModels) + '\n\n' + \
+                    "Note that the model name must be set to the precise version-name listed.\n" + \
+                    "\te.g. 'gemini-1.5-flash-001' rather than 'gemini-1.5-flash'\n"
+                self.logger.warning(MSG)
+
+        self.useCache = canCache(model_list, model_info)
 
         
         self._MAX_TOKENS = model_info.output_token_limit
@@ -154,6 +161,8 @@ class GeminiTranslator(CommonGPTTranslator):
 
 
         ''''
+            Set all `safety_settings` to 'Block None'
+
             Taken from official Google example code:
                 Books contain all sorts of fictional or historical descriptions, 
                     some of them rather literal and might cause the model to stop 
@@ -288,7 +297,6 @@ class GeminiTranslator(CommonGPTTranslator):
                 try:  
                     # Get the response (synchronously)
                     response = self._request_translation(to_lang, prompt)  
-                    self.logger.debug(f'-- GPT Response{split_prefix} --\n' + response)  
                     try:
                         new_translations = self._parse_response(response, prompt_queries)
                     except Warning as w:
@@ -377,7 +385,11 @@ class GeminiTranslator(CommonGPTTranslator):
         return translations
 
     def _request_translation(self, to_lang: str, prompt: str) -> str:
-        config_kwargs = { 'safety_settings': self.safety_settings }
+        config_kwargs = {
+                            'safety_settings': self.safety_settings,
+                            'top_p': self.top_p,
+                            'temperature': self.temperature,
+                        }
 
         if self.useCache:
             if self._needRecache:
@@ -413,6 +425,8 @@ class GeminiTranslator(CommonGPTTranslator):
             else:
                 self.token_count += response.usage_metadata.prompt_token_count
                 self.token_count_last = response.usage_metadata.total_token_count
+            
+            self.logger.debug(f'-- GPT Response --\n' + response.text)
 
             return response.text
         except Exception as ex:
@@ -423,12 +437,17 @@ class GeminiTranslator(CommonGPTTranslator):
 
 class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
     from .config_gpt import TranslationList
+    import pprint
+    from os import get_terminal_size
     import json
 
     """Internal helper class for JSON mode logic"""
     def __init__(self, translator: GeminiTranslator):
         super().__init__(translator)
         self.translator = translator
+
+        # For conveniance: Simplify logger calls:
+        self.logger = self.translator.logger 
 
     def _createContext(self, to_lang: str):
         JSON_Samples=[]
@@ -457,6 +476,8 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
                             'safety_settings': self.translator.safety_settings,
                             'response_mime_type': 'application/json',
                             'response_schema': self.TranslationList,
+                            'top_p': self.translator.top_p,
+                            'temperature': self.translator.temperature,
                     }
 
         if self.translator.useCache:
@@ -470,16 +491,10 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
             if chatSamples:
                 prompt+=chatSamples
 
-
-        self.translator.logger.debug("-- config_kwargs --")
-        self.translator.logger.debug(config_kwargs)
-        self.translator.logger.debug("------------")
-
-
-        self.translator.logger.debug(   '-- GPT Prompt --\n' +
-                                        prompt +
-                                        '\n------------'
-                                    )
+        self.logger.debug(  '-- GPT Prompt --\n' +
+                            prompt +
+                            '\n------------'
+                        )
 
         response = self.translator.client.models.generate_content(
                                                 model=GEMINI_MODEL,
@@ -491,13 +506,24 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
 
         try:
             if not hasattr(response, 'usage_metadata'):
-                self.translator.logger.warning("Response does not contain usage information")
+                self.logger.warning("Response does not contain usage information")
                 self.translator.token_count_last = 0
             else:
                 self.translator.token_count += response.usage_metadata.prompt_token_count
                 self.translator.token_count_last = response.usage_metadata.total_token_count
 
+            # By default: pformat sets line width to 80 chars. 
+            # Get terminal width to override (with buffer of 10 chars)
+            WIDTH=(self.get_terminal_size().columns - 10)
+
+            response_json = self.json.loads(response.text)
+            response_pretty = self.pprint.pformat(object=response_json, width=WIDTH)
+            self.logger.debug(  '-- GPT Response --\n' + 
+                                response_pretty + 
+                                '\n------------\n'
+                            )
+
             return response.text
         except Exception as ex:
-            self.translator.logger.error(f"Error in _request_translation: {str(ex)}")
+            self.logger.error(f"Error in _request_translation: {str(ex)}")
             raise ex
