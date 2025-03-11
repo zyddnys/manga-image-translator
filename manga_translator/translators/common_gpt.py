@@ -259,7 +259,7 @@ class _CommonGPTTranslator_JSON:
             List[str]: A list of translations in the same order as the input queries.
                        If a translation is missing, the original query is preserved.
         """
-       translations = queries.copy()  # Initialize with the original queries
+        translations = queries.copy()  # Initialize with the original queries
         expected_count = len(translations)
 
         try:
