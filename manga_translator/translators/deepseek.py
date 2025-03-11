@@ -9,13 +9,13 @@ except ImportError:
 import asyncio
 import time
 from typing import List
-from .common import CommonTranslator, MissingAPIKeyException
+from .common import MissingAPIKeyException
+from .common_gpt import CommonGPTTranslator
 from .keys import DEEPSEEK_API_KEY, DEEPSEEK_API_BASE, DEEPSEEK_MODEL
-from .config_gpt import ConfigGPT
 from .tokenizers.token_counters import deepseekTokenCounter
 
 
-class DeepseekTranslator(ConfigGPT, CommonTranslator):
+class DeepseekTranslator(CommonGPTTranslator):
     _INVALID_REPEAT_COUNT = 0  # 现在这个参数没意义了
     _MAX_REQUESTS_PER_MINUTE = 9999  # 无RPM限制
     _TIMEOUT = 40  # 在重试之前等待服务器响应的时间（秒）
@@ -45,16 +45,26 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
     _INCLUDE_TEMPLATE = False
 
     def __init__(self, check_openai_key=True):
-        # ConfigGPT 的初始化
-        # ConfigGPT initialization 
+        # CommonGPTTranslator 的初始化
+        # CommonGPTTranslator initialization 
         _CONFIG_KEY = 'deepseek.' + DEEPSEEK_MODEL
-        ConfigGPT.__init__(self, config_key=_CONFIG_KEY)
-        CommonTranslator.__init__(self)
+        CommonGPTTranslator.__init__(self, config_key=_CONFIG_KEY)
 
         # Initialize the token counter
-        tokenizer = deepseekTokenCounter()
+        self.tokenizer = deepseekTokenCounter()
 
-        '''
+        self.client = openai.AsyncOpenAI(api_key=openai.api_key or DEEPSEEK_API_KEY)
+        if not self.client.api_key and check_openai_key:
+            raise MissingAPIKeyException(
+                'Please set the DEEPSEEK_API_KEY environment variable before using the chatgpt translator.')
+        self.client.base_url = DEEPSEEK_API_BASE
+        self.token_count = 0
+        self.token_count_last = 0
+        self.config = None
+
+
+    def count_tokens(self, text: str):
+        """
         通过字符估计标记很困难，并且因语言而异:
         - 1 个英文字符 ≈ 0.3 个 token。
         - 1 个中文字符 ≈ 0.6 个 token。
@@ -68,70 +78,8 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
         -- https://api-docs.deepseek.com/quick_start/token_usage
         
         Thus: Use deepseek's tokenizer to accurately count tokens.
-        '''
-        self.count_tokens = tokenizer.count_tokens
-
-        self.client = openai.AsyncOpenAI(api_key=openai.api_key or DEEPSEEK_API_KEY)
-        if not self.client.api_key and check_openai_key:
-            raise MissingAPIKeyException(
-                'Please set the DEEPSEEK_API_KEY environment variable before using the chatgpt translator.')
-        self.client.base_url = DEEPSEEK_API_BASE
-        self.token_count = 0
-        self.token_count_last = 0
-        self.config = None
-
-    def parse_args(self, args: TranslatorConfig):
-        self.config = args.chatgpt_config
-
-
-    def _assemble_prompts(self, from_lang: str, to_lang: str, queries: List[str]):
         """
-        原脚本中用来把多个 query 组装到一个 Prompt。
-        同时可以做长度控制，如果过长就切分成多个 prompt。
-
-        Original script's method to assemble multiple queries into prompts.
-        Handles length control by splitting long queries into multiple prompts.
-
-        """
-        chunk_queries = []
-        current_length = 0
-        batch = []
-
-        # Buffer for ID tag prepended to each query. 
-        # Assume 1 token per char (worst case scenario)
-        # 
-        # - Use `len(queries)` to get max digit count
-        #   (i.e. 0-9 => 1, 10-99 => 2, 100-999 => 3, etc.)
-        IDTagBuffer=len(f"\n<|{len(queries)}|>")
-        
-        for q in queries:
-            qTokens=self.count_tokens(q) + IDTagBuffer
-
-            if batch and ( (current_length + qTokens) > self._MAX_TOKENS_IN):
-                # 输出当前 batch
-                # Output current batch
-                chunk_queries.append(batch)
-                batch = []
-                current_length = 0
-            
-            batch.append(q)
-            current_length += qTokens
-        if batch:
-            chunk_queries.append(batch)
-
-        # 逐个批次生成 prompt
-        # Generate prompts batch by batch
-        for this_batch in chunk_queries:
-            prompt = ""
-            if self.include_template:
-                prompt = self.prompt_template.format(to_lang=to_lang)
-            
-            # 加上分行内容
-            # Add line breaks
-            for i, query in enumerate(this_batch):
-                prompt += f"\n<|{i+1}|>{query}"
-            
-            yield prompt.lstrip(), len(this_batch)
+        return self.tokenizer.count_tokens(text)
 
 
     def _format_prompt_log(self, to_lang: str, prompt: str) -> str:
@@ -183,7 +131,7 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
                             if timeout_attempt >= self._TIMEOUT_RETRY_ATTEMPTS:
                                 raise Exception('deepseek servers did not respond quickly enough.')
                             timeout_attempt += 1
-                            self.logger.warn(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
+                            self.logger.warning(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
                             request_task.cancel()
                             request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
                             started = time.time()
@@ -198,7 +146,7 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
                         new_translations = new_translations[1:]  
 
                     if len(prompt_queries) == 1 and len(new_translations) == 1 and not re.match(r'^\s*<\|\d+\|>', response):  
-                        self.logger.warn(f'Single query response does not contain prefix, retrying...(Attempt {attempt + 1})')  
+                        self.logger.warning(f'Single query response does not contain prefix, retrying...(Attempt {attempt + 1})')  
                         continue  
 
                     if len(new_translations) < query_size:  
@@ -207,7 +155,7 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
 
                     if len(new_translations) < query_size:  
                         remaining_attempts = RETRY_ATTEMPTS - attempt - 1  
-                        self.logger.warn(f'Incomplete response, remaining {remaining_attempts} time(s) before splitting the translation.')  
+                        self.logger.warning(f'Incomplete response, remaining {remaining_attempts} time(s) before splitting the translation.')  
                         continue  
 
                     # Trim excess translations and pad if necessary  
@@ -218,7 +166,7 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
                     new_translations = [re.sub(r'^\s*<\|\d+\|>\s*', '', t) for t in new_translations]  
                     # Check if any translations are empty  
                     if any(not t.strip() for t in new_translations):  
-                        self.logger.warn(f'Empty translations detected. Resplitting the batch.') 
+                        self.logger.warning(f'Empty translations detected. Resplitting the batch.') 
                         break  # Exit retry loop and trigger split logic below 
 
                     # Store the translations in the correct indices  
@@ -236,7 +184,7 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
                         self.logger.error(
                             'Deepseek encountered a server error, possibly due to high server load. Use a different translator or try again later.')
                         raise
-                    self.logger.warn(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
+                    self.logger.warning(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
                     await asyncio.sleep(1)
                 except Exception as e:  
                     self.logger.error(f'Error during translation attempt: {e}')  
@@ -247,9 +195,9 @@ class DeepseekTranslator(ConfigGPT, CommonTranslator):
             # If retries exhausted and still not successful, proceed to split if allowed  
             if split_level < MAX_SPLIT_ATTEMPTS:  
                 if split_level == 0:  
-                    self.logger.warn('Retry limit reached. Starting to split the translation batch.')  
+                    self.logger.warning('Retry limit reached. Starting to split the translation batch.')  
                 else:  
-                    self.logger.warn('Further splitting the translation batch due to persistent errors.')  
+                    self.logger.warning('Further splitting the translation batch due to persistent errors.')  
                 mid_index = len(prompt_queries) // 2  
                 futures = []  
                 # Split the batch into two halves  
