@@ -14,6 +14,15 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
     def __init__(self, config_key: str):
         ConfigGPT.__init__(self, config_key=config_key)
         CommonTranslator.__init__(self)
+        
+        # `_MAX_TOKENS` indicates the maximum output tokens.
+        #   Unless specified otherwise: 
+        #       Limit input tokens per query to 1/2 max output
+        try:
+            self._MAX_TOKENS_IN
+        except:
+            self._MAX_TOKENS_IN = self._MAX_TOKENS//2
+
 
     def parse_args(self, args: CommonTranslator):
         self.config = args.chatgpt_config
@@ -65,41 +74,56 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
         chunk_queries = []  # List [ List [ <queries> ] ] 
         current_length = 0
 
-        # Buffer for ID tag prepended to each query. 
-        # Assume 1 token per char (worst case scenario)
-        # 
-        # - Use `len(queries)` to get max digit count
-        #   (i.e. 0-9 => 1, 10-99 => 2, 100-999 => 3, etc.)
-        IDTagBuffer=len(f"\n<|{len(queries)}|>")
-        
-        for q in queries:
-            qTokens=self.count_tokens(q) + IDTagBuffer
-
-            if batch and ( (current_length + qTokens) > self._MAX_TOKENS_IN):
-                # 输出当前 batch
-                # Output current batch
-                chunk_queries.append(batch)
-                batch = []
-                current_length = 0
-            
-            batch.append(q)
-            current_length += qTokens
-        if batch:
-            chunk_queries.append(batch)
-
-        # 逐个批次生成 prompt
-        # Generate prompts batch by batch
-        for this_batch in chunk_queries:
+        def _list2prompt(queryList=List[str]):
             prompt = ""
             if self.include_template:
                 prompt = self.prompt_template.format(to_lang=to_lang)
             
             # 加上分行内容
             # Add line breaks
-            for i, query in enumerate(this_batch):
-                prompt += f"\n<|{i+1}|>{query}"
+            for id_num, query in enumerate(queryList, start=1):
+                prompt += f"\n<|{id_num}|>{query.strip()}"
+
+            return prompt            
+
+        # Test if batching is necessary
+        #   Chunking is likely only necessary in edge-cases 
+        #       (small token limit or huge amounts of text)
+        #
+        #   Checking if it is required should reduce workload and minimize
+        #       repeated `count_token` queries (which is not always be done locally)
+        prompt=_list2prompt(queries)
+        if self.count_tokens(prompt) <= self._MAX_TOKENS_IN:
+            yield prompt, len(queries)
+        else:
+            # Buffer for ID tag prepended to each query. 
+            # Assume 1 token per char (worst case scenario)
+            # 
+            # - Use `len(queries)` to get max digit count
+            #   (i.e. 0-9 => 1, 10-99 => 2, 100-999 => 3, etc.)
+            IDTagBuffer=len(f"\n<|{len(queries)}|>")
             
-            yield prompt.lstrip(), len(this_batch)
+            for q in queries:
+                qTokens=self.count_tokens(q) + IDTagBuffer
+
+                if batch and ( (current_length + qTokens) > self._MAX_TOKENS_IN):
+                    # 输出当前 batch
+                    # Output current batch
+                    chunk_queries.append(batch)
+                    batch = []
+                    current_length = 0
+                
+                batch.append(q)
+                current_length += qTokens
+            if batch:
+                chunk_queries.append(batch)
+
+            # 逐个批次生成 prompt
+            # Generate prompts batch by batch
+            for this_batch in chunk_queries:
+                prompt = _list2prompt(this_batch)
+                
+                yield prompt.lstrip(), len(this_batch)
 
 
 class _CommonGPTTranslator_JSON:
@@ -107,11 +131,7 @@ class _CommonGPTTranslator_JSON:
 
     def __init__(self, translator: CommonGPTTranslator):
         self.translator = translator
-        self._MAX_TOKENS_IN = ( self.translator._MAX_TOKENS_IN 
-                                if self.translator._MAX_TOKENS_IN 
-                                else self.translator._MAX_TOKENS//2
-                            )
-
+        
     def _assemble_prompts(self, from_lang: str, to_lang: str, queries: List[str]):
         """
         原脚本中用来把多个 query 组装到一个 Prompt。
@@ -124,34 +144,44 @@ class _CommonGPTTranslator_JSON:
         chunk_queries = []  # List [ List [ <queries> ] ] 
         input_ID = 0
         
-        for input_text in queries:
-            # temp list, to check if it exceeds token limit:
-            temp_list = batch + [TextValue(ID=input_ID, text=input_text)]
-            temp_json = TranslationList(TextList=temp_list).model_dump_json()
-            chunk_tokens = self.translator.count_tokens(temp_json)
+        # Test if batching is necessary
+        #   Chunking is likely only necessary in edge-cases 
+        #       (small token limit or huge amounts of text)
+        #
+        #   Checking if it is required should reduce workload and minimize
+        #       repeated `count_token` queries (which is not always be done locally)
+        testFull=self._list2json(queries)
+        if self.translator.count_tokens(testFull.model_dump_json()) <= self.translator._MAX_TOKENS_IN:
+            yield testFull.model_dump_json(), len(testFull.TextList)
+        else:
+            for input_text in queries:
+                # temp list, to check if it exceeds token limit:
+                temp_list = batch + [TextValue(ID=input_ID, text=input_text)]
+                temp_json = TranslationList(TextList=temp_list).model_dump_json()
+                chunk_tokens = self.translator.count_tokens(temp_json)
 
-            if chunk_tokens <= self._MAX_TOKENS_IN:
-                # Commit value to current batch
-                batch = temp_list
-                input_ID += 1
-            else:
-                # If there are values in the batch, add batch to chunk list
-                if batch:
-                    chunk_queries.append(TranslationList(TextList=batch))
+                if chunk_tokens <= self.translator._MAX_TOKENS_IN:
+                    # Commit value to current batch
+                    batch = temp_list
+                    input_ID += 1
+                else:
+                    # If there are values in the batch, add batch to chunk list
+                    if batch:
+                        chunk_queries.append(TranslationList(TextList=batch))
 
-                # Start new chunk with current item (even if it exceeds limit)
-                batch = [TextValue(ID=0, text=input_text)]
-                
-                # Reset ID counter for new chunk
-                input_ID = 0
-    
-        if batch:
-            chunk_queries.append(TranslationList(TextList=batch))
+                    # Start new chunk with current item (even if it exceeds limit)
+                    batch = [TextValue(ID=0, text=input_text)]
+                    
+                    # Reset ID counter for new chunk
+                    input_ID = 0
+        
+            if batch:
+                chunk_queries.append(TranslationList(TextList=batch))
 
-        # 逐个批次生成 JSON
-        # Generate JSON batch by batch
-        for this_batch in chunk_queries:
-            yield this_batch.model_dump_json(), len(this_batch.TextList)
+            # 逐个批次生成 JSON
+            # Generate JSON batch by batch
+            for this_batch in chunk_queries:
+                yield this_batch.model_dump_json(), len(this_batch.TextList)
 
     def _formatContent(self, content: json) -> str:
         return '\n'.join(json.dumps(val) for val in json.loads(content)['TextList'])
@@ -236,7 +266,8 @@ class _CommonGPTTranslator_JSON:
                 raise ValueError("Invalid JSON structure: 'TextList' must be a list")
 
             rangeOffset = min([val['ID'] for val in translated_items])
-
+            expected_max = (expected_count - 1) + rangeOffset
+            
             # Process each translated item
             for item in translated_items:
                 # Validate item structure
@@ -247,8 +278,8 @@ class _CommonGPTTranslator_JSON:
                 translation = item["text"].strip()
 
                 # Check if the ID is within the expected range
-                if (id_num < 0) or (id_num > (expected_count - (rangeOffset+1))):
-                    raise ValueError(f"ID {id_num} out of range (expected 0 to {(expected_count-1)})")
+                if (id_num < 0) or (id_num > expected_max):
+                    raise ValueError(f"ID {id_num} out of range (expected 0 to {expected_max})")
 
                 # Update the translation at the correct position
                 translations[id_num - rangeOffset] = translation
@@ -284,3 +315,25 @@ class _CommonGPTTranslator_JSON:
 
         return jsonified
 
+    def _list2json(self, vals: List[str]) -> TranslationList:
+        """
+        Convert list text values to TranslationList format.
+        
+        Args:
+            input_data: List of text samples
+            
+        Returns:
+            Text samples stored as a TranslationList
+        """
+
+        jsonified=TranslationList(
+                            TextList=[
+                                TextValue(
+                                    ID=id_num,
+                                    text=line.strip()
+                                ) for id_num, line 
+                                    in enumerate(vals)
+                            ]
+                        )
+
+        return jsonified
