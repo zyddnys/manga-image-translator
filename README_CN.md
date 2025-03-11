@@ -1,5 +1,5 @@
 # 漫画/图片翻译器 (中文说明) 
-最后更新时间：2025年3月8日
+最后更新时间：2025年3月11日
 ---
 ![Commit activity](https://img.shields.io/github/commit-activity/m/zyddnys/manga-image-translator)
 ![Lines of code](https://img.shields.io/tokei/lines/github/zyddnys/manga-image-translator?label=lines%20of%20code)
@@ -287,10 +287,12 @@ OCR：
 -   低分辨率有时会让检测器出错，它不太擅长识别不规则的文本大小。为了解决这个问题，您可以使用 `--upscale-ratio 2` 或任何其他值来使用放大器
 -   如果渲染的文本太小而无法阅读，请指定 `--font-size-minimum 30` 或使用 `--manga2eng` （注意：只在目标语言为英文时使用）渲染器，它将尝试适应检测到的文本气泡
 -   使用 `--font-path fonts/anime_ace_3.ttf` 指定字体
--   设置 `mask_dilation_offset` 20~40。
+-   设置 `mask_dilation_offset` 20~40，增大掩膜覆盖范围，更好包裹源文字
 -   使用 `lama_large` 作为修补器。
--   增加 `box_threshold` 可以在一定程度上帮助过滤掉由 OCR 错误检测引起的乱码。
--   使用OpenaiTranslator加载术语表文件（custom_openai无法加载）
+-   增加 `box_threshold` 可以在一定程度上帮助过滤掉由 OCR 错误检测引起的乱码
+-   使用 `OpenaiTranslator` 加载术语表文件（`custom_openai`无法加载）
+-   图片分辨率较大时请调高 `inpainting_size`, 否则可能导致文字修复时像素无法完全遮盖掩膜以致源文漏出。其他情况可调高 `kernal_size` 以降低涂字精度使模型获取更大视野（注:根据源文和译文的一致性判断是否是由于文字修复导致的文字漏涂，如一致则是文字修复导致的，不一致则是文本检测和OCR导致的）
+
 
 ### 详细选项
 
