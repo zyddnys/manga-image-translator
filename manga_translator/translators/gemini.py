@@ -213,9 +213,11 @@ class GeminiTranslator(CommonGPTTranslator):
 
 
     def count_tokens(self, text: str) -> int:
+        # Uses the synchronous call (`client`) instead of asynchronous (`client.aio`)
+        #   for compatibility with `common_gpt` 's `assemble_prompt`
         return self.client.models.count_tokens(model=GEMINI_MODEL, contents=text).total_tokens
 
-    def _createContext(self, to_lang: str):        
+    async def _createContext(self, to_lang: str):        
         chatSamples=None
         sysTemplate=self.chat_system_template.format(to_lang=to_lang)
 
@@ -228,7 +230,7 @@ class GeminiTranslator(CommonGPTTranslator):
                 types.Content(role='model', parts=[types.Part.from_text(text=lang_chat_samples[1])]),
             ]
             
-        self.templateCache = self.client.caches.create(model=GEMINI_MODEL,
+        self.templateCache = await self.client.aio.caches.create(model=GEMINI_MODEL,
                                                         config=types.CreateCachedContentConfig(
                                                                     contents=chatSamples,
                                                                     system_instruction=sysTemplate,
@@ -295,7 +297,7 @@ class GeminiTranslator(CommonGPTTranslator):
             for attempt in range(RETRY_ATTEMPTS):  
                 try:  
                     # Get the response (synchronously)
-                    response = self._request_translation(to_lang, prompt)  
+                    response = await self._request_translation(to_lang, prompt)  
                     try:
                         new_translations = self._parse_response(response, prompt_queries)
                     except Warning as w:
@@ -383,7 +385,7 @@ class GeminiTranslator(CommonGPTTranslator):
             self.logger.info(f'Used {self.token_count_last} tokens (Total: {self.token_count})')  
         return translations
 
-    def _request_translation(self, to_lang: str, prompt: str) -> str:
+    async def _request_translation(self, to_lang: str, prompt: str) -> str:
         config_kwargs = {
                             'safety_settings': self.safety_settings,
                             'top_p': self.top_p,
@@ -392,7 +394,7 @@ class GeminiTranslator(CommonGPTTranslator):
 
         if self.useCache:
             if self._needRecache:
-                self._createContext(to_lang=to_lang)
+                await self._createContext(to_lang=to_lang)
 
             config_kwargs['cached_content'] = self.templateCache.name
         else:
@@ -407,7 +409,7 @@ class GeminiTranslator(CommonGPTTranslator):
                             '\n------------'
                         )
 
-        response = self.client.models.generate_content(
+        response = await self.client.aio.models.generate_content(
                                                 model=GEMINI_MODEL,
                                                 contents=prompt,
                                                 config=types.GenerateContentConfig(
@@ -446,7 +448,7 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
         # For conveniance: Simplify logger calls:
         self.logger = self.translator.logger 
 
-    def _createContext(self, to_lang: str):
+    async def _createContext(self, to_lang: str):
         JSON_Samples=[]
         sysTemplate=self.translator.chat_system_template.format(to_lang=to_lang)
 
@@ -459,7 +461,7 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
                 types.Content(role='model', parts=[types.Part.from_text(text=lang_JSON_samples[1].model_dump_json())]),
             ]
 
-        self.templateCache = self.translator.client.caches.create(model=GEMINI_MODEL,
+        self.templateCache = await self.translator.client.aio.caches.create(model=GEMINI_MODEL,
                                                         config=types.CreateCachedContentConfig(
                                                                     contents=JSON_Samples,
                                                                     system_instruction=sysTemplate,
@@ -468,7 +470,7 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
                                                                 ),
                                                     )
 
-    def _request_translation(self, to_lang: str, prompt: str) -> str:
+    async def _request_translation(self, to_lang: str, prompt: str) -> str:
         config_kwargs = {
                             'safety_settings': self.translator.safety_settings,
                             'response_mime_type': 'application/json',
@@ -479,7 +481,7 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
 
         if self.translator.useCache:
             if self.translator._needRecache:
-                self._createContext(to_lang=to_lang)
+                await self._createContext(to_lang=to_lang)
             
             config_kwargs['cached_content'] = self.templateCache.name
         else:
@@ -492,14 +494,14 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
                             prompt +
                             '\n------------'
                         )
-
-        response = self.translator.client.models.generate_content(
-                                                model=GEMINI_MODEL,
-                                                contents=prompt,
-                                                config=types.GenerateContentConfig(
-                                                            **config_kwargs
-                                                        )
-                                            )
+        
+        response = await self.translator.client.aio.models.generate_content(
+                                                    model=GEMINI_MODEL,
+                                                    contents=prompt,
+                                                    config=types.GenerateContentConfig(
+                                                                **config_kwargs
+                                                            )
+                                                )
 
         try:
             if not hasattr(response, 'usage_metadata'):
