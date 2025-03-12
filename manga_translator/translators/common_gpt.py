@@ -56,12 +56,11 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
         If the translator does not natively support input / output examples, this 
         formats the examples as a string, to attached to the prompt, formatted as:
 
-            <EXAMPLE_INPUT>
-            {input_text}
-            </EXAMPLE_INPUT>
-            <EXAMPLE_OUTPUT>
-            {output_text}
-            </EXAMPLE_OUTPUT>
+            <EXAMPLE>
+            INPUT: {input_text}
+            
+            OUTPUT: {output_text}
+            </EXAMPLE>
         
         Returns:
             str: A string containing the few-shot example or `None` If no sample is available
