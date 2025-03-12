@@ -231,13 +231,13 @@ class GeminiTranslator(CommonGPTTranslator):
             ]
             
         self.templateCache = await self.client.aio.caches.create(model=GEMINI_MODEL,
-                                                        config=types.CreateCachedContentConfig(
+                                                                config=types.CreateCachedContentConfig(
                                                                     contents=chatSamples,
                                                                     system_instruction=sysTemplate,
                                                                     display_name='TranslationCache',
                                                                     ttl=f'{self._CACHE_TTL}s',
                                                                 ),
-                                                    )
+                                                            )
 
     def _needRecache(self) -> bool:
         if not self.templateCache:
@@ -462,13 +462,13 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
             ]
 
         self.templateCache = await self.translator.client.aio.caches.create(model=GEMINI_MODEL,
-                                                        config=types.CreateCachedContentConfig(
-                                                                    contents=JSON_Samples,
-                                                                    system_instruction=sysTemplate,
-                                                                    display_name='TranslationCache_JSON',
-                                                                    ttl=f'{self.translator._CACHE_TTL}s',
-                                                                ),
-                                                    )
+                                                                            config=types.CreateCachedContentConfig(
+                                                                                contents=JSON_Samples,
+                                                                                system_instruction=sysTemplate,
+                                                                                display_name='TranslationCache_JSON',
+                                                                                ttl=f'{self.translator._CACHE_TTL}s',
+                                                                                ),
+                                                                            )
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
         config_kwargs = {
@@ -495,13 +495,12 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
                             '\n------------'
                         )
         
-        response = await self.translator.client.aio.models.generate_content(
-                                                    model=GEMINI_MODEL,
-                                                    contents=prompt,
-                                                    config=types.GenerateContentConfig(
-                                                                **config_kwargs
-                                                            )
-                                                )
+        response = await self.translator.client.aio.models.generate_content(model=GEMINI_MODEL,
+                                                                            contents=prompt,
+                                                                            config=types.GenerateContentConfig(
+                                                                                **config_kwargs
+                                                                            )
+                                                                        )
 
         try:
             if not hasattr(response, 'usage_metadata'):
