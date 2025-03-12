@@ -32,9 +32,9 @@
 ## 使用说明
 
 ```bash
-# 首先，确信你的机器安装了 Python 3.8 及以上版本，和相应的编译工具
+# 首先，确信你的机器安装了 Python 3.10 及以上版本，和相应的编译工具
 $ python --version
-Python 3.8.13
+Python 3.10.6
 
 # 拉取仓库
 $ git clone https://github.com/zyddnys/manga-image-translator.git
