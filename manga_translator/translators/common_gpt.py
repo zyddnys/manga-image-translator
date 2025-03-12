@@ -56,12 +56,12 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
         If the translator does not natively support input / output examples, this 
         formats the examples as a string, to attached to the prompt, formatted as:
 
-            <EXAMPLE>
-            INPUT:
+            <EXAMPLE_INPUT>
             {input_text}
-            OUTPUT:
+            </EXAMPLE_INPUT>
+            <EXAMPLE_OUTPUT>
             {output_text}
-            </EXAMPLE>
+            </EXAMPLE_OUTPUT>
         
         Returns:
             str: A string containing the few-shot example or `None` If no sample is available
@@ -74,8 +74,9 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
         # Add chat samples if available
         if lang_chat_samples:
             fewshot="<EXAMPLE>\n"
-            fewshot+=f"INPUT:\n{lang_chat_samples[0]}\n"
-            fewshot+=f"OUTPUT:\n{lang_chat_samples[1]}\n"
+            fewshot+=f"  INPUT:{lang_chat_samples[0]}\n"
+            fewshot+=f"  \n"
+            fewshot+=f"  OUTPUT:{lang_chat_samples[1]}\n"
             fewshot+="</EXAMPLE>\n"
 
         return fewshot

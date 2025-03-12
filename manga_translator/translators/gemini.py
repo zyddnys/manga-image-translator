@@ -159,7 +159,6 @@ class GeminiTranslator(CommonGPTTranslator):
         self._MAX_TOKENS_IN = self._MAX_TOKENS // 2
 
 
-
         ''''
             Set all `safety_settings` to 'Block None'
 
@@ -400,9 +399,7 @@ class GeminiTranslator(CommonGPTTranslator):
             config_kwargs['system_instruction'] = [self.chat_system_template]
             chatSamples=self.fallback_fewShot()
             if chatSamples:
-                prompt = chatSamples + \
-                            "INPUT:\n" + \
-                            prompt
+                prompt = f"{chatSamples}\n{prompt}"
 
 
         self.logger.debug(  '-- GPT Prompt --\n' +
@@ -489,7 +486,7 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
             config_kwargs['system_instruction'] = [self.translator.chat_system_template]
             chatSamples=self.translator.fallback_fewShot()
             if chatSamples:
-                prompt+=chatSamples
+                prompt = f"{chatSamples}\n{prompt}"
 
         self.logger.debug(  '-- GPT Prompt --\n' +
                             prompt +
