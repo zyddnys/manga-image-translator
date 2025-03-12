@@ -4,6 +4,16 @@ _SCRIPT_DIR=os.path.dirname(os.path.realpath(__file__))
 
 
 class deepseekTokenCounter():
+    """
+    A class to count tokens using the DeepSeek tokenizer.
+    This class initializes with the DeepSeek tokenizer (loaded from local subdirectory).
+    
+    Tokenizer downloaded from:
+    https://api-docs.deepseek.com/quick_start/token_usage
+    
+    Methods:
+        count_tokens(text:str) -> int Count the number of tokens within string `text`
+    """
     import transformers
     
     def __init__(self):
@@ -16,19 +26,26 @@ class deepseekTokenCounter():
     def count_tokens(self, text: str) -> int:
         """
             Count tokens using the deepseek tokenizer
-            Tokenizer downloaded from:
-            https://api-docs.deepseek.com/quick_start/token_usage
         """
 
         return len(self.tokenizer.encode(text))
 
+
 class ChatGPTTokenCounter():
+    """
+    A class for counting tokens in text using the tiktoken library, specifically designed for OpenAI models.
+        Attributes:
+            tokenizer: The tiktoken encoder object used for tokenizing text.
+        Methods:
+            _get_encoder_for_model(CHATGPT_MODEL: str) -> str: Get the token encoder used by  for a given model
+            count_tokens(text: str) -> int: Count the number of tokens within string `text`
+    """
+
     import tiktoken
 
     def __init__(self, CHATGPT_MODEL: str):
-        self._tokenizer_cache = self._get_encoder_for_model(CHATGPT_MODEL)
+        self.tokenizer = self._get_encoder_for_model(CHATGPT_MODEL)
 
-    
     def _get_encoder_for_model(self, CHATGPT_MODEL: str) -> str:
         """
             Get the appropriate tiktoken encoder for a given OpenAI model.
@@ -51,4 +68,4 @@ class ChatGPTTokenCounter():
         """
             Count tokens using the specified encoding.
         """
-        return len(self._tokenizer_cache.encode(text))
+        return len(self.tokenizer.encode(text))
