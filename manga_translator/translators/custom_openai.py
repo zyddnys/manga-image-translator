@@ -138,7 +138,7 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                         if timeout_attempt >= self._TIMEOUT_RETRY_ATTEMPTS:
                             raise Exception('ollama servers did not respond quickly enough.')
                         timeout_attempt += 1
-                        self.logger.warn(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
+                        self.logger.warning(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
                         request_task.cancel()
                         request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
                         started = time.time()
@@ -149,7 +149,7 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                     ratelimit_attempt += 1
                     if ratelimit_attempt >= self._RATELIMIT_RETRY_ATTEMPTS:
                         raise
-                    self.logger.warn(
+                    self.logger.warning(
                         f'Restarting request due to ratelimiting by Ollama servers. Attempt: {ratelimit_attempt}')
                     await asyncio.sleep(2)
                 except openai.APIError:  # Server returned 500 error (probably server load)
@@ -158,7 +158,7 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                         self.logger.error(
                             'Ollama encountered a server error, possibly due to high server load. Use a different translator or try again later.')
                         raise
-                    self.logger.warn(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
+                    self.logger.warning(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
                     await asyncio.sleep(1)
 
             # self.logger.debug('-- GPT Response --\n' + response)
