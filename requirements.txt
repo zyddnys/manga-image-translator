@@ -57,7 +57,6 @@ pydantic
 python-multipart
 
 google-genai
-ollama
 
 # Currently CUDA 11.8 and 12.3 are supported. 
 # Let pip choose the cuda version to use:
