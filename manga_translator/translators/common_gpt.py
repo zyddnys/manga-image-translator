@@ -42,7 +42,36 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
         Returns:
             int: The estimated number of tokens in the text.
         """
-        pass
+        
+        # Simple worst-case-scenario check; 1 character per character.
+        return len(text)
+
+    def withinTokenLimit(self, text: str) -> bool:
+        """
+        Simple helper function to check if `text` has a token count
+            less-than/equal-to `_MAX_TOKENS_IN`.
+             
+        First checks assuming worst-case-scenario of 1 token per character,
+            short-circuiting if string length is less-than/equal-to `_MAX_TOKENS_IN`
+        
+        Falls through to using the token counter class to count the actual tokens.
+
+
+        Args:
+            text (str): The text to check.
+
+        Returns:
+            bool: 
+                True if `text` token length is less-than/equal-to `_MAX_TOKENS_IN`
+            
+                False if `text` token length is greater-than `_MAX_TOKENS_IN`
+
+        """
+        if len(text) <= self._MAX_TOKENS_IN:
+            return True
+        
+        return self.count_tokens(text) <= self._MAX_TOKENS_IN
+
 
     def supports_languages(self, from_lang: str, to_lang: str, fatal: bool = False) -> bool:
         self.to_lang=to_lang
@@ -107,11 +136,11 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
         # Test if batching is necessary
         #   Chunking is likely only necessary in edge-cases 
         #       (small token limit or huge amounts of text)
-        #
+        #   
         #   Checking if it is required should reduce workload and minimize
         #       repeated `count_token` queries (which is not always be done locally)
         prompt=_list2prompt(queries)
-        if self.count_tokens(prompt) <= self._MAX_TOKENS_IN:
+        if self.withinTokenLimit(prompt):
             yield prompt, len(queries)
         else:
             # Buffer for ID tag prepended to each query. 
@@ -169,16 +198,15 @@ class _CommonGPTTranslator_JSON:
         #   Checking if it is required should reduce workload and minimize
         #       repeated `count_token` queries (which is not always be done locally)
         testFull=self._list2json(queries)
-        if self.translator.count_tokens(testFull.model_dump_json()) <= self.translator._MAX_TOKENS_IN:
+        if self.translator.withinTokenLimit(testFull.model_dump_json()):
             yield testFull.model_dump_json(), len(testFull.TextList)
         else:
             for input_text in queries:
                 # temp list, to check if it exceeds token limit:
                 temp_list = batch + [TextValue(ID=input_ID, text=input_text)]
                 temp_json = TranslationList(TextList=temp_list).model_dump_json()
-                chunk_tokens = self.translator.count_tokens(temp_json)
 
-                if chunk_tokens <= self.translator._MAX_TOKENS_IN:
+                if self.translator.withinTokenLimit(temp_json):
                     # Commit value to current batch
                     batch = temp_list
                     input_ID += 1
