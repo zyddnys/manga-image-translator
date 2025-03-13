@@ -88,7 +88,8 @@ class GeminiTranslator(CommonGPTTranslator):
 
         if not GEMINI_API_KEY:
             raise MissingAPIKeyException(
-                        'Please set the GEMINI_API_KEY environment variable before using the chatgpt translator.'
+                        'Please set the GEMINI_API_KEY environment variable '
+                        'before using the Gemini translator.'
                     )
 
         self.client = genai.Client(api_key=GEMINI_API_KEY)

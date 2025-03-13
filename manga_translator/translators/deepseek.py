@@ -56,7 +56,9 @@ class DeepseekTranslator(CommonGPTTranslator):
         self.client = openai.AsyncOpenAI(api_key=openai.api_key or DEEPSEEK_API_KEY)
         if not self.client.api_key and check_openai_key:
             raise MissingAPIKeyException(
-                'Please set the DEEPSEEK_API_KEY environment variable before using the chatgpt translator.')
+                        'Please set the DEEPSEEK_API_KEY environment variable '
+                        'before using the DeepSeek translator.'
+                    )
         self.client.base_url = DEEPSEEK_API_BASE
         self.token_count = 0
         self.token_count_last = 0
