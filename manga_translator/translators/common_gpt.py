@@ -32,26 +32,32 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
         """
         Counts the number of tokens in a given text string.
 
-        This method should use the appropriate tokenizer for the
-        GPT model being used to accurately estimate the number of tokens
+        This method should be implemented using the appropriate tokenizer for the
+        GPT model being used to accurately measure the number of tokens
         that will be sent to the API.
 
+        return len(text) will be safe in most scenarios
+        
         Args:
             text (str): The input text string.
 
         Returns:
             int: The estimated number of tokens in the text.
         """
+        pass
         
-        # Simple worst-case-scenario check; 1 character per character.
+        # Safe enough estimate for most tokenizers: 1 token per character
         return len(text)
+        
+        # Worst-case-scenario: 1 token per byte
+        return len(text.encode('utf-8'))
 
     def withinTokenLimit(self, text: str) -> bool:
         """
         Simple helper function to check if `text` has a token count
             less-than/equal-to `_MAX_TOKENS_IN`.
              
-        First checks assuming worst-case-scenario of 1 token per character,
+        First checks assuming worst-case-scenario of 1 token per utf-8 byte,
             short-circuiting if string length is less-than/equal-to `_MAX_TOKENS_IN`
         
         Falls through to using the token counter class to count the actual tokens.
@@ -65,9 +71,8 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
                 True if `text` token length is less-than/equal-to `_MAX_TOKENS_IN`
             
                 False if `text` token length is greater-than `_MAX_TOKENS_IN`
-
         """
-        if len(text) <= self._MAX_TOKENS_IN:
+        if len(text.encode('utf-8')) <= self._MAX_TOKENS_IN:
             return True
         
         return self.count_tokens(text) <= self._MAX_TOKENS_IN
