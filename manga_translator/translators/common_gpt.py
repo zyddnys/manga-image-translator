@@ -1,17 +1,48 @@
+import asyncio
 import json
 import re
 from abc import abstractmethod
+import time
 
 from .config_gpt import ConfigGPT, TextValue, TranslationList
 from .common import CommonTranslator, VALID_LANGUAGES
-from typing import List, Dict, Union
+from typing import List, Dict
 
 
 
 class CommonGPTTranslator(ConfigGPT, CommonTranslator):
+    """
+    A base class for GPT-based translators, providing common functionality
+    such as prompt assembly and response parsing.
+    
+    Inherits from both `ConfigGPT` and `CommonTranslator`
+    
+
+    Attributes:
+        _LANGUAGE_CODE_MAP (dict): A dictionary mapping language codes to
+            language names.  Assumes that GPT translators support all languages
+        _MAX_TOKENS_IN (int): The maximum number of input tokens allowed
+            per query. Defaults to half of `_MAX_TOKENS` if not specified.
+
+    Abstract Methods
+    ----------------
+        `count_tokens`
+            Parent classes must provide a way to count the tokens, to allow for batch-chunking.
+            See: `tokenizers/token_counters.py` for example implementations.
+            
+            See the `Notes` section of the abstract definition for fall-back \
+                solutions when obtaining the true token count is not feasible.
+    """
+    
     _LANGUAGE_CODE_MAP=VALID_LANGUAGES # Assume that GPT translators support all languages
 
     def __init__(self, config_key: str):
+        """
+        Initializes the CommonGPT translator with configurations and token limits.
+        Args:
+            config_key (str): The configuration key to use for parsing the `config_gpt` file.
+        """
+
         ConfigGPT.__init__(self, config_key=config_key)
         CommonTranslator.__init__(self)
         
@@ -22,7 +53,6 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
             self._MAX_TOKENS_IN
         except:
             self._MAX_TOKENS_IN = self._MAX_TOKENS//2
-
 
     def parse_args(self, args: CommonTranslator):
         self.config = args.chatgpt_config
@@ -37,21 +67,38 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
         that will be sent to the API.
 
         return len(text) will be safe in most scenarios
-        
-        Args:
+
+        Args
+        ----
             text (str): The input text string.
 
-        Returns:
+        Returns
+        -------
             int: The estimated number of tokens in the text.
+ 
+        Notes
+        -----
+        If unable to implement fully to get a true token count:
+        
+        - In most insances, simply counting char-length will be a sufficiently \
+            safe over-estimation: 
+        ```
+        def count_tokens(text: str):
+            return len(text)
+        ```
+        
+        - If you wish to check for an upper-bound limit: A ratio of \
+            `1 token` / `UTF-8 byte` is generally safe for most modern tokenizers
+        ```
+        def count_tokens(text: str):
+            return len(text.encode('utf-8'))
+        ```
+        
         """
+        
         pass
         
-        # Safe enough estimate for most tokenizers: 1 token per character
-        return len(text)
         
-        # Worst-case-scenario: 1 token per byte
-        return len(text.encode('utf-8'))
-
     def withinTokenLimit(self, text: str) -> bool:
         """
         Simple helper function to check if `text` has a token count
@@ -176,6 +223,31 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
                 prompt = _list2prompt(this_batch)
                 
                 yield prompt.lstrip(), len(this_batch)
+ 
+    def _parse_response(self, response: str, queries: List):
+        # Split response into translations  
+        new_translations = re.split(r'<\|\d+\|>', response)  
+        if not new_translations[0].strip():  
+            new_translations = new_translations[1:]  
+
+        if len(queries) == 1 and len(new_translations) == 1 and not re.match(r'^\s*<\|\d+\|>', response):  
+            raise Warning('Single query response does not contain prefix.')  
+        
+        return new_translations
+
+    async def _ratelimit_sleep(self):
+        """
+        在请求前先做一次简单的节流 (如果 _MAX_REQUESTS_PER_MINUTE > 0)。
+        Simple rate limiting before requests (if _MAX_REQUESTS_PER_MINUTE > 0).
+        """
+        if self._MAX_REQUESTS_PER_MINUTE > 0:
+            now = time.time()
+            delay = 60.0 / self._MAX_REQUESTS_PER_MINUTE
+            elapsed = now - self._last_request_ts
+            if elapsed < delay:
+                await asyncio.sleep(delay - elapsed)
+            self._last_request_ts = time.time()
+
 
 
 class _CommonGPTTranslator_JSON:

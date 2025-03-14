@@ -3,7 +3,6 @@ from google import genai
 from google.genai import types
 
 import asyncio
-import time
 from typing import List
 from .common import MissingAPIKeyException, InvalidServerResponse
 from .keys import GEMINI_API_KEY, GEMINI_MODEL
@@ -256,30 +255,6 @@ class GeminiTranslator(CommonGPTTranslator):
         
         # If cache expire_time is less than 5 minutes (300 seconds) in the future: return True
         return delta < self._CACHE_TTL_BUFFER
-
-    async def _ratelimit_sleep(self):
-        """
-        在请求前先做一次简单的节流 (如果 _MAX_REQUESTS_PER_MINUTE > 0)。
-        Simple rate limiting before requests (if _MAX_REQUESTS_PER_MINUTE > 0).
-        """
-        if self._MAX_REQUESTS_PER_MINUTE > 0:
-            now = time.time()
-            delay = 60.0 / self._MAX_REQUESTS_PER_MINUTE
-            elapsed = now - self._last_request_ts
-            if elapsed < delay:
-                await asyncio.sleep(delay - elapsed)
-            self._last_request_ts = time.time()
-
-    def _parse_response(self, response: str, queries: List):
-        # Split response into translations  
-        new_translations = re.split(r'<\|\d+\|>', response)  
-        if not new_translations[0].strip():  
-            new_translations = new_translations[1:]  
-
-        if len(queries) == 1 and len(new_translations) == 1 and not re.match(r'^\s*<\|\d+\|>', response):  
-            raise Warning('Single query response does not contain prefix.')  
-        
-        return new_translations
 
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:  
         self.to_lang=to_lang # Export `to_lang`
