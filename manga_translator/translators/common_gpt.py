@@ -223,7 +223,29 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
                 prompt = _list2prompt(this_batch)
                 
                 yield prompt.lstrip(), len(this_batch)
- 
+    
+    def _assemble_request(self, to_lang: str, prompt: str) -> Dict:
+        messages = [{'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)}]
+
+        if to_lang in self.chat_sample:
+            messages.append({'role': 'user', 'content': self.chat_sample[to_lang][0]})
+            messages.append({'role': 'assistant', 'content': self.chat_sample[to_lang][1]})
+
+        messages.append({'role': 'user', 'content': prompt})
+
+        # Arguments for the API call:
+        kwargs = {
+            "model": self.MODEL,
+            "messages": messages,
+            "max_tokens": self._MAX_TOKENS // 2,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "timeout": self._TIMEOUT
+        }
+
+        return kwargs
+    
+
     def _parse_response(self, response: str, queries: List):
         # Split response into translations  
         new_translations = re.split(r'<\|\d+\|>', response)  
@@ -251,11 +273,36 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
 
 
 class _CommonGPTTranslator_JSON:
+    import pprint
+    from os import get_terminal_size
+    
     """Internal helper class for JSON mode logic"""
 
     def __init__(self, translator: CommonGPTTranslator):
         self.translator = translator
+
+
+
+    def ppJSON(self, jsonText: str) -> str:
+        """ 
+        Helper function to PrettyPrint format a JSON string
         
+        Args:
+            jsonText (str): The JSON string to format.
+        Returns:
+            str: A pretty-printed string representation of the JSON object.
+        """
+      
+
+        # By default: pformat sets line width to 80 chars. 
+        # Get terminal width to override (with buffer of 10 chars)
+        WIDTH=(self.get_terminal_size().columns - 10)
+        
+        return self.pprint.pformat( object=self.json.loads(jsonText), 
+                                    width=WIDTH
+                                )
+    
+
     def _assemble_prompts(self, from_lang: str, to_lang: str, queries: List[str]):
         """
         原脚本中用来把多个 query 组装到一个 Prompt。

@@ -9,6 +9,13 @@ from .keys import GEMINI_API_KEY, GEMINI_MODEL
 from .common_gpt import CommonGPTTranslator, _CommonGPTTranslator_JSON
 
 
+# Text Formatting:
+# For Windows: enable ANSI escape code support
+from colorama import init as initColorama
+
+BOLD='\033[1m' # Bold text
+NRML='\033[0m' # Revert to Normal formatting
+
 class GeminiTranslator(CommonGPTTranslator):
     _INVALID_REPEAT_COUNT = 0  # 现在这个参数没意义了
     _MAX_REQUESTS_PER_MINUTE = 9999  # 无RPM限制
@@ -81,9 +88,16 @@ class GeminiTranslator(CommonGPTTranslator):
         _CONFIG_KEY = 'gemini.' + GEMINI_MODEL
         CommonGPTTranslator.__init__(self, config_key=_CONFIG_KEY)
 
+        # Initialize colorama for ANSI encoding support
+        #   (Only required on Windows)
+        initColorama()
+
         # By default: Do not assume Context Cache support
         self.useCache = False
         self.cached_content = None
+
+        # Dict for storing values to print to logger
+        self.cachedVals={None}
 
         if not GEMINI_API_KEY:
             raise MissingAPIKeyException(
@@ -220,6 +234,9 @@ class GeminiTranslator(CommonGPTTranslator):
     async def _createContext(self, to_lang: str):        
         chatSamples=None
         sysTemplate=self.chat_system_template.format(to_lang=to_lang)
+        
+        # Store cached values for printing to logger:
+        self.cachedVals={'System Prompt (Cached)': sysTemplate}
 
         # 如果需要先给出示例对话
         # Add chat samples if available
@@ -229,6 +246,9 @@ class GeminiTranslator(CommonGPTTranslator):
                 types.Content(role='user',  parts=[types.Part.from_text(text=lang_chat_samples[0])]),
                 types.Content(role='model', parts=[types.Part.from_text(text=lang_chat_samples[1])]),
             ]
+            self.cachedVals['Sample (Cached): User'] = lang_chat_samples[0]
+            self.cachedVals['Sample (Cached): Model'] = lang_chat_samples[1]
+
             
         self.templateCache = await self.client.aio.caches.create(model=GEMINI_MODEL,
                                                                 config=types.CreateCachedContentConfig(
@@ -361,33 +381,57 @@ class GeminiTranslator(CommonGPTTranslator):
             self.logger.info(f'Used {self.token_count_last} tokens (Total: {self.token_count})')  
         return translations
 
+    def formatLog(self, vals: dict) -> str:
+        return '\n---\n'.join(f"\n{BOLD}{aKey}{NRML}:\n{aVal}" 
+                                for aKey, aVal in vals.items()
+                            )
+
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
         config_kwargs = {
                             'safety_settings': self.safety_settings,
                             'top_p': self.top_p,
                             'temperature': self.temperature,
                         }
+        
+        messages=[]
 
+        # Store values to be printed to logger
+        loggerVals={}
         if self.useCache:
             if self._needRecache:
                 await self._createContext(to_lang=to_lang)
 
             config_kwargs['cached_content'] = self.templateCache.name
+            
+            loggerVals = self.cachedVals.copy()
         else:
-            config_kwargs['system_instruction'] = [self.chat_system_template]
-            chatSamples=self.fallback_fewShot()
-            if chatSamples:
-                prompt = f"{chatSamples}\n{prompt}"
+            config_kwargs['system_instruction'] = self.chat_system_template.format(to_lang=to_lang)
+            loggerVals = {'System Prompt': config_kwargs['system_instruction']}
 
+            # 如果需要先给出示例对话
+            # Add chat samples if available
+            lang_chat_samples = self.get_chat_sample(to_lang)
+            if lang_chat_samples:
+                messages=[
+                    types.Content(role='user',  parts=[types.Part.from_text(text=lang_chat_samples[0])]),
+                    types.Content(role='model', parts=[types.Part.from_text(text=lang_chat_samples[1])])
+                ]
+
+                loggerVals['Sample: User'] = lang_chat_samples[0],
+                loggerVals['Sample: Model'] = lang_chat_samples[1]
+
+
+        messages.append(types.Content(role='user',  parts=[types.Part.from_text(text=prompt)]))
+        loggerVals['Input'] = prompt
 
         self.logger.debug(  '-- GPT Prompt --\n' +
-                            prompt +
+                            self.formatLog(loggerVals) +
                             '\n------------'
                         )
 
         response = await self.client.aio.models.generate_content(
                                                 model=GEMINI_MODEL,
-                                                contents=prompt,
+                                                contents=messages,
                                                 config=types.GenerateContentConfig(
                                                             **config_kwargs
                                                         )
@@ -412,8 +456,6 @@ class GeminiTranslator(CommonGPTTranslator):
 
 class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
     from .config_gpt import TranslationList
-    import pprint
-    from os import get_terminal_size
     import json
 
     """Internal helper class for JSON mode logic"""
@@ -428,6 +470,9 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
         JSON_Samples=[]
         sysTemplate=self.translator.chat_system_template.format(to_lang=to_lang)
 
+        # Store cached values for printing to logger:
+        self.cachedVals={'System Prompt (Cached)': sysTemplate}
+
         # 如果需要先给出示例对话
         # Add chat samples if available
         lang_JSON_samples = self.translator.get_json_sample(to_lang)
@@ -436,6 +481,9 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
                 types.Content(role='user',  parts=[types.Part.from_text(text=lang_JSON_samples[0].model_dump_json())]),
                 types.Content(role='model', parts=[types.Part.from_text(text=lang_JSON_samples[1].model_dump_json())]),
             ]
+
+            self.cachedVals['Sample (Cached): User'] = self.ppJSON(lang_JSON_samples[0].model_dump_json())
+            self.cachedVals['Sample (Cached): Model'] = self.ppJSON(lang_JSON_samples[1].model_dump_json())
 
         self.templateCache = await self.translator.client.aio.caches.create(model=GEMINI_MODEL,
                                                                             config=types.CreateCachedContentConfig(
@@ -455,24 +503,41 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
                             'temperature': self.translator.temperature,
                     }
 
+        messages=[]
+
+        # Store values to be printed to logger
+        loggerVals={}
         if self.translator.useCache:
             if self.translator._needRecache:
                 await self._createContext(to_lang=to_lang)
             
             config_kwargs['cached_content'] = self.templateCache.name
+            loggerVals = self.cachedVals
         else:
-            config_kwargs['system_instruction'] = [self.translator.chat_system_template]
-            chatSamples=self.translator.fallback_fewShot()
-            if chatSamples:
-                prompt = f"{chatSamples}\n{prompt}"
+            config_kwargs['system_instruction'] = self.translator.chat_system_template.format(to_lang=to_lang)
+            loggerVals={'System Prompt': config_kwargs['system_instruction']}
 
+            lang_JSON_samples = self.translator.get_json_sample(to_lang)
+            if lang_JSON_samples:
+                messages=[
+                    types.Content(role='user',  parts=[types.Part.from_text(text=lang_JSON_samples[0].model_dump_json())]),
+                    types.Content(role='model', parts=[types.Part.from_text(text=lang_JSON_samples[1].model_dump_json())]),
+                ]
+
+            loggerVals['Sample: User'] = lang_JSON_samples[0].model_dump_json(),
+            loggerVals['Sample: Model'] = lang_JSON_samples[1].model_dump_json()
+
+
+        messages.append(types.Content(role='user',  parts=[types.Part.from_text(text=prompt)]))
+        
+        loggerVals['Input'] = self.ppJSON(prompt)
         self.logger.debug(  '-- GPT Prompt --\n' +
-                            prompt +
+                            self.translator.formatLog(loggerVals) +
                             '\n------------'
                         )
         
         response = await self.translator.client.aio.models.generate_content(model=GEMINI_MODEL,
-                                                                            contents=prompt,
+                                                                            contents=messages,
                                                                             config=types.GenerateContentConfig(
                                                                                 **config_kwargs
                                                                             )
@@ -486,14 +551,8 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
                 self.translator.token_count += response.usage_metadata.prompt_token_count
                 self.translator.token_count_last = response.usage_metadata.total_token_count
 
-            # By default: pformat sets line width to 80 chars. 
-            # Get terminal width to override (with buffer of 10 chars)
-            WIDTH=(self.get_terminal_size().columns - 10)
-
-            response_json = self.json.loads(response.text)
-            response_pretty = self.pprint.pformat(object=response_json, width=WIDTH)
             self.logger.debug(  '-- GPT Response --\n' + 
-                                response_pretty + 
+                                self.ppJSON(response.text) + 
                                 '\n------------\n'
                             )
 

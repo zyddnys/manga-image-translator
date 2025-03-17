@@ -175,8 +175,26 @@ class ConfigGPT:
 
     @property
     def chat_sample(self) -> Dict[str, List[str]]:
-        return self._config_get('chat_sample', self._CHAT_SAMPLE)
+        """
+        Get Chat Samples
 
+        OmegaConf seems to read in '\n' as '\\n'. 
+        It is therefore parsed to fix this before returning..
+
+        Returns:
+            Dict: A dictionary, keyed by language, each value being a list [INPUT, OUTPUT] samples.
+        """
+        
+        sample=dict(self._config_get('chat_sample', self._CHAT_SAMPLE))
+
+        if sample == self._CHAT_SAMPLE:
+            return sample
+        
+        retDict={}
+        for key, valList in sample.items():
+             retDict[key] = [aVal.replace('\\n', '\n') for aVal in valList]
+        
+        return retDict
 
     def _closest_sample_match(self, all_samples: Dict, to_lang: str, max_distance=5) -> List:
         """
