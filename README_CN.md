@@ -64,7 +64,7 @@
 ### 使用 Pip/venv (推荐)
 
 ```bash
-# 首先，确保您的机器安装了 Python 3.8 或更高版本
+# 首先，确保您的机器安装了 Python 3.10 或更高版本
 # 最新版本的 Python 可能尚未与某些 PyTorch 库兼容
 $ python --version
 Python 3.10.6
