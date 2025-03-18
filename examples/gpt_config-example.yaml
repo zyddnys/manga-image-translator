@@ -33,6 +33,9 @@ temperature: 0.5
 # So 0.1 means only the tokens comprising the top 10% probability mass are considered.
 top_p: 1
 
+#Whether to hide _CHAT_SYSTEM_TEMPLATE and _CHAT_SAMPLE in the command line output
+verbose_logging: False
+
 # The prompt being feed into ChatGPT before the text to translate.
 # Use {to_lang} to indicate where the target language name should be inserted.
 # Tokens used in this example: 57+
@@ -153,7 +156,7 @@ prompt_template: 'Please help me to translate the following text from a manga to
 #
 # If you'd like to disable this feature, just set this to an empty list.
 chat_sample:
-  Simplified Chinese: # Tokens used in this example: 88 + 84
+  Chinese (Simplified): # Tokens used in this example: 88 + 84
     - <|1|>恥ずかしい… 目立ちたくない… 私が消えたい…
       <|2|>きみ… 大丈夫⁉
       <|3|>なんだこいつ 空気読めて ないのか…？
@@ -167,7 +170,7 @@ chat_sample:
     - <|1|>I'm embarrassed... I don't want to stand out... I want to disappear...
       <|2|>Are you okay?
       <|3|>What's wrong with this guy? Can't he read the situation...?
-  Korean: 
+  Korean:
     - <|1|>恥ずかしい… 目立ちたくない… 私が消えたい…
       <|2|>きみ… 大丈夫⁉
       <|3|>なんだこいつ 空気読めて ないのか…？
@@ -223,5 +226,3 @@ json_sample:
           text: "괜찮아?!"
         - ID: 3
           text: "이 녀석, 뭐야? 분위기 못 읽는 거야...?"
-
-

@@ -255,7 +255,7 @@ class DetectorConfig(BaseModel):
     """"""
     detector: Detector =Detector.default
     """"Text detector used for creating a text mask from an image, DO NOT use craft for manga, it\'s not designed for it"""
-    detection_size: int = 1536
+    detection_size: int = 2048
     """Size of image used for detection"""
     text_threshold: float = 0.5
     """Threshold for text detection"""
@@ -273,11 +273,11 @@ class DetectorConfig(BaseModel):
     """How much to extend text skeleton to form bounding box"""
 
 class InpainterConfig(BaseModel):
-    inpainter: Inpainter = Inpainter.none
+    inpainter: Inpainter = Inpainter.lama_large
     """Inpainting model to use"""
     inpainting_size: int = 2048
     """Size of image used for inpainting (too large will result in OOM)"""
-    inpainting_precision: InpaintPrecision = InpaintPrecision.fp32
+    inpainting_precision: InpaintPrecision = InpaintPrecision.bf16
     """Inpainting precision for lama, use bf16 while you can."""
 
 class ColorizerConfig(BaseModel):

@@ -125,7 +125,8 @@ class MangaTranslator:
 
         self._model_usage_timestamps = {}
         self._detector_cleanup_task = None
-
+        self.prep_manual = params.get('prep_manual', None)
+        
     def parse_init_params(self, params: dict):
         self.verbose = params.get('verbose', False)
         self.use_mtpe = params.get('use_mtpe', False)
@@ -479,37 +480,73 @@ class MangaTranslator:
         return text_regions
 
     async def _run_text_translation(self, config: Config, ctx: Context):
+        # 如果设置了prep_manual则将translator设置为none，防止token浪费
+        # Set translator to none to provent token waste if prep_manual is True  
+        if self.prep_manual:  
+            config.translator.translator = Translator.none          
+    
         current_time = time.time()
         self._model_usage_timestamps[("translation", config.translator.translator)] = current_time
-        if self.load_text:
-            input_filename = os.path.splitext(os.path.basename(self.input_files[0]))[0]
-            with open(self._result_path(f"{input_filename}_translations.txt"), "r") as f:
-                    translated_sentences = json.load(f)
-        else:
-            translated_sentences = \
-                await dispatch_translation(config.translator.translator_gen,
-                                           [region.text for region in ctx.text_regions],
-                                           config.translator,
-                                           self.use_mtpe,
-                                           ctx, 'cpu' if self._gpu_limited_memory else self.device)
 
-            # Save translation if args.save_text is set and quit
-            if self.save_text:
-                input_filename = os.path.splitext(os.path.basename(self.input_files[0]))[0]
-                with open(self._result_path(f"{input_filename}_translations.txt"), "w") as f:
-                    json.dump(translated_sentences, f, indent=4)
-                print("Don't continue if --save-text is used")
-                exit(-1)
+        # 为none翻译器添加特殊处理  
+        # Add special handling for none translator  
+        if config.translator.translator == Translator.none:  
+            # 使用none翻译器时，为所有文本区域设置必要的属性  
+            # When using none translator, set necessary properties for all text regions  
+            for region in ctx.text_regions:  
+                region.translation = ""  # 空翻译将创建空白区域 / Empty translation will create blank areas  
+                region.target_lang = config.translator.target_lang  
+                region._alignment = config.render.alignment  
+                region._direction = config.render.direction   
+            
+            # 如果有prep_manual标志，则保留所有文本区域不进行过滤  
+            # If prep_manual flag is present, keep all text regions without filtering  
+            if self.prep_manual:  
+                return ctx.text_regions  
+            # 如果没有prep_manual标志，继续执行后续代码进行过滤  
+            # If no prep_manual flag, continue to filtering logic below  
 
-        for region, translation in zip(ctx.text_regions, translated_sentences):
-            if config.render.uppercase:
-                translation = translation.upper()
-            elif config.render.lowercase:
-                translation = translation.upper()
-            region.translation = translation
-            region.target_lang = config.translator.target_lang
-            region._alignment = config.render.alignment
-            region._direction = config.render.direction
+        # 以下翻译处理仅在非none翻译器或有none翻译器但没有prep_manual时执行  
+        # Translation processing below only happens for non-none translator or none translator without prep_manual  
+        if self.load_text:  
+            input_filename = os.path.splitext(os.path.basename(self.input_files[0]))[0]  
+            with open(self._result_path(f"{input_filename}_translations.txt"), "r") as f:  
+                    translated_sentences = json.load(f)  
+        else:  
+            # 如果是none翻译器，不需要调用翻译服务，文本已经设置为空  
+            # If using none translator, no need to call translation service, text is already set to empty  
+            if config.translator.translator != Translator.none:  
+                translated_sentences = \
+                    await dispatch_translation(config.translator.translator_gen,  
+                                              [region.text for region in ctx.text_regions],  
+                                              config.translator,  
+                                              self.use_mtpe,  
+                                              ctx, 'cpu' if self._gpu_limited_memory else self.device)  
+            else:  
+                # 对于none翻译器，创建一个空翻译列表  
+                # For none translator, create an empty translation list  
+                translated_sentences = ["" for _ in ctx.text_regions]  
+
+            # Save translation if args.save_text is set and quit  
+            if self.save_text:  
+                input_filename = os.path.splitext(os.path.basename(self.input_files[0]))[0]  
+                with open(self._result_path(f"{input_filename}_translations.txt"), "w") as f:  
+                    json.dump(translated_sentences, f, indent=4, ensure_ascii=False)  
+                print("Don't continue if --save-text is used")  
+                exit(-1)  
+
+        # 如果不是none翻译器或者是none翻译器但没有prep_manual  
+        # If not none translator or none translator without prep_manual  
+        if config.translator.translator != Translator.none or not self.prep_manual:  
+            for region, translation in zip(ctx.text_regions, translated_sentences):  
+                if config.render.uppercase:  
+                    translation = translation.upper()  
+                elif config.render.lowercase:  
+                    translation = translation.lower()  # 修正：应该是lower而不是upper  
+                region.translation = translation  
+                region.target_lang = config.translator.target_lang  
+                region._alignment = config.render.alignment  
+                region._direction = config.render.direction  
 
         # Punctuation correction logic. for translators often incorrectly change quotation marks from the source language to those commonly used in the target language.
         check_items = [
@@ -593,6 +630,7 @@ class MangaTranslator:
             has_target_lang_in_translation_regions = []
 
             for region in ctx.text_regions:  
+                        
                 text_equal = region.text.lower().strip() == region.translation.lower().strip()  
                 has_target_lang = False  
                 has_target_lang_in_translation = False
@@ -654,12 +692,16 @@ class MangaTranslator:
                 new_text_regions.extend(diff_target_regions)  
 
             # Keep all non_target_lang regions with different translations (if translation contains target language characters)
-            for region in diff_non_target_regions:
-                if region in has_target_lang_in_translation_regions:
-                    new_text_regions.append(region)
-                else:
-                    logger.info(f'Filtered out: {region.translation}')
-                    logger.info('Reason: Translation does not contain target language characters')
+            for region in diff_non_target_regions:  
+                if region in has_target_lang_in_translation_regions:  
+                    new_text_regions.append(region)  
+                else:  
+                    if config.translator.translator == Translator.none and not region.translation.strip():  
+                        logger.info(f'Filtered out: {region.translation}')  
+                        logger.info('Reason: Translation contain blank areas')  
+                    else:  
+                        logger.info(f'Filtered out: {region.translation}')  
+                        logger.info('Reason: Translation does not contain target language characters')  
 
             # No different translations exist, clear all content.
             if not (diff_target_regions or diff_non_target_regions):
@@ -676,10 +718,16 @@ class MangaTranslator:
         else:  
             # Process non-special language scenarios using original logic  
             for region in ctx.text_regions:  
+                    
                 should_filter = False  
                 filter_reason = ""  
+
+                # 优先检查空白翻译 / Prioritize checking for blank translations  
+                if not region.translation.strip():  
+                    should_filter = True  
+                    filter_reason = "Translation contain blank areas" 
                 
-                if not config.translator.translator == Translator.none:
+                elif config.translator.translator != Translator.none:
                     if region.translation.isnumeric():  
                         should_filter = True  
                         filter_reason = "Numeric translation"  
