@@ -58,3 +58,4 @@ paddleocr
 paddlepaddle
 paddlepaddle-gpu; sys_platform != 'darwin'
 rich
+regex
