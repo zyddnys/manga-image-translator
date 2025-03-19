@@ -434,6 +434,33 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         
         cleaned_text = re.sub(r'\n\s*\n', '\n', raw_text).strip()
 
+        # 删除数字前缀前后的不相关的解释性文字。但不出现数字前缀时，保留限制词防止删得什么都不剩
+        # Remove irrelevant explanatory text before and after numerical prefixes. However, when numerical prefixes are not present, retain restrictive words to prevent deleting everything.
+        lines = cleaned_text.splitlines()
+        min_index_line_index = -1
+        max_index_line_index = -1
+        has_numeric_prefix = False  # Flag to check if any numeric prefix exists
+
+        for index, line in enumerate(lines):
+            match = re.search(r'<\|(\d+)\|>', line)
+            if match:
+                has_numeric_prefix = True
+                current_index = int(match.group(1))
+                if current_index == 1:  # 查找最小标号 <|1|> / find <|1|>
+                    min_index_line_index = index
+                if max_index_line_index == -1 or current_index > int(re.search(r'<\|(\d+)\|>', lines[max_index_line_index]).group(1)):  # 查找最大标号 / find max number
+                    max_index_line_index = index
+                    
+        if has_numeric_prefix:
+            modified_lines = []
+            if min_index_line_index != -1:
+                modified_lines.extend(lines[min_index_line_index:])  # 从最小标号行开始保留到结尾 / Keep from the row with the smallest label to the end
+
+            if max_index_line_index != -1 and modified_lines:  # 确保 modified_lines 不为空，且找到了最大标号 / Ensure that modified_lines is not empty and that the maximum label has been found
+                modified_lines = modified_lines[:max_index_line_index - min_index_line_index + 1]  # 只保留到最大标号行 (相对于 modified_lines 的索引) / Retain only up to the row with the maximum label (relative to the index of modified_lines)
+
+            cleaned_text = "\n".join(modified_lines)      
+        
         # 记录 token 消耗 / Record token consumption
         if not hasattr(response, 'usage') or not hasattr(response.usage, 'total_tokens'):
             self.logger.warning("Response does not contain usage information") #第三方逆向中转api不返回token数 / The third-party reverse proxy API does not return token counts
