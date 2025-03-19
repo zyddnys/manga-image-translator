@@ -872,7 +872,34 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             # 直接计算编辑距离 (Calculate the edit distance directly)
             distance = japanese_levenshtein_distance(normalized_text, normalized_term)
             return distance <= threshold
-      
+
+        # 6. 普通文本的相似度判断 / Similarity judgment for general text  
+        def is_general_similar(text, term, threshold=2):  
+            # 规范化后计算编辑距离 / Calculate edit distance after normalization  
+            normalized_text = normalize_term(text)  
+            normalized_term = normalize_term(term)  
+            
+            # 根据术语长度动态调整阈值 / Dynamically adjust threshold based on term length  
+            threshold = len(normalized_term) // 8  
+
+            # 限制阈值范围 / Limit the threshold range  
+            threshold = max(0, min(threshold, 3))      
+            
+            # 对于较长文本，使用滑动窗口匹配 / For longer texts, use sliding window matching  
+            if len(normalized_text) > len(normalized_term) * 2:  
+                min_distance = float('inf')  
+                # 创建与术语等长的窗口，在文本中滑动 / Create a window slightly larger than the term and slide it through the text  
+                window_size = len(normalized_term) + 2  # 窗口略大于术语 / Window slightly larger than the term  
+                for i in range(max(0, len(normalized_text) - window_size + 1)):  
+                    window = normalized_text[i:i+window_size]  
+                    distance = levenshtein_distance(window, normalized_term)  
+                    min_distance = min(min_distance, distance)  
+                return min_distance <= threshold  
+            else:  
+                # 直接计算编辑距离 / Calculate the edit distance directly  
+                distance = levenshtein_distance(normalized_text, normalized_term)  
+                return distance <= threshold  
+        
         # 主匹配逻辑 (Main matching logic)
         for term, translation in self.glossary_entries.items():
             # 1. 精确匹配：同时检查原词和去除空格的变体是否出现在文本中 (Exact Match: Check whether both the original word and its variant with spaces removed appear in the text)
@@ -886,9 +913,10 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                     relevant_terms[term] = translation
                     continue
 
-            # 3. 普通编辑距离匹配（非日语文本） (Ordinary edit distance matching (non-Japanese text))
-            normalized_text = normalize_term(text)
-            normalized_term = normalize_term(term)
+            # 3. 普通编辑距离匹配（非日语文本） / Ordinary edit distance matching (non-Japanese text)  
+            elif is_general_similar(text, term):  
+                relevant_terms[term] = translation  
+                continue  
 
             # 4. 部分匹配 (Partial match)
             if partial_match(text, term):
