@@ -4,7 +4,7 @@ import json
 import langcodes
 import langdetect
 import os
-import re
+import regex as re
 import time
 import torch
 import logging
