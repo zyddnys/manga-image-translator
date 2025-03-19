@@ -803,6 +803,20 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         def normalize_japanese(text):  
             result = ""  
             for char in text:  
+                # 小写片假名映射到标准片假名 (Map lowercase katakana to standard katakana) 
+                # 可能导致较轻的过拟合，但是目前的OCR检测日语会大小写不分的情况下这不可或缺，有更强大的OCR时可移除
+                # It may result in a slight overfitting, but it is indispensable under the current OCR conditions where Japanese detection is case-insensitive.
+                small_to_normal = {  
+                    'ァ': 'ア', 'ィ': 'イ', 'ゥ': 'ウ', 'ェ': 'エ', 'ォ': 'オ',  
+                    'ッ': 'ツ', 'ャ': 'ヤ', 'ュ': 'ユ', 'ョ': 'ヨ',  
+                    'ぁ': 'あ', 'ぃ': 'い', 'ぅ': 'う', 'ぇ': 'え', 'ぉ': 'お',  
+                    'っ': 'つ', 'ゃ': 'や', 'ゅ': 'ゆ', 'ょ': 'よ'  
+                }  
+                
+                # 先处理小写字符 (First, process the lowercase characters) 
+                if char in small_to_normal:  
+                    char = small_to_normal[char]  
+                    
                 # 检查是否是片假名范围 (0x30A0-0x30FF)  
                 # Check if it's within the katakana range (0x30A0-0x30FF)
                 if 0x30A0 <= ord(char) <= 0x30FF:  
