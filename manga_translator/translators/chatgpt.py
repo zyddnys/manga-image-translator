@@ -836,7 +836,9 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             normalized_term = normalize_term(term)
 
             # 如果术语很短，降低阈值 (Reduce the threshold if the term is short)
-            if len(normalized_term) <= 4:
+            if len(normalized_term) <= 2:
+                threshold = 0
+            elif len(normalized_term) <= 4:  
                 threshold = 1
 
             # # 滑动窗口匹配（针对较长文本和短术语）- 可能过拟合，需要进一步调整 (Sliding window matching (for longer texts and short terms) - May overfit, needs further adjustment)
