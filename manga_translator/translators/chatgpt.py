@@ -84,15 +84,16 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         """如果你有外部参数要解析，可在此对 self.config 做更新"""
         self.config = args.chatgpt_config
 
-    def _cannot_assist(self, response: str) -> bool:
-        """
-        判断是否出现了常见的 "我不能帮你" / "我拒绝" 等拒绝关键词。
-        """
-        resp_lower = response.strip().lower()
-        for kw in self._ERROR_KEYWORDS:
-            if kw.lower() in resp_lower:
-                return True
-        return False
+    def _cannot_assist(self, response: str) -> bool:  
+        """  
+        判断是否出现了常见的 "我不能帮你" / "我拒绝" 等拒绝关键词。  
+        """  
+        resp = response.strip()  
+        for kw in self._ERROR_KEYWORDS:  
+            if re.search(kw, resp, re.IGNORECASE):  
+                self.logger.warning(f"Detected refusal keyword: {kw}")  
+                return True  
+        return False  
 
     async def _ratelimit_sleep(self):
         """
