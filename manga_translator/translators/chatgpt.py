@@ -626,8 +626,8 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 continue
             else:
                 # 源词和目标词 / Source word and target word
-                src = parts[0].strip()
-                dst = parts[1].strip()
+                src = parts[0].strip().replace('_', ' ')
+                dst = parts[1].strip().replace('_', ' ')  
             
             # 验证正则表达式 / Validate the regular expression
             try:
@@ -859,8 +859,8 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
       
         # 主匹配逻辑 (Main matching logic)
         for term, translation in self.glossary_entries.items():
-            # 1. 精确匹配 (Exact match)
-            if term in text:
+            # 1. 精确匹配：同时检查原词和去除空格的变体是否出现在文本中 (Exact Match: Check whether both the original word and its variant with spaces removed appear in the text)
+            if term in text or term.replace(" ", "") in text:
                 relevant_terms[term] = translation
                 continue
 
