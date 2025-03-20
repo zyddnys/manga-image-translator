@@ -1,3 +1,4 @@
+[中文说明](README_CN.md)
 ## Features
 
 - 🚀 Server-side rendering
