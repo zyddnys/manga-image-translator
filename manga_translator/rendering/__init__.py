@@ -137,14 +137,28 @@ def render(
     norm_v = np.linalg.norm(middle_pts[:, 2] - middle_pts[:, 0], axis=1)
     r_orig = np.mean(norm_h / norm_v)
 
-    if region.horizontal:
+    # 如果配置中设定了非自动模式，则直接使用配置决定方向
+    forced_direction = region._direction if hasattr(region, "_direction") else region.direction
+    if forced_direction != "auto":
+        if forced_direction in ["horizontal", "h"]:
+            render_horizontally = True
+        elif forced_direction in ["vertical", "v"]:
+            render_horizontally = False
+        else:
+            render_horizontally = region.horizontal
+    else:
+        render_horizontally = region.horizontal
+
+    print(f"Region text: {region.text}, forced_direction: {forced_direction}, render_horizontally: {render_horizontally}")
+
+    if render_horizontally:
         temp_box = text_render.put_text_horizontal(
             region.font_size,
             region.get_translation_for_rendering(),
             round(norm_h[0]),
             round(norm_v[0]),
             region.alignment,
-            region.direction == 'hr',
+            True,  # 强制水平排版
             fg,
             bg,
             region.target_lang,
