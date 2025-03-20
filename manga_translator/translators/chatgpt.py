@@ -886,10 +886,15 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             threshold = max(0, min(threshold, 3))      
             
             # 对于较长文本，使用滑动窗口匹配 / For longer texts, use sliding window matching  
-            if len(normalized_text) > len(normalized_term) * 2:  
+            if len(normalized_text) > len(normalized_term) * 5:  
                 min_distance = float('inf')  
-                # 创建与术语等长的窗口，在文本中滑动 / Create a window slightly larger than the term and slide it through the text  
-                window_size = len(normalized_term) + 2  # 窗口略大于术语 / Window slightly larger than the term  
+                # 创建比术语略长的窗口，在文本中滑动 / Create a window slightly larger than the term and slide it through the text  
+                if len(normalized_term) <= 8:  
+                    window_size = len(normalized_term)   
+                elif len(normalized_term) <= 16:  
+                    window_size = len(normalized_term) + 1  
+                else:  
+                    window_size = len(normalized_term) + 2    
                 for i in range(max(0, len(normalized_text) - window_size + 1)):  
                     window = normalized_text[i:i+window_size]  
                     distance = levenshtein_distance(window, normalized_term)  
