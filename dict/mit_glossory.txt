@@ -1,5 +1,6 @@
 # MIT 格式术语表 (格式：源词[至少一个Tab/空格]目标词[至少一个Tab/空格][#注释 或 //注释])  
 # MIT Format Glossary (Format: source term[at least one Tab/Space]target term[at least one Tab/Space][#comment or //comment])  
+# 使用“_”连接左侧单词使得它们作为一个源词的整体（Use "_" to join words so that they form a single entity as a source term）
 
 # Anime Character Type
 傲娇	Tsundere	# 表面冷漠内心温柔的角色  
@@ -12,10 +13,10 @@
 中二病	Chuunibyou	# 中二症候群  
 
 # Character Names and Gender
-野比大雄	Nobita Nobi	# 男  
-源静香	Shizuka Minamoto	# 女  
-灰原哀	Ai Haibara	# 女  
-工藤新一	Shinichi Kudo	# 男  
+野比_大雄	Nobita Nobi	# 男  
+源_静香	Shizuka Minamoto	# 女  
+灰原_哀	Ai Haibara	# 女  
+工藤_新一	Shinichi Kudo	# 男  
 路飞	Luffy	# male  
 娜美	Nami	# female  
 鸣人	Naruto	# male    

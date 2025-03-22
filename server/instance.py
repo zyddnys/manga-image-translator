@@ -7,6 +7,19 @@ from pydantic import BaseModel
 from manga_translator import Config
 from server.sent_data_internal import fetch_data_stream, NotifyType, fetch_data
 
+import socket
+
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception as e:
+        print(f"Error getting local IP: {e}")
+        return None
+
 
 class ExecutorInstance(BaseModel):
     ip: str
@@ -17,9 +30,13 @@ class ExecutorInstance(BaseModel):
         self.busy = False
 
     async def sent(self, image: Image, config: Config):
+        self.ip = get_local_ip()
+        print(f"self.ip={self.ip}")
         return await fetch_data("http://"+self.ip+":"+str(self.port)+"/simple_execute/translate", image, config)
 
     async def sent_stream(self, image: Image, config: Config, sender: NotifyType):
+        self.ip = get_local_ip()
+        print(f"self.ip={self.ip}")
         await fetch_data_stream("http://"+self.ip+":"+str(self.port)+"/execute/translate", image, config, sender)
 
 class Executors:
