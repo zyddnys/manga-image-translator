@@ -618,7 +618,7 @@ class MangaTranslator:
         new_text_regions = []  
 
         # List of languages with specific language detection  
-        special_langs = ['CHS', 'CHT', 'KOR', 'IND', 'UKR', 'RUS', 'THA', 'ARA']  
+        special_langs = ['CHS', 'CHT', 'KOR', 'IND', 'UKR', 'RUS', 'THA']  
 
         # Process special language scenarios  
         if config.translator.target_lang in special_langs:
@@ -635,7 +635,9 @@ class MangaTranslator:
                 has_target_lang = False  
                 has_target_lang_in_translation = False
 
-                # Target language detection  
+                # Target language detection 
+                # TODO
+                # Better detection method is needed, otherwise will lead to incorrectly filtering the target language.
                 if config.translator.target_lang in ['CHS', 'CHT']:  # Chinese
                     has_target_lang = bool(re.search('[\u4e00-\u9fff]', region.text))
                     has_target_lang_in_translation = bool(re.search('[\u4e00-\u9fff]', region.translation))
