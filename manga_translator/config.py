@@ -276,7 +276,7 @@ class InpainterConfig(BaseModel):
     """Inpainting model to use"""
     inpainting_size: int = 2048
     """Size of image used for inpainting (too large will result in OOM)"""
-    inpainting_precision: InpaintPrecision = InpaintPrecision.bf16
+    inpainting_precision: InpaintPrecision = InpaintPrecision.fp32
     """Inpainting precision for lama, use bf16 while you can."""
 
 class ColorizerConfig(BaseModel):
