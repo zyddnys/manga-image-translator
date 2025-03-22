@@ -102,7 +102,9 @@ class LamaMPEInpainter(OfflineInpainter):
                 if precision == torch.float16:
                     precision = torch.bfloat16
                     self.logger.warning('Switch to bf16 due to Lama only compatible with bf16 and fp32.')
-
+                if precision == torch.bfloat16 and not torch.cuda.is_bf16_supported():
+                    precision = torch.float32
+                    self.logger.warning('Switch to fp32 due to your device not compatible with bf16.')
                 with torch.autocast(device_type="cuda", dtype=precision):
                     img_inpainted_torch = self.model(img_torch, mask_torch)
 
