@@ -137,6 +137,8 @@ class MangaTranslator:
         # check mps for apple silicon or cuda for nvidia
         device = 'mps' if torch.backends.mps.is_available() else 'cuda'
         self.device = device if params.get('use_gpu', False) else 'cpu'
+        if self.device.startswith('cuda'):
+            torch.cuda.set_device(self.device)
         self._gpu_limited_memory = params.get('use_gpu_limited', False)
         if self._gpu_limited_memory and not self.using_gpu:
             self.device = device
