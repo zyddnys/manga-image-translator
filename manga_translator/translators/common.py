@@ -319,3 +319,10 @@ class OfflineTranslator(CommonTranslator, ModelWrapper):
 
     async def reload(self, from_lang: str, to_lang: str, device: str):
         return await super().reload(device, from_lang, to_lang)
+    
+    @abstractmethod
+    async def _load(self, from_lang: str, to_lang: str, device: str):
+        pass
+
+    async def unload(self, device: str):
+        return await super().unload()

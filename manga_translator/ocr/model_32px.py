@@ -52,7 +52,6 @@ class Model32pxOCR(OfflineOCR):
         if self.use_gpu:
             self.model = self.model.to(device)
 
-
     async def _unload(self):
         del self.model
 

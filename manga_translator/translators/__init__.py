@@ -10,7 +10,7 @@ from .common import *
 # from .deepl import DeeplTranslator
 # from .papago import PapagoTranslator
 # from .caiyun import CaiyunTranslator
-from .chatgpt import GPT3Translator, GPT35TurboTranslator, GPT4Translator
+from .chatgpt import OpenAITranslator
 # from .nllb import NLLBTranslator, NLLBBigTranslator
 # from .sugoi import JparacrawlTranslator, JparacrawlBigTranslator, SugoiTranslator
 # from .m2m100 import M2M100Translator, M2M100BigTranslator
@@ -21,6 +21,9 @@ from .original import OriginalTranslator
 # from .sakura import SakuraTranslator
 # from .qwen2 import Qwen2Translator, Qwen2BigTranslator
 # from .groq import GroqTranslator
+from .custom_openai import CustomOpenAiTranslator
+from .none import NoneTranslator
+from .original import OriginalTranslator
 from ..config import Translator, TranslatorConfig, TranslatorChain
 from ..utils import Context
 
@@ -45,14 +48,13 @@ TRANSLATORS = {
     # Translator.deepl: DeeplTranslator,
     # Translator.papago: PapagoTranslator,
     # Translator.caiyun: CaiyunTranslator,
-    Translator.gpt3: GPT3Translator,
-    Translator.gpt3_5: GPT35TurboTranslator,
-    Translator.gpt4: GPT4Translator,
+    Translator.chatgpt: OpenAITranslator,
     Translator.none: NoneTranslator,
     Translator.original: OriginalTranslator,
     # Translator.sakura: SakuraTranslator,
     # Translator.deepseek: DeepseekTranslator,
     # Translator.groq:GroqTranslator,
+    Translator.custom_openai: CustomOpenAiTranslator,
     **OFFLINE_TRANSLATORS,
 }
 translator_cache = {}
@@ -82,17 +84,20 @@ async def dispatch(chain: TranslatorChain, queries: List[str], translator_config
     if chain.target_lang is not None:
         text_lang = ISO_639_1_TO_VALID_LANGUAGES.get(langid.classify('\n'.join(queries))[0])
         translator = None
-        for key, lang in chain.chain:
-            if text_lang == lang:
-                translator = get_translator(key)
-                break
-        if translator is None:
-            translator = get_translator(chain.langs[0])
-        if isinstance(translator, OfflineTranslator):
-            await translator.load('auto', chain.target_lang, device)
-        if translator_config:
-            translator.parse_args(translator_config)
-        queries = await translator.translate('auto', chain.target_lang, queries, use_mtpe)
+        flag=0
+        for key, lang in chain.chain:           
+            #if text_lang == lang:
+                #translator = get_translator(key)
+            #if translator is None:
+            translator = get_translator(chain.translators[flag])
+            if isinstance(translator, OfflineTranslator):
+                await translator.load('auto', chain.langs[flag], device)
+                pass
+            if translator_config:
+                translator.parse_args(translator_config)
+            queries = await translator.translate('auto', chain.langs[flag], queries, use_mtpe)
+            await translator.unload(device)
+            flag+=1
         return queries
     if args is not None:
         args['translations'] = {}
@@ -133,3 +138,6 @@ LANGDETECT_MAP = {
     'id': 'IND',
     'tl': 'FIL'
 }
+
+async def unload(key: Translator):
+    translator_cache.pop(key, None)

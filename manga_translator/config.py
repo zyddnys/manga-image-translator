@@ -22,10 +22,7 @@ class TranslatorChain:
         self.target_lang = None
         for g in string.split(';'):
             trans, lang = g.split(':')
-            if trans == "gpt3.5":
-                translator = Translator["gpt3_5"]
-            else:
-                translator = Translator[trans]
+            translator = Translator[trans]
             if translator not in TRANSLATORS:
                 raise ValueError(f'Invalid choice: %s (choose from %s)' % (trans, ', '.join(map(repr, TRANSLATORS))))
             if lang not in VALID_LANGUAGES:
@@ -88,6 +85,7 @@ class Detector(str, Enum):
     dbconvnext = "dbconvnext"
     ctd = "ctd"
     craft = "craft"
+    paddle = "paddle"
     none = "none"
 
 class Inpainter(str, Enum):
@@ -114,14 +112,13 @@ class Translator(str, Enum):
     deepl = "deepl"
     papago = "papago"
     caiyun = "caiyun"
-    gpt3 = "gpt3"
-    gpt3_5 = "gpt3.5"
-    gpt4 = "gpt4"
+    chatgpt = "chatgpt"
     none = "none"
     original = "original"
     sakura = "sakura"
     deepseek = "deepseek"
     groq = "groq"
+    custom_openai = "custom_openai"
     offline = "offline"
     nllb = "nllb"
     nllb_big = "nllb_big"
@@ -136,6 +133,14 @@ class Translator(str, Enum):
 
     def __str__(self):
         return self.name
+
+    # Map 'openai' and any translator starting with 'gpt'* to 'chatgpt'
+    @classmethod
+    def _missing_(cls, value):
+        if value.startswith('gpt') or value == 'openai':
+            return cls.chatgpt
+        raise ValueError(f"{value} is not a valid {cls.__name__}")
+
 
 class Upscaler(str, Enum):
     waifu2x = "waifu2x"
@@ -231,7 +236,7 @@ class TranslatorConfig(BaseModel):
                 self._translator_gen = trans
             elif self.translator_chain is not None:
                 trans = translator_chain(self.translator_chain)
-                trans.target_lang = trans.langs[-1]
+                trans.target_lang = trans.langs[0]
                 self._translator_gen = trans
             else:
                 self._translator_gen = TranslatorChain(f'{str(self.translator)}:{self.target_lang}')
@@ -249,7 +254,7 @@ class DetectorConfig(BaseModel):
     """"""
     detector: Detector =Detector.default
     """"Text detector used for creating a text mask from an image, DO NOT use craft for manga, it\'s not designed for it"""
-    detection_size: int = 1536
+    detection_size: int = 2048
     """Size of image used for detection"""
     text_threshold: float = 0.5
     """Threshold for text detection"""
@@ -267,11 +272,11 @@ class DetectorConfig(BaseModel):
     """How much to extend text skeleton to form bounding box"""
 
 class InpainterConfig(BaseModel):
-    inpainter: Inpainter = Inpainter.none
+    inpainter: Inpainter = Inpainter.lama_large
     """Inpainting model to use"""
     inpainting_size: int = 2048
     """Size of image used for inpainting (too large will result in OOM)"""
-    inpainting_precision: InpaintPrecision = InpaintPrecision.fp32
+    inpainting_precision: InpaintPrecision = InpaintPrecision.bf16
     """Inpainting precision for lama, use bf16 while you can."""
 
 class ColorizerConfig(BaseModel):

@@ -126,14 +126,14 @@ async def queue_size() -> int:
 async def index() -> HTMLResponse:
     script_directory = Path(__file__).parent
     html_file = script_directory / "index.html"
-    html_content = html_file.read_text()
+    html_content = html_file.read_text(encoding="utf-8")
     return HTMLResponse(content=html_content)
 
 @app.get("/manual", response_class=HTMLResponse, tags=["ui"])
 async def manual():
     script_directory = Path(__file__).parent
     html_file = script_directory / "manual.html"
-    html_content = html_file.read_text()
+    html_content = html_file.read_text(encoding="utf-8")
     return HTMLResponse(content=html_content)
 
 def generate_nonce():
@@ -156,6 +156,12 @@ def start_translator_client_proc(host: str, port: int, nonce: str, params: Names
         cmds.append('--ignore-errors')
     if params.verbose:
         cmds.append('--verbose')
+    if params.models_ttl:
+        cmds.append('--models-ttl=%s' % params.models_ttl)
+    if params.pre_dict: 
+        cmds.extend(['--pre-dict', params.pre_dict]) 
+    if params.pre_dict: 
+        cmds.extend(['--post-dict', params.post_dict])         
     base_path = os.path.dirname(os.path.abspath(__file__))
     parent = os.path.dirname(base_path)
     proc = subprocess.Popen(cmds, cwd=parent)

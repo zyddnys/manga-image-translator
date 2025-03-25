@@ -1,0 +1,73 @@
+# What sampling temperature to use, between 0 and 2.
+# Higher values like 0.8 will make the output more random,
+# while lower values like 0.2 will make it more focused and deterministic.
+temperature: 0.5
+
+# An alternative to sampling with temperature, called nucleus sampling,
+# where the model considers the results of the tokens with top_p probability mass.
+# So 0.1 means only the tokens comprising the top 10% probability mass are considered.
+top_p: 1
+
+#Whether to hide _CHAT_SYSTEM_TEMPLATE and _CHAT_SAMPLE in the command line output
+verbose_logging: False
+
+# The prompt being feed into ChatGPT before the text to translate.
+# Use {to_lang} to indicate where the target language name should be inserted.
+# Tokens used in this example: 57+
+chat_system_template: >
+  You are an untrammelled professional translation engine.
+  Please translate the text into colloquial, elegant and fluent {to_lang},
+  without referencing machine translations.
+  You must only translate the story, never interpret it.
+  If already in {to_lang} or looks like gibberish, output it as is.
+
+  Translate to {to_lang}.
+
+
+chatgpt:
+  # Should the `Prompt Template` (defined below) text be prepended to the translation requests?
+  include_template: True
+  # Overwrite configs for a specific model.
+  gpt-4o-mini:
+    temperature: 0.4
+  gpt-3.5-turbo:
+    temperature: 0.3
+
+# The text to prepend to `User` messages to GPT before the text to translate.
+# Use {to_lang} to indicate where the target language name should be inserted.
+prompt_template: 'Please help me to translate the following text from a manga to {to_lang}:'
+
+
+#  If it's already in {to_lang} or looks like gibberish you have to output it as it is instead.
+#  Keep prefix format.
+
+
+# Samples being feed into ChatGPT to show an example conversation.
+# In a [prompt, response] format, keyed by the target language name.
+#
+# Generally, samples should include some examples of translation preferences, and ideally
+# some names of characters it's likely to encounter.
+#
+# If you'd like to disable this feature, just set this to an empty list.
+chat_sample:
+  Chinese (Simplified): # Tokens used in this example: 88 + 84
+    - <|1|>恥ずかしい… 目立ちたくない… 私が消えたい…
+      <|2|>きみ… 大丈夫⁉
+      <|3|>なんだこいつ 空気読めて ないのか…？
+    - <|1|>好尴尬…我不想引人注目…我想消失…
+      <|2|>你…没事吧⁉
+      <|3|>这家伙怎么看不懂气氛的…？
+  English: 
+    - <|1|>恥ずかしい… 目立ちたくない… 私が消えたい…
+      <|2|>きみ… 大丈夫⁉
+      <|3|>なんだこいつ 空気読めて ないのか…？
+    - <|1|>I'm embarrassed... I don't want to stand out... I want to disappear...
+      <|2|>Are you okay?
+      <|3|>What's wrong with this guy? Can't he read the situation...?
+  Korean:
+    - <|1|>恥ずかしい… 目立ちたくない… 私が消えたい…
+      <|2|>きみ… 大丈夫⁉
+      <|3|>なんだこいつ 空気読めて ないのか…？
+    - <|1|>부끄러워... 눈에 띄고 싶지 않아... 나 숨고 싶어...
+      <|2|>너 괜찮아?
+      <|3|>이 녀석, 뭐야? 분위기 못 읽는 거야...?
