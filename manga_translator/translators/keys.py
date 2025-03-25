@@ -1,6 +1,10 @@
 import os
 from dotenv import load_dotenv
-load_dotenv()
+
+current_directory = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(
+    os.path.join(current_directory, "../../../../config/env.gpu"), override=False, verbose=True
+)
 
 # baidu
 BAIDU_APP_ID = os.getenv('BAIDU_APP_ID', '') #你的appid

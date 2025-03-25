@@ -105,7 +105,7 @@ def reparse(arr: list):
 
 parser = argparse.ArgumentParser(prog='manga_translator', description='Seamlessly translate mangas into a chosen language', formatter_class=HelpFormatter)
 general_parser(parser)
-subparsers = parser.add_subparsers(dest='mode', required=True, help='Mode of operation')
+subparsers = parser.add_subparsers(dest='mode', required=False, help='Mode of operation')
 
 # Batch mode
 parser_batch = subparsers.add_parser('local', help='Run in batch translation mode')

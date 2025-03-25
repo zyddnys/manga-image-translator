@@ -4,15 +4,72 @@ version = "0.1.0"
 description = ""
 authors = []
 readme = "README.md"
-requires-python = ">=3.10 <3.12"
-license = "LICENSE"
+requires-python = ">=3.10,<3.12"
+license = { file = "LICENSE" }
+dependencies = [
+    "networkx",
+    "torch",
+    "groq",
+    "torchvision",
+    "torch-summary",
+    "einops",
+    "scikit-image",
+    "opencv-python",
+    "pyclipper",
+    "shapely",
+    "requests",
+    "cryptography",
+    "freetype-py",
+    "aiohttp",
+    "tqdm",
+    "deepl",
+    "ImageHash",
+    "kornia",
+    "backports.cached-property",
+    "huggingface_hub",
+    "transformers",
+    "py3langid==0.2.2",
+    "sentencepiece",
+    "editdistance",
+    "numpy==1.26.4",
+    "tensorboardX",
+    "websockets",
+    "protobuf",
+    "ctranslate2",
+    "colorama",
+    "openai==1.35.9",
+    "httpx==0.27.2",
+    "open_clip_torch",
+    "safetensors",
+    "pandas",
+    "onnxruntime",
+    "timm",
+    "omegaconf",
+    "python-dotenv",
+    "nest-asyncio",
+    "marshmallow",
+    "cython",
+    "aioshutil",
+    "aiofiles",
+    "arabic-reshaper",
+    "pyhyphen",
+    "langcodes",
+    "manga-ocr",
+    "langdetect",
+    "pydensecrf@https://github.com/lucasb-eyer/pydensecrf/archive/refs/heads/master.zip",
+    "accelerate",
+    "bitsandbytes",
+    "uvicorn",
+    "fastapi",
+    "pydantic",
+    "python-multipart"
+]
 
 [tool.isort]
 profile = 'black'
 multi_line_output = 3
 line_length = 100
 py_version = 310
-
 
 [tool.pylint]
 disable = """
@@ -27,3 +84,10 @@ generated-members = ["torch.*", "cv2.*"]
 addopts = "-ra -v -p no:faulthandler"
 minversion = "6.0"
 testpaths = ["test"]
+
+[tool.setuptools]
+packages = ["manga_translator"]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
