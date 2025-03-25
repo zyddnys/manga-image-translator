@@ -4,8 +4,11 @@ version = "0.1.0"
 description = ""
 authors = []
 readme = "README.md"
-requires-python = ">=3.10 <3.12"
-license = "LICENSE"
+requires-python = ">=3.10,<3.13"
+license = {file = "LICENSE"}
+
+[tool.setuptools]
+py-modules = ['manga_translator']
 
 [tool.isort]
 profile = 'black'
