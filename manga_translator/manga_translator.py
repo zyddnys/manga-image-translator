@@ -8,6 +8,8 @@ import regex as re
 import time
 import torch
 import logging
+import sys
+import traceback
 import numpy as np
 from PIL import Image
 from typing import Optional, Any
@@ -198,7 +200,14 @@ class MangaTranslator:
         # -- Colorization
         if config.colorizer.colorizer != Colorizer.none:
             await self._report_progress('colorizing')
-            ctx.img_colorized = await self._run_colorizer(config, ctx)
+            try:
+                ctx.img_colorized = await self._run_colorizer(config, ctx)
+            except Exception as e:  
+                logger.error(f"Error during colorizing:\n{traceback.format_exc()}")  
+                if not self.ignore_errors:  
+                    raise  
+                ctx.img_colorized = ctx.input  # Fallback to input image if colorization fails
+
         else:
             ctx.img_colorized = ctx.input
 
@@ -207,7 +216,13 @@ class MangaTranslator:
         # consider adding automatic upscaling on certain kinds of small images.
         if config.upscale.upscale_ratio:
             await self._report_progress('upscaling')
-            ctx.upscaled = await self._run_upscaling(config, ctx)
+            try:
+                ctx.upscaled = await self._run_upscaling(config, ctx)
+            except Exception as e:  
+                logger.error(f"Error during upscaling:\n{traceback.format_exc()}")  
+                if not self.ignore_errors:  
+                    raise  
+                ctx.upscaled = ctx.img_colorized # Fallback to colorized (or input) image if upscaling fails
         else:
             ctx.upscaled = ctx.img_colorized
 
@@ -215,8 +230,17 @@ class MangaTranslator:
 
         # -- Detection
         await self._report_progress('detection')
-        ctx.textlines, ctx.mask_raw, ctx.mask = await self._run_detection(config, ctx)
-        if self.verbose:
+        try:
+            ctx.textlines, ctx.mask_raw, ctx.mask = await self._run_detection(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during detection:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.textlines = [] 
+            ctx.mask_raw = None
+            ctx.mask = None
+
+        if self.verbose and ctx.mask_raw is not None:
             cv2.imwrite(self._result_path('mask_raw.png'), ctx.mask_raw)
 
         if not ctx.textlines:
@@ -233,7 +257,13 @@ class MangaTranslator:
 
         # -- OCR
         await self._report_progress('ocr')
-        ctx.textlines = await self._run_ocr(config, ctx)
+        try:
+            ctx.textlines = await self._run_ocr(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during ocr:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.textlines = [] # Fallback to empty textlines if OCR fails
 
         if not ctx.textlines:
             await self._report_progress('skip-no-text', True)
@@ -243,31 +273,44 @@ class MangaTranslator:
 
         # Apply pre-dictionary after OCR
         pre_dict = load_dictionary(self.pre_dict)
-        pre_replacements = []  
-        for textline in ctx.textlines:  
-            original = textline.text  
+        pre_replacements = []
+        for textline in ctx.textlines:
+            original = textline.text
             textline.text = apply_dictionary(textline.text, pre_dict)
-            if original != textline.text:  
-                pre_replacements.append(f"{original} => {textline.text}")  
+            if original != textline.text:
+                pre_replacements.append(f"{original} => {textline.text}")
 
-        if pre_replacements:  
-            logger.info("Pre-translation replacements:")  
-            for replacement in pre_replacements:  
-                logger.info(replacement)  
-        else:  
+        if pre_replacements:
+            logger.info("Pre-translation replacements:")
+            for replacement in pre_replacements:
+                logger.info(replacement)
+        else:
             logger.info("No pre-translation replacements made.")
-        
+
         # -- Textline merge
         await self._report_progress('textline_merge')
-        ctx.text_regions = await self._run_textline_merge(config, ctx)
+        try:
+            ctx.text_regions = await self._run_textline_merge(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during textline_merge:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.text_regions = [] # Fallback to empty text_regions if textline merge fails
 
-        if self.verbose:
+        if self.verbose and ctx.text_regions:
             bboxes = visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions)
             cv2.imwrite(self._result_path('bboxes.png'), bboxes)
 
         # -- Translation
         await self._report_progress('translating')
-        ctx.text_regions = await self._run_text_translation(config, ctx)
+        try:
+            ctx.text_regions = await self._run_text_translation(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during translating:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.text_regions = [] # Fallback to empty text_regions if translation fails
+
         await self._report_progress('after-translating')
 
         if not ctx.text_regions:
@@ -283,9 +326,15 @@ class MangaTranslator:
         # (Delayed to take advantage of the region filtering done after ocr and translation)
         if ctx.mask is None:
             await self._report_progress('mask-generation')
-            ctx.mask = await self._run_mask_refinement(config, ctx)
+            try:
+                ctx.mask = await self._run_mask_refinement(config, ctx)
+            except Exception as e:  
+                logger.error(f"Error during mask-generation:\n{traceback.format_exc()}")  
+                if not self.ignore_errors:  
+                    raise 
+                ctx.mask = ctx.mask_raw if ctx.mask_raw is not None else np.zeros_like(ctx.img_rgb, dtype=np.uint8)[:,:,0] # Fallback to raw mask or empty mask
 
-        if self.verbose:
+        if self.verbose and ctx.mask is not None:
             inpaint_input_img = await dispatch_inpainting(Inpainter.none, ctx.img_rgb, ctx.mask, config.inpainter,config.inpainter.inpainting_size,
                                                           self.device, self.verbose)
             cv2.imwrite(self._result_path('inpaint_input.png'), cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
@@ -293,14 +342,26 @@ class MangaTranslator:
 
         # -- Inpainting
         await self._report_progress('inpainting')
-        ctx.img_inpainted = await self._run_inpainting(config, ctx)
+        try:
+            ctx.img_inpainted = await self._run_inpainting(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during inpainting:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.img_inpainted = ctx.img_rgb # Fallback to original RGB image if inpainting fails
         ctx.gimp_mask = np.dstack((cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR), ctx.mask))
 
         if self.verbose:
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR))
         # -- Rendering
         await self._report_progress('rendering')
-        ctx.img_rendered = await self._run_text_rendering(config, ctx)
+        try:
+            ctx.img_rendered = await self._run_text_rendering(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during rendering:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise  
+            ctx.img_rendered = ctx.img_inpainted # Fallback to inpainted (or original RGB) image if rendering fails
 
         await self._report_progress('finished', True)
         ctx.result = dump_image(ctx.input, ctx.img_rendered, ctx.img_alpha)
