@@ -34,9 +34,9 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             r"I must decline",
             r'(i(\'m| am)?\s+)?sorry(.|\n)*?(can(\'t|not)|unable to|cannot)\s+(assist|help)',
             # CHINESE_KEYWORDS (using regex patterns)
-            r"(抱歉，|对不起，)?我(无法[将把]|不[能会便](提供|处理)?)", 
+            r"(抱歉，|对不起，)?我(无法[将把]|不[能会便](提供|处理))", 
             r"我无法(满足|回答|处理|提供)",  
-            r"这超出了我的范围",   
+            r"这超出了我的范围", 
             r"我需要婉拒", 
             r"翻译或生成", #deepseek高频
             r"[的个]内容(吧)?", #claude高频
