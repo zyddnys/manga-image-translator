@@ -52,9 +52,10 @@ accelerate
 bitsandbytes
 uvicorn
 fastapi
-pydantic
+pydantic==2.5.0
 python-multipart
 paddleocr
 paddlepaddle
 paddlepaddle-gpu; sys_platform != 'darwin'
 rich
+regex

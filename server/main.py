@@ -202,7 +202,7 @@ if __name__ == '__main__':
     proc = prepare(args)
     print("Nonce: "+nonce)
     try:
-        uvicorn.run(app, host=args.host, port=args.port)
+        uvicorn.run(app, host=args.host, port=args.port, ssl_keyfile="key.pem", ssl_certfile="cert.pem")
     except Exception:
         if proc:
             proc.terminate()

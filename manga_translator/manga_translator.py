@@ -4,10 +4,12 @@ import json
 import langcodes
 import langdetect
 import os
-import re
+import regex as re
 import time
 import torch
 import logging
+import sys
+import traceback
 import numpy as np
 from PIL import Image
 from typing import Optional, Any
@@ -72,18 +74,21 @@ def load_dictionary(file_path):
                 if len(parts) == 1:
                     # If there is only the left part, the right part defaults to an empty string, meaning delete the left part
                     pattern = re.compile(parts[0])
-                    dictionary.append((pattern, ''))
+                    dictionary.append((pattern, '', line_number))
                 elif len(parts) == 2:
                     # If both left and right parts are present, perform the replacement
                     pattern = re.compile(parts[0])
-                    dictionary.append((pattern, parts[1]))
+                    dictionary.append((pattern, parts[1], line_number))
                 else:
                     logger.error(f'Invalid dictionary entry at line {line_number}: {line.strip()}')
     return dictionary
 
 def apply_dictionary(text, dictionary):
-    for pattern, value in dictionary:
+    for pattern, value, line_number in dictionary:
+        original_text = text  
         text = pattern.sub(value, text)
+        if text != original_text:  
+            logger.info(f'Line {line_number}: Replaced "{original_text}" with "{text}" using pattern "{pattern.pattern}" and value "{value}"')
     return text
 
 
@@ -198,7 +203,14 @@ class MangaTranslator:
         # -- Colorization
         if config.colorizer.colorizer != Colorizer.none:
             await self._report_progress('colorizing')
-            ctx.img_colorized = await self._run_colorizer(config, ctx)
+            try:
+                ctx.img_colorized = await self._run_colorizer(config, ctx)
+            except Exception as e:  
+                logger.error(f"Error during colorizing:\n{traceback.format_exc()}")  
+                if not self.ignore_errors:  
+                    raise  
+                ctx.img_colorized = ctx.input  # Fallback to input image if colorization fails
+
         else:
             ctx.img_colorized = ctx.input
 
@@ -207,7 +219,13 @@ class MangaTranslator:
         # consider adding automatic upscaling on certain kinds of small images.
         if config.upscale.upscale_ratio:
             await self._report_progress('upscaling')
-            ctx.upscaled = await self._run_upscaling(config, ctx)
+            try:
+                ctx.upscaled = await self._run_upscaling(config, ctx)
+            except Exception as e:  
+                logger.error(f"Error during upscaling:\n{traceback.format_exc()}")  
+                if not self.ignore_errors:  
+                    raise  
+                ctx.upscaled = ctx.img_colorized # Fallback to colorized (or input) image if upscaling fails
         else:
             ctx.upscaled = ctx.img_colorized
 
@@ -215,8 +233,17 @@ class MangaTranslator:
 
         # -- Detection
         await self._report_progress('detection')
-        ctx.textlines, ctx.mask_raw, ctx.mask = await self._run_detection(config, ctx)
-        if self.verbose:
+        try:
+            ctx.textlines, ctx.mask_raw, ctx.mask = await self._run_detection(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during detection:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.textlines = [] 
+            ctx.mask_raw = None
+            ctx.mask = None
+
+        if self.verbose and ctx.mask_raw is not None:
             cv2.imwrite(self._result_path('mask_raw.png'), ctx.mask_raw)
 
         if not ctx.textlines:
@@ -233,7 +260,13 @@ class MangaTranslator:
 
         # -- OCR
         await self._report_progress('ocr')
-        ctx.textlines = await self._run_ocr(config, ctx)
+        try:
+            ctx.textlines = await self._run_ocr(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during ocr:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.textlines = [] # Fallback to empty textlines if OCR fails
 
         if not ctx.textlines:
             await self._report_progress('skip-no-text', True)
@@ -243,31 +276,44 @@ class MangaTranslator:
 
         # Apply pre-dictionary after OCR
         pre_dict = load_dictionary(self.pre_dict)
-        pre_replacements = []  
-        for textline in ctx.textlines:  
-            original = textline.text  
+        pre_replacements = []
+        for textline in ctx.textlines:
+            original = textline.text
             textline.text = apply_dictionary(textline.text, pre_dict)
-            if original != textline.text:  
-                pre_replacements.append(f"{original} => {textline.text}")  
+            if original != textline.text:
+                pre_replacements.append(f"{original} => {textline.text}")
 
-        if pre_replacements:  
-            logger.info("Pre-translation replacements:")  
-            for replacement in pre_replacements:  
-                logger.info(replacement)  
-        else:  
+        if pre_replacements:
+            logger.info("Pre-translation replacements:")
+            for replacement in pre_replacements:
+                logger.info(replacement)
+        else:
             logger.info("No pre-translation replacements made.")
-        
+
         # -- Textline merge
         await self._report_progress('textline_merge')
-        ctx.text_regions = await self._run_textline_merge(config, ctx)
+        try:
+            ctx.text_regions = await self._run_textline_merge(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during textline_merge:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.text_regions = [] # Fallback to empty text_regions if textline merge fails
 
-        if self.verbose:
+        if self.verbose and ctx.text_regions:
             bboxes = visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions)
             cv2.imwrite(self._result_path('bboxes.png'), bboxes)
 
         # -- Translation
         await self._report_progress('translating')
-        ctx.text_regions = await self._run_text_translation(config, ctx)
+        try:
+            ctx.text_regions = await self._run_text_translation(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during translating:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.text_regions = [] # Fallback to empty text_regions if translation fails
+
         await self._report_progress('after-translating')
 
         if not ctx.text_regions:
@@ -283,9 +329,15 @@ class MangaTranslator:
         # (Delayed to take advantage of the region filtering done after ocr and translation)
         if ctx.mask is None:
             await self._report_progress('mask-generation')
-            ctx.mask = await self._run_mask_refinement(config, ctx)
+            try:
+                ctx.mask = await self._run_mask_refinement(config, ctx)
+            except Exception as e:  
+                logger.error(f"Error during mask-generation:\n{traceback.format_exc()}")  
+                if not self.ignore_errors:  
+                    raise 
+                ctx.mask = ctx.mask_raw if ctx.mask_raw is not None else np.zeros_like(ctx.img_rgb, dtype=np.uint8)[:,:,0] # Fallback to raw mask or empty mask
 
-        if self.verbose:
+        if self.verbose and ctx.mask is not None:
             inpaint_input_img = await dispatch_inpainting(Inpainter.none, ctx.img_rgb, ctx.mask, config.inpainter,config.inpainter.inpainting_size,
                                                           self.device, self.verbose)
             cv2.imwrite(self._result_path('inpaint_input.png'), cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
@@ -293,14 +345,26 @@ class MangaTranslator:
 
         # -- Inpainting
         await self._report_progress('inpainting')
-        ctx.img_inpainted = await self._run_inpainting(config, ctx)
+        try:
+            ctx.img_inpainted = await self._run_inpainting(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during inpainting:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.img_inpainted = ctx.img_rgb # Fallback to original RGB image if inpainting fails
         ctx.gimp_mask = np.dstack((cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR), ctx.mask))
 
         if self.verbose:
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR))
         # -- Rendering
         await self._report_progress('rendering')
-        ctx.img_rendered = await self._run_text_rendering(config, ctx)
+        try:
+            ctx.img_rendered = await self._run_text_rendering(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during rendering:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise  
+            ctx.img_rendered = ctx.img_inpainted # Fallback to inpainted (or original RGB) image if rendering fails
 
         await self._report_progress('finished', True)
         ctx.result = dump_image(ctx.input, ctx.img_rendered, ctx.img_alpha)
@@ -618,7 +682,7 @@ class MangaTranslator:
         new_text_regions = []  
 
         # List of languages with specific language detection  
-        special_langs = ['CHS', 'CHT', 'KOR', 'IND', 'UKR', 'RUS', 'THA', 'ARA']  
+        special_langs = ['CHS', 'CHT', 'KOR', 'IND', 'UKR', 'RUS', 'THA']  
 
         # Process special language scenarios  
         if config.translator.target_lang in special_langs:
@@ -635,7 +699,9 @@ class MangaTranslator:
                 has_target_lang = False  
                 has_target_lang_in_translation = False
 
-                # Target language detection  
+                # Target language detection 
+                # TODO
+                # Better detection method is needed, otherwise will lead to incorrectly filtering the target language.
                 if config.translator.target_lang in ['CHS', 'CHT']:  # Chinese
                     has_target_lang = bool(re.search('[\u4e00-\u9fff]', region.text))
                     has_target_lang_in_translation = bool(re.search('[\u4e00-\u9fff]', region.translation))
