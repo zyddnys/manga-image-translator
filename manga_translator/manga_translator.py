@@ -74,18 +74,21 @@ def load_dictionary(file_path):
                 if len(parts) == 1:
                     # If there is only the left part, the right part defaults to an empty string, meaning delete the left part
                     pattern = re.compile(parts[0])
-                    dictionary.append((pattern, ''))
+                    dictionary.append((pattern, '', line_number))
                 elif len(parts) == 2:
                     # If both left and right parts are present, perform the replacement
                     pattern = re.compile(parts[0])
-                    dictionary.append((pattern, parts[1]))
+                    dictionary.append((pattern, parts[1], line_number))
                 else:
                     logger.error(f'Invalid dictionary entry at line {line_number}: {line.strip()}')
     return dictionary
 
 def apply_dictionary(text, dictionary):
-    for pattern, value in dictionary:
+    for pattern, value, line_number in dictionary:
+        original_text = text  
         text = pattern.sub(value, text)
+        if text != original_text:  
+            logger.info(f'Line {line_number}: Replaced "{original_text}" with "{text}" using pattern "{pattern.pattern}" and value "{value}"')
     return text
 
 
