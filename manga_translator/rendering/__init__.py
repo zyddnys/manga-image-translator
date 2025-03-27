@@ -158,7 +158,7 @@ def render(
             round(norm_h[0]),
             round(norm_v[0]),
             region.alignment,
-            True,  # 强制水平排版
+            region.direction == 'hl',
             fg,
             bg,
             region.target_lang,
