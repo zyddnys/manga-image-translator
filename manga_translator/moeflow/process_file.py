@@ -130,7 +130,7 @@ async def process_files(
                 detector_key=detector_key,
                 ocr_key=ocr_key,
                 device=device,
-                translator_key="gpt4",
+                translator_key="chatgpt",
                 target_language=target_language,
             )
             for p in path_list

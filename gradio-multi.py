@@ -1,10 +1,12 @@
 import logging
 import gradio as gr
+from pathlib import Path
 from manga_translator.moeflow import (
     process_files,
     export_moeflow_project,
     is_cuda_avaiable,
 )
+from manga_translator.moeflow._const import create_unique_dir
 
 if gr.NO_RELOAD:
     logging.basicConfig(
@@ -89,7 +91,13 @@ with gr.Blocks() as demo:
             target_language=target_language,
         )
         if res:
-            moeflow_zip = str(export_moeflow_project(res, export_moeflow_project_name))
+            moeflow_zip = str(
+                export_moeflow_project(
+                    res,
+                    export_moeflow_project_name,
+                    output_dir=Path(create_unique_dir()),
+                )
+            )
         else:
             moeflow_zip = None
 
