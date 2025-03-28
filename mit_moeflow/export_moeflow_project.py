@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from .model import FileBatchProcessResult, FileProcessResult
-from ._const import create_unique_dir
 import zipfile
 import logging
 from pathlib import Path
@@ -10,14 +9,13 @@ logger.setLevel(logging.DEBUG)
 
 
 def export_moeflow_project(
-    process_result: FileBatchProcessResult, project_name: str | None
+    process_result: FileBatchProcessResult, project_name: str | None, output_dir: Path
 ) -> Path:
     if not project_name:
         project_name = process_result.files[0].local_path.name.rsplit(".", 1)[0]
 
     meta_json = MoeflowProjectMeta(name=project_name, intro="").model_dump_json()
 
-    output_dir = create_unique_dir("moeflow-export")
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / f"{project_name}.zip"
     output_file.parent.mkdir(parents=True, exist_ok=True)

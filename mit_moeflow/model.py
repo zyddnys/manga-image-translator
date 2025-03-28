@@ -1,4 +1,3 @@
-from email.mime import image
 import json
 from pathlib import Path
 import numpy as np

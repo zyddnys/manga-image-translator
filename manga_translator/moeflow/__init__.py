@@ -1,5 +1,5 @@
 from .process_file import process_files
-from .export_moeflow_project import export_moeflow_project
+from mit_moeflow import export_moeflow_project
 from ._const import is_cuda_avaiable
 
 # from .export_moeflow_project import ex
