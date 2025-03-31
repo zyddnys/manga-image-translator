@@ -386,10 +386,14 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             messages.append({'role': 'system', 'content': system_message})  
             self.logger.info(f"Loaded {len(relevant_terms)} relevant terms from the glossary.")  
             
+        # 如果需要先给出示例对话
+        # Add chat samples if available
+        lang_chat_samples = self.get_chat_sample(to_lang)
+
         # 如果需要先给出示例对话 / Provide an example dialogue first if necessary
-        if hasattr(self, 'chat_sample') and to_lang in self.chat_sample:  
-            messages.append({'role': 'user', 'content': self.chat_sample[to_lang][0]})  
-            messages.append({'role': 'assistant', 'content': self.chat_sample[to_lang][1]})  
+        if hasattr(self, 'chat_sample') and lang_chat_samples:
+            messages.append({'role': 'user', 'content': lang_chat_samples[0]})
+            messages.append({'role': 'assistant', 'content': lang_chat_samples[1]})
 
         # 最终用户请求 / End-user request 
         messages.append({'role': 'user', 'content': prompt})  
@@ -479,8 +483,8 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         response_text = cleaned_text
         self.print_boxed(response_text, border_color="green", title="GPT Response")          
         return cleaned_text
- 
 
+      
     # ==============修改日志输出方法 (Modify Log Output Method)==============
     def print_boxed(self, text, border_color="blue", title="OpenAITranslator Output"):  
         """将文本框起来并输出到终端"""

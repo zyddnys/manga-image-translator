@@ -25,10 +25,11 @@ editdistance
 numpy==1.26.4
 tensorboardX
 websockets
-protobuf
+protobuf<6.0.0,>=3.20.2 # `google-genai` dependancy requirement
 ctranslate2<=3.24.0 # last version compatible with CUDA 11
 colorama
-openai==1.35.9
+openai==1.63.0
+tiktoken
 httpx==0.27.2 # stop before blocking change in 0.28.0
 open_clip_torch
 safetensors
@@ -54,8 +55,14 @@ uvicorn
 fastapi
 pydantic==2.5.0
 python-multipart
+google-genai
+rich
+regex
+
+# Currently CUDA 11.8 and 12.3 are supported. 
+# Let pip choose the cuda version to use:
+--extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cu118/
+--extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cu123/
 paddleocr
 paddlepaddle
 paddlepaddle-gpu; sys_platform != 'darwin'
-rich
-regex
