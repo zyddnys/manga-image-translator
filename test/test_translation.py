@@ -31,7 +31,7 @@ async def test_single_language():
 async def test_chain():
     queries = ['僕はアイネと共に一度、宿の方に戻った', '改めて直面するのは部屋の問題――部屋のベッドが一つでは、さすがに狭すぎるだろう。']
     try:
-        chain = TranslatorChain('gpt3.5:JPN;sugoi:ENG')
+        chain = TranslatorChain('chatgpt:JPN;sugoi:ENG')
         print(await dispatch(chain, queries))
     except MissingAPIKeyException as e:
         print(e)

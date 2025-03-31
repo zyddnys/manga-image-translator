@@ -15,8 +15,6 @@ from .keys import CUSTOM_OPENAI_API_KEY, CUSTOM_OPENAI_API_BASE, CUSTOM_OPENAI_M
 
 
 class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
-    _LANGUAGE_CODE_MAP=VALID_LANGUAGES
-
     _INVALID_REPEAT_COUNT = 2  # 如果检测到“无效”翻译，最多重复 2 次
     _MAX_REQUESTS_PER_MINUTE = 40  # 每分钟最大请求次数
     _TIMEOUT = 40  # 在重试之前等待服务器响应的时间（秒）
@@ -140,7 +138,7 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                         if timeout_attempt >= self._TIMEOUT_RETRY_ATTEMPTS:
                             raise Exception('ollama servers did not respond quickly enough.')
                         timeout_attempt += 1
-                        self.logger.warn(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
+                        self.logger.warning(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
                         request_task.cancel()
                         request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
                         started = time.time()
@@ -151,7 +149,7 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                     ratelimit_attempt += 1
                     if ratelimit_attempt >= self._RATELIMIT_RETRY_ATTEMPTS:
                         raise
-                    self.logger.warn(
+                    self.logger.warning(
                         f'Restarting request due to ratelimiting by Ollama servers. Attempt: {ratelimit_attempt}')
                     await asyncio.sleep(2)
                 except openai.APIError:  # Server returned 500 error (probably server load)
@@ -160,7 +158,7 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                         self.logger.error(
                             'Ollama encountered a server error, possibly due to high server load. Use a different translator or try again later.')
                         raise
-                    self.logger.warn(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
+                    self.logger.warning(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
                     await asyncio.sleep(1)
 
             # self.logger.debug('-- GPT Response --\n' + response)
@@ -212,9 +210,11 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
         messages = [{'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)}]
 
-        if to_lang in self.chat_sample:
-            messages.append({'role': 'user', 'content': self.chat_sample[to_lang][0]})
-            messages.append({'role': 'assistant', 'content': self.chat_sample[to_lang][1]})
+        # Add chat samples if available
+        lang_chat_samples = self.get_chat_sample(to_lang)
+        if lang_chat_samples:
+            messages.append({'role': 'user', 'content': lang_chat_samples[0]})
+            messages.append({'role': 'assistant', 'content': lang_chat_samples[1]})
 
         messages.append({'role': 'user', 'content': prompt})
 
