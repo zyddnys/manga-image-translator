@@ -182,8 +182,8 @@ class RenderConfig(BaseModel):
         if self.font_color and not self._font_color_fg:
             colors = self.font_color.split(':')
             try:
-                self._font_color_fg = hex2rgb(colors[0])
-                self._font_color_bg = hex2rgb(colors[1]) if len(colors) > 1 else None
+                self._font_color_fg = hex2rgb(colors[0]) if colors[0] else None
+                self._font_color_bg = hex2rgb(colors[1]) if len(colors) > 1 and colors[1] else None
             except:
                 raise Exception(
                     f'Invalid --font-color value: {self.font_color}. Use a hex value such as FF0000')
@@ -193,9 +193,9 @@ class RenderConfig(BaseModel):
     def font_color_bg(self):
         if self.font_color and not self._font_color_bg:
             colors = self.font_color.split(':')
-            try:
-                self._font_color_fg = hex2rgb(colors[0])
-                self._font_color_bg = hex2rgb(colors[1]) if len(colors) > 1 else None
+            try:              
+                self._font_color_fg = hex2rgb(colors[0]) if colors[0] else None
+                self._font_color_bg = hex2rgb(colors[1]) if len(colors) > 1 and colors[1] else None
             except:
                 raise Exception(
                     f'Invalid --font-color value: {self.font_color}. Use a hex value such as FF0000')

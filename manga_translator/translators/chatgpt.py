@@ -34,9 +34,9 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             r"I must decline",
             r'(i(\'m| am)?\s+)?sorry(.|\n)*?(can(\'t|not)|unable to|cannot)\s+(assist|help)',
             # CHINESE_KEYWORDS (using regex patterns)
-            r"(抱歉，|对不起，)?我(无法[将把]|不[能会便](提供|处理)?)", 
+            r"(抱歉，|对不起，)?我(无法[将把]|不[能会便](提供|处理))", 
             r"我无法(满足|回答|处理|提供)",  
-            r"这超出了我的范围",   
+            r"这超出了我的范围", 
             r"我需要婉拒", 
             r"翻译或生成", #deepseek高频
             r"[的个]内容(吧)?", #claude高频
@@ -84,15 +84,16 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         """如果你有外部参数要解析，可在此对 self.config 做更新"""
         self.config = args.chatgpt_config
 
-    def _cannot_assist(self, response: str) -> bool:
-        """
-        判断是否出现了常见的 "我不能帮你" / "我拒绝" 等拒绝关键词。
-        """
-        resp_lower = response.strip().lower()
-        for kw in self._ERROR_KEYWORDS:
-            if kw.lower() in resp_lower:
-                return True
-        return False
+    def _cannot_assist(self, response: str) -> bool:  
+        """  
+        判断是否出现了常见的 "我不能帮你" / "我拒绝" 等拒绝关键词。  
+        """  
+        resp = response.strip()  
+        for kw in self._ERROR_KEYWORDS:  
+            if re.search(kw, resp, re.IGNORECASE):  
+                self.logger.warning(f"Detected refusal keyword: {kw}")  
+                return True  
+        return False  
 
     async def _ratelimit_sleep(self):
         """
@@ -437,6 +438,33 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         
         cleaned_text = re.sub(r'\n\s*\n', '\n', raw_text).strip()
 
+        # 删除数字前缀前后的不相关的解释性文字。但不出现数字前缀时，保留限制词防止删得什么都不剩
+        # Remove irrelevant explanatory text before and after numerical prefixes. However, when numerical prefixes are not present, retain restrictive words to prevent deleting everything.
+        lines = cleaned_text.splitlines()
+        min_index_line_index = -1
+        max_index_line_index = -1
+        has_numeric_prefix = False  # Flag to check if any numeric prefix exists
+
+        for index, line in enumerate(lines):
+            match = re.search(r'<\|(\d+)\|>', line)
+            if match:
+                has_numeric_prefix = True
+                current_index = int(match.group(1))
+                if current_index == 1:  # 查找最小标号 <|1|> / find <|1|>
+                    min_index_line_index = index
+                if max_index_line_index == -1 or current_index > int(re.search(r'<\|(\d+)\|>', lines[max_index_line_index]).group(1)):  # 查找最大标号 / find max number
+                    max_index_line_index = index
+                    
+        if has_numeric_prefix:
+            modified_lines = []
+            if min_index_line_index != -1:
+                modified_lines.extend(lines[min_index_line_index:])  # 从最小标号行开始保留到结尾 / Keep from the row with the smallest label to the end
+
+            if max_index_line_index != -1 and modified_lines:  # 确保 modified_lines 不为空，且找到了最大标号 / Ensure that modified_lines is not empty and that the maximum label has been found
+                modified_lines = modified_lines[:max_index_line_index - min_index_line_index + 1]  # 只保留到最大标号行 (相对于 modified_lines 的索引) / Retain only up to the row with the maximum label (relative to the index of modified_lines)
+
+            cleaned_text = "\n".join(modified_lines)      
+        
         # 记录 token 消耗 / Record token consumption
         if not hasattr(response, 'usage') or not hasattr(response.usage, 'total_tokens'):
             self.logger.warning("Response does not contain usage information") #第三方逆向中转api不返回token数 / The third-party reverse proxy API does not return token counts
@@ -602,8 +630,8 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 continue
             else:
                 # 源词和目标词 / Source word and target word
-                src = parts[0].strip()
-                dst = parts[1].strip()
+                src = parts[0].strip().replace('_', ' ')
+                dst = parts[1].strip().replace('_', ' ')  
             
             # 验证正则表达式 / Validate the regular expression
             try:
@@ -779,6 +807,20 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         def normalize_japanese(text):  
             result = ""  
             for char in text:  
+                # 小写片假名映射到标准片假名 (Map lowercase katakana to standard katakana) 
+                # 可能导致较轻的过拟合，但是目前的OCR检测日语会大小写不分的情况下这不可或缺，有更强大的OCR时可移除
+                # It may result in a slight overfitting, but it is indispensable under the current OCR conditions where Japanese detection is case-insensitive.
+                small_to_normal = {  
+                    'ァ': 'ア', 'ィ': 'イ', 'ゥ': 'ウ', 'ェ': 'エ', 'ォ': 'オ',  
+                    'ッ': 'ツ', 'ャ': 'ヤ', 'ュ': 'ユ', 'ョ': 'ヨ',  
+                    'ぁ': 'あ', 'ぃ': 'い', 'ぅ': 'う', 'ぇ': 'え', 'ぉ': 'お',  
+                    'っ': 'つ', 'ゃ': 'や', 'ゅ': 'ゆ', 'ょ': 'よ'  
+                }  
+                
+                # 先处理小写字符 (First, process the lowercase characters) 
+                if char in small_to_normal:  
+                    char = small_to_normal[char]  
+                    
                 # 检查是否是片假名范围 (0x30A0-0x30FF)  
                 # Check if it's within the katakana range (0x30A0-0x30FF)
                 if 0x30A0 <= ord(char) <= 0x30FF:  
@@ -812,7 +854,9 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             normalized_term = normalize_term(term)
 
             # 如果术语很短，降低阈值 (Reduce the threshold if the term is short)
-            if len(normalized_term) <= 4:
+            if len(normalized_term) <= 2:
+                threshold = 0
+            elif len(normalized_term) <= 4:  
                 threshold = 1
 
             # # 滑动窗口匹配（针对较长文本和短术语）- 可能过拟合，需要进一步调整 (Sliding window matching (for longer texts and short terms) - May overfit, needs further adjustment)
@@ -832,11 +876,43 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             # 直接计算编辑距离 (Calculate the edit distance directly)
             distance = japanese_levenshtein_distance(normalized_text, normalized_term)
             return distance <= threshold
-      
+
+        # 6. 普通文本的相似度判断 / Similarity judgment for general text  
+        def is_general_similar(text, term, threshold=2):  
+            # 规范化后计算编辑距离 / Calculate edit distance after normalization  
+            normalized_text = normalize_term(text)  
+            normalized_term = normalize_term(term)  
+            
+            # 根据术语长度动态调整阈值 / Dynamically adjust threshold based on term length  
+            threshold = len(normalized_term) // 8  
+
+            # 限制阈值范围 / Limit the threshold range  
+            threshold = max(0, min(threshold, 3))      
+            
+            # 对于较长文本，使用滑动窗口匹配 / For longer texts, use sliding window matching  
+            if len(normalized_text) > len(normalized_term) * 5:  
+                min_distance = float('inf')  
+                # 创建比术语略长的窗口，在文本中滑动 / Create a window slightly larger than the term and slide it through the text  
+                if len(normalized_term) <= 8:  
+                    window_size = len(normalized_term)   
+                elif len(normalized_term) <= 16:  
+                    window_size = len(normalized_term) + 1  
+                else:  
+                    window_size = len(normalized_term) + 2    
+                for i in range(max(0, len(normalized_text) - window_size + 1)):  
+                    window = normalized_text[i:i+window_size]  
+                    distance = levenshtein_distance(window, normalized_term)  
+                    min_distance = min(min_distance, distance)  
+                return min_distance <= threshold  
+            else:  
+                # 直接计算编辑距离 / Calculate the edit distance directly  
+                distance = levenshtein_distance(normalized_text, normalized_term)  
+                return distance <= threshold  
+        
         # 主匹配逻辑 (Main matching logic)
         for term, translation in self.glossary_entries.items():
-            # 1. 精确匹配 (Exact match)
-            if term in text:
+            # 1. 精确匹配：同时检查原词和去除空格的变体是否出现在文本中 (Exact Match: Check whether both the original word and its variant with spaces removed appear in the text)
+            if term in text or term.replace(" ", "") in text:
                 relevant_terms[term] = translation
                 continue
 
@@ -846,9 +922,10 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                     relevant_terms[term] = translation
                     continue
 
-            # 3. 普通编辑距离匹配（非日语文本） (Ordinary edit distance matching (non-Japanese text))
-            normalized_text = normalize_term(text)
-            normalized_term = normalize_term(term)
+            # 3. 普通编辑距离匹配（非日语文本） / Ordinary edit distance matching (non-Japanese text)  
+            elif is_general_similar(text, term):  
+                relevant_terms[term] = translation  
+                continue  
 
             # 4. 部分匹配 (Partial match)
             if partial_match(text, term):
