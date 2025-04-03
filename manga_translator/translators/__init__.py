@@ -21,6 +21,7 @@ from .original import OriginalTranslator
 # from .sakura import SakuraTranslator
 # from .qwen2 import Qwen2Translator, Qwen2BigTranslator
 # from .groq import GroqTranslator
+from .gemini import GeminiTranslator
 from .custom_openai import CustomOpenAiTranslator
 from .none import NoneTranslator
 from .original import OriginalTranslator
@@ -41,6 +42,15 @@ OFFLINE_TRANSLATORS = {
     # Translator.qwen2_big: Qwen2BigTranslator,
 }
 
+GPT_TRANSLATORS = {
+    Translator.chatgpt: OpenAITranslator,
+    Translator.deepseek: DeepseekTranslator,
+    Translator.groq:GroqTranslator,
+    Translator.custom_openai: CustomOpenAiTranslator,
+    Translator.gemini: GeminiTranslator,
+}
+
+
 TRANSLATORS = {
     # 'google': GoogleTranslator,
     # Translator.youdao: YoudaoTranslator,
@@ -48,13 +58,10 @@ TRANSLATORS = {
     # Translator.deepl: DeeplTranslator,
     # Translator.papago: PapagoTranslator,
     # Translator.caiyun: CaiyunTranslator,
-    Translator.chatgpt: OpenAITranslator,
     Translator.none: NoneTranslator,
     Translator.original: OriginalTranslator,
     # Translator.sakura: SakuraTranslator,
-    # Translator.deepseek: DeepseekTranslator,
-    # Translator.groq:GroqTranslator,
-    Translator.custom_openai: CustomOpenAiTranslator,
+    **GPT_TRANSLATORS,
     **OFFLINE_TRANSLATORS,
 }
 translator_cache = {}
