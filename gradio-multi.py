@@ -1,12 +1,12 @@
 import logging
 import gradio as gr
 from pathlib import Path
-from manga_translator.moeflow import (
+from moeflow_companion.mit_workflow import (
     process_files,
-    export_moeflow_project,
     is_cuda_avaiable,
+    create_unique_dir,
 )
-from manga_translator.moeflow._const import create_unique_dir
+from moeflow_companion.exporter import export_moeflow_project
 
 if gr.NO_RELOAD:
     logging.basicConfig(

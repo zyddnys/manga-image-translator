@@ -32,7 +32,7 @@ run-web-server:
 deps: venv/.deps_installed
 
 venv/.deps_installed: conda-venv requirements-moeflow.txt
-	venv/bin/pip install -r requirements-moeflow.txt
+	venv/bin/pip install -r requirements-moeflow.txt --editable .
 	@echo "deps installed"
 	@touch $@
 

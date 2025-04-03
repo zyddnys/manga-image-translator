@@ -1,5 +1,8 @@
 from pydantic import BaseModel
-from .model import FileBatchProcessResult, FileProcessResult
+from moeflow_companion.data import (
+    FileBatchProcessResult,
+    FileProcessResult,
+)
 import zipfile
 import logging
 from pathlib import Path
@@ -65,3 +68,8 @@ def _build_file(files: list[FileProcessResult]) -> str:
             logging.debug("serialized block: %s,%s / %s", x, y, result[-1])
             result.append(t)
     return "\n".join(result + [""])
+
+
+__all__ = [
+    "export_moeflow_project",
+]

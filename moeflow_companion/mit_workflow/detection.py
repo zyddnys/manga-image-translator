@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
-from mit_moeflow.model import to_json
+from moeflow_companion.data.model import to_json
 import manga_translator.utils.generic as utils_generic
 import numpy as np
 
