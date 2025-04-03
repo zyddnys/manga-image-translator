@@ -29,7 +29,8 @@ py3langid==0.2.2
 # protobuf
 # ctranslate2
 colorama
-openai==1.35.9
+openai==1.63.0
+tiktoken
 # httpx==0.27.2 # stop before blocking change in 0.28.0
 # open_clip_torch
 # safetensors
@@ -45,7 +46,7 @@ python-dotenv
 # aiofiles
 # arabic-reshaper
 # pyhyphen
-# langcodes
+langcodes
 manga-ocr
 # langdetect
 # pydensecrf@https://github.com/lucasb-eyer/pydensecrf/archive/refs/heads/master.zip
@@ -55,6 +56,9 @@ manga-ocr
 # fastapi
 # pydantic
 # python-multipart
+google-genai==1.8.0
+rich
+
 paddleocr==2.10.0
 paddlepaddle==2.6.2
 paddlepaddle-gpu==2.6.2; sys_platform != 'darwin'

@@ -4,7 +4,7 @@ import py3langid as langid
 
 from .common import *
 # from .baidu import BaiduTranslator
-# from .deepseek import DeepseekTranslator
+from .deepseek import DeepseekTranslator
 # from .google import GoogleTranslator
 # from .youdao import YoudaoTranslator
 # from .deepl import DeeplTranslator
@@ -23,8 +23,6 @@ from .original import OriginalTranslator
 # from .groq import GroqTranslator
 from .gemini import GeminiTranslator
 from .custom_openai import CustomOpenAiTranslator
-from .none import NoneTranslator
-from .original import OriginalTranslator
 from ..config import Translator, TranslatorConfig, TranslatorChain
 from ..utils import Context
 
@@ -45,7 +43,7 @@ OFFLINE_TRANSLATORS = {
 GPT_TRANSLATORS = {
     Translator.chatgpt: OpenAITranslator,
     Translator.deepseek: DeepseekTranslator,
-    Translator.groq:GroqTranslator,
+    # Translator.groq:GroqTranslator,
     Translator.custom_openai: CustomOpenAiTranslator,
     Translator.gemini: GeminiTranslator,
 }

@@ -10,10 +10,10 @@ run-gradio:
 	venv/bin/gradio gradio-multi.py
 
 run-worker:
-	conda run -n mit-py311 --no-capture-output celery --app moeflow_worker worker --queues mit --loglevel=debug --concurrency=1
+	conda run -n $(CONDA_ENV) --no-capture-output celery --app moeflow_worker worker --queues mit --loglevel=debug --concurrency=1
 
 prepare-models:
-	conda run -n mit-py311 --no-capture-output python3 docker_prepare.py
+	conda run -n $(CONDA_ENV) --no-capture-output python3 docker_prepare.py
 
 build-image:
 	docker rmi manga-image-translator || true
@@ -29,8 +29,13 @@ run-web-server:
 		--host=0.0.0.0 \
 		--port=5003
 
-install-venv-deps:
-	venv/bin/pip install -r requirements-moeflow.txt
+deps: venv/.deps_installed
+
+venv/.deps_installed: conda-venv requirements-moeflow.txt
+	venv/bin/pip install -r requirements-moeflow.txt --editable .
+	@echo "deps installed"
+	@touch $@
+
 
 conda-venv: .conda_env_created # alt to `venv/.venv_created` target, but uses conda python to create venv
 	micromamba run --attach '' -n $(CONDA_ENV) python3 -mvenv --system-site-packages  ./venv
@@ -39,4 +44,4 @@ conda-venv: .conda_env_created # alt to `venv/.venv_created` target, but uses co
 .conda_env_created: $(CONDA_YML)
 	# setup conda environment AND env-wise deps
 	micromamba env create -n $(CONDA_ENV) --yes -f $(CONDA_YML)
-	touch $@
+	@touch $@
