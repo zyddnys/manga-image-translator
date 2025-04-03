@@ -1,28 +1,16 @@
-import logging
-import gradio as gr
 from pathlib import Path
-from moeflow_companion.mit_workflow import (
+import gradio as gr
+from . import (
     process_files,
     is_cuda_avaiable,
     create_unique_dir,
 )
-from moeflow_companion.exporter import export_moeflow_project
-
-if gr.NO_RELOAD:
-    logging.basicConfig(
-        level=logging.WARN,
-        format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        force=True,
-    )
-    for name in ["httpx"]:
-        logging.getLogger(name).setLevel(logging.WARN)
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+from ..exporter import export_moeflow_project
 
 
-with gr.Blocks() as demo:
+with gr.Blocks() as mit_workflow_block:
+    # inputs
+    gr.Markdown("# manga-image-translator workflow: text detection > ocr > translation")
     file_input = gr.File(
         label="upload file",
         file_count="multiple",
@@ -81,7 +69,7 @@ with gr.Blocks() as demo:
         device: str,
         target_language: str | None,
         export_moeflow_project_name: str | None,
-    ) -> tuple[str, bytes]:
+    ) -> tuple[str, bytes | None]:
         res = await process_files(
             gradio_temp_files,
             detector_key=detector_key,
@@ -107,12 +95,3 @@ with gr.Blocks() as demo:
         }
 
         return output_json, moeflow_zip
-
-
-if __name__ == "__main__":
-    demo.queue(api_open=True, max_size=100).launch(
-        share=False,
-        debug=True,
-        server_name="0.0.0.0",
-        max_file_size=10 * gr.FileSize.MB,
-    )

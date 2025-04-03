@@ -7,7 +7,13 @@ default:
 	@echo Please use other targets
 
 run-gradio:
-	venv/bin/gradio gradio-multi.py
+	venv/bin/gradio gradio-main.py
+
+run-gradio-mit:
+	venv/bin/gradio gradio-mit.py --demo-name=mit_workflow_block
+
+run-gradio-multimodal:
+	venv/bin/gradio gradio-multimodal.py
 
 run-worker:
 	conda run -n $(CONDA_ENV) --no-capture-output celery --app moeflow_worker worker --queues mit --loglevel=debug --concurrency=1
