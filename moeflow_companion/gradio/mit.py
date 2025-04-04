@@ -1,11 +1,11 @@
 from pathlib import Path
 import gradio as gr
-from . import (
+from moeflow_companion.mit_workflow import (
     process_files,
     is_cuda_avaiable,
     create_unique_dir,
 )
-from ..exporter import export_moeflow_project
+from ..mit_workflow.exporter import export_moeflow_project
 
 
 with gr.Blocks() as mit_workflow_block:

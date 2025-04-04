@@ -13,7 +13,7 @@ import manga_translator.textline_merge as textline_merge
 import manga_translator.utils.generic as utils_generic
 import manga_translator.detection as mit_detection
 import manga_translator.ocr as mit_ocr
-from moeflow_companion.data import (
+from ._model import (
     FileBatchProcessResult,
     FileProcessResult,
     TextBlock,

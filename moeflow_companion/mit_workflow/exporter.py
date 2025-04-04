@@ -1,11 +1,8 @@
-from pydantic import BaseModel
-from moeflow_companion.data import (
-    FileBatchProcessResult,
-    FileProcessResult,
-)
 import zipfile
 import logging
 from pathlib import Path
+from moeflow_companion.data import MoeflowProjectMeta
+from ._model import FileBatchProcessResult, FileProcessResult
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -29,17 +26,6 @@ def export_moeflow_project(
         for f in process_result.files:
             zf.write(f.local_path, f"images/{f.local_path.name}")
     return output_file
-
-
-class MoeflowProjectMeta(BaseModel):
-    name: str
-    intro: str
-    output_language: str = "en"
-    default_role: str = "supporter"
-    allow_apply_type: int = 3
-    application_check_type: int = 1
-    is_need_check_application: bool = False
-    source_language: str = "ja"
 
 
 def _build_file(files: list[FileProcessResult]) -> str:
