@@ -38,7 +38,11 @@ with gr.Blocks() as mit_workflow_block:
         label="detector",
     )
 
-    export_moeflow_project_name = gr.Text(None, label="moeflow project name")
+    export_moeflow_project_name_input = gr.Text(
+        None,
+        label="moeflow project name",
+        placeholder="when empty, project name will be set to first image filename",
+    )
 
     ocr_key_input = gr.Radio(
         choices=["48px", "48px_ctc", "mocr"], label="ocr", value="48px"
@@ -58,6 +62,7 @@ with gr.Blocks() as mit_workflow_block:
             ocr_key_input,
             device_input,
             target_language_input,
+            export_moeflow_project_name_input,
         ],
         outputs=[ocr_output, file_output],
     )
@@ -89,8 +94,8 @@ with gr.Blocks() as mit_workflow_block:
             moeflow_zip = None
 
         output_json = {
-            "project_name": "unnamed",
-            "files": [f.model_dump() for f in res.files],
+            "project_name": export_moeflow_project_name or "unnamed",
+            "files": [f.model_dump(mode="json") for f in res.files],
         }
 
         return output_json, moeflow_zip
