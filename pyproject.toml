@@ -34,8 +34,8 @@ dependencies = [
     "numpy==1.26.4",
     "tensorboardX",
     "websockets",
-    "protobuf",
-    "ctranslate2",
+    "protobuf<6.0.0,>=3.20.2",
+    "ctranslate2<=3.24.0",
     "colorama",
     "openai==1.35.9",
     "httpx==0.27.2",
@@ -62,7 +62,12 @@ dependencies = [
     "uvicorn",
     "fastapi",
     "pydantic",
-    "python-multipart"
+    "python-multipart",
+    "google-genai",
+    "rich",
+    "paddleocr",
+    "paddlepaddle",
+    "paddlepaddle-gpu; sys_platform != 'darwin'"
 ]
 
 [tool.isort]
