@@ -1,7 +1,13 @@
-import zipfile
+import itertools
 import logging
 from pathlib import Path
-from moeflow_companion.data import MoeflowProjectMeta
+import datetime
+from moeflow_companion.data import (
+    MoeflowProjectMeta,
+    MoeflowTextBlock,
+    MoeflowProject,
+    MoeflowFile,
+)
 from ._model import FileBatchProcessResult, FileProcessResult
 
 logger = logging.getLogger(__name__)
@@ -9,53 +15,56 @@ logger.setLevel(logging.DEBUG)
 
 
 def export_moeflow_project(
-    process_result: FileBatchProcessResult, project_name: str | None, output_dir: Path
+    process_result: FileBatchProcessResult, project_name: str | None, dest_dir: Path
 ) -> Path:
+    """_summary_
+
+    Args:
+        process_result (FileBatchProcessResult): process result of mit workflow
+        project_name (str | None): _description_
+        dest (Path): path to the zip file to be created
+
+    Returns:
+        Path: _description_
+    """
     if not project_name:
         project_name = process_result.files[0].local_path.name.rsplit(".", 1)[0]
 
-    meta_json = MoeflowProjectMeta(name=project_name, intro="").model_dump_json()
+    meta = MoeflowProjectMeta(
+        name=project_name,
+        intro=f"processed by moeflow companion {datetime.datetime.now().isoformat()}",
+    )
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_file = output_dir / f"{project_name}.zip"
-    output_file.parent.mkdir(parents=True, exist_ok=True)
+    proj = MoeflowProject(
+        meta=meta,
+        files=list(map(_convert_file, process_result.files)),
+    )
 
-    with zipfile.ZipFile(output_file, "w") as zf:
-        zf.writestr("project.json", meta_json)
-        zf.writestr("translations.txt", _build_file(process_result.files))
-        for f in process_result.files:
-            zf.write(f.local_path, f"images/{f.local_path.name}")
-    return output_file
+    dest = dest_dir / f"{project_name}.zip"
+    dest.parent.mkdir(parents=True, exist_ok=True)  # no idea why this is needed
+
+    return proj.to_zip(dest)
 
 
-def _build_file(files: list[FileProcessResult]) -> str:
-    result: list[str] = []
-    for file in files:
-        result.append(f">>>>[{file.local_path.name}]<<<<")
-        if file.translated:
-            translated_texts: list[str] = next(iter(file.translated.values()))
-        else:
-            translated_texts = None
-        logging.debug(
-            "file: %s %s x %s", file.local_path.name, file.image_w, file.image_h
-        )
-
-        for idx, block in enumerate(file.text_blocks):
-            t = translated_texts[idx] if translated_texts else ""
-            x = (
-                block.center_x / file.image_h
-            )  # this works but IDK why. Is mit using a swapped coordinate system?
-            y = block.center_y / file.image_w
-            logging.debug(
-                "block: %s,%s / %s", block.center_x, block.center_y, block.text
+def _convert_file(f: FileProcessResult) -> MoeflowFile:
+    if f.translated:
+        # there should be only 1 target language
+        translated_texts: list[str] = next(iter(f.translated.values()))
+    else:
+        translated_texts = []
+    return MoeflowFile(
+        local_path=f.local_path,
+        image_w=f.image_w,
+        image_h=f.image_h,
+        text_blocks=[
+            MoeflowTextBlock(
+                center_x=block.center_x,
+                center_y=block.center_y,
+                source=block.text,
+                translated=translated,
             )
-            position_type = 1
-            result.append(f"----[{idx}]----[{x},{y},{position_type}]")
-            logging.debug("serialized block: %s,%s / %s", x, y, result[-1])
-            result.append(t)
-    return "\n".join(result + [""])
-
-
-__all__ = [
-    "export_moeflow_project",
-]
+            for block, translated in itertools.zip_longest(
+                f.text_blocks, translated_texts
+            )
+        ],
+    )

@@ -4,7 +4,7 @@ Gradio app: manga-image-translator only
 
 import logging
 import gradio as gr
-from moeflow_companion.mit_workflow.gradio_component import mit_workflow_block
+from moeflow_companion.gradio.mit import mit_workflow_block
 
 if gr.NO_RELOAD:
     logging.basicConfig(

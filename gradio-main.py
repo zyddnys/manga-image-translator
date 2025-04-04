@@ -4,8 +4,8 @@ Gradio app: everything in tabs
 
 import logging
 import gradio as gr
-from moeflow_companion.mit_workflow.gradio_component import mit_workflow_block
-from moeflow_companion.multimodal_workflow.gradio_component import (
+from moeflow_companion.gradio.mit import mit_workflow_block
+from moeflow_companion.gradio.multimodal import (
     multimodal_workflow_block,
 )
 
@@ -25,7 +25,7 @@ if __name__ == "__main__":
     demo = gr.TabbedInterface(
         [mit_workflow_block, multimodal_workflow_block],
         tab_names=["manga-image-translator", "multimodal LLM"],
-        title="moeflow pre-translate companion | 萌翻助手：漫画预翻译",
+        title="moeflow companion | 萌翻助手",
     )
     demo.queue(api_open=True, max_size=100).launch(
         share=False,

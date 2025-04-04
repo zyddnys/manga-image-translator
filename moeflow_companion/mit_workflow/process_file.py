@@ -19,7 +19,7 @@ from ._model import (
     TextBlock,
 )
 from .translate import translate_text
-from ._const import create_unique_dir
+from moeflow_companion.utils import create_unique_dir
 from threading import Lock
 import itertools
 

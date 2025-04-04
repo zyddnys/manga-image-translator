@@ -1,11 +1,10 @@
-from pathlib import Path
 import gradio as gr
 from moeflow_companion.mit_workflow import (
     process_files,
     is_cuda_avaiable,
-    create_unique_dir,
+    export_moeflow_project,
 )
-from ..mit_workflow.exporter import export_moeflow_project
+from moeflow_companion.utils import create_unique_dir
 
 
 with gr.Blocks() as mit_workflow_block:
@@ -83,7 +82,7 @@ with gr.Blocks() as mit_workflow_block:
                 export_moeflow_project(
                     res,
                     export_moeflow_project_name,
-                    output_dir=Path(create_unique_dir()),
+                    dest_dir=create_unique_dir("export"),
                 )
             )
         else:
