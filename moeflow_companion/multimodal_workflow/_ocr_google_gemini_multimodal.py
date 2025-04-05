@@ -1,5 +1,4 @@
 from google import genai
-import json
 from pathlib import Path
 from pydantic import BaseModel, Field
 from ..llm_clients import gemini_bare
@@ -60,4 +59,5 @@ def _process_single_image(
     response = model.complete_with_json(
         user_messages=[image_file, prompt], res_model=ImageProcessResult, client=client
     )
+    logger.info("processed image %s", image_file)
     return response

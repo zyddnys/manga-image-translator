@@ -41,7 +41,7 @@ def export_moeflow_project(
     )
 
     dest = dest_dir / f"{project_name}.zip"
-    dest.parent.mkdir(parents=True, exist_ok=True)  # no idea why this is needed
+    dest.parent.mkdir(parents=True, exist_ok=True)
 
     return proj.to_zip(dest)
 

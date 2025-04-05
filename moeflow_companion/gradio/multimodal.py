@@ -1,9 +1,13 @@
 from pathlib import Path
 import gradio as gr
-import json
 
 from ..llm_clients.gemini_bare import GcpGeminiBare
-from moeflow_companion.multimodal_workflow import process_images
+from moeflow_companion.multimodal_workflow import process_images, export_moeflow_project
+from moeflow_companion.utils import create_unique_dir
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 with gr.Blocks() as multimodal_workflow_block:
     gr.Markdown("# multimodal workflow")
@@ -59,11 +63,19 @@ with gr.Blocks() as multimodal_workflow_block:
         model: str,
         target_language: str | None,
         export_moeflow_project_name: str | None,
-    ) -> tuple[str, bytes | None]:
+    ) -> tuple[str, str | None]:
         processed = process_images(
             image_files=[Path(f) for f in gradio_temp_files],
             target_lang=target_language,
             model=model,
         )
         res_obj = [p.model_dump(mode="json") for p in processed]
-        return json.dumps(res_obj), None
+
+        moeflow_zip = export_moeflow_project(
+            image_files=[Path(f) for f in gradio_temp_files],
+            process_result=processed,
+            project_name=export_moeflow_project_name,
+            dest_dir=create_unique_dir("export"),
+        )
+
+        return res_obj, str(moeflow_zip)

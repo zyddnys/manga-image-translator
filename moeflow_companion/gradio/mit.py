@@ -73,7 +73,7 @@ with gr.Blocks() as mit_workflow_block:
         device: str,
         target_language: str | None,
         export_moeflow_project_name: str | None,
-    ) -> tuple[str, bytes | None]:
+    ) -> tuple[str, str | None]:
         res = await process_files(
             gradio_temp_files,
             detector_key=detector_key,
