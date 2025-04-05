@@ -1,490 +1,655 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <meta charset="utf-8"/>
+  <head>
+    <meta charset="utf-8" />
     <title>Image/Manga Translator</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@unocss/reset/tailwind.min.css"/>
+    <!-- Tailwind Reset (UnoCSS Reset) -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@unocss/reset/tailwind.min.css"
+    />
+    <!-- Petite Vue -->
     <script src="https://cdn.jsdelivr.net/npm/petite-vue@0.4.1/dist/petite-vue.iife.js"></script>
+    <!-- UnoCSS Runtime -->
     <script src="https://cdn.jsdelivr.net/npm/@unocss/runtime@0.30.5/uno.global.js"></script>
+    <!-- Iconify -->
     <script src="https://cdn.jsdelivr.net/npm/@iconify/iconify@2.2.0/dist/iconify.min.js"></script>
+
     <style>
-        [v-cloak],
-        [un-cloak] {
-            display: none;
-        }
+      [v-cloak],
+      [un-cloak] {
+        display: none;
+      }
     </style>
-</head>
-<body>
-<form
-        action="#"
-        class="flex py-8 w-full min-h-100vh justify-center items-center"
-        @submit.prevent="onsubmit"
-        @vue:mounted="onmounted"
-        v-scope
-        v-cloak
-        un-cloak
->
-    <div class="flex flex-col w-85ch h-full justify-center gap-2">
-        <h1 class="text-center text-lg font-light">Image/Manga Translator</h1>
-        <div class="flex mx-4 justify-start items-end">
-            <div class="flex gap-4">
-                <div class="flex items-center" title="Detection resolution">
-                    <i class="iconify" data-icon="carbon:fit-to-screen"></i>
-                    <div class="relative">
-                        <select class="w-9ch appearance-none bg-transparent border-b border-gray-300"
-                                v-model="detectionResolution">
-                            <option value="1024">1024px</option>
-                            <option value="1536">1536px</option>
-                            <option value="2048">2048px</option>
-                            <option value="2560">2560px</option>
-                        </select>
-                        <i class="iconify absolute top-1.5 right-1 pointer-events-none"
-                           data-icon="carbon:chevron-down"></i>
-                    </div>
-                </div>
-                <div class="flex items-center gap-1" title="Text detector">
-                    <i class="iconify" data-icon="carbon:search-locate"></i>
-                    <div class="relative">
-                        <select class="w-9ch appearance-none bg-transparent border-b border-gray-300"
-                                v-model="textDetector">
-                            <option value="default">Default</option>
-                            <option value="ctd">CTD</option>
-                            <option value="paddle">Paddle</option>
-                        </select>
-                        <i class="iconify absolute top-1.5 right-1 pointer-events-none"
-                           data-icon="carbon:chevron-down"></i>
-                    </div>
-                </div>
-                <div class="flex items-center gap-1" title="Render text orientation">
-                    <i class="iconify" data-icon="carbon:text-align-left"></i>
-                    <div class="relative">
-                        <select class="w-12ch appearance-none bg-transparent border-b border-gray-300"
-                                v-model="renderTextDirection">
-                            <option value="auto">Auto</option>
-                            <option value="horizontal">Horizontal</option>
-                            <option value="vertical">Vertical</option>
-                        </select>
-                        <i class="iconify absolute top-1.5 right-1 pointer-events-none"
-                           data-icon="carbon:chevron-down"></i>
-                    </div>
-                </div>
-                <div class="flex items-center gap-1" title="Translator">
-                    <i class="iconify" data-icon="carbon:operations-record"></i>
-                    <div class="relative">
-                        <select class="w-9ch appearance-none bg-transparent border-b border-gray-300"
-                                v-model="translator">
-                            <option v-for="key in validTranslators" :value="key">{{getTranslatorName(key)}}</option>
-                        </select>
-                        <i class="iconify absolute top-1.5 right-1 pointer-events-none"
-                           data-icon="carbon:chevron-down"></i>
-                    </div>
-                </div>
-                <div class="flex items-center gap-1" title="Target language">
-                    <i class="iconify" data-icon="carbon:language"></i>
-                    <div class="relative">
-                        <select class="w-15ch appearance-none bg-transparent border-b border-gray-300"
-                                v-model="targetLanguage">
-                            <option value="CHS">简体中文</option>
-                            <option value="CHT">繁體中文</option>
-                            <option value="JPN">日本語</option>
-                            <option value="ENG">English</option>
-                            <option value="KOR">한국어</option>
-                            <option value="VIN">Tiếng Việt</option>
-                            <option value="CSY">čeština</option>
-                            <option value="NLD">Nederlands</option>
-                            <option value="FRA">français</option>
-                            <option value="DEU">Deutsch</option>
-                            <option value="HUN">magyar nyelv</option>
-                            <option value="ITA">italiano</option>
-                            <option value="PLK">polski</option>
-                            <option value="PTB">português</option>
-                            <option value="ROM">limba română</option>
-                            <option value="RUS">русский язык</option>
-                            <option value="ESP">español</option>
-                            <option value="TRK">Türk dili</option>
-                            <option value="IND">Indonesia</option>
-                        </select>
-                        <i class="iconify absolute top-1.5 right-1 pointer-events-none"
-                           data-icon="carbon:chevron-down"></i>
-                    </div>
-                </div>			
+  </head>
+  <body class="bg-gray-100">
+    <form
+      action="#"
+      class="flex flex-col min-h-screen items-center justify-center py-8 px-4"
+      @submit.prevent="onsubmit"
+      @vue:mounted="onmounted"
+      v-scope
+      v-cloak
+      un-cloak
+    >
+      <!-- カード風のコンテナ -->
+      <div class="bg-white shadow-md rounded-lg p-6 w-full max-w-4xl space-y-6">
+        <h1 class="text-center text-2xl font-bold text-gray-800">
+          Image/Manga Translator
+        </h1>
+
+        <!-- 上部の設定オプション（1段目） -->
+        <div class="flex flex-wrap items-end gap-4">
+          <!-- Detection Resolution -->
+          <div class="flex items-center gap-1" title="Detection resolution">
+            <i
+              class="iconify text-gray-600"
+              data-icon="carbon:fit-to-screen"
+            ></i>
+            <div class="relative">
+              <select
+                class="appearance-none bg-transparent border-b border-gray-300 pl-4 pr-7 py-1 outline-none focus:border-blue-500"
+                v-model="detectionResolution"
+              >
+                <option value="1024">1024px</option>
+                <option value="1536">1536px</option>
+                <option value="2048">2048px</option>
+                <option value="2560">2560px</option>
+              </select>
+              <i
+                class="iconify absolute top-1 right-1 text-gray-500 pointer-events-none"
+                data-icon="carbon:chevron-down"
+              ></i>
             </div>
+          </div>
+
+          <!-- Text Detector -->
+          <div class="flex items-center gap-1" title="Text detector">
+            <i
+              class="iconify text-gray-600"
+              data-icon="carbon:search-locate"
+            ></i>
+            <div class="relative">
+              <select
+                class="appearance-none bg-transparent border-b border-gray-300 pl-4 pr-7 py-1 outline-none focus:border-blue-500"
+                v-model="textDetector"
+              >
+                <option value="default">Default</option>
+                <option value="ctd">CTD</option>
+                <option value="paddle">Paddle</option>
+              </select>
+              <i
+                class="iconify absolute top-1 right-1 text-gray-500 pointer-events-none"
+                data-icon="carbon:chevron-down"
+              ></i>
+            </div>
+          </div>
+
+          <!-- Render text direction -->
+          <div class="flex items-center gap-1" title="Render text orientation">
+            <i
+              class="iconify text-gray-600"
+              data-icon="carbon:text-align-left"
+            ></i>
+            <div class="relative">
+              <select
+                class="appearance-none bg-transparent border-b border-gray-300 pl-4 pr-7 py-1 outline-none focus:border-blue-500"
+                v-model="renderTextDirection"
+              >
+                <option value="auto">Auto</option>
+                <option value="horizontal">Horizontal</option>
+                <option value="vertical">Vertical</option>
+              </select>
+              <i
+                class="iconify absolute top-1 right-1 text-gray-500 pointer-events-none"
+                data-icon="carbon:chevron-down"
+              ></i>
+            </div>
+          </div>
+
+          <!-- Translator -->
+          <div class="flex items-center gap-1" title="Translator">
+            <i
+              class="iconify text-gray-600"
+              data-icon="carbon:operations-record"
+            ></i>
+            <div class="relative">
+              <select
+                class="appearance-none bg-transparent border-b border-gray-300 pl-4 pr-7 py-1 outline-none focus:border-blue-500"
+                v-model="translator"
+              >
+                <option v-for="key in validTranslators" :value="key" :key="key">
+                  {{getTranslatorName(key)}}
+                </option>
+              </select>
+              <i
+                class="iconify absolute top-1 right-1 text-gray-500 pointer-events-none"
+                data-icon="carbon:chevron-down"
+              ></i>
+            </div>
+          </div>
+
+          <!-- Target Language -->
+          <div class="flex items-center gap-1" title="Target language">
+            <i class="iconify text-gray-600" data-icon="carbon:language"></i>
+            <div class="relative">
+              <select
+                class="appearance-none bg-transparent border-b border-gray-300 pl-4 pr-7 py-1 outline-none focus:border-blue-500"
+                v-model="targetLanguage"
+              >
+                <option value="CHS">简体中文</option>
+                <option value="CHT">繁體中文</option>
+                <option value="JPN">日本語</option>
+                <option value="ENG">English</option>
+                <option value="KOR">한국어</option>
+                <option value="VIN">Tiếng Việt</option>
+                <option value="CSY">čeština</option>
+                <option value="NLD">Nederlands</option>
+                <option value="FRA">français</option>
+                <option value="DEU">Deutsch</option>
+                <option value="HUN">magyar nyelv</option>
+                <option value="ITA">italiano</option>
+                <option value="PLK">polski</option>
+                <option value="PTB">português</option>
+                <option value="ROM">limba română</option>
+                <option value="RUS">русский язык</option>
+                <option value="ESP">español</option>
+                <option value="TRK">Türk dili</option>
+                <option value="IND">Indonesia</option>
+              </select>
+              <i
+                class="iconify absolute top-1 right-1 text-gray-500 pointer-events-none"
+                data-icon="carbon:chevron-down"
+              ></i>
+            </div>
+          </div>
         </div>
 
-		<div class="flex mx-4 justify-start items-end">
-			<div class="flex gap-4">
-				<div class="flex items-center" title="Inpainting Size">
-					<i class="iconify" data-icon="carbon:paint-brush"></i>
-					<div class="relative">
-						<select class="w-9ch appearance-none bg-transparent border-b border-gray-300"
-								v-model="inpaintingSize">
-							<option value="516">516px</option>	
-							<option value="1024">1024px</option>
-							<option value="2048">2048px</option>
-							<option value="2560">2560px</option>
-						</select>
-						<i class="iconify absolute top-1.5 right-1 pointer-events-none"
-						   data-icon="carbon:chevron-down"></i>
-					</div>
-				</div>
-                <div class="flex items-center" title="Unclip Ratio">
-                    <i class="iconify" data-icon="weui:max-window-filled"></i>
-                    <div class="relative">
-                        <input type="number"
-                               class="w-9ch appearance-none bg-transparent border-b border-gray-300"
-                               v-model="customUnclipRatio" 
-                               placeholder="2.3 (Default)" 
-                               step="0.01" 
-                               value="2.3" /> 
-                    </div>
-				</div>	
-                <div class="flex items-center gap-1" title="Box Threshold">
-                    <i class="iconify" data-icon="weui:photo-wall-outlined"></i>
-                    <div class="relative">
-                        <input type="number"
-                               class="w-9ch appearance-none bg-transparent border-b border-gray-300"
-                               v-model="customBoxThreshold" 
-                               placeholder="0.7 (Default)" 
-                               step="0.01" 
-                               value="0.7" /> 
-                    </div>
-                </div>
+        <!-- オプション（2段目） -->
+        <div class="flex flex-wrap items-end gap-4">
+          <!-- Inpainting Size -->
+          <div class="flex items-center gap-1" title="Inpainting Size">
+            <i class="iconify text-gray-600" data-icon="carbon:paint-brush"></i>
+            <div class="relative">
+              <select
+                class="appearance-none bg-transparent border-b border-gray-300 pl-4 pr-7 py-1 outline-none focus:border-blue-500"
+                v-model="inpaintingSize"
+              >
+                <option value="516">516px</option>
+                <option value="1024">1024px</option>
+                <option value="2048">2048px</option>
+                <option value="2560">2560px</option>
+              </select>
+              <i
+                class="iconify absolute top-1 right-1 text-gray-500 pointer-events-none"
+                data-icon="carbon:chevron-down"
+              ></i>
+            </div>
+          </div>
 
-                <div class="flex items-center gap-1" title="Mask Dilation Offset">
-                    <i class="iconify" data-icon="material-symbols:adjust-outline"></i>
-                    <div class="relative">
-                        <input type="number"
-                               class="w-9ch appearance-none bg-transparent border-b border-gray-300"
-                               v-model="maskDilationOffset"
-                               placeholder="30 (Default)"
-                               step="1"
-                               value="30" />
-                    </div>
-                </div>
-                <div class="flex items-center gap-1" title="Inpainter">
-                    <i class="iconify" data-icon="carbon:paint-brush"></i>
-                    <div class="relative">
-                        <select class="w-12ch appearance-none bg-transparent border-b border-gray-300"
-                                v-model="inpainter">
-                            <option value="default">Default</option>
-                            <option value="lama_large">Lama Large</option>
-                            <option value="lama_mpe">Lama MPE</option>
-                            <option value="sd">SD</option>
-                            <option value="none">None</option>
-							<option value="original">Original</option>
-                        </select>
-                        <i class="iconify absolute top-1.5 right-1 pointer-events-none"
-                           data-icon="carbon:chevron-down"></i>
-                    </div>
-                </div>				
-				
-			</div>
-		</div>		
-		
-        <div v-if="result" class="flex flex-col items-center">
-            <img class="my-2" :src="resultUri"/>
-            <button class="px-2 py-1 text-center rounded-md text-blue-800 border-2 border-blue-300" @click="clear">
-                Upload another
-            </button>
+          <!-- Unclip Ratio -->
+          <div class="flex items-center gap-1" title="Unclip Ratio">
+            <i
+              class="iconify text-gray-600"
+              data-icon="weui:max-window-filled"
+            ></i>
+            <div class="relative">
+              <input
+                type="number"
+                class="appearance-none bg-transparent border-b border-gray-300 pl-2 pr-2 py-1 outline-none focus:border-blue-500 w-20"
+                v-model="customUnclipRatio"
+                placeholder="2.3 (Default)"
+                step="0.01"
+              />
+            </div>
+          </div>
+
+          <!-- Box Threshold -->
+          <div class="flex items-center gap-1" title="Box Threshold">
+            <i
+              class="iconify text-gray-600"
+              data-icon="weui:photo-wall-outlined"
+            ></i>
+            <div class="relative">
+              <input
+                type="number"
+                class="appearance-none bg-transparent border-b border-gray-300 pl-2 pr-2 py-1 outline-none focus:border-blue-500 w-20"
+                v-model="customBoxThreshold"
+                placeholder="0.7 (Default)"
+                step="0.01"
+              />
+            </div>
+          </div>
+
+          <!-- Mask Dilation Offset -->
+          <div class="flex items-center gap-1" title="Mask Dilation Offset">
+            <i
+              class="iconify text-gray-600"
+              data-icon="material-symbols:adjust-outline"
+            ></i>
+            <div class="relative">
+              <input
+                type="number"
+                class="appearance-none bg-transparent border-b border-gray-300 pl-2 pr-2 py-1 outline-none focus:border-blue-500 w-20"
+                v-model="maskDilationOffset"
+                placeholder="30 (Default)"
+                step="1"
+              />
+            </div>
+          </div>
+
+          <!-- Inpainter -->
+          <div class="flex items-center gap-1" title="Inpainter">
+            <i class="iconify text-gray-600" data-icon="carbon:paint-brush"></i>
+            <div class="relative">
+              <select
+                class="appearance-none bg-transparent border-b border-gray-300 pl-4 pr-7 py-1 outline-none focus:border-blue-500 w-28"
+                v-model="inpainter"
+              >
+                <option value="default">Default</option>
+                <option value="lama_large">Lama Large</option>
+                <option value="lama_mpe">Lama MPE</option>
+                <option value="sd">SD</option>
+                <option value="none">None</option>
+                <option value="original">Original</option>
+              </select>
+              <i
+                class="iconify absolute top-1 right-1 text-gray-500 pointer-events-none"
+                data-icon="carbon:chevron-down"
+              ></i>
+            </div>
+          </div>
         </div>
-        <div v-else-if="status"
-             class="grid w-full h-116 place-content-center rounded-2xl border-2 border-dashed border-gray-600">
-            <div v-if="error" class="flex flex-col items-center gap-2">
-                <div style="color: crimson">{{ statusText }}</div>
-                <button class="px-2 py-1 text-center rounded-md text-blue-800 border-2 border-blue-300" @click="clear">
-                    Upload another
-                </button>
-            </div>
-            <div v-else class="flex flex-col items-center gap-2">
-                <i class="iconify w-8 h-8 text-gray-500 animate-spin" data-icon="carbon:progress-bar-round"></i>
-                <div>{{ statusText }}</div>
-            </div>
-        </div>
-        <label
-                v-else
-                class="grid w-full h-116 place-content-center rounded-2xl border-2 border-dashed border-gray-600 cursor-pointer"
-                for="file"
-                @dragenter.prevent
-                @dragover.prevent
-                @dragleave.prevent
-                @drop.prevent="ondrop"
-        >
-            <div v-if="file" class="flex flex-col items-center gap-2">
-                <div><span class="iconify-inline inline-block mr-2 scale-125" data-icon="carbon:image-search"></span>File
-                    Preview
-                </div>
-                <img class="max-w-72 max-h-72" :src="fileUri"/>
-                <button type="submit" class="px-2 py-1 rounded-md text-blue-800 border-2 border-blue-300">Translate
-                </button>
-                <div class="text-sm text-gray-600">Click the empty space or paste/drag a new one to replace</div>
-            </div>
-            <div v-else class="flex flex-col items-center gap-2">
-                <i class="iconify w-8 h-8 text-gray-500" data-icon="carbon:cloud-upload"></i>
-                <div>Paste an image, click to select one or drag and drop here</div>
-            </div>
-            <input id="file" type="file" accept="image/png,image/jpeg,image/bmp,image/webp" class="hidden"
-                   @change="onfilechange"/>
-        </label>
-        <div class="flex justify-center gap-2">
-            <div>
-                Please consider supporting us by
-                <a class="underline underline-blue-400" href="https://ko-fi.com/voilelabs" target="_blank"
-                   rel="noopener noreferrer">Ko-fi</a>
-                or
-                <a class="underline underline-blue-400" href="https://www.patreon.com/voilelabs" target="_blank"
-                   rel="noopener noreferrer"
-                >Patreon</a
-                >!
-            </div>
-            <a
-                    class="underline underline-blue-400"
-                    href="https://github.com/zyddnys/manga-image-translator"
-                    target="_blank"
-                    rel="noopener noreferrer"
-            >Source Code</a
+
+        <!-- メインコンテンツエリア -->
+        <div>
+          <!-- 結果表示 -->
+          <div v-if="result" class="flex flex-col items-center space-y-4">
+            <img class="max-w-full max-h-[50vh] rounded-md" :src="resultUri" />
+            <button
+              class="px-3 py-2 text-center rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              @click="clear"
             >
+              Upload another
+            </button>
+          </div>
+
+          <!-- 処理中ステータス表示 -->
+          <div
+            v-else-if="status"
+            class="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-md p-8 h-72"
+          >
+            <div
+              v-if="error"
+              class="flex flex-col items-center gap-4 text-center"
+            >
+              <div class="text-red-600 font-semibold">{{ statusText }}</div>
+              <button
+                class="px-3 py-2 text-center rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                @click="clear"
+              >
+                Upload another
+              </button>
+            </div>
+            <div
+              v-else
+              class="flex flex-col items-center gap-2 text-center text-gray-700"
+            >
+              <i
+                class="iconify w-8 h-8 text-gray-500 animate-spin"
+                data-icon="carbon:progress-bar-round"
+              ></i>
+              <div>{{ statusText }}</div>
+            </div>
+          </div>
+
+          <!-- 画像未アップロード時のアップロードボックス -->
+          <label
+            v-else
+            class="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-md p-8 h-72 cursor-pointer hover:border-blue-400 transition-colors py-57"
+            for="file"
+            @dragenter.prevent
+            @dragover.prevent
+            @dragleave.prevent
+            @drop.prevent="ondrop"
+          >
+            <!-- 選択済みファイルがある場合 -->
+            <div
+              v-if="file"
+              class="flex flex-col items-center gap-4 text-center"
+            >
+              <div class="text-gray-700">
+                <span
+                  class="iconify-inline inline-block mr-2 text-xl"
+                  data-icon="carbon:image-search"
+                ></span>
+                File Preview
+              </div>
+              <img
+                class="max-w-[18rem] max-h-[18rem] rounded-md border border-gray-200"
+                :src="fileUri"
+              />
+              <button
+                type="submit"
+                style="background-color: cadetblue"
+                class="px-4 py-2 rounded-md hover:bg-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                Translate
+              </button>
+              <div class="text-sm text-gray-500">
+                Click the empty space or paste/drag a new one to replace
+              </div>
+            </div>
+            <!-- まだファイルがない場合 -->
+            <div v-else class="flex flex-col items-center gap-2 text-center">
+              <i
+                class="iconify w-8 h-8 text-gray-500"
+                data-icon="carbon:cloud-upload"
+              ></i>
+              <div class="text-gray-600">
+                Paste an image, click to select one, or drag and drop here
+              </div>
+            </div>
+            <input
+              id="file"
+              type="file"
+              accept="image/png,image/jpeg,image/bmp,image/webp"
+              class="hidden"
+              @change="onfilechange"
+            />
+          </label>
         </div>
-    </div>
-</form>
-<script>
-    const BASE_URI = '/'
-    const acceptTypes = ['image/png', 'image/jpeg', 'image/bmp', 'image/webp']
 
-    function formatSize(bytes) {
-        const k = 1024
-        const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-        if (bytes === 0) return '0B'
-        const i = Math.floor(Math.log(bytes) / Math.log(k))
-        return `${(bytes / k ** i).toFixed(2)}${sizes[i]}`
-    }
+        <!-- フッターリンク -->
+        <div
+          class="flex flex-col sm:flex-row items-center justify-center gap-4 text-sm text-gray-600 mt-4"
+        >
+          <div>
+            Please consider supporting us by
+            <a
+              class="underline text-blue-600 hover:text-blue-800"
+              href="https://ko-fi.com/voilelabs"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Ko-fi
+            </a>
+            or
+            <a
+              class="underline text-blue-600 hover:text-blue-800"
+              href="https://www.patreon.com/voilelabs"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Patreon
+            </a>
+            !
+          </div>
+          <a
+            class="underline text-blue-600 hover:text-blue-800"
+            href="https://github.com/zyddnys/manga-image-translator"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Source Code
+          </a>
+        </div>
+      </div>
+    </form>
 
-    function formatProgress(loaded, total) {
-        return `${formatSize(loaded)}/${formatSize(total)}`
-    }
+    <script>
+      const BASE_URI = "/";
+      const acceptTypes = [
+        "image/png",
+        "image/jpeg",
+        "image/bmp",
+        "image/webp",
+      ];
 
-    PetiteVue.createApp({
+      function formatSize(bytes) {
+        const k = 1024;
+        const sizes = ["B", "KB", "MB", "GB", "TB"];
+        if (bytes === 0) return "0B";
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return `${(bytes / k ** i).toFixed(2)}${sizes[i]}`;
+      }
+
+      function formatProgress(loaded, total) {
+        return `${formatSize(loaded)}/${formatSize(total)}`;
+      }
+
+      PetiteVue.createApp({
         onmounted() {
-            window.addEventListener('paste', this.onpaste)
+          window.addEventListener("paste", this.onpaste);
         },
 
         file: null,
         get fileUri() {
-            return this.file ? URL.createObjectURL(this.file) : null
+          return this.file ? URL.createObjectURL(this.file) : null;
         },
-        detectionResolution: '1536',
-        textDetector: 'default',
-        renderTextDirection: 'auto',
-        translator: 'youdao',
-        validTranslators: ['youdao', 'baidu', 'deepl', 'papago', 'caiyun', 'sakura', 'offline', 'openai', 'deepseek', 'none'],
+        detectionResolution: "1536",
+        textDetector: "default",
+        renderTextDirection: "auto",
+        translator: "youdao",
+        validTranslators: [
+          "youdao",
+          "baidu",
+          "deepl",
+          "papago",
+          "caiyun",
+          "sakura",
+          "offline",
+          "openai",
+          "deepseek",
+          "none",
+        ],
         getTranslatorName(key) {
-            if (key === 'none')
-                return "No Text"
-            return key ? key[0].toUpperCase() + key.slice(1) : "";
+          if (key === "none") return "No Text";
+          return key ? key[0].toUpperCase() + key.slice(1) : "";
         },
-        targetLanguage: 'CHS',
-        
-        inpaintingSize: '2048', 
+        targetLanguage: "CHS",
+
+        inpaintingSize: "2048",
         customUnclipRatio: 2.3,
-        customBoxThreshold: 0.7,  
-	maskDilationOffset: 30,
-        inpainter: 'default',
-		
+        customBoxThreshold: 0.7,
+        maskDilationOffset: 30,
+        inpainter: "default",
+
         ondrop(e) {
-            const file = e.dataTransfer?.files?.[0]
-            if (file && acceptTypes.includes(file.type)) {
-                this.file = file
-            }
+          const file = e.dataTransfer?.files?.[0];
+          if (file && acceptTypes.includes(file.type)) {
+            this.file = file;
+          }
         },
         onfilechange(e) {
-            const file = e.target.files?.[0]
-            if (file && acceptTypes.includes(file.type)) {
-                this.file = file
-            }
+          const file = e.target.files?.[0];
+          if (file && acceptTypes.includes(file.type)) {
+            this.file = file;
+          }
         },
         onpaste(e) {
-            const items = (e.clipboardData || e.originalEvent.clipboardData).items
-            for (const item of items) {
-                if (item.kind === 'file') {
-                    const file = item.getAsFile()
-                    if (!file || !acceptTypes.includes(file.type)) continue
-                    this.file = file
-                }
+          const items = (e.clipboardData || e.originalEvent.clipboardData)
+            .items;
+          for (const item of items) {
+            if (item.kind === "file") {
+              const file = item.getAsFile();
+              if (!file || !acceptTypes.includes(file.type)) continue;
+              this.file = file;
             }
+          }
         },
 
         progress: null,
         status: null,
         queuePos: null,
-        cachedStatusText: '',
+        cachedStatusText: "",
         get statusText() {
-            var newStatusText = this._statusText
-            if (newStatusText != null && newStatusText != this.cachedStatusText) {
-                this.cachedStatusText = newStatusText
-            }
-            return this.cachedStatusText
+          var newStatusText = this._statusText;
+          if (newStatusText != null && newStatusText != this.cachedStatusText) {
+            this.cachedStatusText = newStatusText;
+          }
+          return this.cachedStatusText;
         },
         get _statusText() {
-            switch (this.status) {
-                case 'upload': {
-                    if (this.progress) {
-                        return `Uploading (${this.progress})`
-                    } else {
-                        return 'Uploading'
-                    }
-                }
-                case 'pending':
-                    if (this.queuePos) {
-                        return `Queuing, your position is ${this.queuePos}`
-                    } else {
-                        return 'Processing'
-                    }
-                case 'detection':
-                    return 'Detecting texts'
-                case 'ocr':
-                    return 'Running OCR'
-                case 'mask-generation':
-                    return 'Generating text mask'
-                case 'inpainting':
-                    return 'Running inpainting'
-                case 'upscaling':
-                    return 'Running upscaling'
-                case 'translating':
-                    return 'Translating'
-                case 'rendering':
-                    return 'Rendering translated texts'
-                case 'finished':
-                    return 'Downloading image'
-                case 'error':
-                    return 'Something went wrong, please try again'
-                case 'error-upload':
-                    return 'Upload failed, please try again'
-                case 'error-lang':
-                    return 'Your target language is not supported by the chosen translator'
-                case 'error-translating':
-                    return 'Did not get any text back from the text translation service'
-                case 'error-too-large':
-                    return 'Image size too large (greater than 8000x8000 px)'
-                case 'error-disconnect':
-                    return 'Lost connection to server'
-            }
+          switch (this.status) {
+            case "upload":
+              return this.progress
+                ? `Uploading (${this.progress})`
+                : "Uploading";
+            case "pending":
+              return this.queuePos
+                ? `Queuing, your position is ${this.queuePos}`
+                : "Processing";
+            case "detection":
+              return "Detecting texts";
+            case "ocr":
+              return "Running OCR";
+            case "mask-generation":
+              return "Generating text mask";
+            case "inpainting":
+              return "Running inpainting";
+            case "upscaling":
+              return "Running upscaling";
+            case "translating":
+              return "Translating";
+            case "rendering":
+              return "Rendering translated texts";
+            case "finished":
+              return "Downloading image";
+            case "error":
+              return "Something went wrong, please try again";
+            case "error-upload":
+              return "Upload failed, please try again";
+            case "error-lang":
+              return "Your target language is not supported by the chosen translator";
+            case "error-translating":
+              return "Did not get any text back from the text translation service";
+            case "error-too-large":
+              return "Image size too large (greater than 8000x8000 px)";
+            case "error-disconnect":
+              return "Lost connection to server";
+          }
         },
         get error() {
-            return /^error/.test(this.status)
+          return /^error/.test(this.status);
         },
         result: null,
         get resultUri() {
-            return this.result ? URL.createObjectURL(this.result) : null
+          return this.result ? URL.createObjectURL(this.result) : null;
         },
-        onsubmit(e) {
-            if (!this.file) return
+        async onsubmit(e) {
+          if (!this.file) return;
 
-            this.progress = null
-            this.queuePos = null
-            this.status = 'upload'
-            let buffer = new Uint8Array();
+          this.progress = null;
+          this.queuePos = null;
+          this.status = "upload";
+          let buffer = new Uint8Array();
 
-            const formData = new FormData()
-            formData.append('image', this.file)
+          const formData = new FormData();
+          formData.append("image", this.file);
 
-			const config = `{
-				"detector": {
-					"detector": "${this.textDetector}",
-					"detection_size": ${this.detectionResolution},
-					"box_threshold": ${this.customBoxThreshold},
-					"unclip_ratio": ${this.customUnclipRatio}
-				},
-				"render": {
-					"direction": "${this.renderTextDirection}"
-				},
-				"translator": {
-					"translator": "${this.translator}",
-					"target_lang": "${this.targetLanguage}"
-				},
-				"inpainter": {
-					"inpainter": "${this.inpainter}",					
-					"inpainting_size": ${this.inpaintingSize}
-				},
-				"mask_dilation_offset": ${this.maskDilationOffset}
-			}`;
+          const config = `{
+          "detector": {
+            "detector": "${this.textDetector}",
+            "detection_size": ${this.detectionResolution},
+            "box_threshold": ${this.customBoxThreshold},
+            "unclip_ratio": ${this.customUnclipRatio}
+          },
+          "render": {
+            "direction": "${this.renderTextDirection}"
+          },
+          "translator": {
+            "translator": "${this.translator}",
+            "target_lang": "${this.targetLanguage}"
+          },
+          "inpainter": {
+            "inpainter": "${this.inpainter}",
+            "inpainting_size": ${this.inpaintingSize}
+          },
+          "mask_dilation_offset": ${this.maskDilationOffset}
+        }`;
 
-            formData.append('config', config)
+          formData.append("config", config);
 
+          const processChunk = (value) => {
+            if (this.error) return;
 
-            const processChunk = (value) => {
-                if (this.error) return;
+            const newBuffer = new Uint8Array(buffer.length + value.length);
+            newBuffer.set(buffer);
+            newBuffer.set(value, buffer.length);
+            buffer = newBuffer;
 
-                const newBuffer = new Uint8Array(buffer.length + value.length);
-                newBuffer.set(buffer);
-                newBuffer.set(value, buffer.length);
-                buffer = newBuffer;
+            while (buffer.length >= 5) {
+              const dataSize = new DataView(buffer.buffer).getUint32(1, false);
+              const totalSize = 5 + dataSize;
+              if (buffer.length < totalSize) {
+                break;
+              }
 
-                while (buffer.length >= 5) {
-                    const dataSize = new DataView(buffer.buffer).getUint32(1, false);
-                    const totalSize = 5 + dataSize;
-                    if (buffer.length < totalSize) {
-                        break;
-                    }
-
-                    const statusCode = buffer[0];
-                    const decoder = new TextDecoder('utf-8');
-                    const data = buffer.slice(5, totalSize);
-                    switch (statusCode) {
-                        case 0:
-                            this.result = new Blob([data], {type: 'image/png'});
-                            this.status = null;
-                            break;
-                        case 1:
-                            this.status = decoder.decode(data);
-                            break;
-                        case 2:
-                            this.status = "error";
-                            console.error(decoder.decode(data));
-                            break;
-                        case 3:
-                            this.status = 'pending';
-                            this.queuePos = decoder.decode(data);
-                            break;
-                        case 4:
-                            this.status = 'pending';
-                            this.queuePos = null;
-                            break;
-                    }
-                    buffer = buffer.slice(totalSize);
-                }
+              const statusCode = buffer[0];
+              const decoder = new TextDecoder("utf-8");
+              const data = buffer.slice(5, totalSize);
+              switch (statusCode) {
+                case 0:
+                  this.result = new Blob([data], { type: "image/png" });
+                  this.status = null;
+                  break;
+                case 1:
+                  this.status = decoder.decode(data);
+                  break;
+                case 2:
+                  this.status = "error";
+                  console.error(decoder.decode(data));
+                  break;
+                case 3:
+                  this.status = "pending";
+                  this.queuePos = decoder.decode(data);
+                  break;
+                case 4:
+                  this.status = "pending";
+                  this.queuePos = null;
+                  break;
+              }
+              buffer = buffer.slice(totalSize);
             }
-            const uploadWithProgress = async (formData) => {
-                try {
-                    const response = await fetch(`${BASE_URI}translate/with-form/image/stream`, {
-                        method: 'POST',
-                        body: formData,
-                    });
+          };
 
-                    if (response.status !== 200) {
-                        this.status = 'error-upload';
-                        this.status = 'pending';
-                        return;
-                    }
-
-                    const reader = response.body.getReader();
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        processChunk(value);
-                    }
-                } catch (error) {
-                    console.error(error);
-                    this.status = 'error-disconnect';
+          const uploadWithProgress = async (formData) => {
+            try {
+              const response = await fetch(
+                `${BASE_URI}translate/with-form/image/stream`,
+                {
+                  method: "POST",
+                  body: formData,
                 }
-            }
+              );
 
-            uploadWithProgress(formData);
+              if (response.status !== 200) {
+                this.status = "error-upload";
+                this.status = "pending";
+                return;
+              }
+
+              const reader = response.body.getReader();
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                processChunk(value);
+              }
+            } catch (error) {
+              console.error(error);
+              this.status = "error-disconnect";
+            }
+          };
+
+          uploadWithProgress(formData);
         },
         clear() {
-            this.file = null
-            this.result = null
-            this.status = null
+          this.file = null;
+          this.result = null;
+          this.status = null;
         },
-    }).mount()
-</script>
-</body>
+      }).mount();
+    </script>
+  </body>
 </html>
