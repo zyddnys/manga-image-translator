@@ -23,6 +23,7 @@
   },
   "translator": {
     "translator": "openai",
+    "translator": "openai",
     "target_lang": "ENG",
     "no_text_lang_skip": false,
     "skip_lang": null,
@@ -32,6 +33,7 @@
   },
   "detector": {
     "detector": "default",
+    "detection_size": 2048,
     "detection_size": 2048,
     "text_threshold": 0.5,
     "det_rotate": false,
@@ -48,7 +50,9 @@
   },
   "inpainter": {
     "inpainter": "lama_large" ,
+    "inpainter": "lama_large" ,
     "inpainting_size": 2048,
+    "inpainting_precision": "bf16"
     "inpainting_precision": "bf16"
   },
   "ocr": {
