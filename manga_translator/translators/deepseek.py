@@ -16,6 +16,14 @@ from .tokenizers.token_counters import deepseekTokenCounter
 
 
 class DeepseekTranslator(CommonGPTTranslator):
+from typing import List
+from .common import MissingAPIKeyException
+from .common_gpt import CommonGPTTranslator
+from .keys import DEEPSEEK_API_KEY, DEEPSEEK_API_BASE, DEEPSEEK_MODEL
+from .tokenizers.token_counters import deepseekTokenCounter
+
+
+class DeepseekTranslator(CommonGPTTranslator):
     _INVALID_REPEAT_COUNT = 0  # 现在这个参数没意义了
     _MAX_REQUESTS_PER_MINUTE = 9999  # 无RPM限制
     _TIMEOUT = 40  # 在重试之前等待服务器响应的时间（秒）
@@ -37,6 +45,19 @@ class DeepseekTranslator(CommonGPTTranslator):
     # Limit each prompt to 50% max output tokens. 
     # (This is an arbitrary ratio to account for variance between languages.)
     _MAX_TOKENS_IN = _MAX_TOKENS // 2
+    # Maximum token count for controlling the length of text processed
+    # 
+    # 最大输出长度: 8K
+    # MAX OUTPUT TOKENS: 8K
+    # -- https://api-docs.deepseek.com/quick_start/pricing
+    _MAX_TOKENS = 8000
+
+    # 将每个 prompt 限制为最大输出 tokens 的 50％。
+    # （这是一个任意比率，用于解释语言之间的差异。）
+    # 
+    # Limit each prompt to 50% max output tokens. 
+    # (This is an arbitrary ratio to account for variance between languages.)
+    _MAX_TOKENS_IN = _MAX_TOKENS // 2
 
     # 是否返回原始提示，用于控制输出内容
     _RETURN_PROMPT = False
@@ -45,6 +66,14 @@ class DeepseekTranslator(CommonGPTTranslator):
     _INCLUDE_TEMPLATE = False
 
     def __init__(self, check_openai_key=True):
+        # CommonGPTTranslator 的初始化
+        # CommonGPTTranslator initialization 
+        _CONFIG_KEY = 'deepseek.' + DEEPSEEK_MODEL
+        CommonGPTTranslator.__init__(self, config_key=_CONFIG_KEY)
+
+        # Initialize the token counter
+        self.tokenizer = deepseekTokenCounter()
+
         # CommonGPTTranslator 的初始化
         # CommonGPTTranslator initialization 
         _CONFIG_KEY = 'deepseek.' + DEEPSEEK_MODEL
@@ -132,6 +161,7 @@ class DeepseekTranslator(CommonGPTTranslator):
                                 raise Exception('deepseek servers did not respond quickly enough.')
                             timeout_attempt += 1
                             self.logger.warning(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
+                            self.logger.warning(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
                             request_task.cancel()
                             request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
                             started = time.time()
@@ -152,6 +182,7 @@ class DeepseekTranslator(CommonGPTTranslator):
 
                     if len(prompt_queries) == 1 and len(new_translations) == 1 and not re.match(r'^\s*<\|\d+\|>', response):  
                         self.logger.warning(f'Single query response does not contain prefix, retrying...(Attempt {attempt + 1})')  
+                        self.logger.warning(f'Single query response does not contain prefix, retrying...(Attempt {attempt + 1})')  
                         continue  
 
                     if len(new_translations) < query_size:  
@@ -160,6 +191,7 @@ class DeepseekTranslator(CommonGPTTranslator):
 
                     if len(new_translations) < query_size:  
                         remaining_attempts = RETRY_ATTEMPTS - attempt - 1  
+                        self.logger.warning(f'Incomplete response, remaining {remaining_attempts} time(s) before splitting the translation.')  
                         self.logger.warning(f'Incomplete response, remaining {remaining_attempts} time(s) before splitting the translation.')  
                         continue  
 
@@ -171,6 +203,7 @@ class DeepseekTranslator(CommonGPTTranslator):
                     new_translations = [re.sub(r'^\s*<\|\d+\|>\s*', '', t) for t in new_translations]  
                     # Check if any translations are empty  
                     if any(not t.strip() for t in new_translations):  
+                        self.logger.warning(f'Empty translations detected. Resplitting the batch.') 
                         self.logger.warning(f'Empty translations detected. Resplitting the batch.') 
                         break  # Exit retry loop and trigger split logic below 
 
@@ -190,6 +223,7 @@ class DeepseekTranslator(CommonGPTTranslator):
                             'Deepseek encountered a server error, possibly due to high server load. Use a different translator or try again later.')
                         raise
                     self.logger.warning(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
+                    self.logger.warning(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
                     await asyncio.sleep(1)
                 except Exception as e:  
                     self.logger.error(f'Error during translation attempt: {e}')  
@@ -201,7 +235,9 @@ class DeepseekTranslator(CommonGPTTranslator):
             if split_level < MAX_SPLIT_ATTEMPTS:  
                 if split_level == 0:  
                     self.logger.warning('Retry limit reached. Starting to split the translation batch.')  
+                    self.logger.warning('Retry limit reached. Starting to split the translation batch.')  
                 else:  
+                    self.logger.warning('Further splitting the translation batch due to persistent errors.')  
                     self.logger.warning('Further splitting the translation batch due to persistent errors.')  
                 mid_index = len(prompt_queries) // 2  
                 futures = []  
@@ -264,6 +300,7 @@ class DeepseekTranslator(CommonGPTTranslator):
             
             # 获取响应文本
             # Get the response text
+            # Get the response text
             for choice in response.choices:
                 if 'text' in choice:
                     return choice.text
@@ -277,6 +314,7 @@ class DeepseekTranslator(CommonGPTTranslator):
                             )
                 
             # If no response with text is found, return the first response's content (which may be empty)
+            # 如果没有找到包含文本的响应，则返回第一个响应的内容（可能为空）
             # 如果没有找到包含文本的响应，则返回第一个响应的内容（可能为空）
             return response.choices[0].message.content
         

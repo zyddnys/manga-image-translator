@@ -364,6 +364,7 @@ Translator:
 - English -> Chinese (Simplified): ??
 
 Inpainter: lama_large
+Inpainter: lama_large
 
 Colorizer: **mc2**
 
@@ -1363,6 +1364,7 @@ prompt_template: 'Please help me to translate the following text from a manga to
 #
 # If you'd like to disable this feature, just set this to an empty list.
 chat_sample:
+  Chinese (Simplified): # Tokens used in this example: 88 + 84
   Chinese (Simplified): # Tokens used in this example: 88 + 84
     - <|1|>恥ずかしい… 目立ちたくない… 私が消えたい…
       <|2|>きみ… 大丈夫⁉

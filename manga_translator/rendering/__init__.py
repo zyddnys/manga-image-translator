@@ -302,6 +302,7 @@ def render(
             round(norm_v[0]),
             region.alignment,
             region.direction == 'hl',
+            region.direction == 'hl',
             fg,
             bg,
             region.target_lang,

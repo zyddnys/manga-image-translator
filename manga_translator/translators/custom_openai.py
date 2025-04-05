@@ -139,6 +139,7 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                             raise Exception('ollama servers did not respond quickly enough.')
                         timeout_attempt += 1
                         self.logger.warning(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
+                        self.logger.warning(f'Restarting request due to timeout. Attempt: {timeout_attempt}')
                         request_task.cancel()
                         request_task = asyncio.create_task(self._request_translation(to_lang, prompt))
                         started = time.time()
@@ -150,6 +151,7 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                     if ratelimit_attempt >= self._RATELIMIT_RETRY_ATTEMPTS:
                         raise
                     self.logger.warning(
+                    self.logger.warning(
                         f'Restarting request due to ratelimiting by Ollama servers. Attempt: {ratelimit_attempt}')
                     await asyncio.sleep(2)
                 except openai.APIError:  # Server returned 500 error (probably server load)
@@ -158,6 +160,7 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                         self.logger.error(
                             'Ollama encountered a server error, possibly due to high server load. Use a different translator or try again later.')
                         raise
+                    self.logger.warning(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
                     self.logger.warning(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
                     await asyncio.sleep(1)
 
@@ -213,6 +216,11 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
         messages = [{'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)}]
 
+        # Add chat samples if available
+        lang_chat_samples = self.get_chat_sample(to_lang)
+        if lang_chat_samples:
+            messages.append({'role': 'user', 'content': lang_chat_samples[0]})
+            messages.append({'role': 'assistant', 'content': lang_chat_samples[1]})
         # Add chat samples if available
         lang_chat_samples = self.get_chat_sample(to_lang)
         if lang_chat_samples:
