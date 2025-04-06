@@ -251,23 +251,27 @@ class ModelMangaOCR(OfflineOCR):
                 if idx not in out_regions:
                     continue
                     
-                total_logprobs += np.log(out_regions[idx].prob) * out_regions[idx].area
-                total_area += out_regions[idx].area
-                fg_r.append(out_regions[idx].fg_r)
-                fg_g.append(out_regions[idx].fg_g)
-                fg_b.append(out_regions[idx].fg_b)
-                bg_r.append(out_regions[idx].bg_r)
-                bg_g.append(out_regions[idx].bg_g)
-                bg_b.append(out_regions[idx].bg_b)
+                region_out = out_regions[idx]
+                total_logprobs += np.log(region_out.prob) * region_out.area
+                total_area += region_out.area
+                fg_r.append(region_out.fg_r)
+                fg_g.append(region_out.fg_g)
+                fg_b.append(region_out.fg_b)
+                bg_r.append(region_out.bg_r)
+                bg_g.append(region_out.bg_g)
+                bg_b.append(region_out.bg_b)
                 
-            total_logprobs /= total_area
-            prob = np.exp(total_logprobs)
-            fr = round(np.mean(fg_r))
-            fg = round(np.mean(fg_g))
-            fb = round(np.mean(fg_b))
-            br = round(np.mean(bg_r))
-            bg = round(np.mean(bg_g))
-            bb = round(np.mean(bg_b))
+            if total_area > 0:
+                total_logprobs /= total_area
+                prob = np.exp(total_logprobs)
+            else:
+                prob = 0.0
+            fr = round(np.mean(fg_r)) if fg_r else 0
+            fg = round(np.mean(fg_g)) if fg_g else 0
+            fb = round(np.mean(fg_b)) if fg_b else 0
+            br = round(np.mean(bg_r)) if bg_r else 0
+            bg = round(np.mean(bg_g)) if bg_g else 0
+            bb = round(np.mean(bg_b)) if bg_b else 0
             
             txt = texts[i]
             self.logger.info(f'prob: {prob} {txt} fg: ({fr}, {fg}, {fb}) bg: ({br}, {bg}, {bb})')
