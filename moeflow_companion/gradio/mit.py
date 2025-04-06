@@ -1,28 +1,15 @@
-import logging
 import gradio as gr
-from pathlib import Path
 from moeflow_companion.mit_workflow import (
     process_files,
     is_cuda_avaiable,
-    create_unique_dir,
+    export_moeflow_project,
 )
-from moeflow_companion.exporter import export_moeflow_project
-
-if gr.NO_RELOAD:
-    logging.basicConfig(
-        level=logging.WARN,
-        format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        force=True,
-    )
-    for name in ["httpx"]:
-        logging.getLogger(name).setLevel(logging.WARN)
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+from moeflow_companion.utils import create_unique_dir
 
 
-with gr.Blocks() as demo:
+with gr.Blocks() as mit_workflow_block:
+    # inputs
+    gr.Markdown("# manga-image-translator workflow: text detection > ocr > translation")
     file_input = gr.File(
         label="upload file",
         file_count="multiple",
@@ -51,7 +38,11 @@ with gr.Blocks() as demo:
         label="detector",
     )
 
-    export_moeflow_project_name = gr.Text(None, label="moeflow project name")
+    export_moeflow_project_name_input = gr.Text(
+        None,
+        label="moeflow project name",
+        placeholder="when empty, project name will be set to first image filename",
+    )
 
     ocr_key_input = gr.Radio(
         choices=["48px", "48px_ctc", "mocr"], label="ocr", value="48px"
@@ -71,6 +62,7 @@ with gr.Blocks() as demo:
             ocr_key_input,
             device_input,
             target_language_input,
+            export_moeflow_project_name_input,
         ],
         outputs=[ocr_output, file_output],
     )
@@ -81,7 +73,7 @@ with gr.Blocks() as demo:
         device: str,
         target_language: str | None,
         export_moeflow_project_name: str | None,
-    ) -> tuple[str, bytes]:
+    ) -> tuple[str, str | None]:
         res = await process_files(
             gradio_temp_files,
             detector_key=detector_key,
@@ -95,24 +87,15 @@ with gr.Blocks() as demo:
                 export_moeflow_project(
                     res,
                     export_moeflow_project_name,
-                    output_dir=Path(create_unique_dir()),
+                    dest_dir=create_unique_dir("export"),
                 )
             )
         else:
             moeflow_zip = None
 
         output_json = {
-            "project_name": "unnamed",
-            "files": [f.model_dump() for f in res.files],
+            "project_name": export_moeflow_project_name or "unnamed",
+            "files": [f.model_dump(mode="json") for f in res.files],
         }
 
         return output_json, moeflow_zip
-
-
-if __name__ == "__main__":
-    demo.queue(api_open=True, max_size=100).launch(
-        share=False,
-        debug=True,
-        server_name="0.0.0.0",
-        max_file_size=10 * gr.FileSize.MB,
-    )
