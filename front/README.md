@@ -32,6 +32,13 @@ Start the development server with HMR:
 npm run dev
 ```
 
+Run backend server (by running the FastAPI server from /server directory)
+
+```bash
+cd ../server
+python main.py
+```
+
 Your application will be available at `http://localhost:5173`.
 
 ## Building for Production

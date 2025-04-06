@@ -17,6 +17,18 @@ export type StatusKey =
   | "error-disconnect"
   | null;
 
+export const processingStatuses = [
+  "upload",
+  "pending",
+  "detection",
+  "ocr",
+  "mask-generation",
+  "inpainting",
+  "upscaling",
+  "translating",
+  "rendering",
+];
+
 export type TranslatorKey =
   | "youdao"
   | "baidu"
@@ -41,3 +53,11 @@ export const validTranslators: TranslatorKey[] = [
   "deepseek",
   "none",
 ];
+
+export interface FileStatus {
+  status: StatusKey | null;
+  progress: string | null;
+  queuePos: string | null;
+  result: Blob | null;
+  error: string | null;
+}
