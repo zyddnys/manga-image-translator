@@ -1,13 +1,10 @@
 import React from "react";
 import { Icon } from "@iconify/react";
-import { StatusDisplay } from "@/components/StatusDisplay";
 import { fetchStatusText } from "@/utils/fetchStatusText";
 import type { FileStatus } from "@/types";
 
 export interface UploadAreaProps {
   files: File[];
-  fileUris: string[];
-  resultUris: string[];
   fileStatuses: Map<string, FileStatus>;
   isProcessing: boolean;
   isProcessingAllFinished: boolean;
@@ -24,8 +21,6 @@ export interface UploadAreaProps {
  */
 export const UploadArea: React.FC<UploadAreaProps> = ({
   files,
-  fileUris,
-  resultUris,
   fileStatuses,
   isProcessing,
   isProcessingAllFinished,
@@ -35,7 +30,6 @@ export const UploadArea: React.FC<UploadAreaProps> = ({
   clearForm,
   removeFile,
 }) => {
-  console.log(isProcessing, isProcessingAllFinished, fileStatuses);
   return (
     <div className="space-y-4 max-w-[1200px] mx-auto">
       {!isProcessing && !isProcessingAllFinished && (

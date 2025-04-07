@@ -31,15 +31,9 @@ export const App: React.FC = () => {
   const [maskDilationOffset, setMaskDilationOffset] = useState<number>(30);
   const [inpainter, setInpainter] = useState("default");
 
-  // 画像プレビュー用 URL TODO: make sure index aligns after removing files
-  const fileUris = files.map((file) => URL.createObjectURL(file));
-  // 翻訳後の画像表示用 URL
-  const resultUris = results.map((result) => URL.createObjectURL(result));
-
   // Helper to update status for a specific file
   const updateFileStatus = useCallback(
     (fileId: string, update: Partial<FileStatus>) => {
-      console.log("Updating status for:", fileId, update); // Add logging
       setFileStatuses((prev) => {
         const newStatuses = new Map(prev);
         const currentStatus = newStatuses.get(fileId) || {
@@ -50,7 +44,6 @@ export const App: React.FC = () => {
           error: null,
         };
         const updatedStatus = { ...currentStatus, ...update };
-        console.log("New status:", updatedStatus); // Add logging
         newStatuses.set(fileId, updatedStatus);
         return newStatuses;
       });
@@ -114,7 +107,7 @@ export const App: React.FC = () => {
     // Remove from files array
     setFiles((prev) => prev.filter((file) => file.name !== fileName));
 
-    // Remove from status map TODO: is this needed?
+    // Remove from status map
     setFileStatuses((prev) => {
       const newStatuses = new Map(prev);
       newStatuses.delete(fileName);
@@ -146,173 +139,142 @@ export const App: React.FC = () => {
    * フォーム送信 (翻訳リクエスト)
    */
   const handleSubmit = useCallback(async () => {
-    // If no files, do nothing
-    if (files.length === 0) return;
+    // Track readers to ensure cleanup
+    const readers: ReadableStreamDefaultReader<Uint8Array>[] = [];
 
-    // Initialize status for all files
-    const newStatuses = new Map();
-    files.forEach((file) => {
-      newStatuses.set(file.name, {
-        status: "upload",
-        progress: null,
-        queuePos: null,
-        result: null,
-        error: null,
+    try {
+      // If no files, do nothing
+      if (files.length === 0) return;
+
+      // Initialize status for all files
+      const newStatuses = new Map();
+      files.forEach((file) => {
+        newStatuses.set(file.name, {
+          status: null,
+          progress: null,
+          queuePos: null,
+          result: null,
+          error: null,
+        });
       });
-    });
-    setFileStatuses(newStatuses);
+      setFileStatuses(newStatuses);
 
-    const config = JSON.stringify({
-      detector: {
-        detector: textDetector,
-        detection_size: detectionResolution,
-        box_threshold: customBoxThreshold,
-        unclip_ratio: customUnclipRatio,
-      },
-      render: {
-        direction: renderTextDirection,
-      },
-      translator: {
-        translator: translator,
-        target_lang: targetLanguage,
-      },
-      inpainter: {
-        inpainter: inpainter,
-        inpainting_size: inpaintingSize,
-      },
-      mask_dilation_offset: maskDilationOffset,
-    });
+      const config = JSON.stringify({
+        detector: {
+          detector: textDetector,
+          detection_size: detectionResolution,
+          box_threshold: customBoxThreshold,
+          unclip_ratio: customUnclipRatio,
+        },
+        render: {
+          direction: renderTextDirection,
+        },
+        translator: {
+          translator: translator,
+          target_lang: targetLanguage,
+        },
+        inpainter: {
+          inpainter: inpainter,
+          inpainting_size: inpaintingSize,
+        },
+        mask_dilation_offset: maskDilationOffset,
+      });
 
-    // Process all files in parallel
-    await Promise.all(
-      files.map(async (file) => {
-        const formData = new FormData();
-        formData.append("image", file);
-        formData.append("config", config);
+      // Process all files in parallel
+      await Promise.all(
+        files.map(async (file) => {
+          const formData = new FormData();
+          formData.append("image", file);
+          formData.append("config", config);
 
-        try {
-          const response = await fetch(
-            `${BASE_URI}translate/with-form/image/stream`,
-            {
-              method: "POST",
-              body: formData,
-            }
-          );
-
-          if (response.status !== 200) {
-            throw new Error("Upload failed");
-          }
-
-          const reader = response.body?.getReader();
-          if (!reader) return;
-
-          let fileBuffer = new Uint8Array();
-          let processingPromise = Promise.resolve(); // Track ongoing processing
-
-          const processChunk = async (value: Uint8Array, fileId: string) => {
-            // Wait for any previous processing to complete
-            await processingPromise;
-
-            // Create new processing promise
-            processingPromise = (async () => {
-              console.log("Processing chunk for file:", fileId);
-              if (fileStatuses.get(fileId)?.error) return;
-
-              const newBuffer = new Uint8Array(
-                fileBuffer.length + value.length
-              );
-              newBuffer.set(fileBuffer);
-              newBuffer.set(value, fileBuffer.length);
-              fileBuffer = newBuffer;
-
-              while (fileBuffer.length >= 5) {
-                const dataSize = new DataView(fileBuffer.buffer).getUint32(
-                  1,
-                  false
-                );
-                const totalSize = 5 + dataSize;
-                if (fileBuffer.length < totalSize) break;
-
-                const statusCode = fileBuffer[0];
-                const data = fileBuffer.slice(5, totalSize);
-                const decoder = new TextDecoder("utf-8");
-                const decodedData = decoder.decode(data);
-
-                console.log(
-                  `Processing status code ${statusCode} with data:`,
-                  decodedData
-                );
-
-                switch (statusCode) {
-                  case 0: // Result image (PNG)
-                    console.log(`Received result for file ${fileId}`);
-                    updateFileStatus(fileId, {
-                      status: "finished",
-                      result: new Blob([data], { type: "image/png" }),
-                    });
-                    break;
-                  case 1: // Status string
-                    const newStatus = decodedData as StatusKey;
-                    console.log(
-                      `Updating status for file ${fileId} to ${newStatus}`
-                    );
-                    updateFileStatus(fileId, {
-                      status: newStatus,
-                    });
-                    break;
-                  case 2: // Error
-                    console.log(`Error for file ${fileId}:`, decodedData);
-                    updateFileStatus(fileId, {
-                      status: "error",
-                      error: decodedData,
-                    });
-                    break;
-                  case 3: // Queue position
-                    console.log(
-                      `Queue position for file ${fileId}:`,
-                      decodedData
-                    );
-                    updateFileStatus(fileId, {
-                      status: "pending",
-                      queuePos: decodedData,
-                    });
-                    break;
-                  case 4: // Queue clear
-                    console.log(`Queue cleared for file ${fileId}`);
-                    updateFileStatus(fileId, {
-                      status: "pending",
-                      queuePos: null,
-                    });
-                    break;
-                  default:
-                    console.warn(
-                      `Unknown status code ${statusCode} for file ${fileId}`
-                    );
-                    break;
-                }
-
-                fileBuffer = fileBuffer.slice(totalSize);
+          try {
+            const response = await fetch(
+              `${BASE_URI}translate/with-form/image/stream`,
+              {
+                method: "POST",
+                body: formData,
               }
-            })();
+            );
 
-            // Wait for this processing to complete before returning
-            await processingPromise;
-          };
+            if (response.status !== 200) {
+              throw new Error("Upload failed");
+            }
 
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done || !value) break;
-            await processChunk(value, file.name);
+            const reader = response.body?.getReader();
+            if (!reader) return;
+            readers.push(reader);
+
+            let fileBuffer = new Uint8Array();
+            let processingPromise = Promise.resolve(); // Track ongoing processing
+
+            const processChunk = async (value: Uint8Array, fileId: string) => {
+              try {
+                // Wait for any previous processing to complete
+                await processingPromise;
+
+                // Create a new processing promise for this chunk
+                processingPromise = (async () => {
+                  if (fileStatuses.get(fileId)?.error) return;
+
+                  const newBuffer = new Uint8Array(
+                    fileBuffer.length + value.length
+                  );
+                  newBuffer.set(fileBuffer);
+                  newBuffer.set(value, fileBuffer.length);
+                  fileBuffer = newBuffer;
+
+                  while (fileBuffer.length >= 5) {
+                    const dataSize = new DataView(fileBuffer.buffer).getUint32(
+                      1,
+                      false
+                    );
+                    const totalSize = 5 + dataSize;
+                    if (fileBuffer.length < totalSize) break;
+
+                    const statusCode = fileBuffer[0];
+                    const data = fileBuffer.slice(5, totalSize);
+                    const decoder = new TextDecoder("utf-8");
+                    const decodedData = decoder.decode(data);
+
+                    processStatusUpdate(statusCode, decodedData, fileId, data);
+
+                    fileBuffer = fileBuffer.slice(totalSize);
+                  }
+                })().catch((error) => {
+                  console.error(`Error processing chunk for ${fileId}:`, error);
+                  updateFileStatus(fileId, {
+                    status: "error",
+                    error: error.message || "Error processing chunk",
+                  });
+                });
+
+                await processingPromise;
+              } catch (error) {
+                console.error(
+                  `Fatal error processing chunk for ${fileId}:`,
+                  error
+                );
+              }
+            };
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done || !value) break;
+              await processChunk(value, file.name);
+            }
+          } catch (err) {
+            console.error("Error processing file: ", file.name, err);
+            updateFileStatus(file.name, {
+              status: "error",
+              error: err instanceof Error ? err.message : "Unknown error",
+            });
           }
-        } catch (err) {
-          console.error("Error processing file: ", file.name, err);
-          updateFileStatus(file.name, {
-            status: "error",
-            error: err instanceof Error ? err.message : "Unknown error",
-          });
-        }
-      })
-    );
+        })
+      );
+    } finally {
+      // Cleanup all readers
+      await Promise.all(readers.map((reader) => reader.cancel()));
+    }
   }, [
     files,
     textDetector,
@@ -327,6 +289,48 @@ export const App: React.FC = () => {
     maskDilationOffset,
     updateFileStatus,
   ]);
+
+  // Create a separate function for clarity
+  const processStatusUpdate = (
+    statusCode: number,
+    decodedData: string,
+    fileId: string,
+    data: Uint8Array
+  ) => {
+    switch (statusCode) {
+      case 0: // 結果が返ってきた
+        updateFileStatus(fileId, {
+          status: "finished",
+          result: new Blob([data], { type: "image/png" }),
+        });
+        break;
+      case 1: // 翻訳中
+        const newStatus = decodedData as StatusKey;
+        updateFileStatus(fileId, { status: newStatus });
+        break;
+      case 2: // エラー
+        updateFileStatus(fileId, {
+          status: "error",
+          error: decodedData,
+        });
+        break;
+      case 3: // キューに追加された
+        updateFileStatus(fileId, {
+          status: "pending",
+          queuePos: decodedData,
+        });
+        break;
+      case 4: // キューがクリアされた
+        updateFileStatus(fileId, {
+          status: "pending",
+          queuePos: null,
+        });
+        break;
+      default: // 未知のステータスコード
+        console.warn(`Unknown status code ${statusCode} for file ${fileId}`);
+        break;
+    }
+  };
 
   return (
     <div>
@@ -357,8 +361,6 @@ export const App: React.FC = () => {
           />
           <UploadArea
             files={files}
-            fileUris={fileUris}
-            resultUris={resultUris}
             fileStatuses={fileStatuses}
             isProcessing={isProcessing}
             isProcessingAllFinished={isProcessingAllFinished}
