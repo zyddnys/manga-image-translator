@@ -77,8 +77,6 @@ export const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    console.log("=== fileStatuses changed ===");
-    console.log("New value:", fileStatuses);
     if (shouldTranslate) {
       processTranslation();
       setShouldTranslate(false);
@@ -125,7 +123,6 @@ export const App: React.FC = () => {
    * フォーム送信 (翻訳リクエスト)
    */
   const handleSubmit = () => {
-    console.log("1. Starting handleSubmit, fileStatuses:", fileStatuses); // TODO: DEBUG
     if (files.length === 0) return;
 
     resetFileStatuses();
@@ -133,7 +130,7 @@ export const App: React.FC = () => {
   };
 
   // Translation Processing - Configeration
-  const buildTranslationConfig = () => {
+  const buildTranslationConfig = (): string => {
     return JSON.stringify({
       detector: {
         detector: textDetector,
@@ -302,7 +299,7 @@ export const App: React.FC = () => {
     decodedData: string,
     fileId: string,
     data: Uint8Array
-  ) => {
+  ): void => {
     switch (statusCode) {
       case 0: // 結果が返ってきた
         updateFileStatus(fileId, {
