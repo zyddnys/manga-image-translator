@@ -170,137 +170,277 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
 
         return translations
 
-    async def _translate_batch(
-        self,
-        from_lang: str,
-        to_lang: str,
-        batch_queries: List[str],
-        batch_indices: List[int],
-        prompt: str,
-        split_level: int = 0
-    ):
-        """
-        尝试翻译 batch_queries。若失败或返回不完整，则进一步拆分。
-        :return: (bool 是否成功, List[str] 对应每个 query 的翻译结果)
-        """
-        partial_results = [''] * len(batch_queries)
-        # 如果没有查询就直接返回
-        if not batch_queries:
-            return True, partial_results
+    async def _translate_batch(  
+        self,  
+        from_lang: str,  
+        to_lang: str,  
+        batch_queries: List[str],  
+        batch_indices: List[int],  
+        prompt: str,  
+        split_level: int = 0  
+    ):  
+        """  
+        尝试翻译 batch_queries。若失败或返回不完整，则进一步拆分。  
+        Attempt to translate batch_queries. If failed or incomplete, further split the batch.  
+        
+        :param from_lang: 源语言 / Source language  
+        :param to_lang: 目标语言 / Target language  
+        :param batch_queries: 需要翻译的文本列表 / List of texts to be translated  
+        :param batch_indices: 批量查询的索引列表 / List of indices for batch queries  
+        :param prompt: 发送给翻译服务的提示文本 / Prompt text sent to translation service  
+        :param split_level: 当前拆分级别，用于控制递归深度 / Current split level for controlling recursion depth  
+        :return: (bool 是否成功, List[str] 对应每个 query 的翻译结果)  
+                 (bool success or not, List[str] translation results corresponding to each query)  
+        """  
+        # 初始化结果列表，与输入查询数量相同  
+        # Initialize result list with the same length as input queries  
+        partial_results = [''] * len(batch_queries)  
+        
+        # 如果没有查询就直接返回  
+        # If no queries, return immediately  
+        if not batch_queries:  
+            return True, partial_results  
 
-        # 进行 _RETRY_ATTEMPTS 次重试
-        for attempt in range(self._RETRY_ATTEMPTS):
-            try:
-                # 1) 发起请求
-                response_text = await self._request_with_retry(to_lang, prompt)
+        # 进行 _RETRY_ATTEMPTS 次重试  
+        # Retry for _RETRY_ATTEMPTS times  
+        for attempt in range(self._RETRY_ATTEMPTS):  
+            try:  
+                # 1) 发起请求  
+                # 1) Send request  
+                response_text = await self._request_with_retry(to_lang, prompt)  
+
+                # 2) 检查风控词，这是整体检测，需要前置  
+                # 2) Check for refusal messages, this is a global check and needs to be done first  
+                if self._cannot_assist(response_text):  
+                    self.logger.warning(f"Detected refusal message from model. Will retry (attempt {attempt+1}/{self._RETRY_ATTEMPTS}).")  
+                    continue  
+
+                # 3) 严格检查前缀格式  
+                # 3) Strictly check prefix format  
+                is_valid_format = True  
+                lines = response_text.strip().split('\n')  
+                if not lines and len(batch_queries) > 0: # fix: IndexError: list index out of range  
+                    self.logger.warning(f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Received empty response for non-empty batch. Retrying...")  
+                    is_valid_format = False  
+                else:  
+                    # 预期的索引集合，从1开始  
+                    # Expected index set, starting from 1  
+                    expected_indices = set(range(1, len(batch_queries) + 1))  
+                    # 用来跟踪已经找到的索引，检查重复  
+                    # Track found indices to check for duplicates  
+                    found_indices = set()   
+                    non_empty_lines_count = 0  
+
+                    # 逐行检查响应格式  
+                    # Check response format line by line  
+                    for line_idx, line in enumerate(lines):  
+                        line = line.strip()  
+                        if not line:  
+                            continue # 跳过空行 / Skip empty lines  
+                        non_empty_lines_count += 1  
+
+                        # 严格从行首匹配 <|数字|> 格式  
+                        # Strictly match <|number|> format from the beginning of the line  
+                        match = re.match(r'^<\|(\d+)\|>(.*)', line)  
+                        if match:  
+                            try:  
+                                current_index = int(match.group(1))  
+                                if current_index in expected_indices:  
+                                    # --- 检查索引是否已经找到过 ---  
+                                    # --- Check if the index has already been found ---  
+                                    if current_index in found_indices:  
+                                        # 如果索引重复，则标记为无效格式并停止检查  
+                                        # If index is duplicated, mark as invalid format and stop checking  
+                                        self.logger.warning(  
+                                            f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Duplicate index {current_index} detected. Line: '{line}'. Retrying..."  
+                                        )  
+                                        is_valid_format = False  
+                                        break # 停止检查当前响应 / Stop checking current response  
+                                    else:  
+                                        # 如果是第一次遇到这个有效索引，添加到 found_indices  
+                                        # If this is the first time encountering this valid index, add to found_indices  
+                                        found_indices.add(current_index)  
+                                else:  
+                                    # 索引号超出预期范围  
+                                    # Index number exceeds expected range  
+                                    self.logger.warning(  
+                                        f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Invalid index {current_index} found (expected 1-{len(batch_queries)}). Line: '{line}'. Retrying..."  
+                                    )  
+                                    is_valid_format = False  
+                                    break  
+                            except ValueError:  
+                                # 基本不会发生  
+                                # This should rarely happen  
+                                self.logger.warning(  
+                                    f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Could not parse index from prefix. Line: '{line}'. Retrying..."  
+                                )  
+                                is_valid_format = False  
+                                break  
+                        else:  
+                            # 当前非空行不符合 <|数字|> 前缀格式  
+                            # Current non-empty line does not match <|number|> prefix format  
+                            self.logger.warning(  
+                                f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Invalid prefix format detected. Line: '{line}'. Retrying..."  
+                            )  
+                            is_valid_format = False  
+                            break # 停止检查当前响应 / Stop checking current response  
+
+                    # 只有在格式初步有效且实际找到了索引时才进行此检查  
+                    # Only perform this check when the format is initially valid and indices are actually found  
+                    if is_valid_format and found_indices:  
+                        max_found = max(found_indices)  
+                        count_found = len(found_indices)  
+
+                        # 检查找到的数量是否等于找到的最大索引号，不要求序列一直延续到 len(batch_queries)  
+                        # 如果等于，说明序列是从 1 开始且连续的，直到 max_found  
+                        # Check if the count of found indices equals the maximum found index  
+                        # If equal, it means the sequence starts from 1 and is continuous up to max_found  
+                        if count_found != max_found:  
+                            # 如果不等于，说明序列要么不从 1 开始，要么中间有间断  
+                            # If not equal, the sequence either doesn't start from 1 or has gaps  
+                            self.logger.warning(  
+                                f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Found indices do not form a continuous sequence starting from 1. "  
+                                f"Max found: {max_found}, Count: {count_found}, Indices: {sorted(list(found_indices))}. Retrying..."  
+                                # 例如: Max: 3, Count: 2, Indices: [1, 3] -> Non-continuous  
+                                # 例如: Max: 3, Count: 2, Indices: [2, 3] -> Doesn't start at 1  
+                                # 例如: Max: 3, Count: 3, Indices: [1, 2, 3] -> Continuous (OK by this check)  
+                            )  
+                            is_valid_format = False   
+                    
+                # 如果格式检查未通过（包括重复索引、无效索引、缺失索引、无效前缀格式），则重试  
+                # If format check fails (including duplicate indices, invalid indices, missing indices, invalid prefix format), retry  
+                if not is_valid_format:  
+                    #await asyncio.sleep(RETRY_BACKOFF_BASE + attempt * RETRY_BACKOFF_FACTOR) # 格式错误重试前等待并退避  
+                    continue # 进入下一次重试 / Proceed to next retry  
                 
-                # 2) 解析 response
-                #    直接在这里进行解析 + 校验，不通过则抛异常
-                new_translations = re.split(r'<\|\d+\|>', response_text)
+                # 4) 解析 response  
+                #    直接在这里进行解析 + 校验，不通过则抛异常  
+                # 4) Parse response  
+                #    Parse and validate here directly, throw exception if validation fails  
+                new_translations = re.split(r'<\|\d+\|>', response_text)  
                 
-                # 删除正则分割后产生的第一个空串
-                if not new_translations[0].strip():
+                # 删除正则分割后产生的第一个空串  
+                # Remove the first empty string produced by regex split  
+                if not new_translations[0].strip():  
                     new_translations = new_translations[1:]              
 
-                # 检查风控词，这是整体检测，需要前置
-                if self._cannot_assist(response_text):
-                    self.logger.warning(f"Detected refusal message from model. Will retry (attempt {attempt+1}).")
-                    continue
-
-                # 处理query只有1，返回内容也是1但是没有前缀的情况。这往往是错误返回，例如模型可能返回翻译无意义的解释说明。
-                if len(batch_queries) == 1 and len(new_translations) == 1 and not re.match(r'^\s*<\|1\|>', response_text):
-                    self.logger.warning(f'Single query response does not contain prefix, retrying...(Attempt {attempt + 1})')
-                    continue
+                # 处理query只有1，返回内容也是1但是没有前缀的情况。这往往是错误返回，例如模型可能返回翻译无意义的解释说明。  
+                # Handle the case where there's only 1 query and the response has no prefix.  
+                # This is often an error, e.g., the model might return meaningless explanations instead of translations.  
+                # if len(batch_queries) == 1 and len(new_translations) == 1 and not re.match(r'^\s*<\|1\|>', response_text):  
+                    # self.logger.warning(f'Single query response does not contain prefix, retrying...(Attempt {attempt + 1}/{self._RETRY_ATTEMPTS})')  
+                    # continue  
                 
-                # 如果返回个数小于本批数量，可能需要改用别的拆分方式(比如按行切)
-                if len(new_translations) < len(batch_queries):
-                    # 这里演示，简单再按行分隔
-                    alt_splits = response_text.splitlines()
-                    if len(alt_splits) == len(batch_queries):
-                        new_translations = alt_splits
-                    if len(alt_splits) > len(batch_queries):
-                        continue
+                # 如果返回个数小于本批数量，可能需要改用别的拆分方式(比如按行切)  
+                # If the number of returned items is less than the batch size, may need to use alternative splitting methods (e.g., split by line)  
+                if len(new_translations) < len(batch_queries):  
+                    # 这里演示，简单再按行分隔  
+                    # Here's a simple demonstration of splitting by line  
+                    alt_splits = response_text.splitlines()  
+                    if len(alt_splits) == len(batch_queries):  
+                        new_translations = alt_splits  
+                    if len(alt_splits) > len(batch_queries):  
+                        continue  
 
-                # 检查数量，若依旧不足则说明不完整
-                if len(new_translations) < len(batch_queries):
-                    self.logger.warning(
-                        f"[Attempt {attempt+1}] Batch response is incomplete. "
-                        f"Expect {len(batch_queries)}, got {len(new_translations)}"
-                    )
-                    # 继续下一次重试
-                    continue
+                # 检查数量，若依旧不足则说明不完整  
+                # Check the count, if still insufficient, the response is incomplete  
+                if len(new_translations) < len(batch_queries):  
+                    self.logger.warning(  
+                        f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Batch response is incomplete. "  
+                        f"Expect {len(batch_queries)}, got {len(new_translations)}"  
+                    )  
+                    # 继续下一次重试 / Continue to next retry  
+                    continue  
                 
-                # 去除多余空行、前后空格
-                new_translations = [t.strip() for t in new_translations]
+                # 去除多余空行、前后空格  
+                # Remove extra empty lines and trim whitespace  
+                new_translations = [t.strip() for t in new_translations]  
 
-                # 判断是否有明显的空翻译(检测到1个空串就报错)
-                if any(not t for t in new_translations):
-                    self.logger.warning(
-                        f"[Attempt {attempt+1}] Empty translation detected. Retrying..."
-                    )
-                    # 需要注意，此处也可换成break直接进入分割逻辑。原因是若出现空结果时，不断重试出现正确结果的效率相对较低，可能直到用尽重试错误依然无解。但是为了尽可能确保翻译质量，使用了continue，并相应地下调重试次数以抵消影响。
-                    continue
+                # 判断是否有明显的空翻译(检测到1个空串就报错)  
+                # Check for obvious empty translations (error if even one empty string is detected)  
+                if any(not t for t in new_translations):  
+                    self.logger.warning(  
+                        f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Empty translation detected. Retrying..."  
+                    )  
+                    # 需要注意，此处也可换成break直接进入分割逻辑。原因是若出现空结果时，不断重试出现正确结果的效率相对较低，可能直到用尽重试错误依然无解。但是为了尽可能确保翻译质量，使用了continue，并相应地下调重试次数以抵消影响。  
+                    # Note: This could be changed to break to directly enter the splitting logic. This is because when empty results occur,  
+                    # repeatedly retrying for correct results is relatively inefficient and may still fail after all retries.  
+                    # However, to ensure translation quality as much as possible, continue is used here, and the number of retries  
+                    # is correspondingly reduced to offset the impact.  
+                    continue  
 
-                # 一切正常，写入 partial_results
-                for i in range(len(batch_queries)):
-                    partial_results[i] = new_translations[i]
+                # 一切正常，写入 partial_results  
+                # Everything is normal, write to partial_results  
+                for i in range(len(batch_queries)):  
+                    partial_results[i] = new_translations[i]  
 
-                # 成功
-                self.logger.info(
-                    f"Batch of size {len(batch_queries)} translated OK at attempt {attempt+1} (split_level={split_level})."
-                )
-                return True, partial_results
+                # 成功  
+                # Success  
+                self.logger.info(  
+                    f"Batch of size {len(batch_queries)} translated OK at attempt {attempt+1}/{self._RETRY_ATTEMPTS} (split_level={split_level})."  
+                )  
+                return True, partial_results  
 
-            except Exception as e:
-                self.logger.warning(
-                    f"Batch translate attempt {attempt+1} failed with error: {str(e)}"
-                )
-                if attempt < self._RETRY_ATTEMPTS - 1:
-                    await asyncio.sleep(1)
-                else:
-                    self.logger.warning("Max attempts reached, will try to split if possible.")
+            except Exception as e:  
+                self.logger.warning(  
+                    f"Batch translate attempt {attempt+1}/{self._RETRY_ATTEMPTS} failed with error: {str(e)}"  
+                )  
+                if attempt < self._RETRY_ATTEMPTS - 1:  
+                    await asyncio.sleep(1)  
+                else:  
+                    self.logger.warning("Max attempts reached, will try to split if possible.")  
 
-        # 如果代码能执行到这里，说明前面多个重试都失败或不完整 => 尝试拆分。通过减小每次请求的文本量，或者隔离可能导致问题(如产生空行、风控词)的特定 query，来尝试解决问题
-        if split_level < self._MAX_SPLIT_ATTEMPTS and len(batch_queries) > 1:
-            self.logger.warning(
-                f"Splitting batch of size {len(batch_queries)} at split_level={split_level}"
-            )
-            mid = len(batch_queries) // 2
-            left_queries = batch_queries[:mid]
-            right_queries = batch_queries[mid:]
+        # 如果代码能执行到这里，说明前面多个重试都失败或不完整 => 尝试拆分。通过减小每次请求的文本量，或者隔离可能导致问题(如产生空行、风控词)的特定 query，来尝试解决问题  
+        # If the code reaches here, it means multiple retries have failed or returned incomplete results => Try splitting.  
+        # By reducing the amount of text in each request, or isolating specific queries that may cause problems  
+        # (such as producing empty lines or triggering content filters), attempt to solve the problem  
+        if split_level < self._MAX_SPLIT_ATTEMPTS and len(batch_queries) > 1:  
+            self.logger.warning(  
+                f"Splitting batch of size {len(batch_queries)} at split_level={split_level}"  
+            )  
+            # 将批量查询分成两半  
+            # Split the batch queries into two halves  
+            mid = len(batch_queries) // 2  
+            left_queries = batch_queries[:mid]  
+            right_queries = batch_queries[mid:]  
 
-            left_indices = batch_indices[:mid]
-            right_indices = batch_indices[mid:]
+            left_indices = batch_indices[:mid]  
+            right_indices = batch_indices[mid:]  
 
-            # 递归翻译左半部分
-            left_prompt, _ = next(self._assemble_prompts(from_lang, to_lang, left_queries))
-            left_success, left_results = await self._translate_batch(
-                from_lang, to_lang, left_queries, left_indices, left_prompt, split_level+1
-            )
+            # 递归翻译左半部分  
+            # Recursively translate the left half  
+            left_prompt, _ = next(self._assemble_prompts(from_lang, to_lang, left_queries))  
+            left_success, left_results = await self._translate_batch(  
+                from_lang, to_lang, left_queries, left_indices, left_prompt, split_level+1  
+            )  
 
-            # 递归翻译右半部分
-            right_prompt, _ = next(self._assemble_prompts(from_lang, to_lang, right_queries))
-            right_success, right_results = await self._translate_batch(
-                from_lang, to_lang, right_queries, right_indices, right_prompt, split_level+1
-            )
+            # 递归翻译右半部分  
+            # Recursively translate the right half  
+            right_prompt, _ = next(self._assemble_prompts(from_lang, to_lang, right_queries))  
+            right_success, right_results = await self._translate_batch(  
+                from_lang, to_lang, right_queries, right_indices, right_prompt, split_level+1  
+            )  
 
-            # 合并
-            return (left_success and right_success), (left_results + right_results)
-        else:
-            # 不能再拆分了就返回 区分没有前缀的和分割后依然失败的
-            if len(batch_queries) == 1 and not re.match(r'^\s*<\|1\|>', response_text):
-                self.logger.error(
-                    f"Single query translation failed after max retries due to missing prefix. size={len(batch_queries)}"
-                )
-            else:
-                self.logger.error(
-                    f"Translation failed after max retries and splits. Returning original queries. size={len(batch_queries)}"
-                )
-            # 失败的query全部保留
-            for i in range(len(batch_queries)): 
+            # 合并结果  
+            # Merge results  
+            return (left_success and right_success), (left_results + right_results)  
+        else:  
+            # 不能再拆分了就返回 区分没有前缀的和分割后依然失败的  
+            # If can't split further, return results, distinguishing between those without prefixes and those that still fail after splitting  
+            if len(batch_queries) == 1 and not re.match(r'^\s*<\|1\|>', response_text):  
+                self.logger.error(  
+                    f"Single query translation failed after max retries due to missing prefix. size={len(batch_queries)}"  
+                )  
+            else:  
+                self.logger.error(  
+                    f"Translation failed after max retries and splits. Returning original queries. size={len(batch_queries)}"  
+                )  
+            # 失败的query全部保留原文  
+            # Keep all failed queries as original text  
+            for i in range(len(batch_queries)):   
                 partial_results[i] = batch_queries[i]     
                 
-            return False, partial_results
+            return False, partial_results  
 
     async def _request_with_retry(self, to_lang: str, prompt: str) -> str:
         """
