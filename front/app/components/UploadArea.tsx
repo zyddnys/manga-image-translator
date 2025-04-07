@@ -11,7 +11,7 @@ export interface UploadAreaProps {
 
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleDrop: (e: React.DragEvent<HTMLLabelElement>) => void;
-  handleSubmit: () => Promise<void>;
+  handleSubmit: () => void;
   clearForm: () => void;
   removeFile: (fileName: string) => void;
 }

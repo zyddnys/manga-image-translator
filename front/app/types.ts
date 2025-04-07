@@ -17,6 +17,10 @@ export type StatusKey =
   | "error-disconnect"
   | null;
 
+export interface ChunkProcessingResult {
+  updatedBuffer: Uint8Array;
+}
+
 export const processingStatuses = [
   "upload",
   "pending",
