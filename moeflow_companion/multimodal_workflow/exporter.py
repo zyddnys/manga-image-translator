@@ -49,8 +49,11 @@ def _convert_files(
                     MoeflowTextBlock(
                         source=block.text,
                         translated=block.translation,
-                        center_x=block.left + block.width / 2.0,
-                        center_y=block.top + block.height / 2.0,
+                        # gemini gives coordinates in scaled 1000x1000 image
+                        # and moeflow expects normalized [0, 1] coordinates
+                        # ref: https://cloud.google.com/gen-ai/docs/gemini/ocr#ocr-parameters
+                        center_x=(block.left + block.width / 2.0) / 1000.0,
+                        center_y=(block.top + block.height / 2.0) / 1000.0,
                     )
                     for block in result.items
                 ],
