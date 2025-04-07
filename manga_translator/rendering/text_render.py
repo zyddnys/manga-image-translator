@@ -79,9 +79,13 @@ def CJK_Compatibility_Forms_translate(cdpt: str, direction: int):
             return cdpt, 0
     return cdpt, 0
 
-def compact_special_symbols(text: str) -> str :
-    text = text.replace('...', '…')
-    return text
+def compact_special_symbols(text: str) -> str:  
+    text = text.replace('...', '…')  
+    text = text.replace('..', '…')      
+    # Remove half-width and full-width spaces between punctuation marks  
+    pattern = r'([^\w\s])[ \u3000]+([^\w\s])'  
+    while re.search(pattern, text):  
+        text = re.sub(pattern, r'\1\2', text)  
 
 def rotate_image(image, angle):
     if angle == 0:
