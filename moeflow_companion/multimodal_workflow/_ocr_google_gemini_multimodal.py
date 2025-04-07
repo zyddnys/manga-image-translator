@@ -9,10 +9,10 @@ logger = logging.getLogger(__name__)
 
 
 class TextRange(BaseModel):
-    left: int
-    top: int
-    width: int
-    height: int
+    left: float = Field(description="左端")
+    top: float = Field(description="上端")
+    width: float = Field(description="幅")
+    height: float = Field(description="高さ")
     text: str = Field(description="原文")
     translation: str = Field(description="訳文")
 
