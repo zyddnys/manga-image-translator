@@ -159,13 +159,10 @@ export const App: React.FC = () => {
     formData.append("image", file);
     formData.append("config", config);
 
-    const response = await fetch(
-      `${BASE_URI}translate/with-form/image/stream`,
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
+    const response = await fetch(`/api/translate/with-form/image/stream`, {
+      method: "POST",
+      body: formData,
+    });
 
     if (response.status !== 200) {
       throw new Error("Upload failed");

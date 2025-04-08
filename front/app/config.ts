@@ -1,5 +1,3 @@
-export const BASE_URI = "https://127.0.0.1:8000/";
-
 export const languageOptions = [
   { value: "CHS", label: "简体中文" },
   { value: "CHT", label: "繁體中文" },
