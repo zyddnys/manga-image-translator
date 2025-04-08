@@ -3,6 +3,7 @@ export type StatusKey =
   | "pending"
   | "detection"
   | "ocr"
+  | "textline_merge"
   | "mask-generation"
   | "inpainting"
   | "upscaling"
@@ -26,6 +27,7 @@ export const processingStatuses = [
   "pending",
   "detection",
   "ocr",
+  "textline_merge",
   "mask-generation",
   "inpainting",
   "upscaling",
