@@ -6,9 +6,9 @@ import {
   type FileStatus,
   type ChunkProcessingResult,
 } from "@/types";
-import { BASE_URI, imageMimeTypes } from "@/config";
+import { imageMimeTypes } from "@/config";
 import { OptionsPanel } from "@/components/OptionsPanel";
-import { UploadArea } from "@/components/UploadArea";
+import { ImageHandlingArea } from "@/components/ImageHandlingArea";
 import { Header } from "@/components/Header";
 
 export const App: React.FC = () => {
@@ -359,7 +359,7 @@ export const App: React.FC = () => {
             setMaskDilationOffset={setMaskDilationOffset}
             setInpainter={setInpainter}
           />
-          <UploadArea
+          <ImageHandlingArea
             files={files}
             fileStatuses={fileStatuses}
             isProcessing={isProcessing}

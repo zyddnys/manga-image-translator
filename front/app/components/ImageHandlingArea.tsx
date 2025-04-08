@@ -2,8 +2,8 @@ import React from "react";
 import { Icon } from "@iconify/react";
 import { fetchStatusText } from "@/utils/fetchStatusText";
 import type { FileStatus } from "@/types";
-
-export interface UploadAreaProps {
+import PreviewImage from "./PreviewImage";
+export interface ImageHandlingAreaProps {
   files: File[];
   fileStatuses: Map<string, FileStatus>;
   isProcessing: boolean;
@@ -19,7 +19,7 @@ export interface UploadAreaProps {
 /**
  * ファイルのアップロードやプレビュー、翻訳開始ボタンをまとめたコンポーネント
  */
-export const UploadArea: React.FC<UploadAreaProps> = ({
+export const ImageHandlingArea: React.FC<ImageHandlingAreaProps> = ({
   files,
   fileStatuses,
   isProcessing,
@@ -30,6 +30,9 @@ export const UploadArea: React.FC<UploadAreaProps> = ({
   clearForm,
   removeFile,
 }) => {
+  if (files.length > 0) {
+    console.log("UploadArea rendering", fileStatuses.get(files[0].name));
+  }
   return (
     <div className="space-y-4 max-w-[1200px] mx-auto">
       {!isProcessing && !isProcessingAllFinished && (
@@ -83,14 +86,9 @@ export const UploadArea: React.FC<UploadAreaProps> = ({
                       </button>
                     )}
 
-                    <img
-                      src={
-                        status?.result
-                          ? URL.createObjectURL(status.result)
-                          : URL.createObjectURL(file)
-                      }
-                      alt={file.name}
-                      className="w-full h-full object-contain rounded-lg border border-gray-200"
+                    <PreviewImage
+                      file={file}
+                      result={status?.result as File | null}
                     />
 
                     {/* Status overlay */}
