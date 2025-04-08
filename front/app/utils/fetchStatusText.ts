@@ -3,7 +3,8 @@ import type { StatusKey } from "@/types";
 export const fetchStatusText = (
   status: StatusKey | null,
   progress: string | null,
-  queuePos: string | null
+  queuePos: string | null,
+  error: string | null
 ) => {
   switch (status) {
     case "upload":
@@ -27,7 +28,7 @@ export const fetchStatusText = (
     case "finished":
       return "Downloading image";
     case "error":
-      return "Something went wrong, please try again";
+      return error || "Something went wrong, please try again";
     case "error-upload":
       return "Upload failed, please try again";
     case "error-lang":
