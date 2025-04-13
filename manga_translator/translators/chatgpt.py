@@ -313,6 +313,13 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                     #await asyncio.sleep(RETRY_BACKOFF_BASE + attempt * RETRY_BACKOFF_FACTOR) # 格式错误重试前等待并退避  
                     continue # 进入下一次重试 / Proceed to next retry  
                 
+                # 跳过经常性的模型幻觉字符
+                # Skip common hallucination characters in specific models
+                SUSPICIOUS_SYMBOLS = ["ହ", "ି", "ഹ"]  
+                if any(symbol in response for symbol in SUSPICIOUS_SYMBOLS):  
+                    self.logger.warn(f'[attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Suspicious symbols detected, skipping the current translation attempt.')  
+                    continue 
+                
                 # 4) 解析 response  
                 #    直接在这里进行解析 + 校验，不通过则抛异常  
                 # 4) Parse response  
