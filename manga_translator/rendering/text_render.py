@@ -376,8 +376,13 @@ def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_
     bitmap_char_slice = bitmap_char[paste_y_start-char_place_y : paste_y_end-char_place_y,   
                                     paste_x_start-char_place_x : paste_x_end-char_place_x]  
     if bitmap_char_slice.size > 0:  
-         canvas_text[paste_y_start:paste_y_end, paste_x_start:paste_x_end] = bitmap_char_slice  
-
+        # 字符完全在画布上方或下方时， paste_y_start 等于 paste_y_end ，切片 paste_y_start:paste_y_end 会产生高度为0的区域
+        # 简单处理，有概率漏字
+        # When a character is completely above or below the canvas, paste_y_start equals paste_y_end, and the slice paste_y_start:paste_y_end will produce a region with height 0.
+        # Simple handling, there's a probability of missing characters
+        if paste_y_start < paste_y_end and paste_x_start < paste_x_end:        
+            canvas_text[paste_y_start:paste_y_end, paste_x_start:paste_x_end] = bitmap_char_slice        
+            
     # --- 处理描边 / Process border ---  
     if border_size > 0:  
         # 获取字符描边  
@@ -453,7 +458,7 @@ def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_
             bitmap_border_slice = bitmap_border[0 : paste_border_y_end-paste_border_y_start,   
                                                0 : paste_border_x_end-paste_border_x_start]  
 
-            if bitmap_border_slice.size > 0:  
+            if bitmap_border_slice.size > 0 and paste_border_y_end > paste_border_y_start and paste_border_x_end > paste_border_x_start:
                 # 使用 cv2.add 叠加描边  
                 # Use cv2.add to overlay border  
                 target_slice = canvas_border[paste_border_y_start:paste_border_y_end,   
