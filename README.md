@@ -14,41 +14,37 @@
 Some manga/images will never be translated, therefore this project is born.
 
 - [Image/Manga Translator](#imagemanga-translator)
-  - [Samples](#samples)
-  - [Online Demo](#online-demo)
-  - [Disclaimer](#disclaimer)
-  - [Installation](#installation)
-    - [Local setup](#local-setup)
-      - [Pip/venv](#pipvenv)
-      - [Additional instructions for **Windows**](#additional-instructions-for-windows)
-    - [Docker](#docker)
-      - [Hosting the web server](#hosting-the-web-server)
-      - [Using as CLI](#using-as-cli)
-      - [Setting Translation Secrets](#setting-translation-secrets)
-      - [Using with Nvidia GPU](#using-with-nvidia-gpu)
-      - [Building locally](#building-locally)
-  - [Usage](#usage)
-    - [Batch mode (default)](#batch-mode-default)
-    - [Demo mode](#demo-mode)
-    - [Web Mode](#web-mode)
-    - [Api Mode](#api-mode)
-  - [Related Projects](#related-projects)
-  - [Docs](#docs)
-    - [Recommended Modules](#recommended-modules)
-      - [Tips to improve translation quality](#tips-to-improve-translation-quality)
-    - [Options](#options)
-    - [Language Code Reference](#language-code-reference)
-    - [Translators Reference](#translators-reference)
-    - [Config Documentation](#config-file)
-    - [GPT Config Reference](#gpt-config-reference)
-    - [Using Gimp for rendering](#using-gimp-for-rendering)
-    - [Api Documentation](#api-documentation)
-      - [Synchronous mode](#synchronous-mode)
-      - [Asynchronous mode](#asynchronous-mode)
-      - [Manual translation](#manual-translation)
-  - [Next steps](#next-steps)
-  - [Support Us](#support-us)
-    - [Thanks To All Our Contributors :](#thanks-to-all-our-contributors-)
+    - [Samples](#samples)
+    - [Online Demo](#online-demo)
+    - [Disclaimer](#disclaimer)
+    - [Installation](#installation)
+        - [Local setup](#local-setup)
+            - [Pip/venv](#pipvenv)
+            - [Additional instructions for **Windows**](#additional-instructions-for-windows)
+        - [Docker](#docker)
+            - [Hosting the web server](#hosting-the-web-server)
+            - [Using as CLI](#using-as-cli)
+            - [Setting Translation Secrets](#setting-translation-secrets)
+            - [Using with Nvidia GPU](#using-with-nvidia-gpu)
+            - [Building locally](#building-locally)
+    - [Usage](#usage)
+        - [Batch mode (default)](#local-mode)
+        - [Web / API Mode](#web-mode)
+    - [Related Projects](#related-projects)
+    - [Docs](#docs)
+        - [Recommended Modules](#recommended-modules)
+            - [Tips to improve translation quality](#tips-to-improve-translation-quality)
+        - [Options](#options)
+        - [Language Code Reference](#language-code-reference)
+        - [Translators Reference](#translators-reference)
+        - [Config Documentation](#config-file)
+        - [GPT Config Reference](#gpt-config-reference)
+        - [Using Gimp for rendering](#using-gimp-for-rendering)
+        - [Api Documentation](#api-documentation)
+    - [Next steps](#next-steps)
+    - [Support Us](#support-us)
+        - [Thanks To All Our Contributors :](#thanks-to-all-our-contributors-)
+    - [Star history chart](#star-history-chart)
 
 ## Samples
 
@@ -141,11 +137,13 @@ Browser Userscript (by QiroNT): <https://greasyfork.org/scripts/437569>
 - Note this online demo is using the current main branch version.
 
 ## Disclaimer
+
 Successor to [MMDOCR-HighPerformance](https://github.com/PatchyVideo/MMDOCR-HighPerformance).\
 **This is a hobby project, you are welcome to contribute!**\
 Currently this only a simple demo, many imperfections exist, we need your support to make this project better!\
 Primarily designed for translating Japanese text, but also supports Chinese, English and Korean.\
 Supports inpainting, text rendering and colorization.
+
 ## Installation
 
 ### Local setup
@@ -153,7 +151,7 @@ Supports inpainting, text rendering and colorization.
 #### Pip/venv
 
 ```bash
-# First, you need to have Python(>=3.8) installed on your system
+# First, you need to have Python(>=3.10) installed on your system
 # The latest version often does not work with some pytorch libraries yet
 $ python --version
 Python 3.10.6
@@ -214,8 +212,9 @@ or
 docker-compose -f demo/doc/docker-compose-web-with-cpu.yml up
 ```
 
-depending on which you prefer. The web server should start on port [5003](http://localhost:5003)
-and images should become in the `/result` folder.
+depending on which you prefer. The web server should start on port [8000](http://localhost:8000)
+<s>and images should become in the `/result` folder.</s>
+images will not be saved at this point.
 
 #### Using as CLI
 
@@ -284,30 +283,34 @@ $ python -m manga_translator local -v -i <path>
 ```bash
 # use `--mode web` to start a web server.
 $ cd server && python main.py --use-gpu
-# the demo will be serving on http://127.0.0.1:5003
+# the demo will be serving on http://127.0.0.1:8000
 ```
 
 ## Related Projects
+
 GUI implementation: [BallonsTranslator](https://github.com/dmMaze/BallonsTranslator)
 
 ## Docs
 
 ### Recommended Modules
+
 Detector:
+
 - ENG: ??
 - JPN: ??
 - CHS: ??
 - KOR: ??
 - Using `{"detector":{"detector": "ctd"}}` can increase the amount of text lines detected
 
-
 OCR:
+
 - ENG: ??
-- JPN: ??
+- JPN: 48px
 - CHS: ??
 - KOR: 48px
 
 Translator:
+
 - JPN -> ENG: **Sugoi**
 - CHS -> ENG: ??
 - CHS -> JPN: ??
@@ -315,21 +318,27 @@ Translator:
 - ENG -> JPN: ??
 - ENG -> CHS: ??
 
-Inpainter: ??
+Inpainter: lama_large
 
 Colorizer: **mc2**
 
 <!-- Auto generated start (See devscripts/make_readme.py) -->
 
-#### Tips to improve translation quality
+### Tips to improve translation quality
 
 - Small resolutions can sometimes trip up the detector, which is not so good at picking up irregular text sizes. To
   circumvent this you can use an upscaler by specifying `--upscale-ratio 2` or any other value
 - If the text being rendered is too small to read specify `--font-size-minimum 30` for instance or use the `--manga2eng`
   renderer that will try to adapt to detected textbubbles
 - Specify a font with `--font-path fonts/anime_ace_3.ttf` for example
+- Set `mask_dilation_offset` 20~40.
+- Using `lama_large` as impaiter. 
+- Increasing the `box_threshold` can help filter out gibberish from OCR error detection to some extent.
+- Using glossary file.
 
 ### Options
+
+#### Basic Options
 
 ```text
 -h, --help                     show this help message and exit
@@ -340,16 +349,71 @@ Colorizer: **mc2**
 --use-gpu                      Turn on/off gpu (auto switch between mps and cuda)
 --use-gpu-limited              Turn on/off gpu (excluding offline translator)
 --font-path FONT_PATH          Path to font file
---pre-dict PRE_DICT            Path to the pre-translation dictionary file
---post-dict POST_DICT          Path to the post-translation dictionary file
+--pre-dict PRE_DICT            Path to the pre-translation replacement dictionary file
+--post-dict POST_DICT          Path to the post-translation replacement dictionary file
 --kernel-size KERNEL_SIZE      Set the convolution kernel size of the text erasure area to
                                completely clean up text residues
---config-file CONFIG_FILE      path to the config file
 ```
 
-<!-- Auto generated end -->
+#### Additional Options:
 
-### Language Code Reference
+##### Batch Mode Options
+
+```text
+local                         Run in batch translation mode
+-i, --input INPUT [INPUT ...] Path to an image folder (required)
+-o, --dest DEST               Path to the destination folder for translated images (default: '')
+-f, --format FORMAT           Output format of the translation.  Choices: [list the OUTPUT_FORMATS here, png,webp,jpg,jpeg,xcf,psd,pdf]
+--overwrite                   Overwrite already translated images
+--skip-no-text                Skip image without text (Will not be saved).
+--use-mtpe                    Turn on/off machine translation post editing (MTPE) on the command line (works only on linux right now)
+--save-text                   Save extracted text and translations into a text file.
+--load-text                   Load extracted text and translations from a text file.
+--save-text-file SAVE_TEXT_FILE  Like --save-text but with a specified file path. (default: '')
+--prep-manual                 Prepare for manual typesetting by outputting blank, inpainted images, plus copies of the original for reference
+--save-quality SAVE_QUALITY   Quality of saved JPEG image, range from 0 to 100 with 100 being best (default: 100)
+--config-file CONFIG_FILE     path to the config file (default: None)                          
+```
+
+##### WebSocket Mode Options
+
+```text
+ws                  Run in WebSocket mode
+--host HOST         Host for WebSocket service (default: 127.0.0.1)
+--port PORT         Port for WebSocket service (default: 5003)
+--nonce NONCE       Nonce for securing internal WebSocket communication
+--ws-url WS_URL     Server URL for WebSocket mode (default: ws://localhost:5000)
+--models-ttl MODELS_TTL  How long to keep models in memory in seconds after last use (0 means forever)
+```
+
+##### API Mode Options
+
+```text
+shared              Run in API mode
+--host HOST         Host for API service (default: 127.0.0.1)
+--port PORT         Port for API service (default: 5003)
+--nonce NONCE       Nonce for securing internal API server communication
+--report REPORT     reports to server to register instance (default: None)
+--models-ttl MODELS_TTL  models TTL in memory in seconds (0 means forever)
+```
+
+##### Web Mode Options (Missing some basic options, need readded)
+
+```text
+--host HOST           The host address (default: 127.0.0.1)
+--port PORT           The port number (default: 8000)
+--start-instance      If a translator should be launched automatically
+--nonce NONCE         Nonce for securing internal web server communication
+--models-ttl MODELS_TTL  models TTL in memory in seconds (0 means forever)
+```
+
+##### config-help mode
+
+```bash
+python -m manga_translator config-help
+```
+
+#### Language Code Reference
 
 Used by the `translator/language` in the config
 
@@ -381,27 +445,25 @@ IND: Indonesian
 FIL: Filipino (Tagalog)
 ```
 
-### Translators Reference
+#### Translators Reference
 
-| Name       | API Key | Offline | Note                                                   |
-|------------|---------|---------|--------------------------------------------------------|
-| <s>google</s>     |         |         |         Disabled temporarily                                               |
-| youdao     | ✔️      |         | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`      |
-| baidu      | ✔️      |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`         |
-| deepl      | ✔️      |         | Requires `DEEPL_AUTH_KEY`                              |
-| caiyun     | ✔️      |         | Requires `CAIYUN_TOKEN`                                |
-| gpt3       | ✔️      |         | Implements text-davinci-003. Requires `OPENAI_API_KEY` |
-| gpt3.5     | ✔️      |         | Implements gpt-3.5-turbo. Requires `OPENAI_API_KEY`    |
-| gpt4       | ✔️      |         | Implements gpt-4. Requires `OPENAI_API_KEY`            |
-| papago     |         |         |                                                        |
-| sakura     |         |         |Requires `SAKURA_API_BASE`                               |
-| ollama     |         |         |Requires  `OLLAMA_API_BASE` `OLLAMA_MODEL`               |
-| offline    |         | ✔️      | Chooses most suitable offline translator for language  |
-| sugoi      |         | ✔️      | Sugoi V4.0 Models                                      |
-| m2m100     |         | ✔️      | Supports every language                                |
-| m2m100_big |         | ✔️      |                                                        |
-| none       |         | ✔️      | Translate to empty texts                               |
-| original   |         | ✔️      | Keep original texts                                    |
+| Name          | API Key | Offline | Note                                                     |
+|---------------|---------|---------|----------------------------------------------------------|
+| <s>google</s> |         |         | Disabled temporarily                                     |
+| youdao        | ✔️      |         | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`        |
+| baidu         | ✔️      |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`           |
+| deepl         | ✔️      |         | Requires `DEEPL_AUTH_KEY`                                |
+| caiyun        | ✔️      |         | Requires `CAIYUN_TOKEN`                                  |
+| openai        | ✔️      |         | Implements Requires `OPENAI_API_KEY`                     |
+| papago        |         |         |                                                          |
+| sakura        |         |         | Requires `SAKURA_API_BASE`                               |
+| custom openai |         |         | Requires  `CUSTOM_OPENAI_API_BASE` `CUSTOM_OPENAI_MODEL` |
+| offline       |         | ✔️      | Chooses most suitable offline translator for language    |
+| sugoi         |         | ✔️      | Sugoi V4.0 Models                                        |
+| m2m100        |         | ✔️      | Supports every language                                  |
+| m2m100_big    |         | ✔️      |                                                          |
+| none          |         | ✔️      | Translate to empty texts                                 |
+| original      |         | ✔️      | Keep original texts                                      |
 
 - API Key: Whether the translator requires an API key to be set as environment variable.
   For this you can create a .env file in the project root directory containing your api keys like so:
@@ -414,10 +476,61 @@ DEEPL_AUTH_KEY=xxxxxxxx...
 - Offline: Whether the translator can be used offline.
 
 - Sugoi is created by mingshiba, please support him in https://www.patreon.com/mingshiba
-### Config file
-run `python -m manga_translator config-help >> config-info.json` 
+
+
+#### glossary
+- mit_glossary: Sending a glossary to the AI model to guide its translation can effectively improve translation quality, for example, to ensure consistent translations of proprietary names and personal names. It will automatically extract the effective entries from the glossary for the current translation, so there is no need to worry that a large number of entries in the glossary will affect the translation quality. (Only valid for the openaitranslator, Compatible with sakura_dict and galtransl_dict.)
+
+- sakura_dict: sakura glossary, only valid for sakuratranslator. No automated glossary feature.
+
+```env
+OPENAI_GLOSSARY_PATH=PATH_TO_YOUR_FILE
+SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
+```  
+
+#### Environment Variables Summary
+
+| Environment Variable Name      | Description                                                                    | Default Value                     | Notes                                                                                                    |
+| :----------------------------- | :----------------------------------------------------------------------------- | :-------------------------------- | :------------------------------------------------------------------------------------------------------- |
+| `BAIDU_APP_ID`                 | Baidu Translate App ID                                                         | `''`                              |                                                                                                          |
+| `BAIDU_SECRET_KEY`             | Baidu Translate Secret Key                                                     | `''`                              |                                                                                                          |
+| `YOUDAO_APP_KEY`               | Youdao Translate App ID                                                        | `''`                              |                                                                                                          |
+| `YOUDAO_SECRET_KEY`            | Youdao Translate App Secret Key                                                | `''`                              |                                                                                                          |
+| `DEEPL_AUTH_KEY`              | DeepL Translate AUTH_KEY                                                      | `''`                              |                                                                                                          |
+| `OPENAI_API_KEY`              | OpenAI API Key                                                                 | `''`                              |                                                                                                          |
+| `OPENAI_MODEL`                | OpenAI Model (Optional)                                                        | `''`                              |                                                                                                          |
+| `OPENAI_HTTP_PROXY`           | OpenAI HTTP Proxy (Optional)                                                   | `''`                              | Alternative to `--proxy`                                                                                |
+| `OPENAI_GLOSSARY_PATH`        | OpenAI Glossary Path (Optional)                                                 | `./dict/mit_glossary.txt`         |                                                                                                          |
+| `OPENAI_API_BASE`             | OpenAI API Base URL (Optional)                                                 | `https://api.openai.com/v1`       | Defaults to the official URL.                                                                            |
+|`GROQ_API_KEY`| Groq API Key |||
+| `SAKURA_API_BASE`             | SAKURA API URL (Optional)                                                      | `http://127.0.0.1:8080/v1`        |                                                                                                          |
+| `SAKURA_VERSION`               | SAKURA API Version (Optional)                                                  | `'0.9'`                           | `'0.9'` or `'0.10'`                                                                                      |
+| `SAKURA_DICT_PATH`            | SAKURA Glossary Path (Optional)                                                 | `./dict/sakura_dict.txt`          |                                                                                                          |
+| `CAIYUN_TOKEN`                | Caiyun Xiaoyi (Colorful Clouds) API Access Token                               | `''`                              |                                                                                                          |
+| `DEEPSEEK_API_KEY`           | DeepSeek API Key                                                        | `''`                              |                                                                          |
+| `DEEPSEEK_API_BASE`           | DeepSeek API Base URL (Optional)                                              |   `https://api.deepseek.com`                                                              |    |
+| `CUSTOM_OPENAI_API_KEY`        | Custom OpenAI API Key (Not needed for Ollama, but other tools might require it) | `'ollama'`                         |                                                                                                          |
+| `CUSTOM_OPENAI_API_BASE`       | Custom OpenAI API Base URL (Use OLLAMA_HOST environment variable to change bind IP and port) | `http://localhost:11434/v1` |                                                                                                          |
+| `CUSTOM_OPENAI_MODEL`          | Custom OpenAI Model (e.g., "qwen2.5:7b", make sure to pull and run it before using)  | `''`                              |                                                                                                          |
+| `CUSTOM_OPENAI_MODEL_CONF`     | For example "qwen2"          | `''` |                                                                                                       |
+
+**Instructions:**
+
+1.  **Create a `.env` file:**  Create a file named `.env` in the root directory of your project.
+2.  **Copy and Paste:** Copy the text above into the `.env` file.
+3.  **Fill in your keys:** Replace the contents within the `''` (empty strings) with your own API keys, IDs, and other information.
+
+**Important Notes:**
+
+*   The `.env` file contains sensitive information.  Take extra care to prevent accidental leaks.
+
+
+#### Config file
+
+run `python -m manga_translator config-help >> config-info.json`
 
 an example can be found in example/config-example.json
+
 ```json
 {
   "$defs": {
@@ -943,7 +1056,8 @@ an example can be found in example/config-example.json
 }
 
 ```
-### GPT Config Reference
+
+#### GPT Config Reference
 
 Used by the `--gpt-config` argument.
 
@@ -964,6 +1078,9 @@ temperature: 0.5
 # where the model considers the results of the tokens with top_p probability mass.
 # So 0.1 means only the tokens comprising the top 10% probability mass are considered.
 top_p: 1
+
+#Whether to show _CHAT_SYSTEM_TEMPLATE and _CHAT_SAMPLE in the command line output
+verbose_logging: False
 
 # The prompt being feed into ChatGPT before the text to translate.
 # Use {to_lang} to indicate where the target language name should be inserted.
@@ -986,21 +1103,30 @@ chat_system_template: >
 #
 # If you'd like to disable this feature, just set this to an empty list.
 chat_sample:
-  Simplified Chinese: # Tokens used in this example: 88 + 84
+  Chinese (Simplified): # Tokens used in this example: 88 + 84
     - <|1|>恥ずかしい… 目立ちたくない… 私が消えたい…
       <|2|>きみ… 大丈夫⁉
       <|3|>なんだこいつ 空気読めて ないのか…？
     - <|1|>好尴尬…我不想引人注目…我想消失…
       <|2|>你…没事吧⁉
       <|3|>这家伙怎么看不懂气氛的…？
-
-# Overwrite configs for a specific model.
-# For now the list is: gpt3, gpt35, gpt4
-gpt35:
-  temperature: 0.3
+  English: 
+    - <|1|>恥ずかしい… 目立ちたくない… 私が消えたい…
+      <|2|>きみ… 大丈夫⁉
+      <|3|>なんだこいつ 空気読めて ないのか…？
+    - <|1|>I'm embarrassed... I don't want to stand out... I want to disappear...
+      <|2|>Are you okay?
+      <|3|>What's wrong with this guy? Can't he read the situation...?
+  Korean:
+    - <|1|>恥ずかしい… 目立ちたくない… 私が消えたい…
+      <|2|>きみ… 大丈夫⁉
+      <|3|>なんだこいつ 空気読めて ないのか…？
+    - <|1|>부끄러워... 눈에 띄고 싶지 않아... 나 숨고 싶어...
+      <|2|>너 괜찮아?
+      <|3|>이 녀석, 뭐야? 분위기 못 읽는 거야...?
 ```
 
-### Using Gimp for rendering
+#### Using Gimp for rendering
 
 When setting output format to {`xcf`, `psd`, `pdf`} Gimp will be used to generate the file.
 
@@ -1016,10 +1142,10 @@ Limitations:
   by an outside program.
 - Font family is controlled separately, with the `--gimp-font` argument.
 
-### Api Documentation
+#### Api Documentation
 
-Read openapi docs: `127.0.0.1:5003/docs`
-
+- Read openapi docs: `127.0.0.1:8000/docs`
+- HTML scraping <https://cfbed.1314883.xyz/file/1741386061808_FastAPI%20-%20Swagger%20UI.html>
 ## Next steps
 
 A list of what needs to be done next, you're welcome to contribute.
@@ -1050,4 +1176,6 @@ GPU server is not cheap, please consider to donate to us.
   <a href="https://github.com/zyddnys/manga-image-translator/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=zyddnys/manga-image-translator" />
 
+## Star History Chart
+[![Star History Chart](https://api.star-history.com/svg?repos=zyddnys/manga-image-translator&type=Date)](https://star-history.com/#zyddnys/manga-image-translator&Date)
 </a>

@@ -18,6 +18,7 @@ Scripts
 Lib
 include
 share
+.DS_Store
 
 # Distribution / packaging
 .Python

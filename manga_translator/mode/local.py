@@ -183,6 +183,12 @@ class MangaTranslatorLocal(MangaTranslator):
             ctx = await self.translate(img, config)
             result = ctx.result
 
+            # TODO
+            # Proper way to use the config but for now juste pass what we miss here ton ctx
+            # Because old methods are still using for example ctx.gimp_font
+            # Not done before because we change the ctx few lines above
+            ctx.gimp_font = config.render.gimp_font
+
             # Save result
             if self.skip_no_text and not ctx.text_regions:
                 logger.debug('Not saving due to --skip-no-text')

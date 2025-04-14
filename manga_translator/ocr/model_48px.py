@@ -755,6 +755,18 @@ class OCR(nn.Module):
             batch_index = batch_index.index_select(0, torch.tensor(remaining_indexs, device=img.device))
 
         # Ensure we have the correct number of finished hypotheses for each sample
+        if len(finished_hypos) < N: # Fallback if not enough finished hypos
+            for i in range(N):
+                if i not in finished_hypos:
+                    # Select the best hypothesis available at the end of beam search
+                    sample_indices = (batch_index == i).nonzero(as_tuple=True)[0]
+                    if sample_indices.numel() > 0:
+                        best_hypo_index = sample_indices[0] # Take the first one as fallback
+                        finished_hypos[i] = out_idx[best_hypo_index], torch.exp(log_probs[best_hypo_index]).item(), cached_activations[best_hypo_index]
+                    else:
+                        # If no hypothesis is available at all (very unlikely, but for robustness)
+                        finished_hypos[i] = (torch.tensor([end_tok], device=img.device), 0.0, torch.zeros(cached_activations.shape[1:], device=img.device)) # Dummy hypo
+
         assert len(finished_hypos) == N
 
         # Final output processing and color predictions

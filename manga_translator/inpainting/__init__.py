@@ -40,3 +40,6 @@ async def dispatch(inpainter_key: Inpainter, image: np.ndarray, mask: np.ndarray
         await inpainter.load(device)
     config = config or InpainterConfig()
     return await inpainter.inpaint(image, mask, config, inpainting_size, verbose)
+
+async def unload(inpainter_key: Inpainter):
+    inpainter_cache.pop(inpainter_key, None)

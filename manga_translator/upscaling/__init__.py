@@ -34,3 +34,6 @@ async def dispatch(upscaler_key: Upscaler, image_batch: List[Image.Image], upsca
     if isinstance(upscaler, OfflineUpscaler):
         await upscaler.load(device)
     return await upscaler.upscale(image_batch, upscale_ratio)
+
+async def unload(upscaler_key: Upscaler):
+    upscaler_cache.pop(upscaler_key, None)

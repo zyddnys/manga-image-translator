@@ -156,6 +156,12 @@ def start_translator_client_proc(host: str, port: int, nonce: str, params: Names
         cmds.append('--ignore-errors')
     if params.verbose:
         cmds.append('--verbose')
+    if params.models_ttl:
+        cmds.append('--models-ttl=%s' % params.models_ttl)
+    if params.pre_dict: 
+        cmds.extend(['--pre-dict', params.pre_dict]) 
+    if params.pre_dict: 
+        cmds.extend(['--post-dict', params.post_dict])         
     base_path = os.path.dirname(os.path.abspath(__file__))
     parent = os.path.dirname(base_path)
     proc = subprocess.Popen(cmds, cwd=parent)
