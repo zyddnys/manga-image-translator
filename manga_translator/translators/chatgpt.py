@@ -2,6 +2,7 @@ import re
 import os
 import asyncio
 import time
+import string
 from typing import List, Dict
 from rich.console import Console  
 from rich.panel import Panel
@@ -316,7 +317,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 # 跳过经常性的模型幻觉字符
                 # Skip common hallucination characters in specific models
                 SUSPICIOUS_SYMBOLS = ["ହ", "ି", "ഹ"]  
-                if any(symbol in response for symbol in SUSPICIOUS_SYMBOLS):  
+                if any(symbol in response_text for symbol in SUSPICIOUS_SYMBOLS):  
                     self.logger.warn(f'[attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Suspicious symbols detected, skipping the current translation attempt.')  
                     continue 
                 
@@ -376,6 +377,24 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                     # is correspondingly reduced to offset the impact.  
                     continue  
 
+                # 检查特殊串行情况  
+                # Check for special merged translation
+                is_valid_translation = True  
+                for i, (source, translation) in enumerate(zip(batch_queries, new_translations)):  
+                    is_source_simple = len(source) == 1 or all(char in string.punctuation for char in source)  
+                    is_translation_simple = len(translation) == 1 or all(char in string.punctuation for char in translation)  
+                    
+                    if is_translation_simple and not is_source_simple:  
+                        self.logger.warning(  
+                            f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Detected potential merged translation. "  
+                            f"Source: '{source}', Translation: '{translation}' (index {i+1}). Retrying..."  
+                        )  
+                        is_valid_translation = False  
+                        break  
+                        
+                if not is_valid_translation:  
+                    continue  
+                
                 # 一切正常，写入 partial_results  
                 # Everything is normal, write to partial_results  
                 for i in range(len(batch_queries)):  
