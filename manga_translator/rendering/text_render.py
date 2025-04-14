@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import freetype
 import functools
+import logging
 from pathlib import Path
 from typing import Tuple, Optional, List
 from hyphen import Hyphenator
@@ -60,6 +61,9 @@ CJK_H2V = {
 CJK_V2H = {
     **dict(zip(CJK_H2V.items(), CJK_H2V.keys())),
 }
+
+logger = logging.getLogger(__name__)  
+logger.addHandler(logging.NullHandler())  
 
 def CJK_Compatibility_Forms_translate(cdpt: str, direction: int):
     """direction: 0 - horizontal, 1 - vertical"""
@@ -369,17 +373,21 @@ def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_
     paste_x_start = max(0, char_place_x)  
     paste_y_end = min(canvas_text.shape[0], char_place_y + char_bitmap_rows)  
     paste_x_end = min(canvas_text.shape[1], char_place_x + char_bitmap_width)  
-    
+
+    # 检查切片是否有效（宽度和高度都大于0）  
+    # 字符完全在画布上方或下方时， paste_y_start 等于 paste_y_end ，切片 paste_y_start:paste_y_end 会产生高度为0的区域
+    # 简单处理，有概率漏字
+    # Check if the slice is valid (width and height both greater than 0)
+    # When a character is completely above or below the canvas, paste_y_start equals paste_y_end, and the slice paste_y_start:paste_y_end will produce a region with height 0.
+    # Simple handling, there's a probability of missing characters 
+    if paste_y_start >= paste_y_end or paste_x_start >= paste_x_end:  
+        logger.warning(f"Char '{cdpt}' is completely outside the canvas or on the boundary, skipped. Position: x={char_place_x}, y={char_place_y}, Canvas size: {canvas_text.shape}")      
+    else: 
     # 确保切片源和目标尺寸匹配  
     # Ensure slice source and target dimensions match  
-    bitmap_char_slice = bitmap_char[paste_y_start-char_place_y : paste_y_end-char_place_y,   
-                                    paste_x_start-char_place_x : paste_x_end-char_place_x]  
-    if bitmap_char_slice.size > 0:  
-        # 字符完全在画布上方或下方时， paste_y_start 等于 paste_y_end ，切片 paste_y_start:paste_y_end 会产生高度为0的区域
-        # 简单处理，有概率漏字
-        # When a character is completely above or below the canvas, paste_y_start equals paste_y_end, and the slice paste_y_start:paste_y_end will produce a region with height 0.
-        # Simple handling, there's a probability of missing characters
-        if paste_y_start < paste_y_end and paste_x_start < paste_x_end:        
+        bitmap_char_slice = bitmap_char[paste_y_start-char_place_y : paste_y_end-char_place_y,   
+                                        paste_x_start-char_place_x : paste_x_end-char_place_x]  
+        if bitmap_char_slice.size > 0:       
             canvas_text[paste_y_start:paste_y_end, paste_x_start:paste_x_end] = bitmap_char_slice        
             
     # --- 处理描边 / Process border ---  
@@ -452,25 +460,28 @@ def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_
             paste_border_y_end = min(canvas_border.shape[0], pen_border[1] + border_bitmap_rows)  
             paste_border_x_end = min(canvas_border.shape[1], pen_border[0] + border_bitmap_width)  
 
-            # 确保切片源和目标尺寸匹配  
-            # Ensure slice source and target dimensions match  
-            bitmap_border_slice = bitmap_border[0 : paste_border_y_end-paste_border_y_start,   
-                                               0 : paste_border_x_end-paste_border_x_start]  
-
-            if bitmap_border_slice.size > 0 and paste_border_y_end > paste_border_y_start and paste_border_x_end > paste_border_x_start:
-                # 使用 cv2.add 叠加描边  
-                # Use cv2.add to overlay border  
-                target_slice = canvas_border[paste_border_y_start:paste_border_y_end,   
-                                           paste_border_x_start:paste_border_x_end]  
-                # 确保形状匹配后再添加  
-                # Ensure shapes match before adding  
-                if target_slice.shape == bitmap_border_slice.shape:  
-                    canvas_border[paste_border_y_start:paste_border_y_end,   
-                                paste_border_x_start:paste_border_x_end] = cv2.add(target_slice, bitmap_border_slice)  
-                else:  
-                    # 处理形状不匹配的情况  
-                    # Handle shape mismatch if necessary  
-                    print(f"Shape mismatch: target={target_slice.shape}, source={bitmap_border_slice.shape}")  
+            # 检查切片是否有效（宽度和高度都大于0）
+            if paste_border_y_start >= paste_border_y_end or paste_border_x_start >= paste_border_x_end:  
+                logger.warning(f"The border of char '{cdpt}' is completely outside the canvas or on the boundary, skipped. Position: x={pen_border[0]}, y={pen_border[1]}, Canvas size: {canvas_border.shape}")  
+            else:        
+                # 确保切片源和目标尺寸匹配  
+                # Ensure slice source and target dimensions match  
+                bitmap_border_slice = bitmap_border[0 : paste_border_y_end-paste_border_y_start,   
+                                                    0 : paste_border_x_end-paste_border_x_start]  
+                if bitmap_border_slice.size > 0
+                    # 使用 cv2.add 叠加描边  
+                    # Use cv2.add to overlay border  
+                    target_slice = canvas_border[paste_border_y_start:paste_border_y_end,   
+                                                 paste_border_x_start:paste_border_x_end]  
+                    # 确保形状匹配后再添加  
+                    # Ensure shapes match before adding  
+                    if target_slice.shape == bitmap_border_slice.shape:  
+                        canvas_border[paste_border_y_start:paste_border_y_end,   
+                                      paste_border_x_start:paste_border_x_end] = cv2.add(target_slice, bitmap_border_slice)  
+                    else:  
+                        # 处理形状不匹配的情况  
+                        # Handle shape mismatch if necessary  
+                        logger.warning(f"Shape mismatch: target={target_slice.shape}, source={bitmap_border_slice.shape}")  
 
     # 返回垂直步进值  
     # Return vertical advance value  
