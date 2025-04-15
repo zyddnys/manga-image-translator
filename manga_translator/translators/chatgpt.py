@@ -277,36 +277,30 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                                 )  
                                 is_valid_format = False  
                                 break  
-                        else:  
-                            # 当前非空行不符合 <|数字|> 前缀格式  
-                            # Current non-empty line does not match <|number|> prefix format  
+                        else:
+                            # 不再要求每行都有前缀，因为模型可能将一句话换行
+                            # No longer requiring each line to have a prefix, because the model may break a sentence into multiple lines.
+                            continue 
+
+                    # --- 在检查完所有行后：验证是否找到了足够的索引 ---  
+                    # --- After checking all rows: verify if enough indices have been found ---
+                    if is_valid_format:  
+                        # 检查是否找到了所有预期的索引  
+                        # Check if all expected indexes were found
+                        if len(found_indices) != len(batch_queries):  
                             self.logger.warning(  
-                                f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Invalid prefix format detected. Line: '{line}'. Retrying..."  
+                                f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Found indices count ({len(found_indices)}) does not match expected count ({len(batch_queries)}). "  
+                                f"Found indices: {sorted(list(found_indices))}. Retrying..."  
                             )  
                             is_valid_format = False  
-                            break # 停止检查当前响应 / Stop checking current response  
-
-                    # 只有在格式初步有效且实际找到了索引时才进行此检查  
-                    # Only perform this check when the format is initially valid and indices are actually found  
-                    if is_valid_format and found_indices:  
-                        max_found = max(found_indices)  
-                        count_found = len(found_indices)  
-
-                        # 检查找到的数量是否等于找到的最大索引号，不要求序列一直延续到 len(batch_queries)  
-                        # 如果等于，说明序列是从 1 开始且连续的，直到 max_found  
-                        # Check if the count of found indices equals the maximum found index  
-                        # If equal, it means the sequence starts from 1 and is continuous up to max_found  
-                        if count_found != max_found:  
-                            # 如果不等于，说明序列要么不从 1 开始，要么中间有间断  
-                            # If not equal, the sequence either doesn't start from 1 or has gaps  
-                            self.logger.warning(  
-                                f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Found indices do not form a continuous sequence starting from 1. "  
-                                f"Max found: {max_found}, Count: {count_found}, Indices: {sorted(list(found_indices))}. Retrying..."  
-                                # 例如: Max: 3, Count: 2, Indices: [1, 3] -> Non-continuous  
-                                # 例如: Max: 3, Count: 2, Indices: [2, 3] -> Doesn't start at 1  
-                                # 例如: Max: 3, Count: 3, Indices: [1, 2, 3] -> Continuous (OK by this check)  
-                            )  
-                            is_valid_format = False   
+                        else:  
+                            # 确保找到的索引集合与预期索引集合一致  
+                            # Ensure the found index set matches the expected index set
+                            if found_indices != expected_indices:  
+                                self.logger.warning(  
+                                    f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Found indices set {sorted(list(found_indices))} does not match expected set {sorted(list(expected_indices))}. Retrying..."  
+                                )  
+                                is_valid_format = False
                     
                 # 如果格式检查未通过（包括重复索引、无效索引、缺失索引、无效前缀格式），则重试  
                 # If format check fails (including duplicate indices, invalid indices, missing indices, invalid prefix format), retry  
