@@ -375,7 +375,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 # Check for special merged translation
                 is_valid_translation = True  
                 for i, (source, translation) in enumerate(zip(batch_queries, new_translations)):  
-                    is_source_simple = len(source) == 1 or all(char in string.punctuation for char in source)  
+                    is_source_simple = all(char in string.punctuation for char in source)  
                     is_translation_simple = len(translation) == 1 or all(char in string.punctuation for char in translation)  
                     
                     if is_translation_simple and not is_source_simple:  
