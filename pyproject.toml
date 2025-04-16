@@ -5,7 +5,7 @@ description = ""
 authors = []
 readme = "README.md"
 requires-python = ">=3.10, <3.12"
-license = "LICENSE"
+license = "GPL-3.0-only"
 
 [tool.isort]
 profile = 'black'
