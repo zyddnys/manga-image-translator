@@ -1,0 +1,5 @@
+.react-router
+build
+node_modules
+README.md
+README_CN.md

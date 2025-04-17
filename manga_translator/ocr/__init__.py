@@ -1,6 +1,5 @@
 import numpy as np
 from typing import List, Optional
-
 from .common import CommonOCR, OfflineOCR
 from .model_32px import Model32pxOCR
 from .model_48px import Model48pxOCR
@@ -37,3 +36,6 @@ async def dispatch(ocr_key: Ocr, image: np.ndarray, regions: List[Quadrilateral]
         await ocr.load(device)
     config = config or OcrConfig()
     return await ocr.recognize(image, regions, config, verbose)
+
+async def unload(ocr_key: Ocr):
+    ocr_cache.pop(ocr_key, None)

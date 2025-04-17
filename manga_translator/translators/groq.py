@@ -3,7 +3,7 @@ import os
 from typing import List
 
 from .common import CommonTranslator, MissingAPIKeyException
-from .keys import GROQ_API_KEY
+from .keys import GROQ_API_KEY, GROQ_MODEL
 
 class GroqTranslator(CommonTranslator):
     _LANGUAGE_CODE_MAP = {
@@ -23,6 +23,7 @@ class GroqTranslator(CommonTranslator):
     _MAX_TOKENS = 8192
 
     # Context retention settings
+    # @TODO Use `gpt_config` file rather than environment variables
     _CONTEXT_RETENTION = os.environ.get('CONTEXT_RETENTION', '').lower() == 'true'
     _CONFIG_KEY = 'groq'
     _MAX_CONTEXT = int(os.environ.get('CONTEXT_LENGTH', '20'))
@@ -53,7 +54,7 @@ class GroqTranslator(CommonTranslator):
         self.token_count = 0
         self.token_count_last = 0
         self.config = None
-        self.model = os.environ.get('GROQ_MODEL', 'mixtral-8x7b-32768')
+        self.model = GROQ_MODEL
         self.messages = [
             {'role': 'user', 'content': self.chat_sample[0]},
             {'role': 'assistant', 'content': self.chat_sample[1]}]

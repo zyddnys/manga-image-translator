@@ -129,6 +129,7 @@ parser_ws.add_argument('--host', default='127.0.0.1', type=str, help='Host for W
 parser_ws.add_argument('--port', default=5003, type=int, help='Port for WebSocket service')
 parser_ws.add_argument('--nonce', default=os.getenv('MT_WEB_NONCE', ''), type=str, help='Nonce for securing internal WebSocket communication')
 parser_ws.add_argument('--ws-url', default='ws://localhost:5000', type=str, help='Server URL for WebSocket mode')
+parser_ws.add_argument('--models-ttl', default='0', type=int, help='How long to keep models in memory in seconds after last use (0 means forever)')
 
 # API mode
 parser_api = subparsers.add_parser('shared', help='Run in API mode')
@@ -136,5 +137,6 @@ parser_api.add_argument('--host', default='127.0.0.1', type=str, help='Host for 
 parser_api.add_argument('--port', default=5003, type=int, help='Port for API service')
 parser_api.add_argument('--nonce', default=os.getenv('MT_WEB_NONCE', ''), type=str, help='Nonce for securing internal API server communication')
 parser_api.add_argument("--report", default=None,type=str, help='reports to server to register instance')
+parser_api.add_argument('--models-ttl', default='0', type=int, help='models TTL in memory in seconds')
 
 subparsers.add_parser('config-help', help='Print help information for config file')

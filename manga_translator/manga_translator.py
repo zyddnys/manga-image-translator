@@ -1,11 +1,15 @@
+import asyncio
 import cv2
 import json
 import langcodes
 import langdetect
 import os
-import re
+import regex as re
+import time
 import torch
 import logging
+import sys
+import traceback
 import numpy as np
 from PIL import Image
 from typing import Optional, Any
@@ -23,18 +27,19 @@ from .utils import (
     sort_regions,
 )
 
-from .detection import dispatch as dispatch_detection, prepare as prepare_detection
-from .upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling
-from .ocr import dispatch as dispatch_ocr, prepare as prepare_ocr
+from .detection import dispatch as dispatch_detection, prepare as prepare_detection, unload as unload_detection
+from .upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling, unload as unload_upscaling
+from .ocr import dispatch as dispatch_ocr, prepare as prepare_ocr, unload as unload_ocr
 from .textline_merge import dispatch as dispatch_textline_merge
 from .mask_refinement import dispatch as dispatch_mask_refinement
-from .inpainting import dispatch as dispatch_inpainting, prepare as prepare_inpainting
+from .inpainting import dispatch as dispatch_inpainting, prepare as prepare_inpainting, unload as unload_inpainting
 from .translators import (
     LANGDETECT_MAP,
     dispatch as dispatch_translation,
     prepare as prepare_translation,
+    unload as unload_translation,
 )
-from .colorization import dispatch as dispatch_colorization, prepare as prepare_colorization
+from .colorization import dispatch as dispatch_colorization, prepare as prepare_colorization, unload as unload_colorization
 from .rendering import dispatch as dispatch_rendering, dispatch_eng_render
 
 # Will be overwritten by __main__.py if module is being run directly (with python -m)
@@ -69,18 +74,21 @@ def load_dictionary(file_path):
                 if len(parts) == 1:
                     # If there is only the left part, the right part defaults to an empty string, meaning delete the left part
                     pattern = re.compile(parts[0])
-                    dictionary.append((pattern, ''))
+                    dictionary.append((pattern, '', line_number))
                 elif len(parts) == 2:
                     # If both left and right parts are present, perform the replacement
                     pattern = re.compile(parts[0])
-                    dictionary.append((pattern, parts[1]))
+                    dictionary.append((pattern, parts[1], line_number))
                 else:
                     logger.error(f'Invalid dictionary entry at line {line_number}: {line.strip()}')
     return dictionary
 
 def apply_dictionary(text, dictionary):
-    for pattern, value in dictionary:
+    for pattern, value, line_number in dictionary:
+        original_text = text  
         text = pattern.sub(value, text)
+        if text != original_text:  
+            logger.info(f'Line {line_number}: Replaced "{original_text}" with "{text}" using pattern "{pattern.pattern}" and value "{value}"')
     return text
 
 
@@ -90,6 +98,7 @@ class MangaTranslator:
     _gpu_limited_memory: bool
     device: Optional[str]
     kernel_size: Optional[int]
+    models_ttl: int
     _progress_hooks: list[Any]
     result_sub_folder: str
 
@@ -103,6 +112,7 @@ class MangaTranslator:
         self._gpu_limited_memory = False
         self.ignore_errors = False
         self.verbose = False
+        self.models_ttl = 0
 
         self._progress_hooks = []
         self._add_logger_hook()
@@ -118,10 +128,15 @@ class MangaTranslator:
         # The flag below controls whether to allow TF32 on cuDNN. This flag defaults to True.
         torch.backends.cudnn.allow_tf32 = True
 
+        self._model_usage_timestamps = {}
+        self._detector_cleanup_task = None
+        self.prep_manual = params.get('prep_manual', None)
+        
     def parse_init_params(self, params: dict):
         self.verbose = params.get('verbose', False)
         self.use_mtpe = params.get('use_mtpe', False)
         self.font_path = params.get('font_path', None)
+        self.models_ttl = params.get('models_ttl', 0)
 
         self.ignore_errors = params.get('ignore_errors', False)
         # check mps for apple silicon or cuda for nvidia
@@ -167,23 +182,35 @@ class MangaTranslator:
         ctx.result = None
 
         # preload and download models (not strictly necessary, remove to lazy load)
-        logger.info('Loading models')
-        if config.upscale.upscale_ratio:
-            await prepare_upscaling(config.upscale.upscaler)
-        await prepare_detection(config.detector.detector)
-        await prepare_ocr(config.ocr.ocr, self.device)
-        await prepare_inpainting(config.inpainter.inpainter, self.device)
-        await prepare_translation(config.translator.translator_gen)
-        if config.colorizer.colorizer != Colorizer.none:
-            await prepare_colorization(config.colorizer.colorizer)
+        if ( self.models_ttl == 0 ):
+            logger.info('Loading models')
+            if config.upscale.upscale_ratio:
+                await prepare_upscaling(config.upscale.upscaler)
+            await prepare_detection(config.detector.detector)
+            await prepare_ocr(config.ocr.ocr, self.device)
+            await prepare_inpainting(config.inpainter.inpainter, self.device)
+            await prepare_translation(config.translator.translator_gen)
+            if config.colorizer.colorizer != Colorizer.none:
+                await prepare_colorization(config.colorizer.colorizer)
+
         # translate
         return await self._translate(config, ctx)
 
     async def _translate(self, config: Config, ctx: Context) -> Context:
+        # Start the background cleanup job once if not already started.
+        if self._detector_cleanup_task is None:
+            self._detector_cleanup_task = asyncio.create_task(self._detector_cleanup_job())
         # -- Colorization
         if config.colorizer.colorizer != Colorizer.none:
             await self._report_progress('colorizing')
-            ctx.img_colorized = await self._run_colorizer(config, ctx)
+            try:
+                ctx.img_colorized = await self._run_colorizer(config, ctx)
+            except Exception as e:  
+                logger.error(f"Error during colorizing:\n{traceback.format_exc()}")  
+                if not self.ignore_errors:  
+                    raise  
+                ctx.img_colorized = ctx.input  # Fallback to input image if colorization fails
+
         else:
             ctx.img_colorized = ctx.input
 
@@ -192,7 +219,13 @@ class MangaTranslator:
         # consider adding automatic upscaling on certain kinds of small images.
         if config.upscale.upscale_ratio:
             await self._report_progress('upscaling')
-            ctx.upscaled = await self._run_upscaling(config, ctx)
+            try:
+                ctx.upscaled = await self._run_upscaling(config, ctx)
+            except Exception as e:  
+                logger.error(f"Error during upscaling:\n{traceback.format_exc()}")  
+                if not self.ignore_errors:  
+                    raise  
+                ctx.upscaled = ctx.img_colorized # Fallback to colorized (or input) image if upscaling fails
         else:
             ctx.upscaled = ctx.img_colorized
 
@@ -200,8 +233,17 @@ class MangaTranslator:
 
         # -- Detection
         await self._report_progress('detection')
-        ctx.textlines, ctx.mask_raw, ctx.mask = await self._run_detection(config, ctx)
-        if self.verbose:
+        try:
+            ctx.textlines, ctx.mask_raw, ctx.mask = await self._run_detection(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during detection:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.textlines = [] 
+            ctx.mask_raw = None
+            ctx.mask = None
+
+        if self.verbose and ctx.mask_raw is not None:
             cv2.imwrite(self._result_path('mask_raw.png'), ctx.mask_raw)
 
         if not ctx.textlines:
@@ -218,7 +260,13 @@ class MangaTranslator:
 
         # -- OCR
         await self._report_progress('ocr')
-        ctx.textlines = await self._run_ocr(config, ctx)
+        try:
+            ctx.textlines = await self._run_ocr(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during ocr:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.textlines = [] # Fallback to empty textlines if OCR fails
 
         if not ctx.textlines:
             await self._report_progress('skip-no-text', True)
@@ -228,31 +276,44 @@ class MangaTranslator:
 
         # Apply pre-dictionary after OCR
         pre_dict = load_dictionary(self.pre_dict)
-        pre_replacements = []  
-        for textline in ctx.textlines:  
-            original = textline.text  
+        pre_replacements = []
+        for textline in ctx.textlines:
+            original = textline.text
             textline.text = apply_dictionary(textline.text, pre_dict)
-            if original != textline.text:  
-                pre_replacements.append(f"{original} => {textline.text}")  
+            if original != textline.text:
+                pre_replacements.append(f"{original} => {textline.text}")
 
-        if pre_replacements:  
-            logger.info("Pre-translation replacements:")  
-            for replacement in pre_replacements:  
-                logger.info(replacement)  
-        else:  
+        if pre_replacements:
+            logger.info("Pre-translation replacements:")
+            for replacement in pre_replacements:
+                logger.info(replacement)
+        else:
             logger.info("No pre-translation replacements made.")
-        
+
         # -- Textline merge
         await self._report_progress('textline_merge')
-        ctx.text_regions = await self._run_textline_merge(config, ctx)
+        try:
+            ctx.text_regions = await self._run_textline_merge(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during textline_merge:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.text_regions = [] # Fallback to empty text_regions if textline merge fails
 
-        if self.verbose:
+        if self.verbose and ctx.text_regions:
             bboxes = visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions)
             cv2.imwrite(self._result_path('bboxes.png'), bboxes)
 
         # -- Translation
         await self._report_progress('translating')
-        ctx.text_regions = await self._run_text_translation(config, ctx)
+        try:
+            ctx.text_regions = await self._run_text_translation(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during translating:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.text_regions = [] # Fallback to empty text_regions if translation fails
+
         await self._report_progress('after-translating')
 
         if not ctx.text_regions:
@@ -268,9 +329,15 @@ class MangaTranslator:
         # (Delayed to take advantage of the region filtering done after ocr and translation)
         if ctx.mask is None:
             await self._report_progress('mask-generation')
-            ctx.mask = await self._run_mask_refinement(config, ctx)
+            try:
+                ctx.mask = await self._run_mask_refinement(config, ctx)
+            except Exception as e:  
+                logger.error(f"Error during mask-generation:\n{traceback.format_exc()}")  
+                if not self.ignore_errors:  
+                    raise 
+                ctx.mask = ctx.mask_raw if ctx.mask_raw is not None else np.zeros_like(ctx.img_rgb, dtype=np.uint8)[:,:,0] # Fallback to raw mask or empty mask
 
-        if self.verbose:
+        if self.verbose and ctx.mask is not None:
             inpaint_input_img = await dispatch_inpainting(Inpainter.none, ctx.img_rgb, ctx.mask, config.inpainter,config.inpainter.inpainting_size,
                                                           self.device, self.verbose)
             cv2.imwrite(self._result_path('inpaint_input.png'), cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
@@ -278,14 +345,26 @@ class MangaTranslator:
 
         # -- Inpainting
         await self._report_progress('inpainting')
-        ctx.img_inpainted = await self._run_inpainting(config, ctx)
+        try:
+            ctx.img_inpainted = await self._run_inpainting(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during inpainting:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.img_inpainted = ctx.img_rgb # Fallback to original RGB image if inpainting fails
         ctx.gimp_mask = np.dstack((cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR), ctx.mask))
 
         if self.verbose:
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR))
         # -- Rendering
         await self._report_progress('rendering')
-        ctx.img_rendered = await self._run_text_rendering(config, ctx)
+        try:
+            ctx.img_rendered = await self._run_text_rendering(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during rendering:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise  
+            ctx.img_rendered = ctx.img_inpainted # Fallback to inpainted (or original RGB) image if rendering fails
 
         await self._report_progress('finished', True)
         ctx.result = dump_image(ctx.input, ctx.img_rendered, ctx.img_alpha)
@@ -302,20 +381,66 @@ class MangaTranslator:
         return ctx
 
     async def _run_colorizer(self, config: Config, ctx: Context):
+        current_time = time.time()
+        self._model_usage_timestamps[("colorizer", config.colorizer.colorizer)] = current_time
         #todo: im pretty sure the ctx is never used. does it need to be passed in?
-        return await dispatch_colorization(config.colorizer.colorizer, device=self.device, image=ctx.input, **ctx)
+        return await dispatch_colorization(
+            config.colorizer.colorizer,
+            colorization_size=config.colorizer.colorization_size,
+            denoise_sigma=config.colorizer.denoise_sigma,
+            device=self.device,
+            image=ctx.input,
+            **ctx
+        )
 
     async def _run_upscaling(self, config: Config, ctx: Context):
+        current_time = time.time()
+        self._model_usage_timestamps[("upscaling", config.upscale.upscaler)] = current_time
         return (await dispatch_upscaling(config.upscale.upscaler, [ctx.img_colorized], config.upscale.upscale_ratio, self.device))[0]
 
     async def _run_detection(self, config: Config, ctx: Context):
+        current_time = time.time()
+        self._model_usage_timestamps[("detection", config.detector.detector)] = current_time
         return await dispatch_detection(config.detector.detector, ctx.img_rgb, config.detector.detection_size, config.detector.text_threshold,
                                         config.detector.box_threshold,
                                         config.detector.unclip_ratio, config.detector.det_invert, config.detector.det_gamma_correct, config.detector.det_rotate,
                                         config.detector.det_auto_rotate,
                                         self.device, self.verbose)
 
+    async def _unload_model(self, tool: str, model: str):
+        logger.info(f"Unloading {tool} model: {model}")
+        match tool:
+            case 'colorization':
+                await unload_colorization(model)
+            case 'detection':
+                await unload_detection(model)
+            case 'inpainting':
+                await unload_inpainting(model)
+            case 'ocr':
+                await unload_ocr(model)
+            case 'upscaling':
+                await unload_upscaling(model)
+            case 'translation':
+                await unload_translation(model)
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()  # empty CUDA cache
+
+    # Background models cleanup job.
+    async def _detector_cleanup_job(self):
+        while True:
+            if self.models_ttl == 0:
+                await asyncio.sleep(1)
+                continue
+            now = time.time()
+            for (tool, model), last_used in list(self._model_usage_timestamps.items()):
+                if now - last_used > self.models_ttl:
+                    await self._unload_model(tool, model)
+                    del self._model_usage_timestamps[(tool, model)]
+            await asyncio.sleep(1)
+
     async def _run_ocr(self, config: Config, ctx: Context):
+        current_time = time.time()
+        self._model_usage_timestamps[("ocr", config.ocr.ocr)] = current_time
         textlines = await dispatch_ocr(config.ocr.ocr, ctx.img_rgb, ctx.textlines, config.ocr, self.device, self.verbose)
 
         new_textlines = []
@@ -329,6 +454,8 @@ class MangaTranslator:
         return new_textlines
 
     async def _run_textline_merge(self, config: Config, ctx: Context):
+        current_time = time.time()
+        self._model_usage_timestamps[("textline_merge", "textline_merge")] = current_time
         text_regions = await dispatch_textline_merge(ctx.textlines, ctx.img_rgb.shape[1], ctx.img_rgb.shape[0],
                                                      verbose=self.verbose)
         # Filter out languages to skip  
@@ -417,35 +544,73 @@ class MangaTranslator:
         return text_regions
 
     async def _run_text_translation(self, config: Config, ctx: Context):
-        if self.load_text:
-            input_filename = os.path.splitext(os.path.basename(self.input_files[0]))[0]
-            with open(self._result_path(f"{input_filename}_translations.txt"), "r") as f:
-                    translated_sentences = json.load(f)
-        else:
-            translated_sentences = \
-                await dispatch_translation(config.translator.translator_gen,
-                                           [region.text for region in ctx.text_regions],
-                                           config.translator,
-                                           self.use_mtpe,
-                                           ctx, 'cpu' if self._gpu_limited_memory else self.device)
+        # 如果设置了prep_manual则将translator设置为none，防止token浪费
+        # Set translator to none to provent token waste if prep_manual is True  
+        if self.prep_manual:  
+            config.translator.translator = Translator.none          
+    
+        current_time = time.time()
+        self._model_usage_timestamps[("translation", config.translator.translator)] = current_time
 
-            # Save translation if args.save_text is set and quit
-            if self.save_text:
-                input_filename = os.path.splitext(os.path.basename(self.input_files[0]))[0]
-                with open(self._result_path(f"{input_filename}_translations.txt"), "w") as f:
-                    json.dump(translated_sentences, f, indent=4)
-                print("Don't continue if --save-text is used")
-                exit(-1)
+        # 为none翻译器添加特殊处理  
+        # Add special handling for none translator  
+        if config.translator.translator == Translator.none:  
+            # 使用none翻译器时，为所有文本区域设置必要的属性  
+            # When using none translator, set necessary properties for all text regions  
+            for region in ctx.text_regions:  
+                region.translation = ""  # 空翻译将创建空白区域 / Empty translation will create blank areas  
+                region.target_lang = config.translator.target_lang  
+                region._alignment = config.render.alignment  
+                region._direction = config.render.direction   
+            
+            # 如果有prep_manual标志，则保留所有文本区域不进行过滤  
+            # If prep_manual flag is present, keep all text regions without filtering  
+            if self.prep_manual:  
+                return ctx.text_regions  
+            # 如果没有prep_manual标志，继续执行后续代码进行过滤  
+            # If no prep_manual flag, continue to filtering logic below  
 
-        for region, translation in zip(ctx.text_regions, translated_sentences):
-            if config.render.uppercase:
-                translation = translation.upper()
-            elif config.render.lowercase:
-                translation = translation.upper()
-            region.translation = translation
-            region.target_lang = config.translator.target_lang
-            region._alignment = config.render.alignment
-            region._direction = config.render.direction
+        # 以下翻译处理仅在非none翻译器或有none翻译器但没有prep_manual时执行  
+        # Translation processing below only happens for non-none translator or none translator without prep_manual  
+        if self.load_text:  
+            input_filename = os.path.splitext(os.path.basename(self.input_files[0]))[0]  
+            with open(self._result_path(f"{input_filename}_translations.txt"), "r") as f:  
+                    translated_sentences = json.load(f)  
+        else:  
+            # 如果是none翻译器，不需要调用翻译服务，文本已经设置为空  
+            # If using none translator, no need to call translation service, text is already set to empty  
+            if config.translator.translator != Translator.none:  
+                translated_sentences = \
+                    await dispatch_translation(config.translator.translator_gen,  
+                                              [region.text for region in ctx.text_regions],  
+                                              config.translator,  
+                                              self.use_mtpe,  
+                                              ctx, 'cpu' if self._gpu_limited_memory else self.device)  
+            else:  
+                # 对于none翻译器，创建一个空翻译列表  
+                # For none translator, create an empty translation list  
+                translated_sentences = ["" for _ in ctx.text_regions]  
+
+            # Save translation if args.save_text is set and quit  
+            if self.save_text:  
+                input_filename = os.path.splitext(os.path.basename(self.input_files[0]))[0]  
+                with open(self._result_path(f"{input_filename}_translations.txt"), "w") as f:  
+                    json.dump(translated_sentences, f, indent=4, ensure_ascii=False)  
+                print("Don't continue if --save-text is used")  
+                exit(-1)  
+
+        # 如果不是none翻译器或者是none翻译器但没有prep_manual  
+        # If not none translator or none translator without prep_manual  
+        if config.translator.translator != Translator.none or not self.prep_manual:  
+            for region, translation in zip(ctx.text_regions, translated_sentences):  
+                if config.render.uppercase:  
+                    translation = translation.upper()  
+                elif config.render.lowercase:  
+                    translation = translation.lower()  # 修正：应该是lower而不是upper  
+                region.translation = translation  
+                region.target_lang = config.translator.target_lang  
+                region._alignment = config.render.alignment  
+                region._direction = config.render.direction  
 
         # Punctuation correction logic. for translators often incorrectly change quotation marks from the source language to those commonly used in the target language.
         check_items = [
@@ -517,7 +682,7 @@ class MangaTranslator:
         new_text_regions = []  
 
         # List of languages with specific language detection  
-        special_langs = ['CHS', 'CHT', 'KOR', 'IND', 'UKR', 'RUS', 'THA', 'ARA']  
+        special_langs = ['CHS', 'CHT', 'KOR', 'IND', 'UKR', 'RUS', 'THA']  
 
         # Process special language scenarios  
         if config.translator.target_lang in special_langs:
@@ -529,11 +694,14 @@ class MangaTranslator:
             has_target_lang_in_translation_regions = []
 
             for region in ctx.text_regions:  
+                        
                 text_equal = region.text.lower().strip() == region.translation.lower().strip()  
                 has_target_lang = False  
                 has_target_lang_in_translation = False
 
-                # Target language detection  
+                # Target language detection 
+                # TODO
+                # Better detection method is needed, otherwise will lead to incorrectly filtering the target language.
                 if config.translator.target_lang in ['CHS', 'CHT']:  # Chinese
                     has_target_lang = bool(re.search('[\u4e00-\u9fff]', region.text))
                     has_target_lang_in_translation = bool(re.search('[\u4e00-\u9fff]', region.translation))
@@ -590,12 +758,16 @@ class MangaTranslator:
                 new_text_regions.extend(diff_target_regions)  
 
             # Keep all non_target_lang regions with different translations (if translation contains target language characters)
-            for region in diff_non_target_regions:
-                if region in has_target_lang_in_translation_regions:
-                    new_text_regions.append(region)
-                else:
-                    logger.info(f'Filtered out: {region.translation}')
-                    logger.info('Reason: Translation does not contain target language characters')
+            for region in diff_non_target_regions:  
+                if region in has_target_lang_in_translation_regions:  
+                    new_text_regions.append(region)  
+                else:  
+                    if config.translator.translator == Translator.none and not region.translation.strip():  
+                        logger.info(f'Filtered out: {region.translation}')  
+                        logger.info('Reason: Translation contain blank areas')  
+                    else:  
+                        logger.info(f'Filtered out: {region.translation}')  
+                        logger.info('Reason: Translation does not contain target language characters')  
 
             # No different translations exist, clear all content.
             if not (diff_target_regions or diff_non_target_regions):
@@ -612,10 +784,16 @@ class MangaTranslator:
         else:  
             # Process non-special language scenarios using original logic  
             for region in ctx.text_regions:  
+                    
                 should_filter = False  
                 filter_reason = ""  
+
+                # 优先检查空白翻译 / Prioritize checking for blank translations  
+                if not region.translation.strip():  
+                    should_filter = True  
+                    filter_reason = "Translation contain blank areas" 
                 
-                if not config.translator.translator == Translator.none:
+                elif config.translator.translator != Translator.none:
                     if region.translation.isnumeric():  
                         should_filter = True  
                         filter_reason = "Numeric translation"  
@@ -643,10 +821,14 @@ class MangaTranslator:
                                               config.mask_dilation_offset, config.ocr.ignore_bubble, self.verbose,self.kernel_size)
 
     async def _run_inpainting(self, config: Config, ctx: Context):
+        current_time = time.time()
+        self._model_usage_timestamps[("inpainting", config.inpainter.inpainter)] = current_time
         return await dispatch_inpainting(config.inpainter.inpainter, ctx.img_rgb, ctx.mask, config.inpainter, config.inpainter.inpainting_size, self.device,
                                          self.verbose)
 
     async def _run_text_rendering(self, config: Config, ctx: Context):
+        current_time = time.time()
+        self._model_usage_timestamps[("rendering", config.render.renderer)] = current_time
         if config.render.renderer == Renderer.none:
             output = ctx.img_inpainted
         # manga2eng currently only supports horizontal left to right rendering
