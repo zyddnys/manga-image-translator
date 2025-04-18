@@ -206,81 +206,111 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         # Retry for _RETRY_ATTEMPTS times  
         for attempt in range(self._RETRY_ATTEMPTS):  
             try:  
-                # 1) 发起请求  
-                # 1) Send request  
+                # 发起请求  
+                # Send request  
                 response_text = await self._request_with_retry(to_lang, prompt)  
 
-                # 2) 检查风控词，这是整体检测，需要前置  
-                # 2) Check for refusal messages, this is a global check and needs to be done first  
+                # 检查风控词，这是整体检测，需要前置  
+                # Check for refusal messages, this is a global check and needs to be done first  
                 if self._cannot_assist(response_text):  
                     self.logger.warning(f"Detected refusal message from model. Will retry (attempt {attempt+1}/{self._RETRY_ATTEMPTS}).")  
                     continue  
 
-                # 3) 严格检查前缀格式  
-                # 3) Strictly check prefix format  
+                # 解析响应
+                # Parse response
+                new_translations = re.split(r'<\|\d+\|>', response_text)
+                merged_single_query = False
+
+                # 单查询多段响应处理
+                # Single Query Multiple Response Processing
+                if len(batch_queries) == 1 and len(new_translations) > 1:
+                    # 检查是否存在无效索引（例如 <|2|>, <|3|> 等）
+                    # Check if invalid indexes exist (for example, <|2|>, <|3|>, etc.)
+                    has_invalid_index = False
+                    for part in new_translations[1:]:  
+                        index_match = re.search(r'<\|(\d+)\|>', part)
+                        if index_match:
+                            index = int(index_match.group(1))
+                            if index > 1:  
+                                has_invalid_index = True
+                                break
+                    
+                    if has_invalid_index:
+                        merged_translation = re.sub(r'<\|\d+\|>', '', response_text).strip()
+                        new_translations = [merged_translation]
+                        self.logger.warning("Detected split translations for a single query, merged.")
+                        merged_single_query = True
+                # 清理首空元素
+                # Remove leading empty elements
+                elif new_translations and not new_translations[0].strip():
+                    new_translations = new_translations[1:]
+                
+                # 严格检查前缀格式  
+                # Strictly check prefix format  
                 is_valid_format = True  
-                lines = response_text.strip().split('\n')  
-                if not lines and len(batch_queries) > 0: # fix: IndexError: list index out of range  
-                    self.logger.warning(f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Received empty response for non-empty batch. Retrying...")  
-                    is_valid_format = False  
-                else:  
-                    # 预期的索引集合，从1开始  
-                    # Expected index set, starting from 1  
-                    expected_indices = set(range(1, len(batch_queries) + 1))  
-                    # 用来跟踪已经找到的索引，检查重复  
-                    # Track found indices to check for duplicates  
-                    found_indices = set()   
-                    non_empty_lines_count = 0  
-
-                    # 逐行检查响应格式  
-                    # Check response format line by line  
-                    for line_idx, line in enumerate(lines):  
-                        line = line.strip()  
-                        if not line:  
-                            continue # 跳过空行 / Skip empty lines  
-                        non_empty_lines_count += 1  
-
-                        # 严格从行首匹配 <|数字|> 格式  
-                        # Strictly match <|number|> format from the beginning of the line  
-                        match = re.match(r'^<\|(\d+)\|>(.*)', line)  
-                        if match:  
-                            try:  
-                                current_index = int(match.group(1))  
-                                if current_index in expected_indices:  
-                                    # --- 检查索引是否已经找到过 ---  
-                                    # --- Check if the index has already been found ---  
-                                    if current_index in found_indices:  
-                                        # 如果索引重复，则标记为无效格式并停止检查  
-                                        # If index is duplicated, mark as invalid format and stop checking  
+                if not merged_single_query:
+                    lines = response_text.strip().split('\n')  
+                    if not lines and len(batch_queries) > 0: # fix: IndexError: list index out of range  
+                        self.logger.warning(f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Received empty response for non-empty batch. Retrying...")  
+                        is_valid_format = False  
+                    else:  
+                        # 预期的索引集合，从1开始  
+                        # Expected index set, starting from 1  
+                        expected_indices = set(range(1, len(batch_queries) + 1))  
+                        # 用来跟踪已经找到的索引，检查重复  
+                        # Track found indices to check for duplicates  
+                        found_indices = set()   
+                        non_empty_lines_count = 0  
+    
+                        # 逐行检查响应格式  
+                        # Check response format line by line  
+                        for line_idx, line in enumerate(lines):  
+                            line = line.strip()  
+                            if not line:  
+                                continue # 跳过空行 / Skip empty lines  
+                            non_empty_lines_count += 1  
+    
+                            # 严格从行首匹配 <|数字|> 格式  
+                            # Strictly match <|number|> format from the beginning of the line  
+                            match = re.match(r'^<\|(\d+)\|>(.*)', line)  
+                            if match:  
+                                try:  
+                                    current_index = int(match.group(1))  
+                                    if current_index in expected_indices:  
+                                        # --- 检查索引是否已经找到过 ---  
+                                        # --- Check if the index has already been found ---  
+                                        if current_index in found_indices:  
+                                            # 如果索引重复，则标记为无效格式并停止检查  
+                                            # If index is duplicated, mark as invalid format and stop checking  
+                                            self.logger.warning(  
+                                                f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Duplicate index {current_index} detected. Line: '{line}'. Retrying..."  
+                                            )  
+                                            is_valid_format = False  
+                                            break # 停止检查当前响应 / Stop checking current response  
+                                        else:  
+                                            # 如果是第一次遇到这个有效索引，添加到 found_indices  
+                                            # If this is the first time encountering this valid index, add to found_indices  
+                                            found_indices.add(current_index)  
+                                    else:  
+                                        # 索引号超出预期范围  
+                                        # Index number exceeds expected range  
                                         self.logger.warning(  
-                                            f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Duplicate index {current_index} detected. Line: '{line}'. Retrying..."  
+                                            f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Invalid index {current_index} found (expected 1-{len(batch_queries)}). Line: '{line}'. Retrying..."  
                                         )  
                                         is_valid_format = False  
-                                        break # 停止检查当前响应 / Stop checking current response  
-                                    else:  
-                                        # 如果是第一次遇到这个有效索引，添加到 found_indices  
-                                        # If this is the first time encountering this valid index, add to found_indices  
-                                        found_indices.add(current_index)  
-                                else:  
-                                    # 索引号超出预期范围  
-                                    # Index number exceeds expected range  
+                                        break  
+                                except ValueError:  
+                                    # 基本不会发生  
+                                    # This should rarely happen  
                                     self.logger.warning(  
-                                        f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Invalid index {current_index} found (expected 1-{len(batch_queries)}). Line: '{line}'. Retrying..."  
+                                        f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Could not parse index from prefix. Line: '{line}'. Retrying..."  
                                     )  
                                     is_valid_format = False  
                                     break  
-                            except ValueError:  
-                                # 基本不会发生  
-                                # This should rarely happen  
-                                self.logger.warning(  
-                                    f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Could not parse index from prefix. Line: '{line}'. Retrying..."  
-                                )  
-                                is_valid_format = False  
-                                break  
-                        else:
-                            # 不再要求每行都有前缀，因为模型可能将一句话换行
-                            # No longer requiring each line to have a prefix, because the model may break a sentence into multiple lines.
-                            continue 
+                            else:
+                                # 不再要求每行都有前缀，因为模型可能将一句话换行
+                                # No longer requiring each line to have a prefix, because the model may break a sentence into multiple lines.
+                                continue 
 
                     # --- 在检查完所有行后：验证是否找到了足够的索引 ---  
                     # --- After checking all rows: verify if enough indices have been found ---
@@ -313,46 +343,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 SUSPICIOUS_SYMBOLS = ["ହ", "ି", "ഹ"]  
                 if any(symbol in response_text for symbol in SUSPICIOUS_SYMBOLS):  
                     self.logger.warn(f'[attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Suspicious symbols detected, skipping the current translation attempt.')  
-                    continue 
-                
-                # 4) 解析 response  
-                #    直接在这里进行解析 + 校验，不通过则抛异常  
-                # 4) Parse response  
-                #    Parse and validate here directly, throw exception if validation fails  
-                new_translations = re.split(r'<\|\d+\|>', response_text)  
-                
-                # 删除正则分割后产生的第一个空串  
-                # Remove the first empty string produced by regex split  
-                if not new_translations[0].strip():  
-                    new_translations = new_translations[1:]              
-
-                # 处理query只有1，返回内容也是1但是没有前缀的情况。这往往是错误返回，例如模型可能返回翻译无意义的解释说明。  
-                # Handle the case where there's only 1 query and the response has no prefix.  
-                # This is often an error, e.g., the model might return meaningless explanations instead of translations.  
-                # if len(batch_queries) == 1 and len(new_translations) == 1 and not re.match(r'^\s*<\|1\|>', response_text):  
-                    # self.logger.warning(f'Single query response does not contain prefix, retrying...(Attempt {attempt + 1}/{self._RETRY_ATTEMPTS})')  
-                    # continue  
-                
-                # 如果返回个数小于本批数量，可能需要改用别的拆分方式(比如按行切)  
-                # If the number of returned items is less than the batch size, may need to use alternative splitting methods (e.g., split by line)  
-                if len(new_translations) < len(batch_queries):  
-                    # 这里演示，简单再按行分隔  
-                    # Here's a simple demonstration of splitting by line  
-                    alt_splits = response_text.splitlines()  
-                    if len(alt_splits) == len(batch_queries):  
-                        new_translations = alt_splits  
-                    if len(alt_splits) > len(batch_queries):  
-                        continue  
-
-                # 检查数量，若依旧不足则说明不完整  
-                # Check the count, if still insufficient, the response is incomplete  
-                if len(new_translations) < len(batch_queries):  
-                    self.logger.warning(  
-                        f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Batch response is incomplete. "  
-                        f"Expect {len(batch_queries)}, got {len(new_translations)}"  
-                    )  
-                    # 继续下一次重试 / Continue to next retry  
-                    continue  
+                    continue              
                 
                 # 去除多余空行、前后空格  
                 # Remove extra empty lines and trim whitespace  
