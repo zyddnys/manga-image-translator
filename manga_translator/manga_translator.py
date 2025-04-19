@@ -494,28 +494,79 @@ class MangaTranslator:
                 logger.info(f'Removed leading characters: "{removed_start_chars}" from "{original_text}"')  
             
             # Modified filtering condition: handle incomplete parentheses  
-            # Combine left parentheses and left quotation marks into one list  
-            left_symbols = ['(', '（', '[', '【', '{', '〔', '〈', '「',  
-                            '“', '‘', '《', '『', '"', '〝', '﹁', '﹃',  
-                            '⸂', '⸄', '⸉', '⸌', '⸜', '⸠', '‹', '«']  
+            bracket_pairs = {  
+                '(': ')', '（': '）', '[': ']', '【': '】', '{': '}', '〔': '〕', '〈': '〉', '「': '」',  
+                '"': '"', "'": "'", '《': '》', '『': '』', '"': '"', '〝': '〞', '﹁': '﹂', '﹃': '﹄',  
+                '⸂': '⸃', '⸄': '⸅', '⸉': '⸊', '⸌': '⸍', '⸜': '⸝', '⸠': '⸡', '‹': '›', '«': '»', '＜': '＞', '<': '>'  
+            }  
+            left_symbols = set(bracket_pairs.keys())  
+            right_symbols = set(bracket_pairs.values())  
             
-            # Combine right parentheses and right quotation marks into one list
-            right_symbols = [')', '）', ']', '】', '}', '〕', '〉', '」',  
-                             '”', '’', '》', '』', '"', '〞', '﹂', '﹄',  
-                             '⸃', '⸅', '⸊', '⸍', '⸝', '⸡', '›', '»']  
-            # Combine all symbols  
-            all_symbols = left_symbols + right_symbols  
+            has_brackets = any(s in stripped_text for s in left_symbols) or any(s in stripped_text for s in right_symbols)  
             
-            # Count the number of left and right symbols  
-            left_count = sum(stripped_text.count(s) for s in left_symbols)  
-            right_count = sum(stripped_text.count(s) for s in right_symbols)  
-            
-            # Check if the number of left and right symbols match  
-            if left_count != right_count:  
-                # Symbols don't match, remove all symbols  
-                for s in all_symbols:  
-                    stripped_text = stripped_text.replace(s, '')  
-                logger.info(f'Removed unpaired symbols from "{stripped_text}"')  
+            if has_brackets:  
+                result_chars = []  
+                stack = []  
+                to_skip = []    
+                
+                # 第一次遍历：标记匹配的括号  
+                # First traversal: mark matching brackets
+                for i, char in enumerate(stripped_text):  
+                    if char in left_symbols:  
+                        stack.append((i, char))  
+                    elif char in right_symbols:  
+                        if stack:  
+                            # 有对应的左括号，出栈  
+                            # There is a corresponding left bracket, pop the stack
+                            stack.pop()  
+                        else:  
+                            # 没有对应的左括号，标记为删除  
+                            # No corresponding left parenthesis, marked for deletion
+                            to_skip.append(i)  
+                
+                # 标记未匹配的左括号为删除
+                # Mark unmatched left brackets as delete  
+                for pos, _ in stack:  
+                    to_skip.append(pos)  
+                
+                has_removed_symbols = len(to_skip) > 0  
+                
+                # 第二次遍历：处理匹配但不对应的括号
+                # Second pass: Process matching but mismatched brackets
+                stack = []  
+                for i, char in enumerate(stripped_text):  
+                    if i in to_skip:  
+                        # 跳过孤立的括号
+                        # Skip isolated parentheses
+                        continue  
+                        
+                    if char in left_symbols:  
+                        stack.append(char)  
+                        result_chars.append(char)  
+                    elif char in right_symbols:  
+                        if stack:  
+                            left_bracket = stack.pop()  
+                            expected_right = bracket_pairs.get(left_bracket)  
+                            
+                            if char != expected_right:  
+                                # 替换不匹配的右括号为对应左括号的正确右括号
+                                # Replace mismatched right brackets with the correct right brackets corresponding to the left brackets
+                                result_chars.append(expected_right)  
+                                logger.info(f'Fixed mismatched bracket: replaced "{char}" with "{expected_right}"')  
+                            else:  
+                                result_chars.append(char)  
+                    else:  
+                        result_chars.append(char)  
+                
+                new_stripped_text = ''.join(result_chars)  
+                
+                if has_removed_symbols:  
+                    logger.info(f'Removed unpaired bracket from "{stripped_text}"')  
+                
+                if new_stripped_text != stripped_text and not has_removed_symbols:  
+                    logger.info(f'Fixed brackets: "{stripped_text}" → "{new_stripped_text}"')  
+                
+                stripped_text = new_stripped_text  
               
             region.text = stripped_text.strip()     
             
@@ -614,51 +665,80 @@ class MangaTranslator:
 
         # Punctuation correction logic. for translators often incorrectly change quotation marks from the source language to those commonly used in the target language.
         check_items = [
-            ["(", "（", "「"],
-            ["（", "(", "「"],
-            [")", "）", "」"],
-            ["）", ")", "」"],
-            ["「", "“", "‘", "『"],
-            ["」", "”", "’", "』"],
-            ["『", "“", "‘", "「"],
-            ["』", "”", "’", "」"],
+
+            ["(", "（", "「", "【"],
+            ["（", "(", "「", "【"],
+            [")", "）", "」", "】"],
+            ["）", ")", "」", "】"],
+            
+
+            ["[", "［", "【", "「"],
+            ["［", "[", "【", "「"],
+            ["]", "］", "】", "」"],
+            ["］", "]", "】", "」"],
+            
+
+            ["「", "“", "‘", "『", "【"],
+            ["」", "”", "’", "』", "】"],
+            ["『", "“", "‘", "「", "【"],
+            ["』", "”", "’", "」", "】"],
+            
+
+            ["【", "(", "（", "「", "『", "["],
+            ["】", ")", "）", "」", "』", "]"],
         ]
-        
+
         replace_items = [
             ["「", "“"],
             ["「", "‘"],
             ["」", "”"],
             ["」", "’"],
+            ["【", "["],  
+            ["】", "]"],  
         ]
-        
+
         for region in ctx.text_regions:
             if region.text and region.translation:
-                # Detect 「」 or 『』 in the source text
-                if '「' in region.text and '」' in region.text:
-                    quote_type = '「」'
-                elif '『' in region.text and '』' in region.text:
+                if '『' in region.text and '』' in region.text:
                     quote_type = '『』'
+                elif '「' in region.text and '」' in region.text:
+                    quote_type = '「」'
+                elif '【' in region.text and '】' in region.text: 
+                    quote_type = '【】'
                 else:
                     quote_type = None
-        
-                # If the source text has 「」 or 『』, and the translation has "", replace them
-                if quote_type and '"' in region.translation:
-                    # Replace "" with 「」 or 『』
-                    if quote_type == '「」':
-                        region.translation = re.sub(r'"([^"]*)"', r'「\1」', region.translation)
-                    elif quote_type == '『』':
-                        region.translation = re.sub(r'"([^"]*)"', r'『\1』', region.translation)
-        
-                # Correct ellipsis
-                region.translation = re.sub(r'\.{3}', '…', region.translation)
-        
-                # Check and replace other symbols
+                
+                if quote_type:
+                    src_quote_count = region.text.count(quote_type[0])
+                    dst_dquote_count = region.translation.count('"')
+                    
+                    if (src_quote_count > 0 and
+                        src_quote_count == dst_dquote_count and
+                        not region.translation.isascii()):
+                        
+                        if quote_type == '「」':
+                            region.translation = re.sub(r'"([^"]*)"', r'「\1」', region.translation)
+                        elif quote_type == '『』':
+                            region.translation = re.sub(r'"([^"]*)"', r'『\1』', region.translation)
+                        elif quote_type == '【】':  
+                            region.translation = re.sub(r'"([^"]*)"', r'【\1】', region.translation)
+
+                # === 优化后的数量判断逻辑 ===
+                # === Optimized quantity judgment logic ===
                 for v in check_items:
-                    num_s = region.text.count(v[0])
-                    num_t = sum(region.translation.count(t) for t in v[1:])
-                    if num_s == num_t:
+                    num_src_std = region.text.count(v[0])
+                    num_src_var = sum(region.text.count(t) for t in v[1:])
+                    num_dst_std = region.translation.count(v[0])
+                    num_dst_var = sum(region.translation.count(t) for t in v[1:])
+                    
+                    if (num_src_std > 0 and
+                        num_src_std != num_src_var and
+                        num_src_std == num_dst_std + num_dst_var):
                         for t in v[1:]:
                             region.translation = region.translation.replace(t, v[0])
+
+                # 强制替换规则
+                # Forced replacement rules
                 for v in replace_items:
                     region.translation = region.translation.replace(v[1], v[0])
 
