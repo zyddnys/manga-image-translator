@@ -149,7 +149,7 @@ def render(
     else:
         render_horizontally = region.horizontal
 
-    print(f"Region text: {region.text}, forced_direction: {forced_direction}, render_horizontally: {render_horizontally}")
+    #print(f"Region text: {region.text}, forced_direction: {forced_direction}, render_horizontally: {render_horizontally}")
 
     if render_horizontally:
         temp_box = text_render.put_text_horizontal(
