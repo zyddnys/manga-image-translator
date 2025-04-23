@@ -21,6 +21,8 @@ def check_color(image):
     n = np.sum(color_distance > 100)
 
     # Return True if there are more than 10 such pixels
+    # TODO:
+    # Proportion should be used
     return n > 10
 
 def is_ignore(region_img, ignore_bubble = 0):
@@ -39,6 +41,19 @@ def is_ignore(region_img, ignore_bubble = 0):
 
     last determine if there is color, consider the colored text as invalid information and skip it without translation
     """
+    # Current issues with bubble detection:
+    # 1. Misjudgment of solid color backgrounds (core issue):
+    # Reason: The code calculates the black/white pixel ratio in a 2-pixel edge area around the text box. If the text box is on a large solid white background (e.g., black text on white paper), the edges will mostly be white, resulting in a very low ratio (close to 0), which falls below the ignore_bubble threshold. The code then mistakenly considers this as a "normal white bubble background" and fails to ignore it (i.e., it treats it as regular bubble text that needs translation). While this text does require translation, it is not actually bubble text.
+    # Fundamental flaw: This method does not detect bubble boundaries or contours; it only checks local background color.
+    # 2. Inability to recognize bubble boundaries:
+    # Reason: The code does not involve any shape or contour detection. It cannot determine whether there is a closed, relatively uniform-colored line surrounding the text box.
+    # Consequence: Unable to distinguish between actual bubbles (with boundaries) and cases where the background color coincidentally meets the ratio criteria.
+    # 3. Insensitivity to bubble size and relative position:
+    # Reason: Only examines the immediate 2-pixel area, without considering the overall size, shape of the bubble, or the text box's relative position within the bubble.
+    # Consequence: Cannot utilize common-sense features like "bubbles typically surround the text box and are moderately sized."
+    # 4. Connected bubble issue:
+    # Reason: The current logic is entirely based on the local environment of a single text box and cannot detect whether there is a shared bubble structure spanning multiple text boxes.
+    # Consequence: Unable to handle cases where a large or complex-shaped bubble contains multiple independent text blocks, nor can it determine which part of the bubble corresponds to which text block.
     if ignore_bubble<1 or ignore_bubble>50:
         return  False
     _, binary_raw_mask = cv2.threshold(region_img, 127, 255, cv2.THRESH_BINARY)
