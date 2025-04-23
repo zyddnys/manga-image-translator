@@ -496,7 +496,7 @@ class MangaTranslator:
             # Modified filtering condition: handle incomplete parentheses  
             bracket_pairs = {  
                 '(': ')', '（': '）', '[': ']', '【': '】', '{': '}', '〔': '〕', '〈': '〉', '「': '」',  
-                '"': '"', "'": "'", '《': '》', '『': '』', '"': '"', '〝': '〞', '﹁': '﹂', '﹃': '﹄',  
+                '"': '"', '＂': '＂', "'": "'", "“": "”", '《': '》', '『': '』', '"': '"', '〝': '〞', '﹁': '﹂', '﹃': '﹄',  
                 '⸂': '⸃', '⸄': '⸅', '⸉': '⸊', '⸌': '⸍', '⸜': '⸝', '⸠': '⸡', '‹': '›', '«': '»', '＜': '＞', '<': '>'  
             }  
             left_symbols = set(bracket_pairs.keys())  
@@ -711,9 +711,10 @@ class MangaTranslator:
                 if quote_type:
                     src_quote_count = region.text.count(quote_type[0])
                     dst_dquote_count = region.translation.count('"')
+                    dst_fwquote_count = region.translation.count('＂')
                     
                     if (src_quote_count > 0 and
-                        src_quote_count == dst_dquote_count and
+                        (src_quote_count == dst_dquote_count or src_quote_count == dst_fwquote_count) and
                         not region.translation.isascii()):
                         
                         if quote_type == '「」':
