@@ -468,7 +468,7 @@ def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_
                 # Ensure slice source and target dimensions match  
                 bitmap_border_slice = bitmap_border[0 : paste_border_y_end-paste_border_y_start,   
                                                     0 : paste_border_x_end-paste_border_x_start]  
-                if bitmap_border_slice.size > 0
+                if bitmap_border_slice.size > 0:
                     # 使用 cv2.add 叠加描边  
                     # Use cv2.add to overlay border  
                     target_slice = canvas_border[paste_border_y_start:paste_border_y_end,   
