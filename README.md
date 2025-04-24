@@ -165,9 +165,8 @@ $ python -m venv venv
 # Activate venv
 $ source venv/bin/activate
 
-# For --use-gpu option go to https://pytorch.org/ and follow
-# pytorch installation instructions. Add `--upgrade --force-reinstall`
-# to the pip command to overwrite the currently installed pytorch version.
+# For --use-gpu option go to https://pytorch.org/get-started/locally/ and follow pytorch installation instructions.
+# Add `--upgrade --force-reinstall` to the pip command to overwrite the currently installed pytorch version if you are not using venv.
 
 # Install the dependencies
 $ pip install -r requirements.txt
@@ -203,7 +202,7 @@ It should be noted that this image is fairly large (~ 15GB).
 The web server can be hosted using (For CPU)
 
 ```bash
-docker run -p 5003:5003 -v result:/app/result --ipc=host --rm zyddnys/manga-image-translator:main -l ENG --manga2eng -v --mode web --host=0.0.0.0 --port=5003
+docker run -p 5003:5003 -v result:/app/result --ipc=host --rm zyddnys/manga-image-translator:main -v --start-instance --host=0.0.0.0 --port=5003
 ```
 
 or
@@ -212,16 +211,15 @@ or
 docker-compose -f demo/doc/docker-compose-web-with-cpu.yml up
 ```
 
-depending on which you prefer. The web server should start on port [8000](http://localhost:8000)
-<s>and images should become in the `/result` folder.</s>
-images will not be saved at this point.
+depending on which you prefer. The web server should start on port [8000](http://localhost:8000) as default.
+and images should become in the `/result` folder.
 
 #### Using as CLI
 
 To use docker with the CLI (I.e in batch mode)
 
 ```bash
-docker run -v <targetFolder>:/app/<targetFolder> -v <targetFolder>-translated:/app/<targetFolder>-translated  --ipc=host --rm zyddnys/manga-image-translator:main --mode=batch -i=/app/<targetFolder> <cli flags>
+docker run -v <targetFolder>:/app/<targetFolder> -v <targetFolder>-translated:/app/<targetFolder>-translated  --ipc=host --rm zyddnys/manga-image-translator:main local -i=/app/<targetFolder> <cli flags>
 ```
 
 **Note:** In the event you need to reference files on your host machine
@@ -281,8 +279,9 @@ $ python -m manga_translator local -v -i <path>
 ### Web Mode
 
 ```bash
-# use `--mode web` to start a web server.
-$ cd server && python main.py --use-gpu
+# start a web server.
+$ cd server
+$ python main.py --use-gpu
 # the demo will be serving on http://127.0.0.1:8000
 ```
 
