@@ -3,6 +3,7 @@ services:
   manga_image_translator:
     image: zyddnys/manga-image-translator:main
     container_name: manga_image_translator_cpu
+    entrypoint: python
     command: server/main.py --verbose --start-instance --host=0.0.0.0 --port=5003
     volumes:
       - ./../../result:/app/result

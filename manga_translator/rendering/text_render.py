@@ -89,7 +89,8 @@ def compact_special_symbols(text: str) -> str:
     # Remove half-width and full-width spaces after each punctuation mark
     pattern = r'([^\w\s])[ \u3000]+'  
     text = re.sub(pattern, r'\1', text) 
-
+    return text
+    
 def rotate_image(image, angle):
     if angle == 0:
         return image, (0, 0)

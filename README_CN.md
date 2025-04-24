@@ -1,5 +1,5 @@
 # 漫画/图片翻译器 (中文说明) 
-最后更新时间：2025年3月11日
+最后更新时间：2025年4月25日
 ---
 ![Commit activity](https://img.shields.io/github/commit-activity/m/zyddnys/manga-image-translator)
 ![Lines of code](https://img.shields.io/tokei/lines/github/zyddnys/manga-image-translator?label=lines%20of%20code)
@@ -78,8 +78,8 @@ $ python -m venv venv
 # 激活 venv
 $ source venv/bin/activate
 
-# 如果要使用 --use-gpu 选项，请访问 https://pytorch.org/ 并按照说明安装 PyTorch。
-# 在 pip 命令中添加 --upgrade --force-reinstall 以覆盖当前安装的 PyTorch 版本。
+# 如果要使用 --use-gpu 选项，请访问 https://pytorch.org/get-started/locally/ 安装 PyTorch，需与CUDA版本对应。
+# 如果未使用 venv 创建虚拟环境，需在 pip 命令中添加 --upgrade --force-reinstall 以覆盖当前安装的 PyTorch 版本。
 
 # 安装依赖
 $ pip install -r requirements.txt
@@ -91,7 +91,7 @@ $ pip install -r requirements.txt
 
 在执行 pip install 之前，请先安装 Microsoft C++ Build Tools ([下载](https://visualstudio.microsoft.com/vs/), [安装说明](https://stackoverflow.com/questions/40504552/how-to-install-visual-c-build-tools))，因为某些 pip 依赖项需要它才能编译。 (参见 [#114](https://github.com/zyddnys/manga-image-translator/issues/114))。
 
-要在 Windows 上使用 [CUDA](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64)，请按照 <https://pytorch.org/> 上的说明安装正确的 PyTorch 版本。
+要在 Windows 上使用 [CUDA](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64)，请按照 <https://pytorch.org/get-started/locally/> 上的说明安装正确的 PyTorch 版本。
 
 ### Docker
 
@@ -110,7 +110,7 @@ $ pip install -r requirements.txt
 可以使用以下命令启动 Web 服务器 (CPU)：
 
 ```bash
-docker run -p 5003:5003 -v result:/app/result --ipc=host --rm zyddnys/manga-image-translator:main -l CHS --manga2eng -v --mode web --host=0.0.0.0 --port=5003
+docker run -p 5003:5003 -v result:/app/result --ipc=host --rm zyddnys/manga-image-translator:main -v --start-instance --host=0.0.0.0 --port=5003
 ```
 
 或者
@@ -119,14 +119,14 @@ docker run -p 5003:5003 -v result:/app/result --ipc=host --rm zyddnys/manga-imag
 docker-compose -f demo/doc/docker-compose-web-with-cpu.yml up
 ```
 
-Web 服务器将在 [8000](http://localhost:8000) 端口启动，<s>翻译结果将保存在 `/result` 文件夹中。</s> 新版中翻译结果不再保存
+Web 服务器默认在 [8000](http://localhost:8000) 端口启动，翻译结果将保存在 `/result` 文件夹中。
 
 #### 作为 CLI 使用
 
 要通过 CLI 使用 Docker (即批量模式)：
 
 ```bash
-docker run -v <targetFolder>:/app/<targetFolder> -v <targetFolder>-translated:/app/<targetFolder>-translated  --ipc=host --rm zyddnys/manga-image-translator:main --mode=batch -i=/app/<targetFolder> <cli flags>
+docker run -v <targetFolder>:/app/<targetFolder> -v <targetFolder>-translated:/app/<targetFolder>-translated  --ipc=host --rm zyddnys/manga-image-translator:main local -i=/app/<targetFolder> <cli flags>
 ```
 
 **注意:** 如果您需要引用主机上的文件，则需要将相关文件作为卷挂载到容器内的 `/app` 文件夹中。CLI 的路径需要是内部 Docker 路径 `/app/...`，而不是主机上的路径。
@@ -164,8 +164,9 @@ $ python -m manga_translator local -v -i <path>
 ### 网页模式
 
 ```bash
-#使用 `--mode web`启动网页服务器.
-$ cd server && python main.py --use-gpu
+# 启动网页服务器.
+$ cd server
+$ python main.py --use-gpu
 # 网页demo服务地址为http://127.0.0.1:8000
 ```
 
