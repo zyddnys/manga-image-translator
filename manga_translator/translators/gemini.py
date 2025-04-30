@@ -79,6 +79,11 @@ class GeminiTranslator(CommonGPTTranslator):
                         }
     '''
 
+    _MIN_CACHE_TOKENS = 4096 # Minimum tokens required to use Context Cache
+                            # Source: https://ai.google.dev/gemini-api/docs/caching?lang=python#considerations
+    if str(GEMINI_MODEL).startswith('gemini-1.5'):
+        _MIN_CACHE_TOKENS = 1 # The minimum token count of 4096 only applies to versions 2.0 and above
+    
     _CACHE_TTL = 3600 # Set the Context Cache lifespan (seconds)
     _CACHE_TTL_BUFFER = 300 # Refresh the Context Cache once current time is within this many seconds of expiring
 
@@ -258,6 +263,16 @@ class GeminiTranslator(CommonGPTTranslator):
                                                                     ttl=f'{self._CACHE_TTL}s',
                                                                 ),
                                                             )
+        
+        if self.templateCache.usage_metadata.total_token_count < self._MIN_CACHE_TOKENS:
+            self.logger.warning(
+                f"Context Cache was created, but only contains {self.templateCache.usage_metadata.total_token_count} tokens.\n" +
+                "This is below the minimum required to use Context Caching.\n" +
+                "Context Caching will be disabled"
+            )
+            
+            self.useCache = False
+            self.client.aio.caches.delete(name=self.templateCache.name)
 
     def _needRecache(self) -> bool:
         if not self.templateCache:
@@ -493,6 +508,16 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
                                                                                 ttl=f'{self.translator._CACHE_TTL}s',
                                                                                 ),
                                                                             )
+        if self.templateCache.usage_metadata.total_token_count < self.translator._MIN_CACHE_TOKENS:
+            self.logger.warning(
+                f"Context Cache was created, but only contains {self.templateCache.usage_metadata.total_token_count} tokens.\n" +
+                "This is below the minimum required to use Context Caching.\n" +
+                "Context Caching will be disabled"
+            )
+            
+            self.translator.useCache = False
+            self.translator.client.aio.caches.delete(name=self.templateCache.name)
+
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
         config_kwargs = {
