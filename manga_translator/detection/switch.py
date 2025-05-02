@@ -1,9 +1,8 @@
+import os 
 import numpy as np
 from typing import List, Tuple
-import asyncio
 import logging
 import cv2
-from shapely.geometry import Polygon
 
 from .common import CommonDetector
 from .default import DefaultDetector
@@ -18,7 +17,13 @@ class SwitchDetector(CommonDetector):
         self.default_detector = DefaultDetector(*args, **kwargs)
         self.ctd_detector = ComicTextDetector(*args, **kwargs)
 
-        self.aspect_ratio_threshold = kwargs.get('aspect_ratio_threshold', 0.613)
+        default_threshold = 0.550
+        env_threshold_str = os.environ.get("switch_detection_aspect_ratio_threshold")
+        if env_threshold_str:
+            self.aspect_ratio_threshold = float(env_threshold_str)
+        else:
+            self.aspect_ratio_threshold = default_threshold
+
         logger.info(f"SwitchDetector initialized with aspect_ratio_threshold: {self.aspect_ratio_threshold}")
 
     async def load(self, device: str):
@@ -35,6 +40,8 @@ class SwitchDetector(CommonDetector):
         
         orig_h, orig_w = image.shape[:2]
         aspect_ratio = orig_w / orig_h
+
+        print(f"Aspect Ratio threashold: {self.aspect_ratio_threshold}")
 
         if aspect_ratio < self.aspect_ratio_threshold:
             logger.info(f"Aspect ratio: {aspect_ratio:.3f} - Using CTD detector for portrait-oriented image")
