@@ -1,8 +1,9 @@
 # vim: ft=requirements
 # networkx
-# torch
+--index-url https://download.pytorch.org/whl/cu124
+torch==2.5.1
 # groq
-# torchvision
+torchvision==0.20.1
 # torch-summary
 einops
 scikit-image
@@ -54,7 +55,7 @@ manga-ocr
 # bitsandbytes
 # uvicorn
 # fastapi
-# pydantic
+pydantic==2.5.0
 # python-multipart
 google-genai==1.8.0
 rich

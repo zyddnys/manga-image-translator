@@ -89,7 +89,6 @@ class Model48pxOCR(OfflineOCR):
                 tmp = region_imgs[idx]
                 region[i, :, : W, :]=tmp
                 if verbose:
-                    # FIXME: should use tempdir()
                     os.makedirs('result/ocrs/', exist_ok=True)
                     if quadrilaterals[idx][1] == 'v':
                         cv2.imwrite(f'result/ocrs/{ix}.png', cv2.rotate(cv2.cvtColor(region[i, :, :, :], cv2.COLOR_RGB2BGR), cv2.ROTATE_90_CLOCKWISE))
