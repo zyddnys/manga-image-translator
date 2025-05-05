@@ -47,6 +47,7 @@ MANIFEST
 # Input and Output
 /input/
 /input-translated/
+/storage
 
 # SSL Used for running server locally
 cert.pem
