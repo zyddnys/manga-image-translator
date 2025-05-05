@@ -12,9 +12,6 @@ run-gradio:
 run-gradio-mit:
 	venv/bin/gradio gradio-mit.py --demo-name=mit_workflow_block
 
-run-worker:
-	conda run -n $(CONDA_ENV) --no-capture-output celery --app moeflow_worker worker --queues mit --loglevel=debug --concurrency=1
-
 prepare-models:
 	conda run -n $(CONDA_ENV) --no-capture-output python3 docker_prepare.py
 
