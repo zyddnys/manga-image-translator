@@ -4,8 +4,8 @@ version = "0.1.0"
 description = ""
 authors = []
 readme = "README.md"
-requires-python = ">=3.10,<3.13"
-license = {file = "LICENSE"}
+requires-python = ">=3.10, <=3.13"
+license = "GPL-3.0-only"
 
 [tool.setuptools]
 packages = ['manga_translator', 'moeflow_companion']

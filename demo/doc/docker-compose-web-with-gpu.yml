@@ -3,10 +3,10 @@ services:
   manga_image_translator:
     image: zyddnys/manga-image-translator
     container_name: manga_image_translator_gpu
+    entrypoint: python
     command: server/main.py --verbose --start-instance --host=0.0.0.0 --port=5003 --use-gpu
     volumes:
-      - ./../../translate_demo.py:/app/translate_demo.py
-      - facehuggingcache:/root/.cache/huggingface/
+      - ./../../result:/app/result
     ports:
       - 5003:5003
     ipc: host

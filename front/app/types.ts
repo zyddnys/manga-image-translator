@@ -3,6 +3,7 @@ export type StatusKey =
   | "pending"
   | "detection"
   | "ocr"
+  | "textline_merge"
   | "mask-generation"
   | "inpainting"
   | "upscaling"
@@ -16,6 +17,23 @@ export type StatusKey =
   | "error-too-large"
   | "error-disconnect"
   | null;
+
+export interface ChunkProcessingResult {
+  updatedBuffer: Uint8Array;
+}
+
+export const processingStatuses = [
+  "upload",
+  "pending",
+  "detection",
+  "ocr",
+  "textline_merge",
+  "mask-generation",
+  "inpainting",
+  "upscaling",
+  "translating",
+  "rendering",
+];
 
 export type TranslatorKey =
   | "youdao"
@@ -41,3 +59,11 @@ export const validTranslators: TranslatorKey[] = [
   "deepseek",
   "none",
 ];
+
+export interface FileStatus {
+  status: StatusKey | null;
+  progress: string | null;
+  queuePos: string | null;
+  result: Blob | null;
+  error: string | null;
+}

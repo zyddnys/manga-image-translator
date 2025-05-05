@@ -53,10 +53,11 @@ accelerate
 bitsandbytes
 uvicorn
 fastapi
-pydantic
+pydantic==2.5.0
 python-multipart
 google-genai
 rich
+regex
 
 # Currently CUDA 11.8 and 12.3 are supported. 
 # Let pip choose the cuda version to use:

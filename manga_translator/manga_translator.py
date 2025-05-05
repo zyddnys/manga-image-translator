@@ -4,10 +4,12 @@ import json
 import langcodes
 import langdetect
 import os
-import re
+import regex as re
 import time
 import torch
 import logging
+import sys
+import traceback
 import numpy as np
 from PIL import Image
 from typing import Optional, Any
@@ -72,18 +74,21 @@ def load_dictionary(file_path):
                 if len(parts) == 1:
                     # If there is only the left part, the right part defaults to an empty string, meaning delete the left part
                     pattern = re.compile(parts[0])
-                    dictionary.append((pattern, ''))
+                    dictionary.append((pattern, '', line_number))
                 elif len(parts) == 2:
                     # If both left and right parts are present, perform the replacement
                     pattern = re.compile(parts[0])
-                    dictionary.append((pattern, parts[1]))
+                    dictionary.append((pattern, parts[1], line_number))
                 else:
                     logger.error(f'Invalid dictionary entry at line {line_number}: {line.strip()}')
     return dictionary
 
 def apply_dictionary(text, dictionary):
-    for pattern, value in dictionary:
+    for pattern, value, line_number in dictionary:
+        original_text = text  
         text = pattern.sub(value, text)
+        if text != original_text:  
+            logger.info(f'Line {line_number}: Replaced "{original_text}" with "{text}" using pattern "{pattern.pattern}" and value "{value}"')
     return text
 
 
@@ -198,7 +203,14 @@ class MangaTranslator:
         # -- Colorization
         if config.colorizer.colorizer != Colorizer.none:
             await self._report_progress('colorizing')
-            ctx.img_colorized = await self._run_colorizer(config, ctx)
+            try:
+                ctx.img_colorized = await self._run_colorizer(config, ctx)
+            except Exception as e:  
+                logger.error(f"Error during colorizing:\n{traceback.format_exc()}")  
+                if not self.ignore_errors:  
+                    raise  
+                ctx.img_colorized = ctx.input  # Fallback to input image if colorization fails
+
         else:
             ctx.img_colorized = ctx.input
 
@@ -207,7 +219,13 @@ class MangaTranslator:
         # consider adding automatic upscaling on certain kinds of small images.
         if config.upscale.upscale_ratio:
             await self._report_progress('upscaling')
-            ctx.upscaled = await self._run_upscaling(config, ctx)
+            try:
+                ctx.upscaled = await self._run_upscaling(config, ctx)
+            except Exception as e:  
+                logger.error(f"Error during upscaling:\n{traceback.format_exc()}")  
+                if not self.ignore_errors:  
+                    raise  
+                ctx.upscaled = ctx.img_colorized # Fallback to colorized (or input) image if upscaling fails
         else:
             ctx.upscaled = ctx.img_colorized
 
@@ -215,8 +233,17 @@ class MangaTranslator:
 
         # -- Detection
         await self._report_progress('detection')
-        ctx.textlines, ctx.mask_raw, ctx.mask = await self._run_detection(config, ctx)
-        if self.verbose:
+        try:
+            ctx.textlines, ctx.mask_raw, ctx.mask = await self._run_detection(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during detection:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.textlines = [] 
+            ctx.mask_raw = None
+            ctx.mask = None
+
+        if self.verbose and ctx.mask_raw is not None:
             cv2.imwrite(self._result_path('mask_raw.png'), ctx.mask_raw)
 
         if not ctx.textlines:
@@ -233,7 +260,13 @@ class MangaTranslator:
 
         # -- OCR
         await self._report_progress('ocr')
-        ctx.textlines = await self._run_ocr(config, ctx)
+        try:
+            ctx.textlines = await self._run_ocr(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during ocr:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.textlines = [] # Fallback to empty textlines if OCR fails
 
         if not ctx.textlines:
             await self._report_progress('skip-no-text', True)
@@ -243,31 +276,44 @@ class MangaTranslator:
 
         # Apply pre-dictionary after OCR
         pre_dict = load_dictionary(self.pre_dict)
-        pre_replacements = []  
-        for textline in ctx.textlines:  
-            original = textline.text  
+        pre_replacements = []
+        for textline in ctx.textlines:
+            original = textline.text
             textline.text = apply_dictionary(textline.text, pre_dict)
-            if original != textline.text:  
-                pre_replacements.append(f"{original} => {textline.text}")  
+            if original != textline.text:
+                pre_replacements.append(f"{original} => {textline.text}")
 
-        if pre_replacements:  
-            logger.info("Pre-translation replacements:")  
-            for replacement in pre_replacements:  
-                logger.info(replacement)  
-        else:  
+        if pre_replacements:
+            logger.info("Pre-translation replacements:")
+            for replacement in pre_replacements:
+                logger.info(replacement)
+        else:
             logger.info("No pre-translation replacements made.")
-        
+
         # -- Textline merge
         await self._report_progress('textline_merge')
-        ctx.text_regions = await self._run_textline_merge(config, ctx)
+        try:
+            ctx.text_regions = await self._run_textline_merge(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during textline_merge:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.text_regions = [] # Fallback to empty text_regions if textline merge fails
 
-        if self.verbose:
+        if self.verbose and ctx.text_regions:
             bboxes = visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions)
             cv2.imwrite(self._result_path('bboxes.png'), bboxes)
 
         # -- Translation
         await self._report_progress('translating')
-        ctx.text_regions = await self._run_text_translation(config, ctx)
+        try:
+            ctx.text_regions = await self._run_text_translation(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during translating:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.text_regions = [] # Fallback to empty text_regions if translation fails
+
         await self._report_progress('after-translating')
 
         if not ctx.text_regions:
@@ -283,9 +329,15 @@ class MangaTranslator:
         # (Delayed to take advantage of the region filtering done after ocr and translation)
         if ctx.mask is None:
             await self._report_progress('mask-generation')
-            ctx.mask = await self._run_mask_refinement(config, ctx)
+            try:
+                ctx.mask = await self._run_mask_refinement(config, ctx)
+            except Exception as e:  
+                logger.error(f"Error during mask-generation:\n{traceback.format_exc()}")  
+                if not self.ignore_errors:  
+                    raise 
+                ctx.mask = ctx.mask_raw if ctx.mask_raw is not None else np.zeros_like(ctx.img_rgb, dtype=np.uint8)[:,:,0] # Fallback to raw mask or empty mask
 
-        if self.verbose:
+        if self.verbose and ctx.mask is not None:
             inpaint_input_img = await dispatch_inpainting(Inpainter.none, ctx.img_rgb, ctx.mask, config.inpainter,config.inpainter.inpainting_size,
                                                           self.device, self.verbose)
             cv2.imwrite(self._result_path('inpaint_input.png'), cv2.cvtColor(inpaint_input_img, cv2.COLOR_RGB2BGR))
@@ -293,14 +345,26 @@ class MangaTranslator:
 
         # -- Inpainting
         await self._report_progress('inpainting')
-        ctx.img_inpainted = await self._run_inpainting(config, ctx)
+        try:
+            ctx.img_inpainted = await self._run_inpainting(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during inpainting:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise 
+            ctx.img_inpainted = ctx.img_rgb # Fallback to original RGB image if inpainting fails
         ctx.gimp_mask = np.dstack((cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR), ctx.mask))
 
         if self.verbose:
             cv2.imwrite(self._result_path('inpainted.png'), cv2.cvtColor(ctx.img_inpainted, cv2.COLOR_RGB2BGR))
         # -- Rendering
         await self._report_progress('rendering')
-        ctx.img_rendered = await self._run_text_rendering(config, ctx)
+        try:
+            ctx.img_rendered = await self._run_text_rendering(config, ctx)
+        except Exception as e:  
+            logger.error(f"Error during rendering:\n{traceback.format_exc()}")  
+            if not self.ignore_errors:  
+                raise  
+            ctx.img_rendered = ctx.img_inpainted # Fallback to inpainted (or original RGB) image if rendering fails
 
         await self._report_progress('finished', True)
         ctx.result = dump_image(ctx.input, ctx.img_rendered, ctx.img_alpha)
@@ -430,28 +494,79 @@ class MangaTranslator:
                 logger.info(f'Removed leading characters: "{removed_start_chars}" from "{original_text}"')  
             
             # Modified filtering condition: handle incomplete parentheses  
-            # Combine left parentheses and left quotation marks into one list  
-            left_symbols = ['(', '（', '[', '【', '{', '〔', '〈', '「',  
-                            '“', '‘', '《', '『', '"', '〝', '﹁', '﹃',  
-                            '⸂', '⸄', '⸉', '⸌', '⸜', '⸠', '‹', '«']  
+            bracket_pairs = {  
+                '(': ')', '（': '）', '[': ']', '【': '】', '{': '}', '〔': '〕', '〈': '〉', '「': '」',  
+                '"': '"', '＂': '＂', "'": "'", "“": "”", '《': '》', '『': '』', '"': '"', '〝': '〞', '﹁': '﹂', '﹃': '﹄',  
+                '⸂': '⸃', '⸄': '⸅', '⸉': '⸊', '⸌': '⸍', '⸜': '⸝', '⸠': '⸡', '‹': '›', '«': '»', '＜': '＞', '<': '>'  
+            }  
+            left_symbols = set(bracket_pairs.keys())  
+            right_symbols = set(bracket_pairs.values())  
             
-            # Combine right parentheses and right quotation marks into one list
-            right_symbols = [')', '）', ']', '】', '}', '〕', '〉', '」',  
-                             '”', '’', '》', '』', '"', '〞', '﹂', '﹄',  
-                             '⸃', '⸅', '⸊', '⸍', '⸝', '⸡', '›', '»']  
-            # Combine all symbols  
-            all_symbols = left_symbols + right_symbols  
+            has_brackets = any(s in stripped_text for s in left_symbols) or any(s in stripped_text for s in right_symbols)  
             
-            # Count the number of left and right symbols  
-            left_count = sum(stripped_text.count(s) for s in left_symbols)  
-            right_count = sum(stripped_text.count(s) for s in right_symbols)  
-            
-            # Check if the number of left and right symbols match  
-            if left_count != right_count:  
-                # Symbols don't match, remove all symbols  
-                for s in all_symbols:  
-                    stripped_text = stripped_text.replace(s, '')  
-                logger.info(f'Removed unpaired symbols from "{stripped_text}"')  
+            if has_brackets:  
+                result_chars = []  
+                stack = []  
+                to_skip = []    
+                
+                # 第一次遍历：标记匹配的括号  
+                # First traversal: mark matching brackets
+                for i, char in enumerate(stripped_text):  
+                    if char in left_symbols:  
+                        stack.append((i, char))  
+                    elif char in right_symbols:  
+                        if stack:  
+                            # 有对应的左括号，出栈  
+                            # There is a corresponding left bracket, pop the stack
+                            stack.pop()  
+                        else:  
+                            # 没有对应的左括号，标记为删除  
+                            # No corresponding left parenthesis, marked for deletion
+                            to_skip.append(i)  
+                
+                # 标记未匹配的左括号为删除
+                # Mark unmatched left brackets as delete  
+                for pos, _ in stack:  
+                    to_skip.append(pos)  
+                
+                has_removed_symbols = len(to_skip) > 0  
+                
+                # 第二次遍历：处理匹配但不对应的括号
+                # Second pass: Process matching but mismatched brackets
+                stack = []  
+                for i, char in enumerate(stripped_text):  
+                    if i in to_skip:  
+                        # 跳过孤立的括号
+                        # Skip isolated parentheses
+                        continue  
+                        
+                    if char in left_symbols:  
+                        stack.append(char)  
+                        result_chars.append(char)  
+                    elif char in right_symbols:  
+                        if stack:  
+                            left_bracket = stack.pop()  
+                            expected_right = bracket_pairs.get(left_bracket)  
+                            
+                            if char != expected_right:  
+                                # 替换不匹配的右括号为对应左括号的正确右括号
+                                # Replace mismatched right brackets with the correct right brackets corresponding to the left brackets
+                                result_chars.append(expected_right)  
+                                logger.info(f'Fixed mismatched bracket: replaced "{char}" with "{expected_right}"')  
+                            else:  
+                                result_chars.append(char)  
+                    else:  
+                        result_chars.append(char)  
+                
+                new_stripped_text = ''.join(result_chars)  
+                
+                if has_removed_symbols:  
+                    logger.info(f'Removed unpaired bracket from "{stripped_text}"')  
+                
+                if new_stripped_text != stripped_text and not has_removed_symbols:  
+                    logger.info(f'Fixed brackets: "{stripped_text}" → "{new_stripped_text}"')  
+                
+                stripped_text = new_stripped_text  
               
             region.text = stripped_text.strip()     
             
@@ -550,51 +665,81 @@ class MangaTranslator:
 
         # Punctuation correction logic. for translators often incorrectly change quotation marks from the source language to those commonly used in the target language.
         check_items = [
-            ["(", "（", "「"],
-            ["（", "(", "「"],
-            [")", "）", "」"],
-            ["）", ")", "」"],
-            ["「", "“", "‘", "『"],
-            ["」", "”", "’", "』"],
-            ["『", "“", "‘", "「"],
-            ["』", "”", "’", "」"],
+
+            ["(", "（", "「", "【"],
+            ["（", "(", "「", "【"],
+            [")", "）", "」", "】"],
+            ["）", ")", "」", "】"],
+            
+
+            ["[", "［", "【", "「"],
+            ["［", "[", "【", "「"],
+            ["]", "］", "】", "」"],
+            ["］", "]", "】", "」"],
+            
+
+            ["「", "“", "‘", "『", "【"],
+            ["」", "”", "’", "』", "】"],
+            ["『", "“", "‘", "「", "【"],
+            ["』", "”", "’", "」", "】"],
+            
+
+            ["【", "(", "（", "「", "『", "["],
+            ["】", ")", "）", "」", "』", "]"],
         ]
-        
+
         replace_items = [
             ["「", "“"],
             ["「", "‘"],
             ["」", "”"],
             ["」", "’"],
+            ["【", "["],  
+            ["】", "]"],  
         ]
-        
+
         for region in ctx.text_regions:
             if region.text and region.translation:
-                # Detect 「」 or 『』 in the source text
-                if '「' in region.text and '」' in region.text:
-                    quote_type = '「」'
-                elif '『' in region.text and '』' in region.text:
+                if '『' in region.text and '』' in region.text:
                     quote_type = '『』'
+                elif '「' in region.text and '」' in region.text:
+                    quote_type = '「」'
+                elif '【' in region.text and '】' in region.text: 
+                    quote_type = '【】'
                 else:
                     quote_type = None
-        
-                # If the source text has 「」 or 『』, and the translation has "", replace them
-                if quote_type and '"' in region.translation:
-                    # Replace "" with 「」 or 『』
-                    if quote_type == '「」':
-                        region.translation = re.sub(r'"([^"]*)"', r'「\1」', region.translation)
-                    elif quote_type == '『』':
-                        region.translation = re.sub(r'"([^"]*)"', r'『\1』', region.translation)
-        
-                # Correct ellipsis
-                region.translation = re.sub(r'\.{3}', '…', region.translation)
-        
-                # Check and replace other symbols
+                
+                if quote_type:
+                    src_quote_count = region.text.count(quote_type[0])
+                    dst_dquote_count = region.translation.count('"')
+                    dst_fwquote_count = region.translation.count('＂')
+                    
+                    if (src_quote_count > 0 and
+                        (src_quote_count == dst_dquote_count or src_quote_count == dst_fwquote_count) and
+                        not region.translation.isascii()):
+                        
+                        if quote_type == '「」':
+                            region.translation = re.sub(r'"([^"]*)"', r'「\1」', region.translation)
+                        elif quote_type == '『』':
+                            region.translation = re.sub(r'"([^"]*)"', r'『\1』', region.translation)
+                        elif quote_type == '【】':  
+                            region.translation = re.sub(r'"([^"]*)"', r'【\1】', region.translation)
+
+                # === 优化后的数量判断逻辑 ===
+                # === Optimized quantity judgment logic ===
                 for v in check_items:
-                    num_s = region.text.count(v[0])
-                    num_t = sum(region.translation.count(t) for t in v[1:])
-                    if num_s == num_t:
+                    num_src_std = region.text.count(v[0])
+                    num_src_var = sum(region.text.count(t) for t in v[1:])
+                    num_dst_std = region.translation.count(v[0])
+                    num_dst_var = sum(region.translation.count(t) for t in v[1:])
+                    
+                    if (num_src_std > 0 and
+                        num_src_std != num_src_var and
+                        num_src_std == num_dst_std + num_dst_var):
                         for t in v[1:]:
                             region.translation = region.translation.replace(t, v[0])
+
+                # 强制替换规则
+                # Forced replacement rules
                 for v in replace_items:
                     region.translation = region.translation.replace(v[1], v[0])
 
@@ -618,7 +763,7 @@ class MangaTranslator:
         new_text_regions = []  
 
         # List of languages with specific language detection  
-        special_langs = ['CHS', 'CHT', 'KOR', 'IND', 'UKR', 'RUS', 'THA', 'ARA']  
+        special_langs = ['CHS', 'CHT', 'KOR', 'IND', 'UKR', 'RUS', 'THA']  
 
         # Process special language scenarios  
         if config.translator.target_lang in special_langs:
@@ -635,7 +780,9 @@ class MangaTranslator:
                 has_target_lang = False  
                 has_target_lang_in_translation = False
 
-                # Target language detection  
+                # Target language detection 
+                # TODO
+                # Better detection method is needed, otherwise will lead to incorrectly filtering the target language.
                 if config.translator.target_lang in ['CHS', 'CHT']:  # Chinese
                     has_target_lang = bool(re.search('[\u4e00-\u9fff]', region.text))
                     has_target_lang_in_translation = bool(re.search('[\u4e00-\u9fff]', region.translation))
