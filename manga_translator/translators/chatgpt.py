@@ -221,6 +221,9 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 new_translations = re.split(r'<\|\d+\|>', response_text)
                 merged_single_query = False
 
+                if new_translations and not new_translations[0].strip():
+                    new_translations = new_translations[1:]          
+                    
                 # 单查询多段响应处理
                 # Single Query Multiple Response Processing
                 if len(batch_queries) == 1 and len(new_translations) > 1:
@@ -583,7 +586,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
 
         # 去除 <think>...</think> 标签及内容。由于某些中转api的模型的思考过程是被强制输出的，并不包含在reasoning_content中，需要额外过滤
         # Remove <think>...</think> tags and their contents. Since the reasoning process of some relay API models is forcibly output and not included in the reasoning_content, additional filtering is required.
-        raw_text = re.sub(r'<think>.*?</think>', '', raw_text, flags=re.DOTALL)
+        raw_text = re.sub(r'(</think>)?<think>.*?</think>', '', raw_text, flags=re.DOTALL)
 
         # 删除多余的空行 / Remove extra blank lines
         
