@@ -62,7 +62,8 @@ async def process_file(
 ) -> FileProcessResult:
     pil_img = Image.open(img_path)
     img, mask = utils_generic.load_image(pil_img)
-    img_w, img_h = img.shape[:2]
+    img_h, img_w = img.shape[:2]
+    logger.info("processing %s w=%s h=%s", img_path, img_w, img_h)
 
     try:
         # detector

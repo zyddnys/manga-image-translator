@@ -4,16 +4,11 @@ Gradio app: manga-image-translator only
 
 import logging
 import gradio as gr
+from moeflow_companion import setup_logging
 from moeflow_companion.gradio.mit import mit_workflow_block
 
 if gr.NO_RELOAD:
-    logging.basicConfig(
-        level=logging.WARN,
-        format="%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    for name in ["httpx"]:
-        logging.getLogger(name).setLevel(logging.WARN)
+    setup_logging()
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

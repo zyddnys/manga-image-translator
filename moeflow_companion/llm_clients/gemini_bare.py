@@ -15,7 +15,8 @@ ModelClass = TypeVar("ModelClass", bound=BaseModel)
 class GcpGeminiBare(StrEnum):
     # list of models (Gemini) : https://ai.google.dev/gemini-api/docs/models
     # list of models (Vertex AI):
-    gemini25_pro_exp = "gemini-2.5-pro-exp-03-25"
+    gemini25_pro = "gemini-2.5-pro-exp-03-25"
+    gemini25_flash = "gemini-2.5-flash-preview-04-17"
     gemini20_flash = "gemini-2.0-flash"
     gemini20_flash_lite = "gemini-2.0-flash-lite"
     gemini15_flash = "gemini-1.5-flash"
@@ -76,15 +77,12 @@ class GcpGeminiBare(StrEnum):
 
 
 @functools.lru_cache(maxsize=1)
-def get_gemini_client():
+def get_gemini_client() -> genai.Client:
     # auth via Gemini API key
     key = os.environ.get("GOOGLE_GEMINI_API_KEY")
     if not key:
         raise ValueError("Please set the GOOGLE_GEMINI_API_KEY environment variable.")
     return genai.Client(api_key=key)
-
-    # auth via GCP Vertex AI API
-    # return genai.Client(vertexai=True, project="PROJECT_ID", location="us-central1")
 
 
 @functools.lru_cache(maxsize=16)

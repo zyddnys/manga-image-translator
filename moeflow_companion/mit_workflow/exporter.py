@@ -60,6 +60,8 @@ def _convert_file(f: FileProcessResult) -> MoeflowFile:
             MoeflowTextBlock(
                 center_x=block.center_x,
                 center_y=block.center_y,
+                normalized_center_x=block.center_x / f.image_w,
+                normalized_center_y=block.center_y / f.image_h,
                 source=block.text,
                 translated=translated,
             )

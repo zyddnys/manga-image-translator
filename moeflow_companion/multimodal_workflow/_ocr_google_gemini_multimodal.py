@@ -8,13 +8,16 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+logger.setLevel(logging.INFO)
+
+
 class TextRange(BaseModel):
-    left: float = Field(description="左端")
-    top: float = Field(description="上端")
-    width: float = Field(description="幅")
-    height: float = Field(description="高さ")
-    text: str = Field(description="原文")
-    translation: str = Field(description="訳文")
+    left: float = Field(description="left X of text")
+    top: float = Field(description="top Y of text")
+    right: float = Field(description="right X of txt")
+    bottom: float = Field(description="bottom Y of text")
+    text: str = Field(description="the original text")
+    translated_text: str = Field(description="the translated text")
 
 
 class ImageProcessResult(BaseModel):
@@ -23,8 +26,9 @@ class ImageProcessResult(BaseModel):
 
 def process_images(
     image_files: list[Path],
+    *,
     target_lang: str,
-    model: gemini_bare.GcpGeminiBare | str = gemini_bare.GcpGeminiBare.gemini25_pro_exp,
+    model: gemini_bare.GcpGeminiBare | str = gemini_bare.GcpGeminiBare.gemini25_flash,
 ) -> list[ImageProcessResult]:
     model = gemini_bare.GcpGeminiBare(model) if isinstance(model, str) else model
     assert isinstance(model, gemini_bare.GcpGeminiBare), (
@@ -49,15 +53,19 @@ def _process_single_image(
     model: gemini_bare.GcpGeminiBare,
 ) -> ImageProcessResult:
     prompt = f"""
-添付の漫画ページから、文字を抽出してください。また {target_lang} に翻訳を行ってください。
-注意：
-- 余計な説明は不要です
-- テキストの内容のみを抽出してください
-- 複数行に分かれたテキストを一件にまとめてください
-- 吹き出し、手書き文字、音喩などを全部含めてください
+Please extract text from the attached manga page. Also, translate it into {target_lang}.
+
+Your instructions are as follows:
+
+- Please only extract the text content, do not include other information
+- If text is in multiple lines, please merge them into one line.
+- Please include all texts, including speech bubbles, hand-written text, sound effects, and other you can recocgnize.
+- All x y should be in [0, 1000] normalized coordinates.
 """
     response = model.complete_with_json(
         user_messages=[image_file, prompt], res_model=ImageProcessResult, client=client
     )
     logger.info("processed image %s", image_file)
+    for i, item in enumerate(response.items):
+        logger.info("item %d: %s", i, item)
     return response

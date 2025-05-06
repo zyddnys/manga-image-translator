@@ -29,7 +29,8 @@ with gr.Blocks() as multimodal_workflow_block:
 
     model_input = gr.Radio(
         choices=[
-            GcpGeminiBare.gemini25_pro_exp,
+            GcpGeminiBare.gemini25_pro,
+            GcpGeminiBare.gemini25_flash,
             GcpGeminiBare.gemini20_flash,
             GcpGeminiBare.gemini20_flash_lite,
         ],

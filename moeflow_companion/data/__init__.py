@@ -1,7 +1,7 @@
 """_summary_"""
 
 from pathlib import Path
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, field_validator
 import zipfile
 import logging
 
@@ -21,10 +21,28 @@ class MoeflowProjectMeta(BaseModel):
 
 
 class MoeflowTextBlock(BaseModel):
-    center_x: float | int
-    center_y: float | int
+    center_x: float  # [0..image_w]
+    center_y: float  # [0..image_h]
+    normalized_center_x: float  # [0..1]
+    normalized_center_y: float  # [0..1]
     source: str | None
     translated: str | None
+
+    @field_validator("normalized_center_x", "normalized_center_y", mode="after")
+    @classmethod
+    def validate_normalized_coord(cls, v: float) -> float:
+        if not isinstance(v, (int, float)):
+            raise ValueError("must be a number")
+        if not (0 <= v):
+            # raise ValueError("must be between 0 and 1")
+            logger.warning("normalized coord too small: %s using 0", v)
+            return 0.0
+        elif not (v <= 1):
+            # raise ValueError("must be between 0 and 1")
+            logger.warning("normalized coord too large: %s using 1", v)
+            return 1.0
+
+        return v
 
 
 class MoeflowFile(BaseModel):
@@ -37,17 +55,17 @@ class MoeflowFile(BaseModel):
         result: list[str] = []
         result.append(f">>>>[{self.local_path.name}]<<<<")
         for idx, block in enumerate(self.text_blocks):
-            x = float(block.center_x) / self.image_h
-            y = float(block.center_y) / self.image_w
             logging.debug(
                 "block: %s,%s / %s",
-                block.center_x,
-                block.center_y,
+                block.normalized_center_x,
+                block.normalized_center_y,
                 block.source,
                 block.translated,
             )
             position_type = 1
-            result.append(f"----[{idx}]----[{x},{y},{position_type}]")
+            result.append(
+                f"----[{idx}]----[{block.normalized_center_x},{block.normalized_center_y},{position_type}]"
+            )
             if block.translated:
                 result.append(block.translated)
             elif block.source:
