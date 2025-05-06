@@ -10,13 +10,13 @@ venv/.deps_installed: venv requirements-moeflow.txt
 	@touch $@
 
 upgrade-deps:
-	venv/bin/pur -r requirements.txt
+	venv/bin/pur -r requirements-moeflow.txt
 
 test:
 	venv/bin/pytest
 
 format:
-	venv/bin/ruff format src notebooks
+	venv/bin/ruff format moeflow_companion
 
 venv: venv/.venv_created
 

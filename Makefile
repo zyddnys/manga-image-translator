@@ -27,6 +27,8 @@ deps:
 
 conda-venv:
 
+format:
 
+upgrade-deps:
 
 include Makefile.shared.mk Makefile.moeflow.mk
