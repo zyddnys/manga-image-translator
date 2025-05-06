@@ -33,61 +33,133 @@ def fg_bg_compare(fg, bg):
         bg = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
     return fg, bg
 
-def resize_regions_to_font_size(img: np.ndarray, text_regions: List[TextBlock], font_size_fixed: int, font_size_offset: int, font_size_minimum: int):
-    if font_size_minimum == -1:
-        # Automatically determine font_size by image size
-        font_size_minimum = round((img.shape[0] + img.shape[1]) / 200)
-    logger.debug(f'font_size_minimum {font_size_minimum}')
+def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock'], font_size_fixed: int, font_size_offset: int, font_size_minimum: int):  
+    """  
+    Adjusts the size of text regions to accommodate font size and translated text length. 
 
-    dst_points_list = []
-    for region in text_regions:
-        char_count_orig = len(region.text)
-        char_count_trans = len(region.translation.strip())
-        if char_count_trans > char_count_orig:
-            # More characters were added, have to reduce fontsize to fit allotted area
-            # print('count', char_count_trans, region.font_size)
-            rescaled_font_size = region.font_size
-            while True:
-                rows = region.unrotated_size[0] // rescaled_font_size
-                cols = region.unrotated_size[1] // rescaled_font_size
-                if rows * cols >= char_count_trans:
-                    # print(rows, cols, rescaled_font_size, rows * cols, char_count_trans)
-                    # print('rescaled', rescaled_font_size)
-                    region.font_size = rescaled_font_size
-                    break
-                rescaled_font_size -= 1
-                if rescaled_font_size <= 0:
-                    break
-        # Otherwise no need to increase fontsize
+    This function adjusts the bounding box of each text region based on the following logic:  
+    1. Determine the minimum font size.  
+    2. Calculate the target font size based on the original font size, fixed font size, and offset.  
+    3. **If the translated text length is greater than the original text, calculate a scaling factor based on the length ratio and constrain it between 1.1 and 1.4 times.**  
+    4. **Use the calculated scaling factor (if applied) and target font size to adjust the size of the original bounding box.**  
+    5. Clip the adjusted bounding box to within the image boundaries.  
+    6. Update the font size of the TextBlock object.  
 
-        # Infer the target fontsize
-        target_font_size = region.font_size
-        if font_size_fixed is not None:
-            target_font_size = font_size_fixed
-        elif target_font_size < font_size_minimum:
-            target_font_size = max(region.font_size, font_size_minimum)
-        target_font_size += font_size_offset
+    Args:  
+        img (np.ndarray): The input image.  
+        text_regions (List[TextBlock]): A list of TextBlock objects to process.  
+        font_size_fixed (int): Fixed font size (if provided, other font size parameters are ignored).  
+        font_size_offset (int): Font size offset.  
+        font_size_minimum (int): Minimum font size. If -1, it's automatically calculated based on image dimensions.  
 
-        # Rescale dst_points accordingly
-        if target_font_size != region.font_size:
-            target_scale = target_font_size / region.font_size
-            dst_points = region.unrotated_min_rect[0]
-            poly = Polygon(region.unrotated_min_rect[0])
-            poly = affinity.scale(poly, xfact=target_scale, yfact=target_scale)
-            dst_points = np.array(poly.exterior.coords[:4])
-            dst_points = rotate_polygons(region.center, dst_points.reshape(1, -1), -region.angle).reshape(-1, 4, 2)
+    Returns:  
+        List[np.ndarray]: A list of adjusted text region bounding boxes, where each bounding box is a (4, 2) NumPy array.  
+    """  
+    # 1. Determine the minimum font size  
+    if font_size_minimum == -1:  
+        font_size_minimum = round((img.shape[0] + img.shape[1]) / 200)  
+    # logger.debug(f'font_size_minimum {font_size_minimum}')  
+    font_size_minimum = max(1, font_size_minimum) # Ensure minimum font size is at least 1  
 
-            # Clip to img width and height
-            dst_points[..., 0] = dst_points[..., 0].clip(0, img.shape[1])
-            dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0])
+    dst_points_list = []  
+    for region in text_regions:  
+        # Store the original font size for the region  
+        original_region_font_size = region.font_size  
+        # Ensure the original font size is valid  
+        if original_region_font_size <= 0:  
+            # logger.warning(f"Invalid original font size ({original_region_font_size}) for text '{region.translation[:10]}'. Using default value {font_size_minimum}.")  
+            original_region_font_size = font_size_minimum # Use minimum as default  
 
-            dst_points = dst_points.reshape((-1, 4, 2))
-            region.font_size = int(target_font_size)
-        else:
-            dst_points = region.min_rect
+        # 2. Determine the target font size  
+        current_base_font_size = original_region_font_size  
+        if font_size_fixed is not None:  
+            target_font_size = font_size_fixed  
+        else:  
+            # Apply the offset to the original font size  
+            target_font_size = current_base_font_size + font_size_offset  
 
-        dst_points_list.append(dst_points)
-    return dst_points_list
+        # Apply the minimum font size constraint  
+        target_font_size = max(target_font_size, font_size_minimum)  
+        # Ensure font size is at least 1  
+        target_font_size = max(1, target_font_size)  
+        # logger.debug(f"Calculated target font size: {target_font_size} for text '{region.translation[:10]}'")  
+
+        # 3. Calculate a scaling factor based on text length ratio  
+        #char_count_orig = len(region.text.strip())  
+        orig_text = getattr(region, "text_raw", region.text)  # Fallback to existing text if text_raw is not saved  
+        char_count_orig = len(orig_text.strip())  
+        char_count_trans = len(region.translation.strip())  
+        length_ratio = 1.0 # Default scaling factor is 1.0  
+
+        if char_count_orig > 0 and char_count_trans > char_count_orig:  
+             # Translated text is longer, calculate length ratio  
+            length_ratio = char_count_trans / char_count_orig  
+            # logger.debug(f"Text length ratio: {length_ratio:.2f} ({char_count_trans} / {char_count_orig}) for text '{region.translation}'")  
+            # Constrain the scaling factor between 1.1 and 1.4 times  
+            target_scale = max(1.1, min(length_ratio, 1.4))  
+            # logger.debug(f"Applying length ratio scaling, target scale (constrained): {target_scale:.2f}")  
+        else:  
+            # Translated text is not longer than original, do not apply length ratio scaling, only consider font size adjustment  
+            target_scale = 1.1  # Cannot be 1, sometimes font size shrinks even if shorter than original, There is still logic to shrink the font size somewhere else..  
+            # print("-" * 50)  
+            # logger.debug(f"Translated text is not longer than original ({char_count_trans} <= {char_count_orig}) or original length is 0, no length ratio scaling applied. Target scale: {target_scale:.2f}")  
+
+
+        # 4. Calculate the final scaling factor based on target font size and length ratio (if applied)  
+        # We need a scaling factor to adjust the original bounding box to accommodate the new font size and potentially longer text.  
+        # A simple approach is to combine the font size change and length ratio.  
+        # If original font size is valid and different from target, first consider font size scaling.  
+        font_size_scale = target_font_size / original_region_font_size if original_region_font_size > 0 else 1.0  
+        # If length ratio scaling was applied, take the maximum of font size scaling and length ratio scaling.  
+        # This ensures the region can accommodate at least the longer text or larger font.  
+        final_scale = max(font_size_scale, target_scale) # Use the previously calculated target_scale (considering length ratio)  
+        # Ensure the final scaling factor is at least 1.0  
+        final_scale = max(1.0, final_scale)  
+
+        # logger.debug(f"Font size scaling factor: {font_size_scale:.2f}")  
+        # logger.debug(f"Final bounding box scaling factor: {final_scale:.2f}")  
+
+
+        # 5. Scale the bounding box, rotate it back, and clip  
+        if final_scale > 1.001: # Apply scaling only if it's significantly greater than 1  
+            # logger.debug(f"Scaling bounding box required: text='{region.translation}', scale={final_scale:.2f}")  
+            try:  
+                # Use unrotated_min_rect for scaling  
+                poly = Polygon(region.unrotated_min_rect[0])  
+                # Scale from the center  
+                poly = affinity.scale(poly, xfact=final_scale, yfact=final_scale, origin='center')  
+                scaled_unrotated_points = np.array(poly.exterior.coords[:4])  
+
+                # Rotate the scaled points back to the original orientation  
+                # Use to_int=False to preserve precision for clipping  
+                dst_points = rotate_polygons(region.center, scaled_unrotated_points.reshape(1, -1), -region.angle, to_int=False).reshape(-1, 4, 2)  
+
+                # Clip coordinates to within the image boundaries  
+                # Use img.shape[1]-1 and img.shape[0]-1 to avoid off-by-one issues  
+                dst_points[..., 0] = dst_points[..., 0].clip(0, img.shape[1] - 1)  
+                dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0] - 1)  
+
+                # Convert to int64 after clipping  
+                dst_points = dst_points.astype(np.int64)  
+
+                # Reshape to ensure correct final shape (just in case)  
+                dst_points = dst_points.reshape((-1, 4, 2))  
+                # logger.debug(f"Finished calculating scaled dst_points.")  
+
+            except Exception as e:  
+                # If an error occurs during scaling/rotating the geometric shape, use the original min_rect  
+                # logger.error(f"Error during scaling/rotating geometric shape for text '{region.translation}': {e}. Using original min_rect.")  
+                dst_points = region.min_rect # Use original value on error  
+        else:  
+            # No significant scaling needed, use the original min_rect  
+            # logger.debug(f"No significant scaling needed for text '{region.translation}'. Using original min_rect.")  
+            dst_points = region.min_rect  
+
+        # 6. Store the final dst_points and update the region's font size  
+        dst_points_list.append(dst_points)  
+        region.font_size = int(target_font_size) # Update the TextBlock's font size to the calculated target font size  
+
+    return dst_points_list  
 
 async def dispatch(
     img: np.ndarray,

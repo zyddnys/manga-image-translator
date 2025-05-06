@@ -107,8 +107,10 @@ class LamaMPEInpainter(OfflineInpainter):
                     img_inpainted_torch = self.model(img_torch, mask_torch)
 
         if isinstance(self.model, LamaFourier):
+            img_inpainted_torch = img_inpainted_torch.to(torch.float32)
             img_inpainted = (img_inpainted_torch.cpu().squeeze_(0).permute(1, 2, 0).numpy() * 255.).astype(np.uint8)
         else:
+            img_inpainted_torch = img_inpainted_torch.to(torch.float32)
             img_inpainted = ((img_inpainted_torch.cpu().squeeze_(0).permute(1, 2, 0).numpy() + 1.0) * 127.5).astype(np.uint8)
         if new_h != height or new_w != width:
             img_inpainted = cv2.resize(img_inpainted, (width, height), interpolation = cv2.INTER_LINEAR)
