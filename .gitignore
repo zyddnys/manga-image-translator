@@ -19,6 +19,7 @@ Lib
 include
 share
 .DS_Store
+dev/
 
 # Distribution / packaging
 .Python
@@ -41,6 +42,7 @@ share/python-wheels/
 MANIFEST
 .history
 /venv
+.venv/
 
 # Input and Output
 /input/
