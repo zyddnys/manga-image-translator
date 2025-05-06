@@ -1,3 +1,6 @@
+default:
+	@echo Please use other targets
+
 build-image:
 	docker rmi manga-image-translator || true
 	docker build . --tag=manga-image-translator
@@ -14,3 +17,16 @@ run-web-server:
 		-v /demo/doc/../../server/instance.py:/app/server/instance.py \	
 		zyddnys/manga-image-translator:main \
 		server/main.py --verbose --start-instance --host=0.0.0.0 --port=5003 --use-gpu
+
+CONDA_ENV = mit-py311
+
+# for shell completion. they got overridden in included files
+venv:
+
+deps:
+
+conda-venv:
+
+
+
+include Makefile.shared.mk Makefile.moeflow.mk

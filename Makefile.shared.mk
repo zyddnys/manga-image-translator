@@ -1,33 +1,38 @@
-.PHONY: default
-
-CONDA_ENV = mit-py311
+PYTHON_BIN ?= python3
 CONDA_YML ?= conda.yaml
+# CONDA_ENV = OVERRIDE_ME
 
-default:
-	@echo Please use other targets
+deps: venv venv/.deps_installed
 
-run-gradio:
-	venv/bin/gradio gradio-main.py
-
-run-gradio-mit:
-	venv/bin/gradio gradio-mit.py --demo-name=mit_workflow_block
-
-prepare-models:
-	conda run -n $(CONDA_ENV) --no-capture-output python3 docker_prepare.py
-
-deps: venv/.deps_installed
-
-venv/.deps_installed: conda-venv requirements-moeflow.txt
+venv/.deps_installed: venv requirements-moeflow.txt
 	venv/bin/pip install -r requirements-moeflow.txt --editable .
 	@echo "deps installed"
 	@touch $@
 
+upgrade-deps:
+	venv/bin/pur -r requirements.txt
 
-conda-venv: .conda_env_created # alt to `venv/.venv_created` target, but uses conda python to create venv
-	micromamba run --attach '' -n $(CONDA_ENV) python3 -mvenv --system-site-packages  ./venv
-	touch venv/.venv_created
+test:
+	venv/bin/pytest
+
+format:
+	venv/bin/ruff format src notebooks
+
+venv: venv/.venv_created
+
+# default:
+venv/.venv_created:
+	$(PYTHON_BIN) -mvenv venv
+	@touch $@
+
+# alter: `make conda-venv` to uses conda python
+conda-venv: .conda_env_created
+	micromamba run --attach '' -n $(CONDA_ENV) $(PYTHON_BIN) -mvenv --system-site-packages  ./venv
+	@touch venv/.venv_created
 
 .conda_env_created: $(CONDA_YML)
 	# setup conda environment AND env-wise deps
 	micromamba env create -n $(CONDA_ENV) --yes -f $(CONDA_YML)
 	@touch $@
+
+.PHONY:
