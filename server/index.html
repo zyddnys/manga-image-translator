@@ -133,30 +133,37 @@
           <div class="flex items-center gap-1" title="Target language">
             <i class="iconify text-gray-600" data-icon="carbon:language"></i>
             <div class="relative">
-              <select
-                class="appearance-none bg-transparent border-b border-gray-300 pl-4 pr-7 py-1 outline-none focus:border-blue-500"
-                v-model="targetLanguage"
-              >
-                <option value="CHS">简体中文</option>
-                <option value="CHT">繁體中文</option>
-                <option value="JPN">日本語</option>
-                <option value="ENG">English</option>
-                <option value="KOR">한국어</option>
-                <option value="VIN">Tiếng Việt</option>
-                <option value="CSY">čeština</option>
-                <option value="NLD">Nederlands</option>
-                <option value="FRA">français</option>
-                <option value="DEU">Deutsch</option>
-                <option value="HUN">magyar nyelv</option>
-                <option value="ITA">italiano</option>
-                <option value="PLK">polski</option>
-                <option value="PTB">português</option>
-                <option value="ROM">limba română</option>
-                <option value="RUS">русский язык</option>
-                <option value="ESP">español</option>
-                <option value="TRK">Türk dili</option>
-                <option value="IND">Indonesia</option>
-              </select>
+              <select  
+                  class="appearance-none bg-transparent border-b border-gray-300 pl-4 pr-7 py-1 outline-none focus:border-blue-500"  
+                  v-model="targetLanguage"  
+              >  
+                  <option value="CHS">简体中文</option>  
+                  <option value="CHT">繁體中文</option>  
+                  <option value="CSY">čeština</option>  
+                  <option value="NLD">Nederlands</option>  
+                  <option value="ENG">English</option>  
+                  <option value="FRA">français</option>  
+                  <option value="DEU">Deutsch</option>  
+                  <option value="HUN">magyar nyelv</option>  
+                  <option value="ITA">italiano</option>  
+                  <option value="JPN">日本語</option>  
+                  <option value="KOR">한국어</option>  
+                  <option value="PLK">polski</option>  
+                  <option value="PTB">português</option>  
+                  <option value="ROM">limba română</option>  
+                  <option value="RUS">русский язык</option>  
+                  <option value="ESP">español</option>  
+                  <option value="TRK">Türk dili</option>  
+                  <option value="UKR">українська мова</option>  
+                  <option value="VIN">Tiếng Việt</option>  
+                  <option value="ARA">العربية</option>  
+                  <option value="CNR">crnogorski jezik</option>  
+                  <option value="SRP">српски језик</option>  
+                  <option value="HRV">hrvatski jezik</option>  
+                  <option value="THA">ภาษาไทย</option>  
+                  <option value="IND">Indonesia</option>  
+                  <option value="FIL">Wikang Filipino</option>  
+              </select>  
               <i
                 class="iconify absolute top-1 right-1 text-gray-500 pointer-events-none"
                 data-icon="carbon:chevron-down"
@@ -462,12 +469,11 @@
           return key ? key[0].toUpperCase() + key.slice(1) : "";
         },
         targetLanguage: "CHS",
-
         inpaintingSize: "2048",
         customUnclipRatio: 2.3,
         customBoxThreshold: 0.7,
         maskDilationOffset: 30,
-        inpainter: "default",
+        inpainter: "lama_large",
 
         ondrop(e) {
           const file = e.dataTransfer?.files?.[0];

@@ -19,6 +19,7 @@ Lib
 include
 share
 .DS_Store
+dev/
 
 # Distribution / packaging
 .Python
@@ -43,6 +44,7 @@ MANIFEST
 .conda_env_created
 .gradio
 /venv
+.venv/
 
 # Input and Output
 /input/

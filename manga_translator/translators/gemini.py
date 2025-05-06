@@ -79,6 +79,9 @@ class GeminiTranslator(CommonGPTTranslator):
                         }
     '''
 
+    _MIN_CACHE_TOKENS = 4096 # Minimum tokens required to use Context Cache
+                            # Source: https://ai.google.dev/gemini-api/docs/caching?lang=python#considerations
+    
     _CACHE_TTL = 3600 # Set the Context Cache lifespan (seconds)
     _CACHE_TTL_BUFFER = 300 # Refresh the Context Cache once current time is within this many seconds of expiring
 
@@ -93,8 +96,9 @@ class GeminiTranslator(CommonGPTTranslator):
         initColorama()
 
         # By default: Do not assume Context Cache support
-        self.useCache = False
+        self._canUseCache = False
         self.cached_content = None
+        self.templateCache = None
 
         # Dict for storing values to print to logger
         self.cachedVals={None}
@@ -129,8 +133,9 @@ class GeminiTranslator(CommonGPTTranslator):
         if  f"{GEMINI_MODEL}" not in model_names:
             self.logger.error(f"Model: '{GEMINI_MODEL}' was not found in the model list.\n" +
                                 "Please ensure you set the key: GEMINI_MODEL to one of the following values:"
-                                '\n'.join(mName for mName in model_names)
                             )
+            self.logger.error('\n'.join(mName for mName in model_names))
+
             raise
         
         # Use index of model name to get full model info
@@ -166,7 +171,7 @@ class GeminiTranslator(CommonGPTTranslator):
                     "\te.g. 'gemini-1.5-flash-001' rather than 'gemini-1.5-flash'\n"
                 self.logger.warning(MSG)
 
-        self.useCache = canCache(model_list, model_info)
+        self._canUseCache = canCache(model_list, model_info)
 
         
         self._MAX_TOKENS = model_info.output_token_limit
@@ -203,6 +208,26 @@ class GeminiTranslator(CommonGPTTranslator):
         self.token_count_last = 0 
         self.config = None
 
+    @property
+    def useCache(self) -> bool:
+        if self._canUseCache:
+            try:
+                if self._needRecache:
+                    self._createContext(to_lang=self.to_lang)
+                
+                return True
+            
+            except Exception as e:
+                self.logger.warning(
+                    f"\nContext Cache is supported on this model, but the cache could not be created.\n"
+                    f"The following error was encountered when attempting to create Context Cache:\n{e}\n\n"
+                    f"The most likely cause is that context contents (`System Prompt` + `Chat Samples`) does not the meet the minimum token length for the model.\n"
+                    "Context Caching will be disabled. If you wish to use caching: Try using Gemini 1.5 or increase `System Prompt` and/or `Chat Sample` size."
+                )
+                self._canUseCache = False
+
+        return False
+
     def parse_args(self, args: CommonGPTTranslator):
         super().parse_args(args)
         
@@ -230,8 +255,8 @@ class GeminiTranslator(CommonGPTTranslator):
         # Uses the synchronous call (`client`) instead of asynchronous (`client.aio`)
         #   for compatibility with `common_gpt` 's `assemble_prompt`
         return self.client.models.count_tokens(model=GEMINI_MODEL, contents=text).total_tokens
-
-    async def _createContext(self, to_lang: str):        
+    
+    def _createContext(self, to_lang: str): 
         chatSamples=None
         sysTemplate=self.chat_system_template.format(to_lang=to_lang)
         
@@ -249,16 +274,15 @@ class GeminiTranslator(CommonGPTTranslator):
             self.cachedVals['Sample (Cached): User'] = lang_chat_samples[0]
             self.cachedVals['Sample (Cached): Model'] = lang_chat_samples[1]
 
-            
-        self.templateCache = await self.client.aio.caches.create(model=GEMINI_MODEL,
-                                                                config=types.CreateCachedContentConfig(
-                                                                    contents=chatSamples,
-                                                                    system_instruction=sysTemplate,
-                                                                    display_name='TranslationCache',
-                                                                    ttl=f'{self._CACHE_TTL}s',
-                                                                ),
-                                                            )
-
+        self.templateCache = self.client.caches.create(model=GEMINI_MODEL,
+                                                        config=types.CreateCachedContentConfig(
+                                                            contents=chatSamples,
+                                                            system_instruction=sysTemplate,
+                                                            display_name='TranslationCache',
+                                                            ttl=f'{self._CACHE_TTL}s',
+                                                        ),
+                                                    )
+        
     def _needRecache(self) -> bool:
         if not self.templateCache:
             return True
@@ -398,9 +422,6 @@ class GeminiTranslator(CommonGPTTranslator):
         # Store values to be printed to logger
         loggerVals={}
         if self.useCache:
-            if self._needRecache:
-                await self._createContext(to_lang=to_lang)
-
             config_kwargs['cached_content'] = self.templateCache.name
             
             loggerVals = self.cachedVals.copy()
@@ -508,9 +529,6 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
         # Store values to be printed to logger
         loggerVals={}
         if self.translator.useCache:
-            if self.translator._needRecache:
-                await self._createContext(to_lang=to_lang)
-            
             config_kwargs['cached_content'] = self.templateCache.name
             loggerVals = self.cachedVals
         else:
