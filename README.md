@@ -976,11 +976,11 @@ FIL: Filipino (Tagalog)
 | papago        |         |         |                                                          |
 | sakura        |         |         | Requires `SAKURA_API_BASE`                               |
 | custom openai |         |         | Requires  `CUSTOM_OPENAI_API_BASE` `CUSTOM_OPENAI_MODEL` |
-| offline       |         | ✔️      | Use the most suitable offline translator for the language    |
+| offline       |         | ✔️      | Use the most suitable offline translator for the language  |
 | sugoi         |         | ✔️      | Sugoi V4.0 model                                         |
 | m2m100        |         | ✔️      | Supports all languages                                   |
 | m2m100_big    |         | ✔️      |                                                          |
-| none          |         | ✔️      | Translate to empty text                                 |
+| <s>none</s>   |         | ✔️      | <s>Translate to empty text </s> Use the `--prep-manual` option instead |
 | original      |         | ✔️      | Keep original text                                      |
 
 -   API Key: Indicates whether the translator requires API keys to be set as environment variables.
