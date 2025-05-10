@@ -115,6 +115,7 @@ class GeminiTranslator(CommonGPTTranslator):
             model_list=self.client.models.list()
             #convert pager object to list
             model_list = list(model_list)
+      
         except genai.errors.APIError as genai_err:
             raise InvalidServerResponse(
                         'GEMINI_API_KEY was found, but the API failed to connect.\n.' +
@@ -123,7 +124,7 @@ class GeminiTranslator(CommonGPTTranslator):
         except Exception as e:
             self.logger.error(
                         'GEMINI_API_KEY was found, but an unknown error was encountered during initial setup.\n.' +
-                        f'The following error was caught:\n{genai_err}'
+                        f'The following error was caught:\n{e}'
                     )
             raise Exception(f"Model: '{GEMINI_MODEL}' was not found in the model list.\n" +
                                 "Please ensure you set the key: GEMINI_MODEL to one of the following values:"
@@ -214,6 +215,19 @@ class GeminiTranslator(CommonGPTTranslator):
 
     @property
     def useCache(self) -> bool:
+        """
+        Whether or not to use Context Caching.
+
+        Gemini 2.0 and later models appear to have a minimum token requirement for context caching.
+        If the model supports caching: attempt to use caching.
+        If caching fails: The user is informed and caching is disabled.
+
+
+        Returns:
+            bool: True if context caching is supported & cache was successfully created
+                  False otherwise.
+        """
+
         if self._canUseCache:
             try:
                 if self._needRecache:
@@ -288,7 +302,7 @@ class GeminiTranslator(CommonGPTTranslator):
                                                     )
         
     def _needRecache(self) -> bool:
-        if not self.templateCache:
+        if self.templateCache is None:
             return True
 
         # expire_time (as seconds) - now (as seconds)
@@ -491,7 +505,7 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
         # For conveniance: Simplify logger calls:
         self.logger = self.translator.logger 
 
-    async def _createContext(self, to_lang: str):
+    def _createContext(self, to_lang: str):
         JSON_Samples=[]
         sysTemplate=self.translator.chat_system_template.format(to_lang=to_lang)
 
@@ -510,14 +524,14 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
             self.cachedVals['Sample (Cached): User'] = self.ppJSON(lang_JSON_samples[0].model_dump_json())
             self.cachedVals['Sample (Cached): Model'] = self.ppJSON(lang_JSON_samples[1].model_dump_json())
 
-        self.templateCache = await self.translator.client.aio.caches.create(model=GEMINI_MODEL,
-                                                                            config=types.CreateCachedContentConfig(
-                                                                                contents=JSON_Samples,
-                                                                                system_instruction=sysTemplate,
-                                                                                display_name='TranslationCache_JSON',
-                                                                                ttl=f'{self.translator._CACHE_TTL}s',
-                                                                                ),
-                                                                            )
+        self.templateCache = self.translator.client.caches.create(model=GEMINI_MODEL,
+                                                                    config=types.CreateCachedContentConfig(
+                                                                        contents=JSON_Samples,
+                                                                        system_instruction=sysTemplate,
+                                                                        display_name='TranslationCache_JSON',
+                                                                        ttl=f'{self.translator._CACHE_TTL}s',
+                                                                        ),
+                                                                    )
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
         config_kwargs = {

@@ -573,8 +573,8 @@ class MangaTranslator:
               
             region.text = stripped_text.strip()     
             
-            if len(region.text) >= config.ocr.min_text_length \
-                    and not is_valuable_text(region.text) \
+            if len(region.text) < config.ocr.min_text_length \
+                    or not is_valuable_text(region.text) \
                     or (not config.translator.no_text_lang_skip and langcodes.tag_distance(region.source_lang, config.translator.target_lang) == 0):
                 if region.text.strip():
                     logger.info(f'Filtered out: {region.text}')
@@ -615,14 +615,8 @@ class MangaTranslator:
                 region.translation = ""  # 空翻译将创建空白区域 / Empty translation will create blank areas  
                 region.target_lang = config.translator.target_lang  
                 region._alignment = config.render.alignment  
-                region._direction = config.render.direction   
-            
-            # 如果有prep_manual标志，则保留所有文本区域不进行过滤  
-            # If prep_manual flag is present, keep all text regions without filtering  
-            if self.prep_manual:  
-                return ctx.text_regions  
-            # 如果没有prep_manual标志，继续执行后续代码进行过滤  
-            # If no prep_manual flag, continue to filtering logic below  
+                region._direction = config.render.direction    
+            return ctx.text_regions  
 
         # 以下翻译处理仅在非none翻译器或有none翻译器但没有prep_manual时执行  
         # Translation processing below only happens for non-none translator or none translator without prep_manual  
