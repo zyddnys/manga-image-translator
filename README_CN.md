@@ -1,5 +1,5 @@
 # 漫画/图片翻译器 (中文说明) 
-最后更新时间：2025年4月28日
+最后更新时间：2025年5月10日
 ---
 ![Commit activity](https://img.shields.io/github/commit-activity/m/zyddnys/manga-image-translator)
 ![Lines of code](https://img.shields.io/tokei/lines/github/zyddnys/manga-image-translator?label=lines%20of%20code)
@@ -870,6 +870,7 @@ no_hyphenation    是否禁用渲染器使用连字符(-)分割单词
 font_color        覆盖OCR模型检测到的文本前景/背景颜色。使用不带"#"的十六进制字符串，如FFFFFF表示白色前景，FFFFFF:000000表示同时设置黑色背景
 line_spacing      行间距为字体大小 * 该值。水平文本默认为0.01，垂直文本默认为0.2
 font_size         使用固定字体大小进行渲染
+rtl               合并文本时将文本区域从右向左排序，默认为true
 ```
 
 #### 超分参数
@@ -966,23 +967,33 @@ FIL: 菲律宾语（他加禄语）
 ```
 
 #### 翻译器参考
-| 名称          | API Key | Offline | Note                                                     |
-|---------------|---------|---------|----------------------------------------------------------|
-| <s>google</s> |         |         | 暂时禁用                                                  |
-| youdao        | ✔️      |         | 需要 `YOUDAO_APP_KEY` 和 `YOUDAO_SECRET_KEY`        |
-| baidu         | ✔️      |         | 需要 `BAIDU_APP_ID` 和 `BAIDU_SECRET_KEY`           |
-| deepl         | ✔️      |         | 需要 `DEEPL_AUTH_KEY`                                |
-| caiyun        | ✔️      |         | 需要 `CAIYUN_TOKEN`                                  |
-| openai        | ✔️      |         | Implements 需要 `OPENAI_API_KEY`                     |
-| papago        |         |         |                                                          |
-| sakura        |         |         | 需要 `SAKURA_API_BASE`                               |
-| custom openai |         |         | 需要  `CUSTOM_OPENAI_API_BASE` `CUSTOM_OPENAI_MODEL` |
-| offline       |         | ✔️      | 为语言选择最合适的离线翻译器    |
-| sugoi         |         | ✔️      | Sugoi V4.0 模型                                        |
-| m2m100        |         | ✔️      | 支持所有语言                                  |
-| m2m100_big    |         | ✔️      |                                                          |
-| none          |         | ✔️      | 翻译为空文本                                 |
-| original      |         | ✔️      | 保留原始文本                                      |
+| 名称          | API Key | Offline | Note                                                     |  
+|---------------|---------|---------|----------------------------------------------------------|  
+| <s>google</s> |         |         | 暂时禁用                                                  |  
+| youdao        | ✔️      |         | 需要 `YOUDAO_APP_KEY` 和 `YOUDAO_SECRET_KEY`        |  
+| baidu         | ✔️      |         | 需要 `BAIDU_APP_ID` 和 `BAIDU_SECRET_KEY`           |  
+| deepl         | ✔️      |         | 需要 `DEEPL_AUTH_KEY`                                |  
+| caiyun        | ✔️      |         | 需要 `CAIYUN_TOKEN`                                  |  
+| openai        | ✔️      |         | 需要 `OPENAI_API_KEY`                     |  
+| deepseek      | ✔️      |         | 需要 `DEEPSEEK_API_KEY`                          |  
+| groq          | ✔️      |         | 需要 `GROQ_API_KEY`                              |  
+| gemini        | ✔️      |         | 需要 `GEMINI_API_KEY`                            |  
+| papago        |         |         |                                                          |  
+| sakura        |         |         | 需要 `SAKURA_API_BASE`                               |  
+| custom_openai |         |         | 需要 `CUSTOM_OPENAI_API_BASE` `CUSTOM_OPENAI_MODEL` |  
+| offline       |         | ✔️      | 为语言选择最合适的离线翻译器    |  
+| nllb          |         | ✔️      | 离线翻译模型                                 |  
+| nllb_big      |         | ✔️      | 更大的NLLB模型                               |  
+| sugoi         |         | ✔️      | Sugoi V4.0 模型                                        |  
+| jparacrawl    |         | ✔️      | 日文翻译模型                                  |  
+| jparacrawl_big|         | ✔️      | 更大的日文翻译模型                            |  
+| m2m100        |         | ✔️      | 支持多语言翻译                                  |  
+| m2m100_big    |         | ✔️      | 更大的M2M100模型                               |  
+| mbart50       |         | ✔️      | 多语言翻译模型                                |  
+| qwen2         |         | ✔️      | 千问2模型                                     |  
+| qwen2_big     |         | ✔️      | 更大的千问2模型                               |  
+| none          |         | ✔️      | 翻译为空文本                                 |  
+| original      |         | ✔️      | 保留原始文本                                      |  
 
 -   API Key：依据翻译器是否需要将 API 密钥设置为环境变量。
 为此，您可以在项目根目录中创建一个 .env 文件，其中包含您的 API 密钥，如下所示：
@@ -1016,29 +1027,33 @@ SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
 
 #### 环境变量汇总
 
-| 环境变量名                     | 说明                                                                  | 默认值                               | 备注                                                                                               |
-| :----------------------------- | :-------------------------------------------------------------------- | :----------------------------------- | :------------------------------------------------------------------------------------------------- |
-| `BAIDU_APP_ID`                 | 百度翻译 appid                                                          | `''`                                 |                                                                                                    |
-| `BAIDU_SECRET_KEY`             | 百度翻译密钥                                                            | `''`                                 |                                                                                                    |
-| `YOUDAO_APP_KEY`               | 有道翻译应用 ID                                                          | `''`                                 |                                                                                                    |
-| `YOUDAO_SECRET_KEY`            | 有道翻译应用秘钥                                                          | `''`                                 |                                                                                                    |
-| `DEEPL_AUTH_KEY`              | DeepL 翻译 AUTH_KEY                                                       | `''`                                 |                                                                                                    |
-| `OPENAI_API_KEY`              | OpenAI API 密钥                                                        | `''`                                 |                                                                                                    |
-| `OPENAI_MODEL`                | OpenAI 模型 (可选)                                                      | `''`                                 |                                                                                                    |
-| `OPENAI_HTTP_PROXY`           | OpenAI HTTP 代理 (可选)                                                | `''`                                 | 替代 `--proxy`                                                                                      |
-| `OPENAI_GLOSSARY_PATH`        | OpenAI 术语表路径 (可选)                                                  | `./dict/mit_glossory.txt`            |                                                                                                    |
-| `OPENAI_API_BASE`             | OpenAI API 基础地址 (可选)                                                | `https://api.openai.com/v1`          | 默认为官方地址                                                                                       |
-|`GROQ_API_KEY`| Groq API 密钥 |||
-| `SAKURA_API_BASE`             | SAKURA API 地址 (可选)                                                  | `http://127.0.0.1:8080/v1`           |                                                                                                    |
-| `SAKURA_VERSION`               | SAKURA API 版本 (可选)                                                    | `'0.9'`                              | `0.9` 或 `0.10`                                                                                    |
-| `SAKURA_DICT_PATH`            | SAKURA 术语表路径 (可选)                                                  | `./dict/sakura_dict.txt`             |                                                                                                    |
-| `CAIYUN_TOKEN`                | 彩云小译 API 访问令牌                                                      | `''`                                 |                                                                                                    |
-| `DEEPSEEK_API_KEY`           | DeepSeek API 密钥                                                         | `''`                                 |                                                                                                       |
-| `DEEPSEEK_API_BASE`           | DeepSeek API 基础地址（可选）                                              |   `https://api.deepseek.com`                                                              |    |
-| `CUSTOM_OPENAI_API_KEY`        | 自定义 OpenAI API 密钥 (Ollama 不需要，但其他工具可能需要)                   | `'ollama'`                            |                                                                                                    |
-| `CUSTOM_OPENAI_API_BASE`       | 自定义 OpenAI API 基础地址 (使用 OLLAMA_HOST 环境变量更改绑定 IP 和端口)     | `http://localhost:11434/v1`          |                                                                                                    |
-| `CUSTOM_OPENAI_MODEL`          | 自定义 OpenAI 模型 (例如 "qwen2.5:7b"，确保在使用前拉取并运行它)             | `''`                                 |                                                                                                    |
-| `CUSTOM_OPENAI_MODEL_CONF`     | 例如 "qwen2"                                                              | `''` |                                                                                                       |
+| 环境变量名                     | 说明                                                                  | 默认值                               | 备注                                                                                               |  
+| :----------------------------- | :-------------------------------------------------------------------- | :----------------------------------- | :------------------------------------------------------------------------------------------------- |  
+| `BAIDU_APP_ID`                 | 百度翻译 appid                                                          | `''`                                 |                                                                                                    |  
+| `BAIDU_SECRET_KEY`             | 百度翻译密钥                                                            | `''`                                 |                                                                                                    |  
+| `YOUDAO_APP_KEY`               | 有道翻译应用 ID                                                          | `''`                                 |                                                                                                    |  
+| `YOUDAO_SECRET_KEY`            | 有道翻译应用秘钥                                                          | `''`                                 |                                                                                                    |  
+| `DEEPL_AUTH_KEY`              | DeepL 翻译 AUTH_KEY                                                       | `''`                                 |                                                                                                    |  
+| `OPENAI_API_KEY`              | OpenAI API 密钥                                                        | `''`                                 |                                                                                                    |  
+| `OPENAI_MODEL`                | OpenAI 模型                                                        | `'chatgpt-4o-latest'`                    |                                                                                                    |  
+| `OPENAI_HTTP_PROXY`           | OpenAI HTTP 代理                                                 | `''`                                 | 替代 `--proxy`                                                                                      |  
+| `OPENAI_GLOSSARY_PATH`        | OpenAI 术语表路径                                                   | `./dict/mit_glossary.txt`            |                                                                                                    |  
+| `OPENAI_API_BASE`             | OpenAI API 基础地址                                                 | `https://api.openai.com/v1`          | 默认为官方地址                                                                                       |  
+| `GROQ_API_KEY`                | Groq API 密钥                                                          | `''`                                 |                                                                                                    |  
+| `GROQ_MODEL`                  | Groq 模型名称                                                          | `'mixtral-8x7b-32768'`               |                                                                                                    |  
+| `SAKURA_API_BASE`             | SAKURA API 地址                                                   | `http://127.0.0.1:8080/v1`           |                                                                                                    |  
+| `SAKURA_VERSION`               | SAKURA API 版本                                                     | `'0.9'`                              | `0.9` 或 `0.10`                                                                                    |  
+| `SAKURA_DICT_PATH`            | SAKURA 术语表路径                                                   | `./dict/sakura_dict.txt`             |                                                                                                    |  
+| `CAIYUN_TOKEN`                | 彩云小译 API 访问令牌                                                      | `''`                                 |                                                                                                    |  
+| `GEMINI_API_KEY`              | Gemini API 密钥                                                       | `''`                                 |                                                                                                    |  
+| `GEMINI_MODEL`                | Gemini 模型名称                                                        | `'gemini-1.5-flash-002'`             |                                                                                                    |  
+| `DEEPSEEK_API_KEY`           | DeepSeek API 密钥                                                      | `''`                                 |                                                                                                    |  
+| `DEEPSEEK_API_BASE`           | DeepSeek API 基础地址                                              | `https://api.deepseek.com`           |                                                                                                    |  
+| `DEEPSEEK_MODEL`              | DeepSeek 模型名称                                                      | `'deepseek-chat'`                    | 可选值：'deepseek-chat'或'deepseek-reasoner'                                                         |  
+| `CUSTOM_OPENAI_API_KEY`        | 自定义 OpenAI API 密钥                  | `'ollama'`                            | Ollama 不需要，但其他工具可能需要                                                                    |  
+| `CUSTOM_OPENAI_API_BASE`       | 自定义 OpenAI API 基础地址      | `http://localhost:11434/v1`          | 使用 OLLAMA_HOST 环境变量更改绑定 IP 和端口                                                           |  
+| `CUSTOM_OPENAI_MODEL`         | 自定义 OpenAI 兼容模型名称                                               | `''`                                 | 例如："qwen2.5:7b"，使用前确保已拉取并运行                                                            |  
+| `CUSTOM_OPENAI_MODEL_CONF`    | 自定义 OpenAI 兼容模型配置                                               | `''`                                 | 例如："qwen2"                                                                                        |
 
 
 **使用说明：**
