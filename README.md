@@ -1100,17 +1100,17 @@ FIL: Filipino (Tagalog)
 | Name | API Key | Offline | Note |
 |---------------|---------|---------|----------------------------------------------------------|
 | <s>google</s> | | | Temporarily disabled |
-| youdao | ✔️ | | Requires YOUDAO_APP_KEY and YOUDAO_SECRET_KEY |
-| baidu | ✔️ | | Requires BAIDU_APP_ID and BAIDU_SECRET_KEY |
-| deepl | ✔️ | | Requires DEEPL_AUTH_KEY |
-| caiyun | ✔️ | | Requires CAIYUN_TOKEN |
-| openai | ✔️ | | Requires OPENAI_API_KEY |
-| deepseek | ✔️ | | Requires DEEPSEEK_API_KEY |
-| groq | ✔️ | | Requires GROQ_API_KEY |
-| gemini | ✔️ | | Requires GEMINI_API_KEY |
+| youdao | ✔️ | | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY` |
+| baidu | ✔️ | | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY` |
+| deepl | ✔️ | | Requires `DEEPL_AUTH_KEY` |
+| caiyun | ✔️ | | Requires `CAIYUN_TOKEN` |
+| openai | ✔️ | | Requires `OPENAI_API_KEY` |
+| deepseek | ✔️ | | Requires `DEEPSEEK_API_KEY` |
+| groq | ✔️ | | Requires `GROQ_API_KEY` |
+| gemini | ✔️ | | Requires `GEMINI_API_KEY` |
 | papago | | | |
-| sakura | | | Requires SAKURA_API_BASE |
-| custom_openai | | | Requires CUSTOM_OPENAI_API_BASE CUSTOM_OPENAI_MODEL |
+| sakura | | | Requires `SAKURA_API_BASE` |
+| custom_openai | | | Requires `CUSTOM_OPENAI_API_BASE` `CUSTOM_OPENAI_MODEL` |
 | offline | | ✔️ | Use the most suitable offline translator for the language|
 | nllb | | ✔️ | Offline translation model |
 | nllb_big | | ✔️ | Larger NLLB model |
