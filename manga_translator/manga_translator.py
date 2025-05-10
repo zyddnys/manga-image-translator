@@ -573,8 +573,8 @@ class MangaTranslator:
               
             region.text = stripped_text.strip()     
             
-            if len(region.text) >= config.ocr.min_text_length \
-                    and not is_valuable_text(region.text) \
+            if len(region.text) < config.ocr.min_text_length \
+                    or not is_valuable_text(region.text) \
                     or (not config.translator.no_text_lang_skip and langcodes.tag_distance(region.source_lang, config.translator.target_lang) == 0):
                 if region.text.strip():
                     logger.info(f'Filtered out: {region.text}')
