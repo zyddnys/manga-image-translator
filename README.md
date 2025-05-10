@@ -908,7 +908,7 @@ An example config file can be found in example/config-example.json
         "font_color": null,
         "line_spacing": null,
         "font_size": null,
-        "rtl": false
+        "rtl": true
       }
     },
     "upscale": {
