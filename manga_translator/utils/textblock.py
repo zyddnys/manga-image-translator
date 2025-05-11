@@ -793,7 +793,29 @@ def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock]):
         cv2.polylines(canvas, [blk.min_rect], True, (127,127,0), 2)
         cv2.putText(canvas, str(i), (bx1, by1 + lw), 0, lw / 3, (255,127,127), max(lw-1, 1), cv2.LINE_AA)
         center = [int((bx1 + bx2)/2), int((by1 + by2)/2)]
-        cv2.putText(canvas, 'a: %.2f' % blk.angle, [bx1, center[1]], cv2.FONT_HERSHEY_SIMPLEX, 1, (127,127,255), 2)
-        cv2.putText(canvas, 'x: %s' % bx1, [bx1, center[1] + 30], cv2.FONT_HERSHEY_SIMPLEX, 1, (127,127,255), 2)
-        cv2.putText(canvas, 'y: %s' % by1, [bx1, center[1] + 60], cv2.FONT_HERSHEY_SIMPLEX, 1, (127,127,255), 2)
+        
+        angle_text = 'a: %.2f' % blk.angle
+        x_text = 'x: %s' % bx1
+        y_text = 'y: %s' % by1
+        
+        # 添加描边效果，文本居中
+        def put_text_with_outline(text, center_x, y, font_size=0.8, thickness=2, color=(127,127,255)):
+            
+            (text_width, text_height), baseline = cv2.getTextSize(
+                text, cv2.FONT_HERSHEY_SIMPLEX, font_size, thickness)
+            text_x = center_x - text_width // 2
+            
+            # 绘制描边
+            for dx, dy in [(-1,-1), (-1,1), (1,-1), (1,1), (-2,0), (2,0), (0,-2), (0,2)]:
+                cv2.putText(canvas, text, (text_x+dx, y+dy), 
+                          cv2.FONT_HERSHEY_SIMPLEX, font_size, (35,24,22), thickness)
+            # 绘制原始颜色的主文本
+            cv2.putText(canvas, text, (text_x, y), 
+                      cv2.FONT_HERSHEY_SIMPLEX, font_size, color, thickness)
+        
+        # 在文本框水平中央位置绘制带描边的文本
+        center_x = center[0]  
+        put_text_with_outline(angle_text, center_x, center[1] - 10)
+        put_text_with_outline(x_text, center_x, center[1] + 15)
+        put_text_with_outline(y_text, center_x, center[1] + 40)
     return canvas
