@@ -175,6 +175,8 @@ class RenderConfig(BaseModel):
     """Line spacing is font_size * this value. Default is 0.01 for horizontal text and 0.2 for vertical."""
     font_size: Optional[int] = None
     """Use fixed font size for rendering"""
+    rtl: bool = True
+    """Right-to-left reading order for panel and text_region sorting,"""  
     _font_color_fg = None
     _font_color_bg = None
     @property
