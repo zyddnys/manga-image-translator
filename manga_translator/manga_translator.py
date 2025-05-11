@@ -592,9 +592,12 @@ class MangaTranslator:
         text_regions = new_text_regions
 
 
-        # Sort ctd (comic text detector) regions left to right. Otherwise right to left.
-        # Sorting will improve text translation quality.
-        text_regions = sort_regions(text_regions, right_to_left=True if config.detector.detector != Detector.ctd else False)
+        text_regions = sort_regions(
+            text_regions,
+            right_to_left=config.render.rtl,
+            img=ctx.img_rgb
+        )   
+        
         return text_regions
 
     async def _run_text_translation(self, config: Config, ctx: Context):
