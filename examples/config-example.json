@@ -13,7 +13,8 @@
     "no_hyphenation": false,
     "font_color": null,
     "line_spacing": null,
-    "font_size": null
+    "font_size": null,
+    "rtl": true
   },
   "upscale": {
     "upscaler": "esrgan",
@@ -57,5 +58,5 @@
     "ignore_bubble": 0
   },
   "kernel_size": 3,
-  "mask_dilation_offset": 30
+  "mask_dilation_offset": 20
 }
