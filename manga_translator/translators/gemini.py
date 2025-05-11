@@ -122,6 +122,7 @@ class GeminiTranslator(CommonGPTTranslator):
             self.logger.error(
                         'GEMINI_API_KEY was found, but an unknown error was encountered during initial setup.\n.' +
                         f'The following error was caught:\n{e}'
+                        f'The following error was caught:\n{e}'
                     )
             raise e
 
