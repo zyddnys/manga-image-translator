@@ -1,5 +1,5 @@
 # 漫画/图片翻译器 (中文说明) 
-最后更新时间：2025年4月28日
+最后更新时间：2025年5月10日
 ---
 ![Commit activity](https://img.shields.io/github/commit-activity/m/zyddnys/manga-image-translator)
 ![Lines of code](https://img.shields.io/tokei/lines/github/zyddnys/manga-image-translator?label=lines%20of%20code)
@@ -456,402 +456,532 @@ shared              以 API 模式运行
 
 <details>  
   <summary>展开完整配置 JSON</summary>  
-  <pre><code class="language-json">{  
-  "$defs": {  
-    "Alignment": {  
-      "enum": ["auto", "left", "center", "right"],  
-      "title": "Alignment",  
-      "type": "string"  
-    },  
-    "Colorizer": {  
-      "enum": ["none", "mc2"],  
-      "title": "Colorizer",  
-      "type": "string"  
-    },  
-    "ColorizerConfig": {  
-      "properties": {  
-        "colorization_size": {  
-          "default": 576,  
-          "title": "Colorization Size",  
-          "type": "integer"  
-        },  
-        "denoise_sigma": {  
-          "default": 30,  
-          "title": "Denoise Sigma",  
-          "type": "integer"  
-        },  
-        "colorizer": {  
-          "allOf": [{ "$ref": "#/$defs/Colorizer" }],  
-          "default": "none"  
-        }  
-      },  
-      "title": "ColorizerConfig",  
-      "type": "object"  
-    },  
-    "Detector": {  
-      "enum": ["default", "dbconvnext", "ctd", "craft", "paddle", "none"],  
-      "title": "Detector",  
-      "type": "string"  
-    },  
-    "DetectorConfig": {  
-      "properties": {  
-        "detector": {  
-          "allOf": [{ "$ref": "#/$defs/Detector" }],  
-          "default": "default"  
-        },  
-        "detection_size": {  
-          "default": 2048,  
-          "title": "Detection Size",  
-          "type": "integer"  
-        },  
-        "text_threshold": {  
-          "default": 0.5,  
-          "title": "Text Threshold",  
-          "type": "number"  
-        },  
-        "det_rotate": {  
-          "default": false,  
-          "title": "Det Rotate",  
-          "type": "boolean"  
-        },  
-        "det_auto_rotate": {  
-          "default": false,  
-          "title": "Det Auto Rotate",  
-          "type": "boolean"  
-        },  
-        "det_invert": {  
-          "default": false,  
-          "title": "Det Invert",  
-          "type": "boolean"  
-        },  
-        "det_gamma_correct": {  
-          "default": false,  
-          "title": "Det Gamma Correct",  
-          "type": "boolean"  
-        },  
-        "box_threshold": {  
-          "default": 0.7,  
-          "title": "Box Threshold",  
-          "type": "number"  
-        },  
-        "unclip_ratio": {  
-          "default": 2.3,  
-          "title": "Unclip Ratio",  
-          "type": "number"  
-        }  
-      },  
-      "title": "DetectorConfig",  
-      "type": "object"  
-    },  
-    "Direction": {  
-      "enum": ["auto", "horizontal", "vertical"],  
-      "title": "Direction",  
-      "type": "string"  
-    },  
-    "InpaintPrecision": {  
-      "enum": ["fp32", "fp16", "bf16"],  
-      "title": "InpaintPrecision",  
-      "type": "string"  
-    },  
-    "Inpainter": {  
-      "enum": ["default", "lama_large", "lama_mpe", "sd", "none", "original"],  
-      "title": "Inpainter",  
-      "type": "string"  
-    },  
-    "InpainterConfig": {  
-      "properties": {  
-        "inpainter": {  
-          "allOf": [{ "$ref": "#/$defs/Inpainter" }],  
-          "default": "lama_large"  
-        },  
-        "inpainting_size": {  
-          "default": 2048,  
-          "title": "Inpainting Size",  
-          "type": "integer"  
-        },  
-        "inpainting_precision": {  
-          "allOf": [{ "$ref": "#/$defs/InpaintPrecision" }],  
-          "default": "bf16"  
-        }  
-      },  
-      "title": "InpainterConfig",  
-      "type": "object"  
-    },  
-    "Ocr": {  
-      "enum": ["32px", "48px", "48px_ctc", "mocr"],  
-      "title": "Ocr",  
-      "type": "string"  
-    },  
-    "OcrConfig": {  
-      "properties": {  
-        "use_mocr_merge": {  
-          "default": false,  
-          "title": "Use Mocr Merge",  
-          "type": "boolean"  
-        },  
-        "ocr": {  
-          "allOf": [{ "$ref": "#/$defs/Ocr" }],  
-          "default": "48px"  
-        },  
-        "min_text_length": {  
-          "default": 0,  
-          "title": "Min Text Length",  
-          "type": "integer"  
-        },  
-        "ignore_bubble": {  
-          "default": 0,  
-          "title": "Ignore Bubble",  
-          "type": "integer"  
-        }  
-      },  
-      "title": "OcrConfig",  
-      "type": "object"  
-    },  
-    "RenderConfig": {  
-      "properties": {  
-        "renderer": {  
-          "allOf": [{ "$ref": "#/$defs/Renderer" }],  
-          "default": "default"  
-        },  
-        "alignment": {  
-          "allOf": [{ "$ref": "#/$defs/Alignment" }],  
-          "default": "auto"  
-        },  
-        "disable_font_border": {  
-          "default": false,  
-          "title": "Disable Font Border",  
-          "type": "boolean"  
-        },  
-        "font_size_offset": {  
-          "default": 0,  
-          "title": "Font Size Offset",  
-          "type": "integer"  
-        },  
-        "font_size_minimum": {  
-          "default": -1,  
-          "title": "Font Size Minimum",  
-          "type": "integer"  
-        },  
-        "direction": {  
-          "allOf": [{ "$ref": "#/$defs/Direction" }],  
-          "default": "auto"  
-        },  
-        "uppercase": {  
-          "default": false,  
-          "title": "Uppercase",  
-          "type": "boolean"  
-        },  
-        "lowercase": {  
-          "default": false,  
-          "title": "Lowercase",  
-          "type": "boolean"  
-        },  
-        "gimp_font": {  
-          "default": "Sans-serif",  
-          "title": "Gimp Font",  
-          "type": "string"  
-        },  
-        "no_hyphenation": {  
-          "default": false,  
-          "title": "No Hyphenation",  
-          "type": "boolean"  
-        },  
-        "font_color": {  
-          "anyOf": [{ "type": "string" }, { "type": "null" }],  
-          "default": null,  
-          "title": "Font Color"  
-        },  
-        "line_spacing": {  
-          "anyOf": [{ "type": "integer" }, { "type": "null" }],  
-          "default": null,  
-          "title": "Line Spacing"  
-        },  
-        "font_size": {  
-          "anyOf": [{ "type": "integer" }, { "type": "null" }],  
-          "default": null,  
-          "title": "Font Size"  
-        }  
-      },  
-      "title": "RenderConfig",  
-      "type": "object"  
-    },  
-    "Renderer": {  
-      "enum": ["default", "manga2eng", "none"],  
-      "title": "Renderer",  
-      "type": "string"  
-    },  
-    "Translator": {  
-      "enum": [  
-        "youdao", "baidu", "deepl", "papago", "caiyun", "chatgpt", "none",   
-        "original", "sakura", "deepseek", "groq", "gemini", "custom_openai",  
-        "offline", "nllb", "nllb_big", "sugoi", "jparacrawl", "jparacrawl_big",  
-        "m2m100", "m2m100_big", "mbart50", "qwen2", "qwen2_big"  
-      ],  
-      "title": "Translator",  
-      "type": "string"  
-    },  
-    "TranslatorConfig": {  
-      "properties": {  
-        "translator": {  
-          "allOf": [{ "$ref": "#/$defs/Translator" }],  
-          "default": "sugoi"  
-        },  
-        "target_lang": {  
-          "default": "ENG",  
-          "title": "Target Lang",  
-          "type": "string"  
-        },  
-        "no_text_lang_skip": {  
-          "default": false,  
-          "title": "No Text Lang Skip",  
-          "type": "boolean"  
-        },  
-        "skip_lang": {  
-          "anyOf": [{ "type": "string" }, { "type": "null" }],  
-          "default": null,  
-          "title": "Skip Lang"  
-        },  
-        "gpt_config": {  
-          "anyOf": [{ "type": "string" }, { "type": "null" }],  
-          "default": null,  
-          "title": "Gpt Config"  
-        },  
-        "translator_chain": {  
-          "anyOf": [{ "type": "string" }, { "type": "null" }],  
-          "default": null,  
-          "title": "Translator Chain"  
-        },  
-        "selective_translation": {  
-          "anyOf": [{ "type": "string" }, { "type": "null" }],  
-          "default": null,  
-          "title": "Selective Translation"  
-        }  
-      },  
-      "title": "TranslatorConfig",  
-      "type": "object"  
-    },  
-    "UpscaleConfig": {  
-      "properties": {  
-        "upscaler": {  
-          "allOf": [{ "$ref": "#/$defs/Upscaler" }],  
-          "default": "esrgan"  
-        },  
-        "revert_upscaling": {  
-          "default": false,  
-          "title": "Revert Upscaling",  
-          "type": "boolean"  
-        },  
-        "upscale_ratio": {  
-          "anyOf": [{ "type": "integer" }, { "type": "null" }],  
-          "default": null,  
-          "title": "Upscale Ratio"  
-        }  
-      },  
-      "title": "UpscaleConfig",  
-      "type": "object"  
-    },  
-    "Upscaler": {  
-      "enum": ["waifu2x", "esrgan", "4xultrasharp"],  
-      "title": "Upscaler",  
-      "type": "string"  
-    }  
-  },  
-  "properties": {  
-    "filter_text": {  
-      "anyOf": [{ "type": "string" }, { "type": "null" }],  
-      "default": null,  
-      "title": "Filter Text"  
-    },  
-    "render": {  
-      "allOf": [{ "$ref": "#/$defs/RenderConfig" }],  
-      "default": {  
-        "renderer": "default",  
-        "alignment": "auto",  
-        "disable_font_border": false,  
-        "font_size_offset": 0,  
-        "font_size_minimum": -1,  
-        "direction": "auto",  
-        "uppercase": false,  
-        "lowercase": false,  
-        "gimp_font": "Sans-serif",  
-        "no_hyphenation": false,  
-        "font_color": null,  
-        "line_spacing": null,  
-        "font_size": null  
-      }  
-    },  
-    "upscale": {  
-      "allOf": [{ "$ref": "#/$defs/UpscaleConfig" }],  
-      "default": {  
-        "upscaler": "esrgan",  
-        "revert_upscaling": false,  
-        "upscale_ratio": null  
-      }  
-    },  
-    "translator": {  
-      "allOf": [{ "$ref": "#/$defs/TranslatorConfig" }],  
-      "default": {  
-        "translator": "sugoi",  
-        "target_lang": "ENG",  
-        "no_text_lang_skip": false,  
-        "skip_lang": null,  
-        "gpt_config": null,  
-        "translator_chain": null,  
-        "selective_translation": null  
-      }  
-    },  
-    "detector": {  
-      "allOf": [{ "$ref": "#/$defs/DetectorConfig" }],  
-      "default": {  
-        "detector": "default",  
-        "detection_size": 2048,  
-        "text_threshold": 0.5,  
-        "det_rotate": false,  
-        "det_auto_rotate": false,  
-        "det_invert": false,  
-        "det_gamma_correct": false,  
-        "box_threshold": 0.7,  
-        "unclip_ratio": 2.3  
-      }  
-    },  
-    "colorizer": {  
-      "allOf": [{ "$ref": "#/$defs/ColorizerConfig" }],  
-      "default": {  
-        "colorization_size": 576,  
-        "denoise_sigma": 30,  
-        "colorizer": "none"  
-      }  
-    },  
-    "inpainter": {  
-      "allOf": [{ "$ref": "#/$defs/InpainterConfig" }],  
-      "default": {  
-        "inpainter": "lama_large",  
-        "inpainting_size": 2048,  
-        "inpainting_precision": "bf16"  
-      }  
-    },  
-    "ocr": {  
-      "allOf": [{ "$ref": "#/$defs/OcrConfig" }],  
-      "default": {  
-        "use_mocr_merge": false,  
-        "ocr": "48px",  
-        "min_text_length": 0,  
-        "ignore_bubble": 0  
-      }  
-    },  
-    "kernel_size": {  
-      "default": 3,  
-      "title": "Kernel Size",  
-      "type": "integer"  
-    },  
-    "mask_dilation_offset": {  
-      "default": 0,  
-      "title": "Mask Dilation Offset",  
-      "type": "integer"  
-    }  
-  },  
-  "title": "Config",  
-  "type": "object"  
+  <pre><code class="language-json">{
+  "$defs": {
+    "Alignment": {
+      "enum": [
+        "auto",
+        "left",
+        "center",
+        "right"
+      ],
+      "title": "Alignment",
+      "type": "string"
+    },
+    "Colorizer": {
+      "enum": [
+        "none",
+        "mc2"
+      ],
+      "title": "Colorizer",
+      "type": "string"
+    },
+    "ColorizerConfig": {
+      "properties": {
+        "colorization_size": {
+          "default": 576,
+          "title": "Colorization Size",
+          "type": "integer"
+        },
+        "denoise_sigma": {
+          "default": 30,
+          "title": "Denoise Sigma",
+          "type": "integer"
+        },
+        "colorizer": {
+          "$ref": "#/$defs/Colorizer",
+          "default": "none"
+        }
+      },
+      "title": "ColorizerConfig",
+      "type": "object"
+    },
+    "Detector": {
+      "enum": [
+        "default",
+        "dbconvnext",
+        "ctd",
+        "craft",
+        "paddle",
+        "none"
+      ],
+      "title": "Detector",
+      "type": "string"
+    },
+    "DetectorConfig": {
+      "properties": {
+        "detector": {
+          "$ref": "#/$defs/Detector",
+          "default": "default"
+        },
+        "detection_size": {
+          "default": 2048,
+          "title": "Detection Size",
+          "type": "integer"
+        },
+        "text_threshold": {
+          "default": 0.5,
+          "title": "Text Threshold",
+          "type": "number"
+        },
+        "det_rotate": {
+          "default": false,
+          "title": "Det Rotate",
+          "type": "boolean"
+        },
+        "det_auto_rotate": {
+          "default": false,
+          "title": "Det Auto Rotate",
+          "type": "boolean"
+        },
+        "det_invert": {
+          "default": false,
+          "title": "Det Invert",
+          "type": "boolean"
+        },
+        "det_gamma_correct": {
+          "default": false,
+          "title": "Det Gamma Correct",
+          "type": "boolean"
+        },
+        "box_threshold": {
+          "default": 0.75,
+          "title": "Box Threshold",
+          "type": "number"
+        },
+        "unclip_ratio": {
+          "default": 2.3,
+          "title": "Unclip Ratio",
+          "type": "number"
+        }
+      },
+      "title": "DetectorConfig",
+      "type": "object"
+    },
+    "Direction": {
+      "enum": [
+        "auto",
+        "horizontal",
+        "vertical"
+      ],
+      "title": "Direction",
+      "type": "string"
+    },
+    "InpaintPrecision": {
+      "enum": [
+        "fp32",
+        "fp16",
+        "bf16"
+      ],
+      "title": "InpaintPrecision",
+      "type": "string"
+    },
+    "Inpainter": {
+      "enum": [
+        "default",
+        "lama_large",
+        "lama_mpe",
+        "sd",
+        "none",
+        "original"
+      ],
+      "title": "Inpainter",
+      "type": "string"
+    },
+    "InpainterConfig": {
+      "properties": {
+        "inpainter": {
+          "$ref": "#/$defs/Inpainter",
+          "default": "lama_large"
+        },
+        "inpainting_size": {
+          "default": 2048,
+          "title": "Inpainting Size",
+          "type": "integer"
+        },
+        "inpainting_precision": {
+          "$ref": "#/$defs/InpaintPrecision",
+          "default": "bf16"
+        }
+      },
+      "title": "InpainterConfig",
+      "type": "object"
+    },
+    "Ocr": {
+      "enum": [
+        "32px",
+        "48px",
+        "48px_ctc",
+        "mocr"
+      ],
+      "title": "Ocr",
+      "type": "string"
+    },
+    "OcrConfig": {
+      "properties": {
+        "use_mocr_merge": {
+          "default": false,
+          "title": "Use Mocr Merge",
+          "type": "boolean"
+        },
+        "ocr": {
+          "$ref": "#/$defs/Ocr",
+          "default": "48px"
+        },
+        "min_text_length": {
+          "default": 0,
+          "title": "Min Text Length",
+          "type": "integer"
+        },
+        "ignore_bubble": {
+          "default": 0,
+          "title": "Ignore Bubble",
+          "type": "integer"
+        }
+      },
+      "title": "OcrConfig",
+      "type": "object"
+    },
+    "RenderConfig": {
+      "properties": {
+        "renderer": {
+          "$ref": "#/$defs/Renderer",
+          "default": "default"
+        },
+        "alignment": {
+          "$ref": "#/$defs/Alignment",
+          "default": "auto"
+        },
+        "disable_font_border": {
+          "default": false,
+          "title": "Disable Font Border",
+          "type": "boolean"
+        },
+        "font_size_offset": {
+          "default": 0,
+          "title": "Font Size Offset",
+          "type": "integer"
+        },
+        "font_size_minimum": {
+          "default": -1,
+          "title": "Font Size Minimum",
+          "type": "integer"
+        },
+        "direction": {
+          "$ref": "#/$defs/Direction",
+          "default": "auto"
+        },
+        "uppercase": {
+          "default": false,
+          "title": "Uppercase",
+          "type": "boolean"
+        },
+        "lowercase": {
+          "default": false,
+          "title": "Lowercase",
+          "type": "boolean"
+        },
+        "gimp_font": {
+          "default": "Sans-serif",
+          "title": "Gimp Font",
+          "type": "string"
+        },
+        "no_hyphenation": {
+          "default": false,
+          "title": "No Hyphenation",
+          "type": "boolean"
+        },
+        "font_color": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Font Color"
+        },
+        "line_spacing": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line Spacing"
+        },
+        "font_size": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Font Size"
+        },
+        "rtl": {
+          "default": false,
+          "title": "Rtl",
+          "type": "boolean"
+        }
+      },
+      "title": "RenderConfig",
+      "type": "object"
+    },
+    "Renderer": {
+      "enum": [
+        "default",
+        "manga2eng",
+        "none"
+      ],
+      "title": "Renderer",
+      "type": "string"
+    },
+    "Translator": {
+      "enum": [
+        "youdao",
+        "baidu",
+        "deepl",
+        "papago",
+        "caiyun",
+        "chatgpt",
+        "none",
+        "original",
+        "sakura",
+        "deepseek",
+        "groq",
+        "custom_openai",
+        "offline",
+        "nllb",
+        "nllb_big",
+        "sugoi",
+        "jparacrawl",
+        "jparacrawl_big",
+        "m2m100",
+        "m2m100_big",
+        "mbart50",
+        "qwen2",
+        "qwen2_big"
+      ],
+      "title": "Translator",
+      "type": "string"
+    },
+    "TranslatorConfig": {
+      "properties": {
+        "translator": {
+          "$ref": "#/$defs/Translator",
+          "default": "sugoi"
+        },
+        "target_lang": {
+          "default": "CHS",
+          "title": "Target Lang",
+          "type": "string"
+        },
+        "no_text_lang_skip": {
+          "default": false,
+          "title": "No Text Lang Skip",
+          "type": "boolean"
+        },
+        "skip_lang": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Skip Lang"
+        },
+        "gpt_config": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gpt Config"
+        },
+        "translator_chain": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Translator Chain"
+        },
+        "selective_translation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Selective Translation"
+        }
+      },
+      "title": "TranslatorConfig",
+      "type": "object"
+    },
+    "UpscaleConfig": {
+      "properties": {
+        "upscaler": {
+          "$ref": "#/$defs/Upscaler",
+          "default": "esrgan"
+        },
+        "revert_upscaling": {
+          "default": false,
+          "title": "Revert Upscaling",
+          "type": "boolean"
+        },
+        "upscale_ratio": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Upscale Ratio"
+        }
+      },
+      "title": "UpscaleConfig",
+      "type": "object"
+    },
+    "Upscaler": {
+      "enum": [
+        "waifu2x",
+        "esrgan",
+        "4xultrasharp"
+      ],
+      "title": "Upscaler",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "filter_text": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Filter Text"
+    },
+    "render": {
+      "$ref": "#/$defs/RenderConfig",
+      "default": {
+        "renderer": "default",
+        "alignment": "auto",
+        "disable_font_border": false,
+        "font_size_offset": 0,
+        "font_size_minimum": -1,
+        "direction": "auto",
+        "uppercase": false,
+        "lowercase": false,
+        "gimp_font": "Sans-serif",
+        "no_hyphenation": false,
+        "font_color": null,
+        "line_spacing": null,
+        "font_size": null,
+        "rtl": true
+      }
+    },
+    "upscale": {
+      "$ref": "#/$defs/UpscaleConfig",
+      "default": {
+        "upscaler": "esrgan",
+        "revert_upscaling": false,
+        "upscale_ratio": null
+      }
+    },
+    "translator": {
+      "$ref": "#/$defs/TranslatorConfig",
+      "default": {
+        "translator": "sugoi",
+        "target_lang": "CHS",
+        "no_text_lang_skip": false,
+        "skip_lang": null,
+        "gpt_config": null,
+        "translator_chain": null,
+        "selective_translation": null
+      }
+    },
+    "detector": {
+      "$ref": "#/$defs/DetectorConfig",
+      "default": {
+        "detector": "default",
+        "detection_size": 2048,
+        "text_threshold": 0.5,
+        "det_rotate": false,
+        "det_auto_rotate": false,
+        "det_invert": false,
+        "det_gamma_correct": false,
+        "box_threshold": 0.75,
+        "unclip_ratio": 2.3
+      }
+    },
+    "colorizer": {
+      "$ref": "#/$defs/ColorizerConfig",
+      "default": {
+        "colorization_size": 576,
+        "denoise_sigma": 30,
+        "colorizer": "none"
+      }
+    },
+    "inpainter": {
+      "$ref": "#/$defs/InpainterConfig",
+      "default": {
+        "inpainter": "lama_large",
+        "inpainting_size": 2048,
+      }
+    },
+    "ocr": {
+      "$ref": "#/$defs/OcrConfig",
+      "default": {
+        "use_mocr_merge": false,
+        "ocr": "48px",
+        "min_text_length": 0,
+        "ignore_bubble": 0
+      }
+    },
+    "kernel_size": {
+      "default": 3,
+      "title": "Kernel Size",
+      "type": "integer"
+    },
+    "mask_dilation_offset": {
+      "default": 30,
+      "title": "Mask Dilation Offset",
+      "type": "integer"
+    }
+  },
+  "title": "Config",
+  "type": "object"
 }</code></pre>  
 </details>   
 
@@ -867,9 +997,10 @@ uppercase         将文本转换为大写
 lowercase         将文本转换为小写
 gimp_font         用于GIMP渲染的字体系列
 no_hyphenation    是否禁用渲染器使用连字符(-)分割单词
-font_color        覆盖OCR模型检测到的文本前景/背景颜色。使用不带"#"的十六进制字符串，如FFFFFF表示白色前景，FFFFFF:000000表示同时设置黑色背景
+font_color        覆盖OCR模型检测到的文本前景/背景颜色。使用不带"#"的十六进制字符串，如FFFFFF:表示白色前景，:000000表示黑色描边，FFFFFF:000000表示同时设置二者
 line_spacing      行间距为字体大小 * 该值。水平文本默认为0.01，垂直文本默认为0.2
 font_size         使用固定字体大小进行渲染
+rtl               合并文本时将文本区域从右向左排序，默认为true
 ```
 
 #### 超分参数
@@ -966,23 +1097,33 @@ FIL: 菲律宾语（他加禄语）
 ```
 
 #### 翻译器参考
-| 名称          | API Key | Offline | Note                                                     |
-|---------------|---------|---------|----------------------------------------------------------|
-| <s>google</s> |         |         | 暂时禁用                                                  |
-| youdao        | ✔️      |         | 需要 `YOUDAO_APP_KEY` 和 `YOUDAO_SECRET_KEY`        |
-| baidu         | ✔️      |         | 需要 `BAIDU_APP_ID` 和 `BAIDU_SECRET_KEY`           |
-| deepl         | ✔️      |         | 需要 `DEEPL_AUTH_KEY`                                |
-| caiyun        | ✔️      |         | 需要 `CAIYUN_TOKEN`                                  |
-| openai        | ✔️      |         | Implements 需要 `OPENAI_API_KEY`                     |
-| papago        |         |         |                                                          |
-| sakura        |         |         | 需要 `SAKURA_API_BASE`                               |
-| custom openai |         |         | 需要  `CUSTOM_OPENAI_API_BASE` `CUSTOM_OPENAI_MODEL` |
-| offline       |         | ✔️      | 为语言选择最合适的离线翻译器    |
-| sugoi         |         | ✔️      | Sugoi V4.0 模型                                        |
-| m2m100        |         | ✔️      | 支持所有语言                                  |
-| m2m100_big    |         | ✔️      |                                                          |
-| none          |         | ✔️      | 翻译为空文本                                 |
-| original      |         | ✔️      | 保留原始文本                                      |
+| 名称          | API Key | Offline | Note                                                     |  
+|---------------|---------|---------|----------------------------------------------------------|  
+| <s>google</s> |         |         | 暂时禁用                                                  |  
+| youdao        | ✔️      |         | 需要 `YOUDAO_APP_KEY` 和 `YOUDAO_SECRET_KEY`        |  
+| baidu         | ✔️      |         | 需要 `BAIDU_APP_ID` 和 `BAIDU_SECRET_KEY`           |  
+| deepl         | ✔️      |         | 需要 `DEEPL_AUTH_KEY`                                |  
+| caiyun        | ✔️      |         | 需要 `CAIYUN_TOKEN`                                  |  
+| openai        | ✔️      |         | 需要 `OPENAI_API_KEY`                     |  
+| deepseek      | ✔️      |         | 需要 `DEEPSEEK_API_KEY`                          |  
+| groq          | ✔️      |         | 需要 `GROQ_API_KEY`                              |  
+| gemini        | ✔️      |         | 需要 `GEMINI_API_KEY`                            |  
+| papago        |         |         |                                                          |  
+| sakura        |         |         | 需要 `SAKURA_API_BASE`                               |  
+| custom_openai |         |         | 需要 `CUSTOM_OPENAI_API_BASE` `CUSTOM_OPENAI_MODEL` |  
+| offline       |         | ✔️      | 为语言选择最合适的离线翻译器    |  
+| nllb          |         | ✔️      | 离线翻译模型                                 |  
+| nllb_big      |         | ✔️      | 更大的NLLB模型                               |  
+| sugoi         |         | ✔️      | Sugoi V4.0 模型                                        |  
+| jparacrawl    |         | ✔️      | 日文翻译模型                                  |  
+| jparacrawl_big|         | ✔️      | 更大的日文翻译模型                            |  
+| m2m100        |         | ✔️      | 支持多语言翻译                                  |  
+| m2m100_big    |         | ✔️      | 更大的M2M100模型                               |  
+| mbart50       |         | ✔️      | 多语言翻译模型                                |  
+| qwen2         |         | ✔️      | 千问2模型                                     |  
+| qwen2_big     |         | ✔️      | 更大的千问2模型                               |  
+| none          |         | ✔️      | 翻译为空文本                                 |  
+| original      |         | ✔️      | 保留原始文本                                      |  
 
 -   API Key：依据翻译器是否需要将 API 密钥设置为环境变量。
 为此，您可以在项目根目录中创建一个 .env 文件，其中包含您的 API 密钥，如下所示：
@@ -1016,29 +1157,33 @@ SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
 
 #### 环境变量汇总
 
-| 环境变量名                     | 说明                                                                  | 默认值                               | 备注                                                                                               |
-| :----------------------------- | :-------------------------------------------------------------------- | :----------------------------------- | :------------------------------------------------------------------------------------------------- |
-| `BAIDU_APP_ID`                 | 百度翻译 appid                                                          | `''`                                 |                                                                                                    |
-| `BAIDU_SECRET_KEY`             | 百度翻译密钥                                                            | `''`                                 |                                                                                                    |
-| `YOUDAO_APP_KEY`               | 有道翻译应用 ID                                                          | `''`                                 |                                                                                                    |
-| `YOUDAO_SECRET_KEY`            | 有道翻译应用秘钥                                                          | `''`                                 |                                                                                                    |
-| `DEEPL_AUTH_KEY`              | DeepL 翻译 AUTH_KEY                                                       | `''`                                 |                                                                                                    |
-| `OPENAI_API_KEY`              | OpenAI API 密钥                                                        | `''`                                 |                                                                                                    |
-| `OPENAI_MODEL`                | OpenAI 模型 (可选)                                                      | `''`                                 |                                                                                                    |
-| `OPENAI_HTTP_PROXY`           | OpenAI HTTP 代理 (可选)                                                | `''`                                 | 替代 `--proxy`                                                                                      |
-| `OPENAI_GLOSSARY_PATH`        | OpenAI 术语表路径 (可选)                                                  | `./dict/mit_glossory.txt`            |                                                                                                    |
-| `OPENAI_API_BASE`             | OpenAI API 基础地址 (可选)                                                | `https://api.openai.com/v1`          | 默认为官方地址                                                                                       |
-|`GROQ_API_KEY`| Groq API 密钥 |||
-| `SAKURA_API_BASE`             | SAKURA API 地址 (可选)                                                  | `http://127.0.0.1:8080/v1`           |                                                                                                    |
-| `SAKURA_VERSION`               | SAKURA API 版本 (可选)                                                    | `'0.9'`                              | `0.9` 或 `0.10`                                                                                    |
-| `SAKURA_DICT_PATH`            | SAKURA 术语表路径 (可选)                                                  | `./dict/sakura_dict.txt`             |                                                                                                    |
-| `CAIYUN_TOKEN`                | 彩云小译 API 访问令牌                                                      | `''`                                 |                                                                                                    |
-| `DEEPSEEK_API_KEY`           | DeepSeek API 密钥                                                         | `''`                                 |                                                                                                       |
-| `DEEPSEEK_API_BASE`           | DeepSeek API 基础地址（可选）                                              |   `https://api.deepseek.com`                                                              |    |
-| `CUSTOM_OPENAI_API_KEY`        | 自定义 OpenAI API 密钥 (Ollama 不需要，但其他工具可能需要)                   | `'ollama'`                            |                                                                                                    |
-| `CUSTOM_OPENAI_API_BASE`       | 自定义 OpenAI API 基础地址 (使用 OLLAMA_HOST 环境变量更改绑定 IP 和端口)     | `http://localhost:11434/v1`          |                                                                                                    |
-| `CUSTOM_OPENAI_MODEL`          | 自定义 OpenAI 模型 (例如 "qwen2.5:7b"，确保在使用前拉取并运行它)             | `''`                                 |                                                                                                    |
-| `CUSTOM_OPENAI_MODEL_CONF`     | 例如 "qwen2"                                                              | `''` |                                                                                                       |
+| 环境变量名                     | 说明                                                                  | 默认值                               | 备注                                                                                               |  
+| :----------------------------- | :-------------------------------------------------------------------- | :----------------------------------- | :------------------------------------------------------------------------------------------------- |  
+| `BAIDU_APP_ID`                 | 百度翻译 appid                                                          | `''`                                 |                                                                                                    |  
+| `BAIDU_SECRET_KEY`             | 百度翻译密钥                                                            | `''`                                 |                                                                                                    |  
+| `YOUDAO_APP_KEY`               | 有道翻译应用 ID                                                          | `''`                                 |                                                                                                    |  
+| `YOUDAO_SECRET_KEY`            | 有道翻译应用秘钥                                                          | `''`                                 |                                                                                                    |  
+| `DEEPL_AUTH_KEY`              | DeepL 翻译 AUTH_KEY                                                       | `''`                                 |                                                                                                    |  
+| `OPENAI_API_KEY`              | OpenAI API 密钥                                                        | `''`                                 |                                                                                                    |  
+| `OPENAI_MODEL`                | OpenAI 模型                                                        | `'chatgpt-4o-latest'`                    |                                                                                                    |  
+| `OPENAI_HTTP_PROXY`           | OpenAI HTTP 代理                                                 | `''`                                 | 替代 `--proxy`                                                                                      |  
+| `OPENAI_GLOSSARY_PATH`        | OpenAI 术语表路径                                                   | `./dict/mit_glossary.txt`            |                                                                                                    |  
+| `OPENAI_API_BASE`             | OpenAI API 基础地址                                                 | `https://api.openai.com/v1`          | 默认为官方地址                                                                                       |  
+| `GROQ_API_KEY`                | Groq API 密钥                                                          | `''`                                 |                                                                                                    |  
+| `GROQ_MODEL`                  | Groq 模型名称                                                          | `'mixtral-8x7b-32768'`               |                                                                                                    |  
+| `SAKURA_API_BASE`             | SAKURA API 地址                                                   | `http://127.0.0.1:8080/v1`           |                                                                                                    |  
+| `SAKURA_VERSION`               | SAKURA API 版本                                                     | `'0.9'`                              | `0.9` 或 `0.10`                                                                                    |  
+| `SAKURA_DICT_PATH`            | SAKURA 术语表路径                                                   | `./dict/sakura_dict.txt`             |                                                                                                    |  
+| `CAIYUN_TOKEN`                | 彩云小译 API 访问令牌                                                      | `''`                                 |                                                                                                    |  
+| `GEMINI_API_KEY`              | Gemini API 密钥                                                       | `''`                                 |                                                                                                    |  
+| `GEMINI_MODEL`                | Gemini 模型名称                                                        | `'gemini-1.5-flash-002'`             |                                                                                                    |  
+| `DEEPSEEK_API_KEY`           | DeepSeek API 密钥                                                      | `''`                                 |                                                                                                    |  
+| `DEEPSEEK_API_BASE`           | DeepSeek API 基础地址                                              | `https://api.deepseek.com`           |                                                                                                    |  
+| `DEEPSEEK_MODEL`              | DeepSeek 模型名称                                                      | `'deepseek-chat'`                    | 可选值：`deepseek-chat` 或 `deepseek-reasoner`                                                         |  
+| `CUSTOM_OPENAI_API_KEY`        | 自定义 OpenAI API 密钥                  | `'ollama'`                            | Ollama 不需要，但其他工具可能需要                                                                    |  
+| `CUSTOM_OPENAI_API_BASE`       | 自定义 OpenAI API 基础地址      | `http://localhost:11434/v1`          | 使用 OLLAMA_HOST 环境变量更改绑定 IP 和端口                                                           |  
+| `CUSTOM_OPENAI_MODEL`         | 自定义 OpenAI 兼容模型名称                                               | `''`                                 | 例如：`qwen2.5:7b`，使用前确保已拉取并运行                                                            |  
+| `CUSTOM_OPENAI_MODEL_CONF`    | 自定义 OpenAI 兼容模型配置                                               | `''`                                 | 例如：`qwen2`                                                                                        |
 
 
 **使用说明：**
