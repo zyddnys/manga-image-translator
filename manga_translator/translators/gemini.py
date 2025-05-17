@@ -108,7 +108,8 @@ class GeminiTranslator(CommonGPTTranslator):
         self.client = genai.Client(api_key=GEMINI_API_KEY)
 
         try:
-            model_list=self.client.models.list()
+            model_list=list(self.client.models.list())
+            
         except genai.errors.APIError as genai_err:
             raise InvalidServerResponse(
                         'GEMINI_API_KEY was found, but the API failed to connect.\n.' +
@@ -117,10 +118,9 @@ class GeminiTranslator(CommonGPTTranslator):
         except Exception as e:
             self.logger.error(
                         'GEMINI_API_KEY was found, but an unknown error was encountered during initial setup.\n.' +
-                        f'The following error was caught:\n{genai_err}'
+                        f'The following error was caught:\n{e}'
                     )
-            raise
-
+            raise e
         '''
         Start Section:
             Validate `GEMINI_MODEL` specification and determine supported capabilities.
@@ -131,7 +131,9 @@ class GeminiTranslator(CommonGPTTranslator):
                                 "Please ensure you set the key: GEMINI_MODEL to one of the following values:"
                                 '\n'.join(mName for mName in model_names)
                             )
-            raise
+            raise Exception(f"Model: '{GEMINI_MODEL}' was not found in the model list.\n" +
+                                "Please ensure you set the key: GEMINI_MODEL to one of the following values:"
+                                '\n'.join(mName for mName in model_names))
         
         # Use index of model name to get full model info
         model_info = model_list[model_names.index(GEMINI_MODEL)]
