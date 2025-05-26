@@ -929,7 +929,7 @@ class MangaTranslator:
                 if region in has_target_lang_in_translation_regions:  
                     new_text_regions.append(region)  
                 else:  
-                    if config.translator == Translator.none and not region.translation.strip():  
+                    if config.translator.translator == Translator.none and not region.translation.strip():  
                         logger.info(f'Filtered out: {region.translation}')  
                         logger.info('Reason: Translation contain blank areas')  
                     else:  
