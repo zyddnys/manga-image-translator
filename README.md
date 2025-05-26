@@ -396,6 +396,7 @@ Colorizer: **mc2**
 --pre-dict PRE_DICT            Path to the pre-translation replacement dictionary file
 --post-dict POST_DICT          Path to the post-translation replacement dictionary file
 --kernel-size KERNEL_SIZE      Set the kernel size for the convolution of text erasure area to completely clear residual text
+--context-size                 Pages of context are needed for translating the current page. currently, this only applies to openaitranslator. 
 ```
 #### Additional Options
 ##### Local Mode Options

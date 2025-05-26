@@ -1,7 +1,7 @@
 import os
 import cv2
 import numpy as np
-from typing import List
+from typing import List, Optional
 from shapely import affinity
 from shapely.geometry import Polygon
 from tqdm import tqdm
@@ -171,7 +171,8 @@ async def dispatch(
     hyphenate: bool = True,
     render_mask: np.ndarray = None,
     line_spacing: int = None,
-    disable_font_border: bool = False
+    disable_font_border: bool = False,
+    upscale_ratio: Optional[int] = None
     ) -> np.ndarray:
 
     text_render.set_font(font_path)
@@ -187,7 +188,7 @@ async def dispatch(
         if render_mask is not None:
             # set render_mask to 1 for the region that is inside dst_points
             cv2.fillConvexPoly(render_mask, dst_points.astype(np.int32), 1)
-        img = render(img, region, dst_points, hyphenate, line_spacing, disable_font_border)
+        img = render(img, region, dst_points, hyphenate, line_spacing, disable_font_border, upscale_ratio)
     return img
 
 def render(
@@ -196,7 +197,8 @@ def render(
     dst_points,
     hyphenate,
     line_spacing,
-    disable_font_border
+    disable_font_border,
+    upscale_ratio: Optional[int] = None
 ):
     fg, bg = region.get_font_colors()
     fg, bg = fg_bg_compare(fg, bg)
@@ -337,7 +339,9 @@ def render(
     #src_pts[:, 1] = np.clip(np.round(src_pts[:, 1]), 0, enlarged_h * 2)
 
     M, _ = cv2.findHomography(src_points, dst_points, cv2.RANSAC, 5.0)
-    rgba_region = cv2.warpPerspective(box, M, (img.shape[1], img.shape[0]), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    # 当开启了upscaler且upscale_ratio不为空时使用线性插值
+    interpolation = cv2.INTER_LINEAR if upscale_ratio is not None else cv2.INTER_NEAREST
+    rgba_region = cv2.warpPerspective(box, M, (img.shape[1], img.shape[0]), flags=interpolation, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
     x, y, w, h = cv2.boundingRect(dst_points.astype(np.int32))
     canvas_region = rgba_region[y:y+h, x:x+w, :3]
     mask_region = rgba_region[y:y+h, x:x+w, 3:4].astype(np.float32) / 255.0

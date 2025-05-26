@@ -91,7 +91,7 @@ def compact_special_symbols(text: str) -> str:
     text = re.sub(pattern, r'\1', text) 
     return text
     
-def rotate_image(image, angle):
+def rotate_image(image, angle, upscale_ratio=None):
     if angle == 0:
         return image, (0, 0)
     image_exp = np.zeros((round(image.shape[0] * 1.5), round(image.shape[1] * 1.5), image.shape[2]), dtype = np.uint8)
@@ -101,7 +101,8 @@ def rotate_image(image, angle):
     # from https://stackoverflow.com/questions/9041681/opencv-python-rotate-image-by-x-degrees-around-specific-point
     image_center = tuple(np.array(image_exp.shape[1::-1]) / 2)
     rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-    result = cv2.warpAffine(image_exp, rot_mat, image_exp.shape[1::-1], flags=cv2.INTER_LINEAR)
+    interpolation = cv2.INTER_LINEAR if upscale_ratio else cv2.INTER_NEAREST
+    result = cv2.warpAffine(image_exp, rot_mat, image_exp.shape[1::-1], flags=interpolation)
     if angle == 90:
         return result, (0, 0)
     return result, (diff_i, diff_j)
