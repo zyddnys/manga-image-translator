@@ -25,7 +25,7 @@ LANGUAGE_ORIENTATION_PRESETS = {
     'HUN': 'h',
     'ITA': 'h',
     'JPN': 'auto',
-    'KOR': 'auto',
+    'KOR': 'h',
     'PLK': 'h',
     'PTB': 'h',
     'ROM': 'h',
