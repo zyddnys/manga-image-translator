@@ -396,6 +396,7 @@ OCR：
 --pre-dict PRE_DICT            翻译前替换字典文件路径
 --post-dict POST_DICT          翻译后替换字典文件路径
 --kernel-size KERNEL_SIZE      设置文本擦除区域的卷积内核大小以完全清除文本残留
+--context-size                 上<s>下</s>文页数（暂时仅对openaitranslator有效）
 ```
 #### 附加参数
 ##### 本地模式参数

@@ -153,8 +153,8 @@ class ConfigGPT:
 
     _JSON_MODE=False
 
-    _PROMPT_TEMPLATE = ('Please help me to translate the following text from a manga to {to_lang}.'
-                        'If it\'s already in {to_lang} or looks like gibberish'
+    _PROMPT_TEMPLATE = ('Please help me to translate the following text from a manga to {to_lang}. '
+                        'If it\'s already in {to_lang} or looks like gibberish '
                         'you have to output it as it is instead. Keep prefix format.\n'
                     )
                     
@@ -253,9 +253,12 @@ class ConfigGPT:
         if self.langSamples is not None:
             return self.langSamples
         
-        self.langSamples=[]
+        self.langSamples = []
 
         try:
+            if to_lang in self._LANGUAGE_CODE_MAP:
+                to_lang = self._LANGUAGE_CODE_MAP[to_lang]
+
             foundLang = closest_supported_match(
                                 Language.find(to_lang), 
                                 [

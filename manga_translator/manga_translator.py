@@ -131,7 +131,9 @@ class MangaTranslator:
         self._model_usage_timestamps = {}
         self._detector_cleanup_task = None
         self.prep_manual = params.get('prep_manual', None)
-        
+        self.context_size = params.get('context_size', 0)
+        self.all_page_translations = []
+
     def parse_init_params(self, params: dict):
         self.verbose = params.get('verbose', False)
         self.use_mtpe = params.get('use_mtpe', False)
@@ -600,6 +602,85 @@ class MangaTranslator:
         
         return text_regions
 
+    def _build_prev_context(self):   
+        """
+        跳过句子数为0的页面，取最近 context_size 个非空页面，拼成：
+        <|1|>句子
+        <|2|>句子
+        ...
+        的格式；如果没有任何非空页面，返回空串。
+        """
+        if self.context_size <= 0 or not self.all_page_translations:
+            return ""
+        # 筛选出有句子的页面
+        non_empty_pages = [
+            page for page in self.all_page_translations
+            if any(sent.strip() for sent in page.values())
+        ]
+        # 实际要用的页数
+        pages_used = min(self.context_size, len(non_empty_pages))
+        if pages_used == 0:
+            return ""
+        tail = non_empty_pages[-pages_used:]
+        # 拼接
+        lines = []
+        for page in tail:
+            for sent in page.values():
+                if sent.strip():
+                    lines.append(sent.strip())
+        numbered = [f"<|{i+1}|>{s}" for i, s in enumerate(lines)]
+        return "Here are the previous translation results for reference:\n" + "\n".join(numbered)
+
+    async def _dispatch_with_context(self, config: Config, texts: list[str], ctx: Context):
+        # 计算实际要使用的上下文页数和跳过的空页数
+        # Calculate the actual number of context pages to use and empty pages to skip
+        done_pages = self.all_page_translations
+        if self.context_size > 0 and done_pages:
+            pages_expected = min(self.context_size, len(done_pages))
+            non_empty_pages = [
+                page for page in done_pages
+                if any(sent.strip() for sent in page.values())
+            ]
+            pages_used = min(self.context_size, len(non_empty_pages))
+            skipped = pages_expected - pages_used
+        else:
+            pages_used = skipped = 0
+
+        if self.context_size > 0:
+            logger.info(f"Context-aware translation enabled with {self.context_size} pages of history")
+
+        # 构建上下文字符串
+        # Build the context string
+        prev_ctx = self._build_prev_context()
+
+        # 如果是 ChatGPT 翻译器，则专门处理上下文注入
+        # Special handling for ChatGPT translator: inject context
+        if config.translator.translator == Translator.chatgpt:
+            from .translators.chatgpt import OpenAITranslator
+            translator = OpenAITranslator()
+            translator.set_prev_context(prev_ctx)
+
+            if pages_used > 0:
+                context_count = prev_ctx.count("<|")
+                logger.info(f"Carrying {pages_used} pages of context, {context_count} sentences as translation reference")
+            if skipped > 0:
+                logger.warning(f"Skipped {skipped} pages with no sentences")
+                
+            return await translator._translate(
+                ctx.from_lang,          
+                config.translator.target_lang, 
+                texts
+            )
+
+        return await dispatch_translation(
+            config.translator.translator_gen,
+            texts,
+            config.translator,
+            self.use_mtpe,
+            ctx,
+            'cpu' if self._gpu_limited_memory else self.device
+        )
+
     async def _run_text_translation(self, config: Config, ctx: Context):
         # 如果设置了prep_manual则将translator设置为none，防止token浪费
         # Set translator to none to provent token waste if prep_manual is True  
@@ -631,12 +712,11 @@ class MangaTranslator:
             # 如果是none翻译器，不需要调用翻译服务，文本已经设置为空  
             # If using none translator, no need to call translation service, text is already set to empty  
             if config.translator.translator != Translator.none:  
+                # 自动给 ChatGPT 加上下文，其他翻译器不改变
+                # Automatically add context to ChatGPT, no change for other translators
+                texts = [region.text for region in ctx.text_regions]
                 translated_sentences = \
-                    await dispatch_translation(config.translator.translator_gen,  
-                                              [region.text for region in ctx.text_regions],  
-                                              config.translator,  
-                                              self.use_mtpe,  
-                                              ctx, 'cpu' if self._gpu_limited_memory else self.device)  
+                    await self._dispatch_with_context(config, texts, ctx)
             else:  
                 # 对于none翻译器，创建一个空翻译列表  
                 # For none translator, create an empty translation list  
@@ -742,6 +822,12 @@ class MangaTranslator:
                 # Forced replacement rules
                 for v in replace_items:
                     region.translation = region.translation.replace(v[1], v[0])
+
+        # 汇总本页翻译，供下一页做上文
+        # Collect translations for the current page to use as "previous context" for the next page
+        page_translations = {r.text_raw if hasattr(r, "text_raw") else r.text: r.translation
+                             for r in ctx.text_regions}
+        self.all_page_translations.append(page_translations)
 
         # Apply post dictionary after translating
         post_dict = load_dictionary(self.post_dict)
