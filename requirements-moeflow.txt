@@ -55,14 +55,14 @@ manga-ocr
 # bitsandbytes
 # uvicorn
 # fastapi
-pydantic==2.5.0
+pydantic==2.11.5
 # python-multipart
-google-genai==1.8.0
+google-genai==1.18.0
 rich
 
 paddleocr==2.10.0
 paddlepaddle==2.6.2
 paddlepaddle-gpu==2.6.2; sys_platform != 'darwin'
 
-gradio==5.23.0
-orjson==3.10.11
+gradio==5.32.1
+orjson==3.10.18

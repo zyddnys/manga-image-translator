@@ -29,13 +29,13 @@ with gr.Blocks() as multimodal_workflow_block:
 
     model_input = gr.Radio(
         choices=[
-            GcpGeminiBare.gemini25_pro,
-            GcpGeminiBare.gemini25_flash,
-            GcpGeminiBare.gemini20_flash,
             GcpGeminiBare.gemini20_flash_lite,
+            GcpGeminiBare.gemini20_flash,
+            GcpGeminiBare.gemini25_flash,
+            GcpGeminiBare.gemini25_pro,
         ],
         label="LLM",
-        value=GcpGeminiBare.gemini20_flash_lite,
+        value=GcpGeminiBare.gemini25_flash,
     )
     export_moeflow_project_name_input = gr.Text(
         None,
@@ -65,7 +65,7 @@ with gr.Blocks() as multimodal_workflow_block:
         target_language: str | None,
         export_moeflow_project_name: str | None,
     ) -> tuple[str, str | None]:
-        processed = process_images(
+        processed = await process_images(
             image_files=[Path(f) for f in gradio_temp_files],
             target_lang=target_language,
             model=model,

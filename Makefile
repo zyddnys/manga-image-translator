@@ -18,6 +18,7 @@ run-web-server:
 		zyddnys/manga-image-translator:main \
 		server/main.py --verbose --start-instance --host=0.0.0.0 --port=5003 --use-gpu
 
+######### moeflow_companion #########
 CONDA_ENV = mit-py311
 
 # for shell completion. they got overridden in included files
@@ -30,5 +31,11 @@ conda-venv:
 format:
 
 upgrade-deps:
+
+run-gradio:
+
+run-gradio-mit:
+
+prepare-models:
 
 include Makefile.shared.mk Makefile.moeflow.mk
