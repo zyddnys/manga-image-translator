@@ -80,6 +80,10 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
 
         # 添加 rich 的 Console 对象  
         self.console = Console()  
+        self.prev_context = ""
+
+    def set_prev_context(self, text: str = ""):
+        self.prev_context = text or ""     
 
     def parse_args(self, args: CommonTranslator):
         """如果你有外部参数要解析，可在此对 self.config 做更新"""
@@ -116,6 +120,9 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
           - 根据字符长度 roughly 判断
           - 也可以用更准确的 tokens 估算
         """
+
+        lang_name = self._LANGUAGE_CODE_MAP.get(to_lang, to_lang) if to_lang in self._LANGUAGE_CODE_MAP else to_lang
+        
         MAX_CHAR_PER_PROMPT = self._MAX_TOKENS * 4  # 粗略: 1 token ~ 4 chars
         chunk_queries = []
         current_length = 0
@@ -137,7 +144,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         for this_batch in chunk_queries:
             prompt = ""
             if self.include_template:
-                prompt = self.prompt_template.format(to_lang=to_lang)
+                prompt = self.prompt_template.format(to_lang=lang_name)
             # 加上分行内容
             for i, query in enumerate(this_batch):
                 prompt += f"\n<|{i+1}|>{query}"
@@ -221,6 +228,9 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 new_translations = re.split(r'<\|\d+\|>', response_text)
                 merged_single_query = False
 
+                if new_translations and not new_translations[0].strip():
+                    new_translations = new_translations[1:]          
+                    
                 # 单查询多段响应处理
                 # Single Query Multiple Response Processing
                 if len(batch_queries) == 1 and len(new_translations) > 1:
@@ -521,9 +531,11 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         The actual request part that calls openai.ChatCompletion.
         Incorporate the glossary function.
         """        
+        lang_name = self._LANGUAGE_CODE_MAP.get(to_lang, to_lang) if to_lang in self._LANGUAGE_CODE_MAP else to_lang
+                
         # 构建 messages / Construct messages
         messages = [  
-            {'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)},  
+            {'role': 'system', 'content': self.chat_system_template.format(to_lang=lang_name)},  
         ]  
 
         # 提取相关术语并添加到系统消息中  / Extract relevant terms and add them to the system message
@@ -536,7 +548,11 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             system_message = self.glossary_system_template.format(glossary_text=glossary_text)  
             messages.append({'role': 'system', 'content': system_message})  
             self.logger.info(f"Loaded {len(relevant_terms)} relevant terms from the glossary.")  
-            
+        
+        # 如果有上文，添加到系统消息中 / If there is a previous context, add it to the system message        
+        if self.prev_context:
+            messages.append({'role': 'system', 'content': self.prev_context})            
+        
         # 如果需要先给出示例对话
         # Add chat samples if available
         lang_chat_samples = self.get_chat_sample(to_lang)
@@ -583,7 +599,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
 
         # 去除 <think>...</think> 标签及内容。由于某些中转api的模型的思考过程是被强制输出的，并不包含在reasoning_content中，需要额外过滤
         # Remove <think>...</think> tags and their contents. Since the reasoning process of some relay API models is forcibly output and not included in the reasoning_content, additional filtering is required.
-        raw_text = re.sub(r'<think>.*?</think>', '', raw_text, flags=re.DOTALL)
+        raw_text = re.sub(r'(</think>)?<think>.*?</think>', '', raw_text, flags=re.DOTALL)
 
         # 删除多余的空行 / Remove extra blank lines
         

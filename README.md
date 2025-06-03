@@ -1,5 +1,5 @@
 # Manga/Image Translator (English Readme)
-Last Updated: 2025/04/28
+Last Updated: 2025/05/10
 ---
 ![Commit activity](https://img.shields.io/github/commit-activity/m/zyddnys/manga-image-translator)
 ![Lines of code](https://img.shields.io/tokei/lines/github/zyddnys/manga-image-translator?label=lines%20of%20code)
@@ -15,7 +15,7 @@ Last Updated: 2025/04/28
 This project aims to translate images that are unlikely to be professionally translated, such as comics/images on various group chats and image boards, making it possible for Japanese novices like me to understand the content.
 It mainly supports Japanese, but also supports Simplified and Traditional Chinese, English and 20 other minor languages.
 Supports image repair (text removal) and typesetting.
-This project is v2 of [Qiū wén zhuǎn yì zhì](https://github.com/PatchyVideo/MMDOCR-HighPerformance).
+This project is v2 of [Qiú wén zhuǎn yì zhì](https://github.com/PatchyVideo/MMDOCR-HighPerformance).
 
 **Note: This project is still in the early stages of development and has many shortcomings. We need your help to improve it!**
 
@@ -396,6 +396,7 @@ Colorizer: **mc2**
 --pre-dict PRE_DICT            Path to the pre-translation replacement dictionary file
 --post-dict POST_DICT          Path to the post-translation replacement dictionary file
 --kernel-size KERNEL_SIZE      Set the kernel size for the convolution of text erasure area to completely clear residual text
+--context-size                 Pages of context are needed for translating the current page. currently, this only applies to openaitranslator. 
 ```
 #### Additional Options
 ##### Local Mode Options
@@ -459,12 +460,20 @@ An example config file can be found in example/config-example.json
   <pre><code class="language-json">{
   "$defs": {
     "Alignment": {
-      "enum": ["auto", "left", "center", "right"],
+      "enum": [
+        "auto",
+        "left",
+        "center",
+        "right"
+      ],
       "title": "Alignment",
       "type": "string"
     },
     "Colorizer": {
-      "enum": ["none", "mc2"],
+      "enum": [
+        "none",
+        "mc2"
+      ],
       "title": "Colorizer",
       "type": "string"
     },
@@ -481,7 +490,7 @@ An example config file can be found in example/config-example.json
           "type": "integer"
         },
         "colorizer": {
-          "allOf": [{ "$ref": "#/$defs/Colorizer" }],
+          "$ref": "#/$defs/Colorizer",
           "default": "none"
         }
       },
@@ -489,14 +498,21 @@ An example config file can be found in example/config-example.json
       "type": "object"
     },
     "Detector": {
-      "enum": ["default", "dbconvnext", "ctd", "craft", "paddle", "none"],
+      "enum": [
+        "default",
+        "dbconvnext",
+        "ctd",
+        "craft",
+        "paddle",
+        "none"
+      ],
       "title": "Detector",
       "type": "string"
     },
     "DetectorConfig": {
       "properties": {
         "detector": {
-          "allOf": [{ "$ref": "#/$defs/Detector" }],
+          "$ref": "#/$defs/Detector",
           "default": "default"
         },
         "detection_size": {
@@ -530,7 +546,7 @@ An example config file can be found in example/config-example.json
           "type": "boolean"
         },
         "box_threshold": {
-          "default": 0.7,
+          "default": 0.75,
           "title": "Box Threshold",
           "type": "number"
         },
@@ -544,24 +560,39 @@ An example config file can be found in example/config-example.json
       "type": "object"
     },
     "Direction": {
-      "enum": ["auto", "horizontal", "vertical"],
+      "enum": [
+        "auto",
+        "horizontal",
+        "vertical"
+      ],
       "title": "Direction",
       "type": "string"
     },
     "InpaintPrecision": {
-      "enum": ["fp32", "fp16", "bf16"],
+      "enum": [
+        "fp32",
+        "fp16",
+        "bf16"
+      ],
       "title": "InpaintPrecision",
       "type": "string"
     },
     "Inpainter": {
-      "enum": ["default", "lama_large", "lama_mpe", "sd", "none", "original"],
+      "enum": [
+        "default",
+        "lama_large",
+        "lama_mpe",
+        "sd",
+        "none",
+        "original"
+      ],
       "title": "Inpainter",
       "type": "string"
     },
     "InpainterConfig": {
       "properties": {
         "inpainter": {
-          "allOf": [{ "$ref": "#/$defs/Inpainter" }],
+          "$ref": "#/$defs/Inpainter",
           "default": "lama_large"
         },
         "inpainting_size": {
@@ -570,7 +601,7 @@ An example config file can be found in example/config-example.json
           "type": "integer"
         },
         "inpainting_precision": {
-          "allOf": [{ "$ref": "#/$defs/InpaintPrecision" }],
+          "$ref": "#/$defs/InpaintPrecision",
           "default": "bf16"
         }
       },
@@ -578,7 +609,12 @@ An example config file can be found in example/config-example.json
       "type": "object"
     },
     "Ocr": {
-      "enum": ["32px", "48px", "48px_ctc", "mocr"],
+      "enum": [
+        "32px",
+        "48px",
+        "48px_ctc",
+        "mocr"
+      ],
       "title": "Ocr",
       "type": "string"
     },
@@ -590,7 +626,7 @@ An example config file can be found in example/config-example.json
           "type": "boolean"
         },
         "ocr": {
-          "allOf": [{ "$ref": "#/$defs/Ocr" }],
+          "$ref": "#/$defs/Ocr",
           "default": "48px"
         },
         "min_text_length": {
@@ -610,11 +646,11 @@ An example config file can be found in example/config-example.json
     "RenderConfig": {
       "properties": {
         "renderer": {
-          "allOf": [{ "$ref": "#/$defs/Renderer" }],
+          "$ref": "#/$defs/Renderer",
           "default": "default"
         },
         "alignment": {
-          "allOf": [{ "$ref": "#/$defs/Alignment" }],
+          "$ref": "#/$defs/Alignment",
           "default": "auto"
         },
         "disable_font_border": {
@@ -633,7 +669,7 @@ An example config file can be found in example/config-example.json
           "type": "integer"
         },
         "direction": {
-          "allOf": [{ "$ref": "#/$defs/Direction" }],
+          "$ref": "#/$defs/Direction",
           "default": "auto"
         },
         "uppercase": {
@@ -657,35 +693,84 @@ An example config file can be found in example/config-example.json
           "type": "boolean"
         },
         "font_color": {
-          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": null,
           "title": "Font Color"
         },
         "line_spacing": {
-          "anyOf": [{ "type": "integer" }, { "type": "null" }],
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": null,
           "title": "Line Spacing"
         },
         "font_size": {
-          "anyOf": [{ "type": "integer" }, { "type": "null" }],
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": null,
           "title": "Font Size"
+        },
+        "rtl": {
+          "default": false,
+          "title": "Rtl",
+          "type": "boolean"
         }
       },
       "title": "RenderConfig",
       "type": "object"
     },
     "Renderer": {
-      "enum": ["default", "manga2eng", "none"],
+      "enum": [
+        "default",
+        "manga2eng",
+        "none"
+      ],
       "title": "Renderer",
       "type": "string"
     },
     "Translator": {
       "enum": [
-        "youdao", "baidu", "deepl", "papago", "caiyun", "chatgpt", "none",
-        "original", "sakura", "deepseek", "groq", "gemini", "custom_openai",
-        "offline", "nllb", "nllb_big", "sugoi", "jparacrawl", "jparacrawl_big",
-        "m2m100", "m2m100_big", "mbart50", "qwen2", "qwen2_big"
+        "youdao",
+        "baidu",
+        "deepl",
+        "papago",
+        "caiyun",
+        "chatgpt",
+        "none",
+        "original",
+        "sakura",
+        "deepseek",
+        "groq",
+        "custom_openai",
+        "offline",
+        "nllb",
+        "nllb_big",
+        "sugoi",
+        "jparacrawl",
+        "jparacrawl_big",
+        "m2m100",
+        "m2m100_big",
+        "mbart50",
+        "qwen2",
+        "qwen2_big"
       ],
       "title": "Translator",
       "type": "string"
@@ -693,11 +778,11 @@ An example config file can be found in example/config-example.json
     "TranslatorConfig": {
       "properties": {
         "translator": {
-          "allOf": [{ "$ref": "#/$defs/Translator" }],
+          "$ref": "#/$defs/Translator",
           "default": "sugoi"
         },
         "target_lang": {
-          "default": "ENG",
+          "default": "CHS",
           "title": "Target Lang",
           "type": "string"
         },
@@ -707,22 +792,50 @@ An example config file can be found in example/config-example.json
           "type": "boolean"
         },
         "skip_lang": {
-          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": null,
           "title": "Skip Lang"
         },
         "gpt_config": {
-          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": null,
           "title": "Gpt Config"
         },
         "translator_chain": {
-          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": null,
           "title": "Translator Chain"
         },
         "selective_translation": {
-          "anyOf": [{ "type": "string" }, { "type": "null" }],
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": null,
           "title": "Selective Translation"
         }
@@ -733,7 +846,7 @@ An example config file can be found in example/config-example.json
     "UpscaleConfig": {
       "properties": {
         "upscaler": {
-          "allOf": [{ "$ref": "#/$defs/Upscaler" }],
+          "$ref": "#/$defs/Upscaler",
           "default": "esrgan"
         },
         "revert_upscaling": {
@@ -742,7 +855,14 @@ An example config file can be found in example/config-example.json
           "type": "boolean"
         },
         "upscale_ratio": {
-          "anyOf": [{ "type": "integer" }, { "type": "null" }],
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": null,
           "title": "Upscale Ratio"
         }
@@ -751,19 +871,30 @@ An example config file can be found in example/config-example.json
       "type": "object"
     },
     "Upscaler": {
-      "enum": ["waifu2x", "esrgan", "4xultrasharp"],
+      "enum": [
+        "waifu2x",
+        "esrgan",
+        "4xultrasharp"
+      ],
       "title": "Upscaler",
       "type": "string"
     }
   },
   "properties": {
     "filter_text": {
-      "anyOf": [{ "type": "string" }, { "type": "null" }],
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
       "default": null,
       "title": "Filter Text"
     },
     "render": {
-      "allOf": [{ "$ref": "#/$defs/RenderConfig" }],
+      "$ref": "#/$defs/RenderConfig",
       "default": {
         "renderer": "default",
         "alignment": "auto",
@@ -777,11 +908,12 @@ An example config file can be found in example/config-example.json
         "no_hyphenation": false,
         "font_color": null,
         "line_spacing": null,
-        "font_size": null
+        "font_size": null,
+        "rtl": true
       }
     },
     "upscale": {
-      "allOf": [{ "$ref": "#/$defs/UpscaleConfig" }],
+      "$ref": "#/$defs/UpscaleConfig",
       "default": {
         "upscaler": "esrgan",
         "revert_upscaling": false,
@@ -789,10 +921,10 @@ An example config file can be found in example/config-example.json
       }
     },
     "translator": {
-      "allOf": [{ "$ref": "#/$defs/TranslatorConfig" }],
+      "$ref": "#/$defs/TranslatorConfig",
       "default": {
         "translator": "sugoi",
-        "target_lang": "ENG",
+        "target_lang": "CHS",
         "no_text_lang_skip": false,
         "skip_lang": null,
         "gpt_config": null,
@@ -801,7 +933,7 @@ An example config file can be found in example/config-example.json
       }
     },
     "detector": {
-      "allOf": [{ "$ref": "#/$defs/DetectorConfig" }],
+      "$ref": "#/$defs/DetectorConfig",
       "default": {
         "detector": "default",
         "detection_size": 2048,
@@ -810,12 +942,12 @@ An example config file can be found in example/config-example.json
         "det_auto_rotate": false,
         "det_invert": false,
         "det_gamma_correct": false,
-        "box_threshold": 0.7,
+        "box_threshold": 0.75,
         "unclip_ratio": 2.3
       }
     },
     "colorizer": {
-      "allOf": [{ "$ref": "#/$defs/ColorizerConfig" }],
+      "$ref": "#/$defs/ColorizerConfig",
       "default": {
         "colorization_size": 576,
         "denoise_sigma": 30,
@@ -823,15 +955,14 @@ An example config file can be found in example/config-example.json
       }
     },
     "inpainter": {
-      "allOf": [{ "$ref": "#/$defs/InpainterConfig" }],
+      "$ref": "#/$defs/InpainterConfig",
       "default": {
         "inpainter": "lama_large",
         "inpainting_size": 2048,
-        "inpainting_precision": "bf16"
       }
     },
     "ocr": {
-      "allOf": [{ "$ref": "#/$defs/OcrConfig" }],
+      "$ref": "#/$defs/OcrConfig",
       "default": {
         "use_mocr_merge": false,
         "ocr": "48px",
@@ -845,7 +976,7 @@ An example config file can be found in example/config-example.json
       "type": "integer"
     },
     "mask_dilation_offset": {
-      "default": 0,
+      "default": 30,
       "title": "Mask Dilation Offset",
       "type": "integer"
     }
@@ -867,9 +998,10 @@ uppercase         Converts text to uppercase
 lowercase         Converts text to lowercase
 gimp_font         Font family used for GIMP rendering
 no_hyphenation    Whether to disable hyphenation by the renderer
-font_color        Overrides the text foreground/background color detected by the OCR model. Use a hex string without "#", e.g., FFFFFF for white foreground, FFFFFF:000000 to set both black background
+font_color        Overrides the text foreground/background color detected by the OCR model. Use a hex string without "#", e.g., FFFFFF: for white foreground, :000000 for black background, FFFFFF:000000 to set both.
 line_spacing      Line spacing is font size * this value. Default is 0.01 for horizontal, 0.2 for vertical text
 font_size         Use a fixed font size for rendering
+rtl               Right-to-left reading order for panel and text_region sorting. Defalt is true
 ```
 
 #### Upscale Options
@@ -966,22 +1098,33 @@ FIL: Filipino (Tagalog)
 ```
 
 #### Translator Reference
-| Name          | API Key | Offline | Note                                                     |
+| Name | API Key | Offline | Note |
 |---------------|---------|---------|----------------------------------------------------------|
-| <s>google</s> |         |         | Temporarily disabled                                     |
-| youdao        | ✔️      |         | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY`        |
-| baidu         | ✔️      |         | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY`           |
-| deepl         | ✔️      |         | Requires `DEEPL_AUTH_KEY`                                |
-| openai        | ✔️      |         | Implements Requires `OPENAI_API_KEY`                     |
-| papago        |         |         |                                                          |
-| sakura        |         |         | Requires `SAKURA_API_BASE`                               |
-| custom openai |         |         | Requires  `CUSTOM_OPENAI_API_BASE` `CUSTOM_OPENAI_MODEL` |
-| offline       |         | ✔️      | Use the most suitable offline translator for the language    |
-| sugoi         |         | ✔️      | Sugoi V4.0 model                                         |
-| m2m100        |         | ✔️      | Supports all languages                                   |
-| m2m100_big    |         | ✔️      |                                                          |
-| none          |         | ✔️      | Translate to empty text                                 |
-| original      |         | ✔️      | Keep original text                                      |
+| <s>google</s> | | | Temporarily disabled |
+| youdao | ✔️ | | Requires `YOUDAO_APP_KEY` and `YOUDAO_SECRET_KEY` |
+| baidu | ✔️ | | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY` |
+| deepl | ✔️ | | Requires `DEEPL_AUTH_KEY` |
+| caiyun | ✔️ | | Requires `CAIYUN_TOKEN` |
+| openai | ✔️ | | Requires `OPENAI_API_KEY` |
+| deepseek | ✔️ | | Requires `DEEPSEEK_API_KEY` |
+| groq | ✔️ | | Requires `GROQ_API_KEY` |
+| gemini | ✔️ | | Requires `GEMINI_API_KEY` |
+| papago | | | |
+| sakura | | | Requires `SAKURA_API_BASE` |
+| custom_openai | | | Requires `CUSTOM_OPENAI_API_BASE` `CUSTOM_OPENAI_MODEL` |
+| offline | | ✔️ | Use the most suitable offline translator for the language|
+| nllb | | ✔️ | Offline translation model |
+| nllb_big | | ✔️ | Larger NLLB model |
+| sugoi | | ✔️ | Sugoi V4.0 model |
+| jparacrawl | | ✔️ | Japanese translation model |
+| jparacrawl_big| | ✔️ | Larger Japanese translation model |
+| m2m100 | | ✔️ | Supports multilingual translation |
+| m2m100_big | | ✔️ | Larger M2M100 model |
+| mbart50 | | ✔️ | Multilingual translation model |
+| qwen2 | | ✔️ | Qwen2 model |
+| qwen2_big | | ✔️ | Larger Qwen2 model |
+| none | | ✔️ | Translate to empty text |
+| original | | ✔️ | Keep original text |
 
 -   API Key: Indicates whether the translator requires API keys to be set as environment variables.
 To do this, you can create a .env file in the project root directory and include your API keys, for example:
@@ -1016,29 +1159,32 @@ This can achieve further optimization of the translation effect and make it poss
 #### Environment Variables Summary
 
 | Environment Variable Name              | Description                                                                                              | Default Value                      | Remarks                                                                                                   |
-| :------------------------------------- | :------------------------------------------------------------------------------------------------------- | :--------------------------------- | :-------------------------------------------------------------------------------------------------------- |
+| :------------------------------------ | :-------------------------------------------------------------------------------------------------------- | :--------------------------------- | :-------------------------------------------------------------------------------------------------------- |
 | `BAIDU_APP_ID`                         | Baidu Translate appid                                                                                    | `''`                               |                                                                                                           |
 | `BAIDU_SECRET_KEY`                     | Baidu Translate secret key                                                                               | `''`                               |                                                                                                           |
 | `YOUDAO_APP_KEY`                       | Youdao Translate application ID                                                                          | `''`                               |                                                                                                           |
 | `YOUDAO_SECRET_KEY`                    | Youdao Translate application secret key                                                                  | `''`                               |                                                                                                           |
 | `DEEPL_AUTH_KEY`                       | DeepL Translate AUTH_KEY                                                                                 | `''`                               |                                                                                                           |
 | `OPENAI_API_KEY`                       | OpenAI API Key                                                                                           | `''`                               |                                                                                                           |
-| `OPENAI_MODEL`                         | OpenAI Model (Optional)                                                                                  | `''`                               |                                                                                                           |
-| `OPENAI_HTTP_PROXY`                    | OpenAI HTTP Proxy (Optional)                                                                             | `''`                               | Replaces `--proxy`                                                                                      |
-| `OPENAI_GLOSSARY_PATH`                 | Path to OpenAI glossary (Optional)                                                                       | `./dict/mit_glossory.txt`            |                                                                                                           |
-| `OPENAI_API_BASE`                      | OpenAI API Base URL (Optional)                                                                           | `https://api.openai.com/v1`          | Defaults to official address                                                                                |
-|`GROQ_API_KEY`                          | Groq API Key                                                                                             | ||
-| `SAKURA_API_BASE`                      | SAKURA API Address (Optional)                                                                            | `http://127.0.0.1:8080/v1`           |                                                                                                           |
-| `SAKURA_VERSION`                       | SAKURA API Version (Optional)                                                                            | `'0.9'`                              | `0.9` or `0.10`                                                                                           |
-| `SAKURA_DICT_PATH`                     | Path to SAKURA dictionary (Optional)                                                                     | `./dict/sakura_dict.txt`             |                                                                                                           |
+| `OPENAI_MODEL`                         | OpenAI Model                                                                                        | `'chatgpt-4o-latest'`              |                                                                                                           |
+| `OPENAI_HTTP_PROXY`                    | OpenAI HTTP Proxy                                                                              | `''`                               | Replaces `--proxy`                                                                                         |
+| `OPENAI_GLOSSARY_PATH`                 | Path to OpenAI glossary                                                                        | `./dict/mit_glossary.txt`         |                                                                                                           |
+| `OPENAI_API_BASE`                      | OpenAI API Base URL                                                                            | `https://api.openai.com/v1`        | Defaults to official address                                                                               |
+| `GROQ_API_KEY`                         | Groq API Key                                                                                             | `''`                               |                                                                                                           |
+| `GROQ_MODEL`                           | Groq Model name                                                                                          | `'mixtral-8x7b-32768'`             |                                                                                                           |
+| `SAKURA_API_BASE`                      | SAKURA API Address                                                                                 | `http://127.0.0.1:8080/v1`         |                                                                                                           |
+| `SAKURA_VERSION`                       | SAKURA API Version                                                                                 | `'0.9'`                            | `0.9` or `0.10`                                                                                           |
+| `SAKURA_DICT_PATH`                     | Path to SAKURA dictionary                                                                          | `./dict/sakura_dict.txt`           |                                                                                                           |
 | `CAIYUN_TOKEN`                         | Caiyun Xiaoyi API access token                                                                           | `''`                               |                                                                                                           |
-| `DEEPSEEK_API_KEY`                     | DeepSeek API Key                                                                                         | `''`                               |                                                                                                            |
-| `DEEPSEEK_API_BASE`                    | DeepSeek API Base URL (Optional)                                                                         |   `https://api.deepseek.com`                                                              |    |
-| `CUSTOM_OPENAI_API_KEY`                | Custom OpenAI API Key (Not needed for Ollama, but possibly other tools)                                  | `'ollama'`                            |                                                                                                           |
-| `CUSTOM_OPENAI_API_BASE`               | Custom OpenAI API Base URL (Use OLLAMA_HOST environment variable to change bind ip and port)              | `http://localhost:11434/v1`          |                                                                                                           |
-| `CUSTOM_OPENAI_MODEL`                  | Custom OpenAI Model (e.g., "qwen2.5:7b", ensure you pull and run it before usage)                        | `''`                                 |                                                                                                           |
-| `CUSTOM_OPENAI_MODEL_CONF`             | e.g. "qwen2"                                                                                             | `''` |                                                                                                              |
-
+| `GEMINI_API_KEY`                       | Gemini API Key                                                                                           | `''`                               |                                                                                                           |
+| `GEMINI_MODEL`                         | Gemini Model name                                                                                        | `'gemini-1.5-flash-002'`           |                                                                                                           |
+| `DEEPSEEK_API_KEY`                     | DeepSeek API Key                                                                                         | `''`                               |                                                                                                           |
+| `DEEPSEEK_API_BASE`                    | DeepSeek API Base URL                                                                                   | `https://api.deepseek.com`         |                                                                                                           |
+| `DEEPSEEK_MODEL`                       | DeepSeek Model name                                                                                      | `deepseek-chat`                  | Options: `deepseek-chat` or `deepseek-reasoner`                                                           |
+| `CUSTOM_OPENAI_API_KEY`                | Custom OpenAI API Key                                                    | `ollama`                         | Not needed for Ollama, but possibly required for other tools                                               |
+| `CUSTOM_OPENAI_API_BASE`               | Custom OpenAI API Base URL                                | `http://localhost:11434/v1`        | Use OLLAMA_HOST environment variable to change bind IP and port                                            |
+| `CUSTOM_OPENAI_MODEL`                  | Custom OpenAI compatible model name                                               | `''`                               | Example: `qwen2.5:7b`, ensure you pull and run it before usage                                             |
+| `CUSTOM_OPENAI_MODEL_CONF`             | Custom OpenAI compatible model configuration                                              | `''`                               | Example: `qwen2`                                                                                          |
 
 **Instructions for use:**
 

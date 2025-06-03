@@ -1,4 +1,5 @@
 import os
+import sys
 import asyncio
 import logging
 from argparse import Namespace
@@ -93,8 +94,11 @@ if __name__ == '__main__':
 
         asyncio.run(dispatch(args))
     except KeyboardInterrupt:
-        if not args or args.mode != 'web':
-            print()
+        print('\nTranslation cancelled by user.')
+        sys.exit(0)
+    except asyncio.CancelledError:
+        print('\nTranslation cancelled by user.')
+        sys.exit(0)
     except Exception as e:
         logger.error(f'{e.__class__.__name__}: {e}',
                      exc_info=e if args and args.verbose else None)
