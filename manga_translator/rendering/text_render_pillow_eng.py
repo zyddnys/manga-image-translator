@@ -8,17 +8,17 @@ from .ballon_extractor import extract_ballon_region
 from ..utils import TextBlock
 from .text_render_eng import PUNSET_RIGHT_ENG, seg_eng
 
-def merge_seg_eng(text: str, font, bbox_width) -> List[str]:
+def merge_seg_eng(text: str, font, bbox_width, size_ratio=1.2) -> List[str]:
     """Segments text into words that fit within bbox_width"""
     grouped = seg_eng(text)
     lines = []
     current_line = ''
     text_max_width = max([font.getbbox(word)[2] - font.getbbox(word)[0] for word in grouped])
-    bbox_width = max(bbox_width, text_max_width)
+    max_width = max(bbox_width, text_max_width) * size_ratio
     for word in grouped:
         test_line = f"{current_line} {word}" if current_line else word
         width = font.getbbox(test_line)[2] - font.getbbox(test_line)[0]
-        if width <= bbox_width:
+        if width <= max_width:
             current_line = test_line
         else:
             if current_line:
@@ -78,7 +78,7 @@ def _find_collision_free_position(bbox_idx, bboxes, anchors, image_bounds, spira
 
     return None
 
-def solve_collisions_spiral_xyxy(image_shape, initial_bboxes_xyxy, max_iterations=10, spiral_limit=1e7, padding=0):
+def solve_collisions_spiral_xyxy(image_shape, initial_bboxes_xyxy, max_iterations=10, spiral_limit=1e5, padding=0):
     """Adjust bounding boxes to avoid overlaps using spiral search"""
     bboxes = [[x1-padding, y1-padding, x2+padding, y2+padding]
               for x1, y1, x2, y2 in initial_bboxes_xyxy]
@@ -111,7 +111,7 @@ def render_textblock_list_eng(
     text_regions: List[TextBlock],
     font_color=(0, 0, 0),
     stroke_color=(255, 255, 255),
-    ballonarea_thresh: float = 1.2,
+    ballonarea_thresh: float = 2.0,
     downscale_constraint: float = 0.7,
     original_img: np.ndarray = None,
     max_font_size: int = 300,
