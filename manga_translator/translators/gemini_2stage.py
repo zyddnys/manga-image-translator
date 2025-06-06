@@ -70,15 +70,22 @@ class Gemini2StageTranslator(CommonTranslator):
     _RIGHT_SYMBOLS = [')', '）', ']', '】', '}', '〕', '〉', '」', '"', "'", '》', '』', '"', '〞', '﹂', '﹄', '⸃', '⸅', '⸊',
                       '⸍', '⸝', '⸡', '›', '»']
 
-    def __init__(self):
+    def __init__(
+        self,
+        refine_model = 'Qwen/Qwen2.5-VL-72B-Instruct',
+        translate_model = 'gemini-2.5-flash-preview-05-20',
+        max_tokens = 30000,
+        refine_temperature = 0.0,
+        translate_temperature = 0.1,
+    ):
         super().__init__()
         self.stage = 2
         self.client = OpenAI(api_key=os.environ.get("TOGETHER_API_KEY"), base_url="https://api.together.xyz/v1")
         self.client2 = OpenAI(api_key=os.environ.get("GEMINI_API_KEY"),
                               base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
-        self.refine_model, self.translate_model = "Qwen/Qwen2.5-VL-72B-Instruct", "gemini-2.5-flash-preview-05-20"
-        self.max_tokens = 30000
-        self.refine_temperature, self.translate_temperature = 0.0, 0.1
+        self.refine_model, self.translate_model = refine_model, translate_model
+        self.max_tokens = max_tokens
+        self.refine_temperature, self.translate_temperature = refine_temperature, translate_temperature
         self.refine_response_schema, self.translate_response_schema = TextBoundingBoxes, TranslatedTexts
 
     def supports_languages(self, from_lang: str, to_lang: str, fatal: bool = False) -> bool:
