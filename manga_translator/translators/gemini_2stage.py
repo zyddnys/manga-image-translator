@@ -1,4 +1,4 @@
-import os, re, asyncio, base64, json
+import os, re, asyncio, base64
 from io import BytesIO
 from typing import List
 from collections import Counter
@@ -167,7 +167,7 @@ class Gemini2StageTranslator(CommonTranslator):
         base64_img, nw, nh = encode_image(rgb_img)
         refine_prompt = self.get_prompt(query_regions, w, h, nw, nh)
 
-        response = json.loads(self.client.chat.completions.create(
+        response = self.client.beta.chat.completions.parse(
             model=self.refine_model,
             messages=[
                 {"role": "system", "content": self._get_refine_system_instruction(from_lang)},
@@ -178,11 +178,10 @@ class Gemini2StageTranslator(CommonTranslator):
             ],
             temperature=self.refine_temperature,
             max_completion_tokens=self.max_tokens,
-            response_format={"type": "json_object", "schema": self.refine_response_schema.model_json_schema()}
-        ).choices[0].message.content)
+            response_format=self.refine_response_schema,
+        ).choices[0].message.parsed
 
-        refine_sentences = self.process_refine_output(
-            [r["corrected_text"].replace("\n", " ") for r in response["bboxes"]])
+        refine_sentences = self.process_refine_output([r.corrected_text.replace("\n", " ") for r in response.bboxes])
         translate_prompt = self.get_prompt(query_regions, w, h, nw, nh, only_text=True, texts=refine_sentences)
 
         response = self.client2.beta.chat.completions.parse(
