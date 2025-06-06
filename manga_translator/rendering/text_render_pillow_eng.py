@@ -6,34 +6,15 @@ from typing import List
 
 from .ballon_extractor import extract_ballon_region
 from ..utils import TextBlock
-from .text_render_eng import PUNSET_RIGHT_ENG
+from .text_render_eng import PUNSET_RIGHT_ENG, seg_eng
 
-def seg_eng(text: str, font, bbox_width) -> List[str]:
+def merge_seg_eng(text: str, font, bbox_width) -> List[str]:
     """Segments text into words that fit within bbox_width"""
-    text = re.sub(r'\s+', ' ', text.strip().upper().replace('\n', ' '))
-    text = re.sub(r'([.?!:;)}"]) ([A-Za-z0-9])', r'\1 \2', text)
-
-    words = text.split()
-    if len(words) <= 1:
-        return words
-
-    # Group short words
-    grouped = []
-    i = 0
-    while i < len(words):
-        word = words[i]
-        if len(word) < 3 and i < len(words) - 1:
-            next_word = words[i + 1]
-            if len(word) == 1 or (len(word) == 2 and len(next_word) <= 4):
-                grouped.append(f"{word} {next_word}")
-                i += 2
-                continue
-        grouped.append(word)
-        i += 1
-
-    # Fit words to bbox width
+    grouped = seg_eng(text)
     lines = []
     current_line = ''
+    text_max_width = max([font.getbbox(word)[2] - font.getbbox(word)[0] for word in grouped])
+    bbox_width = max(bbox_width, text_max_width)
     for word in grouped:
         test_line = f"{current_line} {word}" if current_line else word
         width = font.getbbox(test_line)[2] - font.getbbox(test_line)[0]
@@ -130,7 +111,7 @@ def render_textblock_list_eng(
     text_regions: List[TextBlock],
     font_color=(0, 0, 0),
     stroke_color=(255, 255, 255),
-    ballonarea_thresh: float = 2,
+    ballonarea_thresh: float = 1.2,
     downscale_constraint: float = 0.7,
     original_img: np.ndarray = None,
     max_font_size: int = 300,
@@ -168,7 +149,7 @@ def render_textblock_list_eng(
         if isinstance(xyxy, tuple):
             xyxy = list(xyxy)
         font = ImageFont.truetype(font_path, font_size)
-        words = seg_eng(region.translation, font, region.xywh[2])
+        words = merge_seg_eng(region.translation, font, region.xywh[2])
         if not words:
             continue
 
@@ -176,6 +157,7 @@ def render_textblock_list_eng(
         ballon_area = (ballon_mask > 0).sum()
         rx, ry = 0, 0
 
+        region.angle = -region.angle
         if abs(region.angle) > 3:
             angle_rad = np.deg2rad(region.angle % 360)
             sin_a, cos_a = np.sin(angle_rad), np.cos(angle_rad)
@@ -214,7 +196,7 @@ def render_textblock_list_eng(
                 if font_size_multiplier < 1:
                     font_size = int(font_size * font_size_multiplier)
                     font = ImageFont.truetype(font_path, font_size)
-                    words = seg_eng(region.translation, font, region.xywh[2])
+                    words = merge_seg_eng(region.translation, font, region.xywh[2])
                     sw, line_height, delimiter_len, base_length, word_lengths = calculate_font_values(font, words)
 
         # Create text layer
