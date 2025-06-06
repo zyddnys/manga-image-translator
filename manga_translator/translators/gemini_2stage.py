@@ -71,7 +71,7 @@ class Gemini2StageTranslator(CommonTranslator):
     _RIGHT_SYMBOLS = [')', '）', ']', '】', '}', '〕', '〉', '」', '"', "'", '》', '』', '"', '〞', '﹂', '﹄', '⸃', '⸅', '⸊',
                       '⸍', '⸝', '⸡', '›', '»']
 
-    def __init__(self, max_tokens = 32000, refine_temperature = 0.0, translate_temperature = 0.1):
+    def __init__(self, max_tokens = 16000, refine_temperature = 0.0, translate_temperature = 0.1):
         super().__init__()
         self.client = OpenAI(api_key=TOGETHER_API_KEY, base_url="https://api.together.xyz/v1")
         self.client2 = OpenAI(api_key=GEMINI_API_KEY, base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
