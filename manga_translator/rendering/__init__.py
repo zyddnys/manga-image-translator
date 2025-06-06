@@ -367,4 +367,4 @@ async def dispatch_eng_render_pillow(img_canvas: np.ndarray, original_img: np.nd
         font_path = os.path.join(BASE_PATH, 'fonts/NotoSansMonoCJK-VF.ttf.ttc')
     text_render.set_font(font_path)
 
-    return render_textblock_list_eng_pillow(font_path, img_canvas, text_regions, line_spacing=line_spacing, size_tol=1.2, original_img=original_img, downscale_constraint=0.9,disable_font_border=disable_font_border)
+    return render_textblock_list_eng_pillow(font_path, img_canvas, text_regions, original_img=original_img, downscale_constraint=0.8)

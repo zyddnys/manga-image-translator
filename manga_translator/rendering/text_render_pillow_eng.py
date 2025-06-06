@@ -6,7 +6,7 @@ from typing import List
 
 from .ballon_extractor import extract_ballon_region
 from ..utils import TextBlock
-PUNSET_RIGHT_ENG = {'.', '?', '!', ':', ';', ')', '}', "\""}
+from .text_render_eng import PUNSET_RIGHT_ENG
 
 def seg_eng(text: str, font, bbox_width) -> List[str]:
     """Segments text into words that fit within bbox_width"""
@@ -114,9 +114,7 @@ def solve_collisions_spiral_xyxy(image_shape, initial_bboxes_xyxy, max_iteration
             for j in range(i+1, len(bboxes)):
                 if _check_bbox_collision(bboxes[i], bboxes[j]):
                     collision_found = True
-                    new_position = _find_collision_free_position(
-                        j, bboxes, anchors, image_shape, spiral_limit
-                    )
+                    new_position = _find_collision_free_position(j, bboxes, anchors, image_shape, spiral_limit)
                     if new_position:
                         bboxes[j] = new_position
                     break
@@ -132,15 +130,11 @@ def render_textblock_list_eng(
     text_regions: List[TextBlock],
     font_color=(0, 0, 0),
     stroke_color=(255, 255, 255),
-    delimiter: str = ' ',
-    line_spacing: int = 0.01,
-    stroke_width: float = 0.1,
-    size_tol: float = 1.0,
     ballonarea_thresh: float = 2,
     downscale_constraint: float = 0.7,
     original_img: np.ndarray = None,
     max_font_size: int = 300,
-    disable_font_border: bool = False
+    bounds_padding: int = 3
 ) -> np.ndarray:
     """Render text blocks onto image"""
 
@@ -254,7 +248,6 @@ def render_textblock_list_eng(
         # Calculate paste position with bounds checking
         paste_x = bbox_center_x - rotated_width / 2
         paste_y = bbox_center_y - rotated_height / 2
-        bounds_padding = 10
 
         paste_x = max(bounds_padding - tx1, min(paste_x, x - bounds_padding - tx2))
         paste_y = max(bounds_padding - ty1, min(paste_y, y - bounds_padding - ty2))

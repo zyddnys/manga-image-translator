@@ -40,7 +40,7 @@ from .translators import (
     unload as unload_translation,
 )
 from .colorization import dispatch as dispatch_colorization, prepare as prepare_colorization, unload as unload_colorization
-from .rendering import dispatch as dispatch_rendering, dispatch_eng_render
+from .rendering import dispatch as dispatch_rendering, dispatch_eng_render, dispatch_eng_render_pillow
 
 # Will be overwritten by __main__.py if module is being run directly (with python -m)
 logger = logging.getLogger('manga_translator')
@@ -999,8 +999,8 @@ class MangaTranslator:
         if config.render.renderer == Renderer.none:
             output = ctx.img_inpainted
         # manga2eng currently only supports horizontal left to right rendering
-        elif (config.render.renderer == Renderer.manga2Eng or config.render.renderer == Renderer.manga2Eng_pillow) and ctx.text_regions and LANGUAGE_ORIENTATION_PRESETS.get(ctx.text_regions[0].target_lang) == 'h':
-            if config.render.renderer == Renderer.manga2Eng_pillow:
+        elif (config.render.renderer == Renderer.manga2Eng or config.render.renderer == Renderer.manga2EngPillow) and ctx.text_regions and LANGUAGE_ORIENTATION_PRESETS.get(ctx.text_regions[0].target_lang) == 'h':
+            if config.render.renderer == Renderer.manga2EngPillow:
                 output = await dispatch_eng_render_pillow(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, self.font_path, config.render.line_spacing)
             else:
                 output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, self.font_path, config.render.line_spacing)
