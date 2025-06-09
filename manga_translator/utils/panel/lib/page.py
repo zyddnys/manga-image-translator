@@ -224,7 +224,8 @@ class Page:
 
 			self.panels.append(big_panel)
 			for p in small_panels:
-				self.panels.remove(p)
+				if p in self.panels:
+					self.panels.remove(p)
 
 			Debug.draw_contours(list(map(lambda p: p.polygon, small_panels)), Debug.colours['lightblue'])
 			Debug.draw_contours([big_panel.polygon], Debug.colours['red'])
