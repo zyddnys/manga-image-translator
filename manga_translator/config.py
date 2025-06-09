@@ -120,6 +120,7 @@ class Translator(str, Enum):
     deepseek = "deepseek"
     groq = "groq"
     gemini = "gemini"
+    gemini_2stage = "gemini_2stage"
     custom_openai = "custom_openai"
     offline = "offline"
     nllb = "nllb"
@@ -300,6 +301,8 @@ class OcrConfig(BaseModel):
     """Minimum text length of a text region"""
     ignore_bubble: int = 0
     """The threshold for ignoring text in non bubble areas, with valid values ranging from 1 to 50, does not ignore others. Recommendation 5 to 10. If it is too low, normal bubble areas may be ignored, and if it is too large, non bubble areas may be considered normal bubbles"""
+    prob: float | None = None
+    """Minimum probability of a text region to be considered valid. If None, uses the model default."""
 
 class Config(BaseModel):
     filter_text: Optional[str] = None
