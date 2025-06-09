@@ -243,7 +243,8 @@ class Page:
 				split = p.split()
 				if split is not None:
 					did_split = True
-					self.panels.remove(p)
+					if p in self.panels:
+						self.panels.remove(p)
 					self.panels += split.subpanels
 
 					Debug.draw_contours(list(map(lambda n: n.polygon, split.subpanels)), Debug.colours['blue'])
@@ -298,7 +299,8 @@ class Page:
 					p2 = p2.merge(p1)
 
 		for p in set(panels_to_remove):
-			self.panels.remove(p)
+			if p in self.panels:
+				self.panels.remove(p)
 
 		Debug.add_step('Merge panels', self.get_infos())
 
@@ -394,8 +396,10 @@ class Page:
 						continue
 
 					self.panels.append(p3)
-					self.panels.remove(p1)
-					self.panels.remove(p2)
+					if p1 in self.panels:
+						self.panels.remove(p1)
+					if p2 in self.panels:
+						self.panels.remove(p2)
 					grouped = True
 					break
 
