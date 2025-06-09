@@ -9,6 +9,7 @@ from tqdm import tqdm
 # from .ballon_extractor import extract_ballon_region
 from . import text_render
 from .text_render_eng import render_textblock_list_eng
+from .text_render_pillow_eng import render_textblock_list_eng as render_textblock_list_eng_pillow
 from ..utils import (
     BASE_PATH,
     TextBlock,
@@ -357,3 +358,13 @@ async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, 
     text_render.set_font(font_path)
 
     return render_textblock_list_eng(img_canvas, text_regions, line_spacing=line_spacing, size_tol=1.2, original_img=original_img, downscale_constraint=0.8,disable_font_border=disable_font_border)
+
+async def dispatch_eng_render_pillow(img_canvas: np.ndarray, original_img: np.ndarray, text_regions: List[TextBlock], font_path: str = '', line_spacing: int = 0, disable_font_border: bool = False) -> np.ndarray:
+    if len(text_regions) == 0:
+        return img_canvas
+
+    if not font_path:
+        font_path = os.path.join(BASE_PATH, 'fonts/NotoSansMonoCJK-VF.ttf.ttc')
+    text_render.set_font(font_path)
+
+    return render_textblock_list_eng_pillow(font_path, img_canvas, text_regions, original_img=original_img, downscale_constraint=0.95)

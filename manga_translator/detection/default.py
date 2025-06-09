@@ -27,21 +27,21 @@ def det_batch_forward_default(batch: np.ndarray, device: str):
 class DefaultDetector(OfflineDetector):
     _MODEL_MAPPING = {
         'model': {
-            'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/detect.ckpt',
-            'hash': '69080aea78de0803092bc6b751ae283ca463011de5f07e1d20e6491b05571a30',
+            'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/detect-20241225.ckpt',
+            'hash': '67ce1c4ed4793860f038c71189ba9630a7756f7683b1ee5afb69ca0687dc502e',
             'file': '.',
         }
     }
 
     def __init__(self, *args, **kwargs):
         os.makedirs(self.model_dir, exist_ok=True)
-        if os.path.exists('detect.ckpt'):
-            shutil.move('detect.ckpt', self._get_file_path('detect.ckpt'))
+        if os.path.exists('detect-20241225.ckpt'):
+            shutil.move('detect-20241225.ckpt', self._get_file_path('detect-20241225.ckpt'))
         super().__init__(*args, **kwargs)
 
     async def _load(self, device: str):
         self.model = TextDetectionDefault()
-        sd = torch.load(self._get_file_path('detect.ckpt'), map_location='cpu')
+        sd = torch.load(self._get_file_path('detect-20241225.ckpt'), map_location='cpu')
         self.model.load_state_dict(sd['model'] if 'model' in sd else sd)
         self.model.eval()
         self.device = device

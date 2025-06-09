@@ -59,6 +59,7 @@ def hex2rgb(h):
 class Renderer(str, Enum):
     default = "default"
     manga2Eng = "manga2eng"
+    manga2EngPillow = "manga2eng_pillow"
     none = "none"
 
 class Alignment(str, Enum):
