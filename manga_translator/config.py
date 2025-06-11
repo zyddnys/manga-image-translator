@@ -2,10 +2,10 @@ import argparse
 import re
 from enum import Enum
 
-from typing import Optional
+from typing import Optional, Any, Literal, List
 
 from omegaconf import OmegaConf
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # TODO: Refactor
@@ -228,6 +228,17 @@ class TranslatorConfig(BaseModel):
     """Output of one translator goes in another. Example: --translator-chain "google:JPN;sugoi:ENG"."""
     selective_translation: Optional[str] = None
     """Select a translator based on detected language in image. Note the first translation service acts as default if the language isn\'t defined. Example: --translator-chain "google:JPN;sugoi:ENG".'"""
+    
+    # 译后检查配置项
+    enable_post_translation_check: bool = True
+    """Enable post-translation validation check"""
+    post_check_max_retry_attempts: int = 3
+    """Maximum retry attempts for failed translation validation"""
+    post_check_repetition_threshold: int = 20
+    """Minimum number of consecutive repetitions to trigger hallucination detection"""
+    post_check_target_lang_threshold: float = 0.5  
+    """Minimum ratio of target language in translation text for ratio check"""
+    
     _translator_gen = None
     _gpt_config = None
 
@@ -305,6 +316,10 @@ class OcrConfig(BaseModel):
     """Minimum probability of a text region to be considered valid. If None, uses the model default."""
 
 class Config(BaseModel):
+    # Internal use for passing image name from server to translator
+    _image_name: Optional[str] = None
+    
+    # General
     filter_text: Optional[str] = None
     """Filter regions by their text with a regex. Example usage: '.*badtext.*'"""
     render: RenderConfig = RenderConfig()

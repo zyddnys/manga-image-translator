@@ -20,11 +20,29 @@ async def load_data(request: Request, method):
     attributes_bytes = await request.body()
     attributes = pickle.loads(attributes_bytes)
     sig = inspect.signature(method)
-    expected_args = set(sig.parameters.keys())
+    
+    # 分离必需参数和可选参数
+    required_args = set()
+    optional_args = set()
+    for name, param in sig.parameters.items():
+        if param.default == inspect.Parameter.empty:
+            required_args.add(name)
+        else:
+            optional_args.add(name)
+    
     provided_args = set(attributes.keys())
-
-    if expected_args != provided_args:
-        raise HTTPException(status_code=400, detail="Incorrect number or names of arguments")
+    
+    # 检查是否缺少必需参数
+    missing_required = required_args - provided_args
+    if missing_required:
+        raise HTTPException(status_code=400, detail=f"Missing required arguments: {missing_required}")
+    
+    # 检查是否有多余的参数（不在方法签名中）
+    all_valid_args = required_args | optional_args
+    extra_args = provided_args - all_valid_args
+    if extra_args:
+        raise HTTPException(status_code=400, detail=f"Unknown arguments: {extra_args}")
+    
     return attributes
 
 
