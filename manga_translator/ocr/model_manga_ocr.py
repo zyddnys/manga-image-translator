@@ -52,19 +52,14 @@ async def merge_bboxes(bboxes: List[Quadrilateral], width: int, height: int) -> 
         if len(majority_dir_top_2) == 1 :
             majority_dir = majority_dir_top_2[0][0]
         elif majority_dir_top_2[0][1] == majority_dir_top_2[1][1] : # if top 2 have the same counts
-            # 根据面积最大的文本框的宽高比来判断方向
-            max_area = 0
-            largest_box = None
-            for box in txtlns:
-                if box.area > max_area:
-                    max_area = box.area
-                    largest_box = box
-            
-            if largest_box is not None:
-                majority_dir = largest_box.direction
-            else:
-                # fallback to first direction
-                majority_dir = majority_dir_top_2[0][0]
+            max_aspect_ratio = -100
+            for box in txtlns :
+                if box.aspect_ratio > max_aspect_ratio :
+                    max_aspect_ratio = box.aspect_ratio
+                    majority_dir = box.direction
+                if 1.0 / box.aspect_ratio > max_aspect_ratio :
+                    max_aspect_ratio = 1.0 / box.aspect_ratio
+                    majority_dir = box.direction
         else :
             majority_dir = majority_dir_top_2[0][0]
 
