@@ -207,11 +207,8 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
             if final_scale > 1.001:  
                 # logger.debug(f"Scaling bounding box: text='{region.translation}', scale={final_scale:.2f}")  
                 try:  
-                poly = Polygon(region.unrotated_min_rect[0])  
-                poly = Polygon(region.unrotated_min_rect[0])  
-                # Scale from the center  
                     poly = Polygon(region.unrotated_min_rect[0])  
-                # Scale from the center  
+                     # Scale from the center  
                     poly = affinity.scale(poly, xfact=final_scale, yfact=final_scale, origin='center')  
                     scaled_unrotated_points = np.array(poly.exterior.coords[:4])  
 
