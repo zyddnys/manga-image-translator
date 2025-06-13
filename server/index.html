@@ -272,7 +272,7 @@
         <div>
           <!-- 結果表示 -->
           <div v-if="result" class="flex flex-col items-center space-y-4">
-            <img class="max-w-full max-h-[50vh] rounded-md" :src="resultUri" />
+            <img class="max-w-full rounded-md" :src="resultUri" />
             <button
               class="px-3 py-2 text-center rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               @click="clear"
@@ -482,6 +482,7 @@
         maskDilationOffset: 30,
         inpainter: "lama_large",
         sessionId: null,
+        uploadController: null,
 
         ondrop(e) {
           const file = e.dataTransfer?.files?.[0];
@@ -510,6 +511,7 @@
         progress: null,
         status: null,
         queuePos: null,
+        errorMessage: null,
         cachedStatusText: "",
         get statusText() {
           var newStatusText = this._statusText;
@@ -519,6 +521,9 @@
           return this.cachedStatusText;
         },
         get _statusText() {
+          if (this.status === 'error') {
+            return this.errorMessage || "Something went wrong, please try again";
+          }
           switch (this.status) {
             case "upload":
               return this.progress
@@ -544,8 +549,6 @@
               return "Rendering translated texts";
             case "finished":
               return "Downloading image";
-            case "error":
-              return "Something went wrong, please try again";
             case "error-upload":
               return "Upload failed, please try again";
             case "error-lang":
@@ -564,10 +567,12 @@
         result: null,
         useFileResult: true, // 是否使用文件结果
         get resultUri() {
+          // 如果result为假值，则不生成URI，防止在清除时触发不必要的请求
+          if (!this.result) return "";
+
           // 如果使用文件结果，使用最新结果端点；否则使用blob URL
           if (this.useFileResult) {
             const params = new URLSearchParams();
-            params.append('t', Date.now()); // 添加时间戳防缓存
             
             // 如果有会话ID，添加到请求参数
             if (this.sessionId) {
@@ -582,7 +587,6 @@
         async checkFileExists() {
           try {
             const params = new URLSearchParams();
-            params.append('t', Date.now()); // 防止缓存
             
             if (this.sessionId) {
               params.append('session_id', this.sessionId);
@@ -610,12 +614,13 @@
         async onsubmit(e) {
           if (!this.file) return;
 
-          // 为每次提交生成新的会话ID
-          this.sessionId = generateSessionId();
+          this.uploadController?.abort();
+          this.uploadController = new AbortController();
 
           this.progress = null;
           this.queuePos = null;
           this.status = "upload";
+          this.errorMessage = null;
           let buffer = new Uint8Array();
 
           const formData = new FormData();
@@ -667,11 +672,10 @@
                   // 如果使用文件结果模式，忽略blob数据，使用文件URL
                   if (!this.useFileResult) {
                     this.result = new Blob([data], { type: "image/png" });
-                  } else {
-                    // 在文件模式下，设置一个虚拟result确保显示条件满足
-                    this.result = true;
+                    this.status = null;
                   }
-                  this.status = null;
+                  // 在文件模式下，不在此处设置 result 和 status，
+                  // 而是依赖 checkFileExists 流程来更新 UI
                   break;
                 case 1:
                   const newStatus = decoder.decode(data);
@@ -682,8 +686,10 @@
                   }
                   break;
                 case 2:
+                  const errorText = decoder.decode(data);
                   this.status = "error";
-                  console.error(decoder.decode(data));
+                  this.errorMessage = errorText;
+                  console.error(errorText);
                   break;
                 case 3:
                   this.status = "pending";
@@ -717,6 +723,7 @@
                   method: "POST",
                   headers: headers,
                   body: formData,
+                  signal: this.uploadController.signal,
                 }
               );
 
@@ -740,6 +747,10 @@
               // }
 
             } catch (error) {
+              if (error.name === 'AbortError') {
+                console.log('Fetch aborted');
+                return;
+              }
               console.error(error);
               this.status = "error-disconnect";
             }
@@ -748,10 +759,16 @@
           uploadWithProgress(formData);
         },
         clear() {
+          this.uploadController?.abort();
           this.file = null;
           this.result = null;
           this.useFileResult = true;
           this.status = null;
+          this.progress = null;
+          this.queuePos = null;
+          this.errorMessage = null;
+          // Generate a new session ID for each new translation
+          this.sessionId = generateSessionId();
         },
       }).mount();
     </script>

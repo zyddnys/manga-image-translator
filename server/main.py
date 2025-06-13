@@ -156,7 +156,7 @@ async def get_latest_result(session_id: str = None):
     latest_path = None
     
     # 增加带超时的轮询逻辑
-    max_retries = 15  # 最多等待15秒
+    max_retries = 100  
     for attempt in range(max_retries):
         found_dirs = []
         matching_dirs = []
@@ -204,7 +204,6 @@ async def get_latest_result(session_id: str = None):
         error_detail = "No result image found. "
         if session_id:
             error_detail += f"No matches for session_id '{session_id}'. "
-        print(f"[DEBUG] Final attempt failed for session_id: {session_id}. Result not found after waiting.")
         raise HTTPException(404, detail=error_detail)
 
 @app.post("/translate/batch/json", response_model=list[TranslationResponse], tags=["api", "json", "batch"])
