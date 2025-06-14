@@ -2101,8 +2101,31 @@ class MangaTranslator:
         if config.translator.translator == Translator.chatgpt:
             from .translators.chatgpt import OpenAITranslator
             translator = OpenAITranslator()
+            
+            done_pages = self.all_page_translations
+            if self.context_size > 0 and done_pages:
+                pages_expected = min(self.context_size, len(done_pages))
+                non_empty_pages = [
+                    page for page in done_pages
+                    if any(sent.strip() for sent in page.values())
+                ]
+                pages_used = min(self.context_size, len(non_empty_pages))
+                skipped = pages_expected - pages_used
+            else:
+                pages_used = skipped = 0
+
+            if self.context_size > 0:
+                logger.info(f"Context-aware translation enabled with {self.context_size} pages of history")
+
+            translator.parse_args(config.translator)
             prev_ctx = self._build_prev_context()
             translator.set_prev_context(prev_ctx)
+
+            if pages_used > 0:
+                context_count = prev_ctx.count("<|")
+                logger.info(f"Carrying {pages_used} pages of context, {context_count} sentences as translation reference")
+            if skipped > 0:
+                logger.warning(f"Skipped {skipped} pages with no sentences")
             
             return await translator._translate(
                 ctx.from_lang,          
