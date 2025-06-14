@@ -928,6 +928,7 @@ class MangaTranslator:
         if config.translator.translator == Translator.chatgpt:
             from .translators.chatgpt import OpenAITranslator
             translator = OpenAITranslator()
+            translator.parse_args(config.translator)
             translator.set_prev_context(prev_ctx)
 
             if pages_used > 0:
