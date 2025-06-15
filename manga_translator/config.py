@@ -337,6 +337,8 @@ class Config(BaseModel):
     ocr: OcrConfig = OcrConfig()
     """Ocr configs"""
     # ?
+    force_simple_sort: bool = False
+    """Don't use panel detection for sorting, use a simpler fallback logic instead"""
     kernel_size: int = 3
     """Set the convolution kernel size of the text erasure area to completely clean up text residues"""
     mask_dilation_offset: int = 0

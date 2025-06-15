@@ -484,25 +484,61 @@ def rotate_polygons(center, polygons, rotation, new_center=None, to_int=True):
     return rotated
 
 
+def _simple_sort(regions: List[TextBlock], right_to_left: bool) -> List[TextBlock]:
+    """
+    A simple fallback sorting logic. Sorts regions from top to bottom,
+    then by x-coordinate based on reading direction.
+    """
+    sorted_regions = []
+    # Sort primarily by the y-coordinate of the center
+    for region in sorted(regions, key=lambda r: r.center[1]):
+        for i, sorted_region in enumerate(sorted_regions):
+            # If the current region is clearly below a sorted region, continue
+            if region.center[1] > sorted_region.xyxy[3]:
+                continue
+            # If the current region is clearly above a sorted region, it means we went too far
+            if region.center[1] < sorted_region.xyxy[1]:
+                sorted_regions.insert(i, region)
+                break
+
+            # y-center of the region is within the y-range of the sorted_region, so sort by x instead
+            if right_to_left and region.center[0] > sorted_region.center[0]:
+                sorted_regions.insert(i, region)
+                break
+            if not right_to_left and region.center[0] < sorted_region.center[0]:
+                sorted_regions.insert(i, region)
+                break
+        else:
+            # If the loop finishes without breaking, append the region to the end
+            sorted_regions.append(region)
+    
+    return sorted_regions
+
+
 def sort_regions(
     regions: List[TextBlock],
     right_to_left: bool = True,
-    img: np.ndarray = None
+    img: np.ndarray = None,
+    force_simple_sort: bool = False
 ) -> List[TextBlock]:
     
     if not regions:
         return []
 
-    # 1. 分镜检测 + 分镜内排序
+    # If simple sort is forced, use it and return immediately.
+    if force_simple_sort:
+        return _simple_sort(regions, right_to_left)
+
+    # 1. Panel detection + sorting within panels
     if img is not None:
         try:
             panels_raw = get_panels_from_array(img, rtl=right_to_left)
-            # 转 [x1,y1,x2,y2]
+            # Convert to [x1, y1, x2, y2]
             panels = [(x, y, x + w, y + h) for x, y, w, h in panels_raw]
-            # 对 panels 本身排序：先 y 再 x（RTL x 降序）
+            # Sort panels themselves: first by y, then by x (RTL x descending)
             panels.sort(key=lambda p: (p[1], -p[0] if right_to_left else p[0]))
 
-            # 标记 panel_index
+            # Assign panel_index to each region
             for r in regions:
                 cx, cy = r.center
                 r.panel_index = -1
@@ -511,54 +547,37 @@ def sort_regions(
                         r.panel_index = idx
                         break
                 if r.panel_index < 0:
-                    # 如果不在任何 panel 内，找最近的
+                    # If not inside any panel, find the closest one
                     dists = [
-                        ((max(x1-cx,0,cx-x2))**2 + (max(y1-cy,0,cy-y2))**2, i)
-                        for i,(x1,y1,x2,y2) in enumerate(panels)
+                        ((max(x1-cx, 0, cx-x2))**2 + (max(y1-cy, 0, cy-y2))**2, i)
+                        for i, (x1, y1, x2, y2) in enumerate(panels)
                     ]
-                    r.panel_index = min(dists)[1]
+                    if dists:
+                        r.panel_index = min(dists)[1]
 
-            # 按 panel_index 分组，然后递归调用 sort_regions（不传 img 用坐标排序）
+            # Group by panel_index, then recursively call sort_regions (without img for coordinate sorting)
             grouped = {}
             for r in regions:
                 grouped.setdefault(r.panel_index, []).append(r)
             
             sorted_all = []
-            for pi in sorted(grouped):
-                panel_sorted = sort_regions(grouped[pi], right_to_left)
+            # Ensure panels that couldn't be assigned are handled (e.g., panel_index=-1)
+            # and sorted based on their panel index.
+            for pi in sorted(grouped.keys()):
+                panel_sorted = sort_regions(grouped[pi], right_to_left, img=None, force_simple_sort=False)
                 sorted_all += panel_sorted
             return sorted_all
             
         except (cv2.error, MemoryError, Exception) as e:
-            # 面板检测失败时使用简化排序，记录警告但不阻止翻译继续
+            # When panel detection fails, use simple sort, log a warning but continue translation.
             from ..utils import get_logger
             logger = get_logger('textblock')
             logger.warning(f'Panel detection failed ({e.__class__.__name__}: {str(e)[:100]}), using simple text sorting')
             
-            # 使用简化排序逻辑并直接返回
-            # Sort regions from right to left, top to bottom
-            sorted_regions = []
-            for region in sorted(regions, key=lambda region: region.center[1]):
-                for i, sorted_region in enumerate(sorted_regions):
-                    if region.center[1] > sorted_region.xyxy[3]:
-                        continue
-                    if region.center[1] < sorted_region.xyxy[1]:
-                        sorted_regions.insert(i + 1, region)
-                        break
+            # Use the simple sorting logic as a fallback.
+            return _simple_sort(regions, right_to_left)
 
-                    # y center of region inside sorted_region so sort by x instead
-                    if right_to_left and region.center[0] > sorted_region.center[0]:
-                        sorted_regions.insert(i, region)
-                        break
-                    if not right_to_left and region.center[0] < sorted_region.center[0]:
-                        sorted_regions.insert(i, region)
-                        break
-                else:
-                    sorted_regions.append(region)
-            
-            return sorted_regions
-
-    # 2. 智能排序
+    # 2. Smart sorting (if img is None and not forced simple)
     xs = [r.center[0] for r in regions]
     ys = [r.center[1] for r in regions]
     

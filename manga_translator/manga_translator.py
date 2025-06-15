@@ -867,7 +867,8 @@ class MangaTranslator:
         text_regions = sort_regions(
             text_regions,
             right_to_left=config.render.rtl,
-            img=ctx.img_rgb
+            img=ctx.img_rgb,
+            force_simple_sort=config.force_simple_sort
         )   
         
         return text_regions
