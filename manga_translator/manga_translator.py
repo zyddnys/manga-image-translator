@@ -307,12 +307,19 @@ class MangaTranslator:
         
         # batch_concurrent 已在初始化时设置并验证
         
+    def _sanitize_filename(self, filename: str) -> str:
+        """将文件名中的非ASCII字符替换为下划线，确保生成的路径兼容所有系统"""
+        # 替换非ASCII字符为下划线
+        return ''.join(c if ord(c) < 128 else '_' for c in filename)
+        
     def _set_image_context(self, config: Config, image_name: str = None):
         """设置当前处理图片的上下文信息，用于生成调试图片子文件夹"""
         
         if image_name:
             # 从文件路径中提取文件名（不含扩展名）
             base_name = os.path.splitext(os.path.basename(image_name))[0]
+            # 处理非ASCII字符
+            base_name = self._sanitize_filename(base_name)
         else:
             base_name = "image"
         
@@ -1310,6 +1317,8 @@ class MangaTranslator:
             
             if self._current_image_context:
                 image_name = self._current_image_context['image_name']
+                # 确保image_name是ASCII安全的
+                image_name = self._sanitize_filename(image_name)
                 config = self._current_image_context['config']
                 detection_size = str(getattr(config.detector, 'detection_size', 1024))
                 target_lang = getattr(config.translator, 'target_lang', 'CHS')
