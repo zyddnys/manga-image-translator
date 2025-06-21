@@ -32,7 +32,7 @@ This project started as a personal tool to make my own life easier. As it grew a
     ```
 3.  **Run the Application:** Navigate to the directory containing the script and run:
     ```bash
-    python MangaStudioV6.py
+    python MangaStudio.py
     ```
 4.  **Data Folder:** On first launch, the application will create a `MangaStudio_Data` folder next to the script. All user settings, profiles, and temporary files will be stored here to keep the main directory clean.
 
