@@ -879,8 +879,8 @@ class MangaTranslator:
                     has_target_lang = bool(re.search('[\uac00-\ud7af\u1100-\u11ff]', region.text))
                     has_target_lang_in_translation = bool(re.search('[\uac00-\ud7af\u1100-\u11ff]', region.translation))
                 elif config.translator.target_lang == 'ARA':  # Arabic
-                    has_target_lang = bool(re.search('[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]', region.text))
-                    has_target_lang_in_translation = bool(re.search('[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]', region.translation))
+                    has_target_lang = bool(re.search('[\u0600-\u06ff]', region.text))
+                    has_target_lang_in_translation = bool(re.search('[\u0600-\u06ff]', region.translation))
                 elif config.translator.target_lang == 'THA':  # Thai
                     has_target_lang = bool(re.search('[\u0e00-\u0e7f]', region.text))
                     has_target_lang_in_translation = bool(re.search('[\u0e00-\u0e7f]', region.translation))
