@@ -93,7 +93,7 @@ def general_parser(g_parser):
                         help='Path to the post-translation dictionary file')
     g_parser.add_argument('--kernel-size', default=3, type=int,
                         help='Set the convolution kernel size of the text erasure area to completely clean up text residues')
-
+    g_parser.add_argument('--context-size', default=0, type=int, help='Pages of context are needed for translating the current page')
 
 
 def reparse(arr: list):

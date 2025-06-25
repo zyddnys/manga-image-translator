@@ -59,6 +59,7 @@ def hex2rgb(h):
 class Renderer(str, Enum):
     default = "default"
     manga2Eng = "manga2eng"
+    manga2EngPillow = "manga2eng_pillow"
     none = "none"
 
 class Alignment(str, Enum):
@@ -120,6 +121,7 @@ class Translator(str, Enum):
     deepseek = "deepseek"
     groq = "groq"
     gemini = "gemini"
+    gemini_2stage = "gemini_2stage"
     custom_openai = "custom_openai"
     offline = "offline"
     nllb = "nllb"
@@ -176,6 +178,8 @@ class RenderConfig(BaseModel):
     """Line spacing is font_size * this value. Default is 0.01 for horizontal text and 0.2 for vertical."""
     font_size: Optional[int] = None
     """Use fixed font size for rendering"""
+    rtl: bool = True
+    """Right-to-left reading order for panel and text_region sorting,"""  
     _font_color_fg = None
     _font_color_bg = None
     @property
@@ -183,8 +187,8 @@ class RenderConfig(BaseModel):
         if self.font_color and not self._font_color_fg:
             colors = self.font_color.split(':')
             try:
-                self._font_color_fg = hex2rgb(colors[0])
-                self._font_color_bg = hex2rgb(colors[1]) if len(colors) > 1 else None
+                self._font_color_fg = hex2rgb(colors[0]) if colors[0] else None
+                self._font_color_bg = hex2rgb(colors[1]) if len(colors) > 1 and colors[1] else None
             except:
                 raise Exception(
                     f'Invalid --font-color value: {self.font_color}. Use a hex value such as FF0000')
@@ -194,9 +198,9 @@ class RenderConfig(BaseModel):
     def font_color_bg(self):
         if self.font_color and not self._font_color_bg:
             colors = self.font_color.split(':')
-            try:
-                self._font_color_fg = hex2rgb(colors[0])
-                self._font_color_bg = hex2rgb(colors[1]) if len(colors) > 1 else None
+            try:              
+                self._font_color_fg = hex2rgb(colors[0]) if colors[0] else None
+                self._font_color_bg = hex2rgb(colors[1]) if len(colors) > 1 and colors[1] else None
             except:
                 raise Exception(
                     f'Invalid --font-color value: {self.font_color}. Use a hex value such as FF0000')
@@ -298,6 +302,8 @@ class OcrConfig(BaseModel):
     """Minimum text length of a text region"""
     ignore_bubble: int = 0
     """The threshold for ignoring text in non bubble areas, with valid values ranging from 1 to 50, does not ignore others. Recommendation 5 to 10. If it is too low, normal bubble areas may be ignored, and if it is too large, non bubble areas may be considered normal bubbles"""
+    prob: float | None = None
+    """Minimum probability of a text region to be considered valid. If None, uses the model default."""
 
 class Config(BaseModel):
     filter_text: Optional[str] = None

@@ -59,6 +59,7 @@ class Model32pxOCR(OfflineOCR):
         text_height = 32
         max_chunk_size = 16
         ignore_bubble = config.ignore_bubble
+        threshold = 0.7 if config.prob is None else config.prob
 
         quadrilaterals = list(self._generate_text_direction(textlines))
         region_imgs = [q.get_transformed_region(image, d, text_height) for q, d in quadrilaterals]
@@ -98,7 +99,7 @@ class Model32pxOCR(OfflineOCR):
             with torch.no_grad():
                 ret = self.model.infer_beam_batch(image_tensor, widths, beams_k = 5, max_seq_length = 255)
             for i, (pred_chars_index, prob, fr, fg, fb, br, bg, bb) in enumerate(ret):
-                if prob < 0.7:
+                if prob < threshold:
                     continue
                 fr = (torch.clip(fr.view(-1), 0, 1).mean() * 255).long().item()
                 fg = (torch.clip(fg.view(-1), 0, 1).mean() * 255).long().item()

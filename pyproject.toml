@@ -4,8 +4,8 @@ version = "0.1.0"
 description = ""
 authors = []
 readme = "README.md"
-requires-python = ">=3.10,<3.12"
-license = { file = "LICENSE" }
+requires-python = ">=3.10, <3.12"
+license = "GPL-3.0-only"
 dependencies = [
     "networkx",
     "torch",
@@ -35,7 +35,7 @@ dependencies = [
     "tensorboardX",
     "websockets",
     "protobuf<6.0.0,>=3.20.2",
-    "ctranslate2<=3.24.0",
+    "ctranslate2==4.6.0",
     "colorama",
     "openai==1.63.0",
     "tiktoken",
@@ -62,10 +62,11 @@ dependencies = [
     "bitsandbytes",
     "uvicorn",
     "fastapi",
-    "pydantic",
+    "pydantic==2.5.0",
     "python-multipart",
     "google-genai",
     "rich",
+    "regex",
     "paddleocr",
     "paddlepaddle",
     "paddlepaddle-gpu; sys_platform != 'darwin'"

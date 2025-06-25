@@ -13,6 +13,7 @@ class M2M100Translator(OfflineTranslator):
     # Refer to https://github.com/ymoslem/DesktopTranslator/blob/main/utils/m2m_languages.json
     # other languages can be added as well
     _LANGUAGE_CODE_MAP = {
+        'FIL': '__tl__',
         'CHS': '__zh__',
         'CHT': '__zh__',
         'CSY': '__cs__',

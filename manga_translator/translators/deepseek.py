@@ -55,15 +55,12 @@ class DeepseekTranslator(CommonGPTTranslator):
 
         self.client = openai.AsyncOpenAI(api_key=openai.api_key or DEEPSEEK_API_KEY)
         if not self.client.api_key and check_openai_key:
-            raise MissingAPIKeyException(
-                        'Please set the DEEPSEEK_API_KEY environment variable '
-                        'before using the DeepSeek translator.'
-                    )
+            raise MissingAPIKeyException('DEEPSEEK_API_KEY environment variable required')
+            
         self.client.base_url = DEEPSEEK_API_BASE
         self.token_count = 0
         self.token_count_last = 0
         self.config = None
-
 
     def count_tokens(self, text: str):
         """
@@ -85,6 +82,7 @@ class DeepseekTranslator(CommonGPTTranslator):
 
 
     def _format_prompt_log(self, to_lang: str, prompt: str) -> str:
+        prompt = prompt.strip()  
         if to_lang in self.chat_sample:
             return '\n'.join([
                 'System:',
@@ -228,22 +226,15 @@ class DeepseekTranslator(CommonGPTTranslator):
         return translations
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
-        # 构建 messages
-        # Build messages
-        messages = [
-            {'role': 'system', 'content': self.chat_system_template.format(to_lang=to_lang)},
-        ]
-
-        # 如果需要先给出示例对话
-        # Add chat samples if available
+        system_message = self._CHAT_SYSTEM_TEMPLATE.format(to_lang=to_lang) 
+        messages = [  
+            {'role': 'system', 'content': system_message},  
+        ]  
         lang_chat_samples = self.get_chat_sample(to_lang)
         if lang_chat_samples:
             messages.append({'role': 'user', 'content': lang_chat_samples[0]})
             messages.append({'role': 'assistant', 'content': lang_chat_samples[1]})
-
-        # 最终用户请求
-        # User request
-        messages.append({'role': 'user', 'content': prompt})
+        messages.append({"role": "user", "content": prompt})
 
         kwargs = {
             'model': DEEPSEEK_MODEL,
@@ -280,11 +271,6 @@ class DeepseekTranslator(CommonGPTTranslator):
                                 "\n------------------\n"
                             )
                 
-            self.logger.debug("-- GPT Response --\n" +
-                                response.choices[0].message.content +
-                                "\n------------------\n"
-                            )
-
             # If no response with text is found, return the first response's content (which may be empty)
             # 如果没有找到包含文本的响应，则返回第一个响应的内容（可能为空）
             return response.choices[0].message.content
