@@ -41,8 +41,6 @@ class SwitchDetector(CommonDetector):
         orig_h, orig_w = image.shape[:2]
         aspect_ratio = orig_w / orig_h
 
-        print(f"Aspect Ratio threashold: {self.aspect_ratio_threshold}")
-
         if aspect_ratio < self.aspect_ratio_threshold:
             logger.info(f"Aspect ratio: {aspect_ratio:.3f} - Using CTD detector for portrait-oriented image")
             selected_detector = self.ctd_detector
