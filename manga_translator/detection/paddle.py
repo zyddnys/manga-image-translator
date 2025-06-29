@@ -2,7 +2,7 @@ import os
 import shutil
 import numpy as np
 import cv2
-from paddleocr import PaddleOCR
+from paddleocr import TextDetection #采用文本检测模块而非完整的OCR模块
 from typing import List, Tuple
 
 from .common import OfflineDetector
@@ -14,105 +14,69 @@ MODEL = None
 class PaddleDetector(OfflineDetector, ModelWrapper):
     _MODEL_MAPPING = {
         'det': {
-            'url': 'https://paddleocr.bj.bcebos.com/PP-OCRv4/chinese/ch_PP-OCRv4_det_server_infer.tar',
-            'hash': '0c0e4fc2ef31dcfbb45fb8d29bd8e702ec55a240d62c32ff814270d8be6e6179',
+            'url': 'https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv5_server_det_infer.tar',
+            'hash': '22a33e0ba6a21425ea4192da03bf4395c9a0c67902bd924b7328fc859073045d',
             'archive': {
-                'ch_PP-OCRv4_det_server_infer/inference.pdiparams': 'ch_PP-OCRv4_det_server_infer/',
-                'ch_PP-OCRv4_det_server_infer/inference.pdiparams.info': 'ch_PP-OCRv4_det_server_infer/',
-                'ch_PP-OCRv4_det_server_infer/inference.pdmodel': 'ch_PP-OCRv4_det_server_infer/',
+                'PP-OCRv5_server_det_infer/inference.pdiparams': 'PP-OCRv5_server_det_infer/',
+                'PP-OCRv5_server_det_infer/inference.json': 'PP-OCRv5_server_det_infer/',
+                'PP-OCRv5_server_det_infer/inference.yml': 'PP-OCRv5_server_det_infer/',
             },
-        },
-        'rec': {
-            'url': 'https://paddleocr.bj.bcebos.com/PP-OCRv4/chinese/ch_PP-OCRv4_rec_infer.tar',
-            'hash': '830ea228e20c2b30c4db9666066c48512f67a63f5b1a32d0d33dc9170040ce7d',
-            'archive': {
-                'ch_PP-OCRv4_rec_infer/inference.pdiparams': 'ch_PP-OCRv4_rec_infer/',
-                'ch_PP-OCRv4_rec_infer/inference.pdiparams.info': 'ch_PP-OCRv4_rec_infer/',
-                'ch_PP-OCRv4_rec_infer/inference.pdmodel': 'ch_PP-OCRv4_rec_infer/',
-            },
-        },
-        'cls': {
-            'url': 'https://paddleocr.bj.bcebos.com/dygraph_v2.0/ch/ch_ppocr_mobile_v2.0_cls_infer.tar',
-            'hash': '507352585040d035da3b1e6374694ad679a850acb0a36a8d0d47984176357717',
-            'archive': {
-                'ch_ppocr_mobile_v2.0_cls_infer/inference.pdiparams': 'ch_ppocr_mobile_v2.0_cls_infer/',
-                'ch_ppocr_mobile_v2.0_cls_infer/inference.pdmodel': 'ch_ppocr_mobile_v2.0_cls_infer/',
-            },
-        },
+        }
     }
 
     def __init__(self, *args, **kwargs):
         ModelWrapper.__init__(self)
         super().__init__(*args, **kwargs)
 
-    async def _load(self, device: str, text_threshold: float, box_threshold: float, unclip_ratio: float, invert: bool = False, verbose: bool = False):
-        await self.download()
-        self.device = device
-        self.text_threshold = text_threshold
-        self.box_threshold = box_threshold
-        self.unclip_ratio = unclip_ratio
-        self.invert = invert
-        self.verbose = verbose
+    async def _load(self, device: str):
         if device in ['cuda', 'mps']:
             self.use_gpu = True
+            device = 'gpu'
         else:
             self.use_gpu = False
-        global MODEL
-        MODEL = PaddleOCR(
-            use_gpu=self.use_gpu,
-            use_angle_cls=False,
-            det_model_dir=self.model_dir+'/ch_PP-OCRv4_det_server_infer',
-            rec_model_dir=self.model_dir+'/ch_PP-OCRv4_rec_infer',
-            cls_model_dir=self.model_dir+'/ch_ppocr_mobile_v2.0_cls_infer',
-            det=True,
-            rec=False,
-            cls=False,
-            det_db_thresh=self.text_threshold,
-            det_db_box_thresh=self.box_threshold,
-            det_db_unclip_ratio=self.unclip_ratio,
-            invert=self.invert,
-            verbose=self.verbose,
+            device = 'cpu'
+        self.model=TextDetection(
+            model_name='PP-OCRv5_server_det',
+            model_dir=os.path.join(self.model_dir, 'PP-OCRv5_server_det_infer'),
+            device=device,
         )
+        global MODEL
+        MODEL = self.model
 
     async def _unload(self):
-        global MODEL
-        MODEL = None
+        del self.model
 
     async def _infer(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
                      unclip_ratio: float, verbose: bool = False):
         global MODEL
-        result = MODEL.ocr(image, det=True, rec=False)
+        
+        # 使用TextDetection进行推理
+        results = MODEL.predict_iter(
+            image, batch_size=1,
+            limit_side_len=detect_size,
+            thresh=text_threshold, 
+            box_thresh=box_threshold,
+            unclip_ratio=unclip_ratio
+        )
 
         textlines = []
-        
-        # Create a binary mask
         mask = np.zeros((image.shape[0], image.shape[1]), dtype=np.uint8)
+        
+        for result in results:
+            #result.save_to_img(save_path="./output/")
+            if result['dt_polys'] is not None and len(result['dt_polys']) > 0:
+                # 遍历每个检测到的文本框
+                for i, poly in enumerate(result['dt_polys']):
 
-        # Check for `None` result
-        # - Seems to occur in rare edge-case scenarios
-        if result[0] is not None:
-            # Parse OCR results and filter by text threshold
-            for line in result[0]:
-                points = np.array(line).astype(np.int32)
-                # paddleocr does not return score, so we use a fixed value: 1
-                textlines.append(Quadrilateral(points, '', 1))
+                    # 转换为整数坐标
+                    poly_int = poly.astype(np.int32)
 
-            for textline in textlines:
-                cv2.fillPoly(mask, [textline.pts], color=255)
-
-            # Additional polygon refinement
-            refined_polys = []
-            for textline in textlines:
-                poly = cv2.minAreaRect(textline.pts)
-                box = cv2.boxPoints(poly)
-                box = np.int0(box)
-                refined_polys.append(np.roll(box, 2, axis=0))  # Ensure clockwise order
-
-            # Update mask with refined polygons
-            for poly in refined_polys:
-                mask = cv2.fillPoly(mask, [poly], color=255)
-
-            # Return textlines with refined polygons
-            textlines = [Quadrilateral(poly, '', 1) for poly, textline in zip(refined_polys, textlines)]
+                    # 获取置信度
+                    score = result['dt_scores'][i]
+                    
+                    textlines.append(Quadrilateral(poly_int, '', score))
+                    
+                    # 在mask上绘制四边形
+                    cv2.fillPoly(mask, [poly_int], color=255)
 
         return textlines, mask, None
