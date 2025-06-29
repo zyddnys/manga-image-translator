@@ -142,8 +142,13 @@ class DeepseekTranslator(CommonGPTTranslator):
 
                     # Split response into translations  
                     new_translations = re.split(r'<\|\d+\|>', response)  
+                    
+                    # 立即清理每个翻译文本的前后空格
+                    # Immediately clean leading and trailing whitespace from each translation text
+                    new_translations = [t.strip() for t in new_translations]
+                    
                     if not new_translations[0].strip():  
-                        new_translations = new_translations[1:]  
+                        new_translations = new_translations[1:]
 
                     if len(prompt_queries) == 1 and len(new_translations) == 1 and not re.match(r'^\s*<\|\d+\|>', response):  
                         self.logger.warning(f'Single query response does not contain prefix, retrying...(Attempt {attempt + 1})')  

@@ -6,7 +6,7 @@ import string
 from typing import List, Dict
 from rich.console import Console  
 from rich.panel import Panel
-
+from .. import manga_translator
 from .config_gpt import ConfigGPT
 from .common import CommonTranslator, MissingAPIKeyException, VALID_LANGUAGES
 from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE, OPENAI_MODEL, OPENAI_GLOSSARY_PATH
@@ -19,31 +19,18 @@ except ImportError:
 
 class OpenAITranslator(ConfigGPT, CommonTranslator):
     _LANGUAGE_CODE_MAP = VALID_LANGUAGES
+    
+    # 类级别的标志，用于跟踪是否已经显示过术语表警告
+    _glossary_warning_shown = False
 
     # ---- 关键参数 ----
-    _MAX_REQUESTS_PER_MINUTE = 200
-    _TIMEOUT = 30                # 每次请求的超时时间
+    _MAX_REQUESTS_PER_MINUTE = 0
+    _TIMEOUT = 999                # 每次请求的超时时间
     _RETRY_ATTEMPTS = 2          # 对同一个批次的最大整体重试次数
     _TIMEOUT_RETRY_ATTEMPTS = 3  # 请求因超时被取消后，最大尝试次数
     _RATELIMIT_RETRY_ATTEMPTS = 3# 遇到 429 等限流时的最大尝试次数
     _MAX_SPLIT_ATTEMPTS = 3      # 递归拆分批次的最大层数
     _MAX_TOKENS = 8192           # prompt+completion 的最大 token (可按模型类型调整)
-
-    # 模型返回的风控词检测
-    _ERROR_KEYWORDS = [
-            # ENG_KEYWORDS
-            r"I must decline",
-            r'(i(\'m| am)?\s+)?sorry(.|\n)*?(can(\'t|not)|unable to|cannot)\s+(assist|help)',
-            # CHINESE_KEYWORDS (using regex patterns)
-            r"(抱歉，|对不起，)?我(无法[将把]|不[能会便](提供|处理))", 
-            r"我无法(满足|回答|处理|提供)",  
-            r"这超出了我的范围", 
-            r"我需要婉拒", 
-            r"翻译或生成", #deepseek高频
-            r"[的个]内容(吧)?", #claude高频
-            # JAPANESE_KEYWORDS
-            r"申し訳ありませんが",  
-    ]
 
     def __init__(self, check_openai_key=True):
         # ConfigGPT 的初始化
@@ -73,13 +60,23 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         # 初始化术语表相关属性
         self.dict_path = OPENAI_GLOSSARY_PATH
         self.glossary_entries = {}
+        
+        # 检查用户是否明确设置了glossary环境变量
+        user_set_glossary = os.getenv('OPENAI_GLOSSARY_PATH') is not None
+        
         if os.path.exists(self.dict_path):
             self.glossary_entries = self.load_glossary(self.dict_path)
-        else:
-            self.logger.warning(f"The glossary file does not exist: {self.dict_path}")
+        elif user_set_glossary:
+            # 只有在用户明确设置了环境变量时才显示警告
+            if not OpenAITranslator._glossary_warning_shown:
+                self.logger.warning(f"The glossary file does not exist: {self.dict_path}")
+                OpenAITranslator._glossary_warning_shown = True
 
         # 添加 rich 的 Console 对象  
-        self.console = Console()  
+        if hasattr(manga_translator, '_global_console') and manga_translator._global_console:
+            self.console = manga_translator._global_console
+        else:
+            self.console = Console()  
         self.prev_context = ""
 
     def set_prev_context(self, text: str = ""):
@@ -89,27 +86,24 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         """如果你有外部参数要解析，可在此对 self.config 做更新"""
         self.config = args.chatgpt_config
 
-    def _cannot_assist(self, response: str) -> bool:  
-        """  
-        判断是否出现了常见的 "我不能帮你" / "我拒绝" 等拒绝关键词。  
-        """  
-        resp = response.strip()  
-        for kw in self._ERROR_KEYWORDS:  
-            if re.search(kw, resp, re.IGNORECASE):  
-                self.logger.warning(f"Detected refusal keyword: {kw}")  
-                return True  
-        return False  
-
     async def _ratelimit_sleep(self):
         """
         在请求前先做一次简单的节流 (如果 _MAX_REQUESTS_PER_MINUTE > 0)。
+        针对并发请求进行优化。
         """
         if self._MAX_REQUESTS_PER_MINUTE > 0:
             now = time.time()
             delay = 60.0 / self._MAX_REQUESTS_PER_MINUTE
             elapsed = now - self._last_request_ts
-            if elapsed < delay:
-                await asyncio.sleep(delay - elapsed)
+            
+            # 为并发请求添加额外的随机延迟，避免同时请求
+            # Add extra random delay for concurrent requests to avoid simultaneous requests
+            import random
+            concurrent_jitter = random.uniform(0.1, 0.5)  # 100-500ms的随机延迟
+            
+            total_delay = delay + concurrent_jitter
+            if elapsed < total_delay:
+                await asyncio.sleep(total_delay - elapsed)
             self._last_request_ts = time.time()
 
     def _assemble_prompts(self, from_lang: str, to_lang: str, queries: List[str]):
@@ -203,6 +197,9 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         # 初始化结果列表，与输入查询数量相同  
         # Initialize result list with the same length as input queries  
         partial_results = [''] * len(batch_queries)  
+        # 初始化 response_text 变量，避免 UnboundLocalError
+        # Initialize response_text variable to avoid UnboundLocalError
+        response_text = ""
         
         # 如果没有查询就直接返回  
         # If no queries, return immediately  
@@ -211,26 +208,27 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
 
         # 进行 _RETRY_ATTEMPTS 次重试  
         # Retry for _RETRY_ATTEMPTS times  
-        for attempt in range(self._RETRY_ATTEMPTS):  
+        # 确保至少尝试一次，即使 _RETRY_ATTEMPTS = 0
+        # Ensure at least one attempt, even if _RETRY_ATTEMPTS = 0
+        max_attempts = max(1, self._RETRY_ATTEMPTS + 1)
+        for attempt in range(max_attempts):  
             try:  
                 # 发起请求  
                 # Send request  
                 response_text = await self._request_with_retry(to_lang, prompt)  
-
-                # 检查风控词，这是整体检测，需要前置  
-                # Check for refusal messages, this is a global check and needs to be done first  
-                if self._cannot_assist(response_text):  
-                    self.logger.warning(f"Detected refusal message from model. Will retry (attempt {attempt+1}/{self._RETRY_ATTEMPTS}).")  
-                    continue  
 
                 # 解析响应
                 # Parse response
                 new_translations = re.split(r'<\|\d+\|>', response_text)
                 merged_single_query = False
 
+                # 立即清理每个翻译文本的前后空格
+                # Immediately clean leading and trailing whitespace from each translation text
+                new_translations = [t.strip() for t in new_translations]
+
                 if new_translations and not new_translations[0].strip():
-                    new_translations = new_translations[1:]          
-                    
+                    new_translations = new_translations[1:]
+                
                 # 单查询多段响应处理
                 # Single Query Multiple Response Processing
                 if len(batch_queries) == 1 and len(new_translations) > 1:
@@ -261,7 +259,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 if not merged_single_query:
                     lines = response_text.strip().split('\n')  
                     if not lines and len(batch_queries) > 0: # fix: IndexError: list index out of range  
-                        self.logger.warning(f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Received empty response for non-empty batch. Retrying...")  
+                        self.logger.warning(f"[Attempt {attempt+1}/{max_attempts}] Received empty response for non-empty batch. Retrying...")  
                         is_valid_format = False  
                     else:  
                         # 预期的索引集合，从1开始  
@@ -293,7 +291,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                                             # 如果索引重复，则标记为无效格式并停止检查  
                                             # If index is duplicated, mark as invalid format and stop checking  
                                             self.logger.warning(  
-                                                f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Duplicate index {current_index} detected. Line: '{line}'. Retrying..."  
+                                                f"[Attempt {attempt+1}/{max_attempts}] Duplicate index {current_index} detected. Line: '{line}'. Retrying..."  
                                             )  
                                             is_valid_format = False  
                                             break # 停止检查当前响应 / Stop checking current response  
@@ -305,7 +303,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                                         # 索引号超出预期范围  
                                         # Index number exceeds expected range  
                                         self.logger.warning(  
-                                            f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Invalid index {current_index} found (expected 1-{len(batch_queries)}). Line: '{line}'. Retrying..."  
+                                            f"[Attempt {attempt+1}/{max_attempts}] Invalid index {current_index} found (expected 1-{len(batch_queries)}). Line: '{line}'. Retrying..."  
                                         )  
                                         is_valid_format = False  
                                         break  
@@ -313,7 +311,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                                     # 基本不会发生  
                                     # This should rarely happen  
                                     self.logger.warning(  
-                                        f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Could not parse index from prefix. Line: '{line}'. Retrying..."  
+                                        f"[Attempt {attempt+1}/{max_attempts}] Could not parse index from prefix. Line: '{line}'. Retrying..."  
                                     )  
                                     is_valid_format = False  
                                     break  
@@ -329,8 +327,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                         # Check if all expected indexes were found
                         if len(found_indices) != len(batch_queries):  
                             self.logger.warning(  
-                                f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Found indices count ({len(found_indices)}) does not match expected count ({len(batch_queries)}). "  
-                                f"Found indices: {sorted(list(found_indices))}. Retrying..."  
+                                f"[Attempt {attempt+1}/{max_attempts}] Found indices count ({len(found_indices)}) does not match expected count ({len(batch_queries)}). Retrying..."  
                             )  
                             is_valid_format = False  
                         else:  
@@ -338,7 +335,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                             # Ensure the found index set matches the expected index set
                             if found_indices != expected_indices:  
                                 self.logger.warning(  
-                                    f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Found indices set {sorted(list(found_indices))} does not match expected set {sorted(list(expected_indices))}. Retrying..."  
+                                    f"[Attempt {attempt+1}/{max_attempts}] Found indices set {sorted(list(found_indices))} does not match expected set {sorted(list(expected_indices))}. Retrying..."  
                                 )  
                                 is_valid_format = False
                     
@@ -352,26 +349,30 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 # Skip common hallucination characters in specific models
                 SUSPICIOUS_SYMBOLS = ["ହ", "ି", "ഹ"]  
                 if any(symbol in response_text for symbol in SUSPICIOUS_SYMBOLS):  
-                    self.logger.warn(f'[attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Suspicious symbols detected, skipping the current translation attempt.')  
+                    self.logger.warn(f'[attempt {attempt+1}/{max_attempts}] Suspicious symbols detected, skipping the current translation attempt.')  
                     continue              
                 
-                # 去除多余空行、前后空格  
-                # Remove extra empty lines and trim whitespace  
-                new_translations = [t.strip() for t in new_translations]  
-
-                # 判断是否有明显的空翻译(检测到1个空串就报错)  
-                # Check for obvious empty translations (error if even one empty string is detected)  
-                if any(not t for t in new_translations):  
+             
+                # 判断是否有明显的空翻译(只有当原文不为空但译文为空时才报错)  
+                # Check for obvious empty translations (only report error when source is not empty but translation is empty)  
+                empty_translation_errors = []
+                for i, (source, translation) in enumerate(zip(batch_queries, new_translations)):
+                    # 当原文不为空但译文为空时，才认为是错误的空翻译
+                    # Only consider it an error when source is not empty but translation is empty
+                    if source.strip() and not translation:
+                        empty_translation_errors.append(i + 1)
+                
+                if empty_translation_errors:  
                     self.logger.warning(  
-                        f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Empty translation detected. Retrying..."  
+                        f"[Attempt {attempt+1}/{max_attempts}] Empty translation detected for non-empty sources at positions: {empty_translation_errors}. Retrying..."  
                     )  
                     # 需要注意，此处也可换成break直接进入分割逻辑。原因是若出现空结果时，不断重试出现正确结果的效率相对较低，可能直到用尽重试错误依然无解。但是为了尽可能确保翻译质量，使用了continue，并相应地下调重试次数以抵消影响。  
                     # Note: This could be changed to break to directly enter the splitting logic. This is because when empty results occur,  
                     # repeatedly retrying for correct results is relatively inefficient and may still fail after all retries.  
                     # However, to ensure translation quality as much as possible, continue is used here, and the number of retries  
                     # is correspondingly reduced to offset the impact.  
-                    continue  
-
+                    continue
+                
                 # 检查特殊串行情况  
                 # Check for special merged translation
                 is_valid_translation = True  
@@ -381,7 +382,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                     
                     if is_translation_simple and not is_source_simple:  
                         self.logger.warning(  
-                            f"[Attempt {attempt+1}/{self._RETRY_ATTEMPTS}] Detected potential merged translation. "  
+                            f"[Attempt {attempt+1}/{max_attempts}] Detected potential merged translation. "  
                             f"Source: '{source}', Translation: '{translation}' (index {i+1}). Retrying..."  
                         )  
                         is_valid_translation = False  
@@ -389,6 +390,15 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                         
                 if not is_valid_translation:  
                     continue  
+                
+                # 检查翻译结果数量是否匹配 - 修复 list index out of range 错误
+                # Check if the number of translations matches - fix list index out of range error
+                if len(new_translations) != len(batch_queries):
+                    self.logger.warning(
+                        f"[Attempt {attempt+1}/{max_attempts}] Translation count mismatch: "
+                        f"got {len(new_translations)} translations for {len(batch_queries)} queries. Retrying..."
+                    )
+                    continue
                 
                 # 一切正常，写入 partial_results  
                 # Everything is normal, write to partial_results  
@@ -398,15 +408,15 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 # 成功  
                 # Success  
                 self.logger.info(  
-                    f"Batch of size {len(batch_queries)} translated OK at attempt {attempt+1}/{self._RETRY_ATTEMPTS} (split_level={split_level})."  
+                    f"Batch of size {len(batch_queries)} translated OK at attempt {attempt+1}/{max_attempts} (split_level={split_level})."  
                 )  
                 return True, partial_results  
 
             except Exception as e:  
                 self.logger.warning(  
-                    f"Batch translate attempt {attempt+1}/{self._RETRY_ATTEMPTS} failed with error: {str(e)}"  
+                    f"Batch translate attempt {attempt+1}/{max_attempts} failed with error: {str(e)}"  
                 )  
-                if attempt < self._RETRY_ATTEMPTS - 1:  
+                if attempt < max_attempts - 1:  
                     await asyncio.sleep(1)  
                 else:  
                     self.logger.warning("Max attempts reached, will try to split if possible.")  
@@ -428,19 +438,31 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             left_indices = batch_indices[:mid]  
             right_indices = batch_indices[mid:]  
 
-            # 递归翻译左半部分  
-            # Recursively translate the left half  
+            # 并发翻译左半部分和右半部分 
+            # Concurrently translate the left and right halves
             left_prompt, _ = next(self._assemble_prompts(from_lang, to_lang, left_queries))  
-            left_success, left_results = await self._translate_batch(  
-                from_lang, to_lang, left_queries, left_indices, left_prompt, split_level+1  
-            )  
-
-            # 递归翻译右半部分  
-            # Recursively translate the right half  
-            right_prompt, _ = next(self._assemble_prompts(from_lang, to_lang, right_queries))  
-            right_success, right_results = await self._translate_batch(  
-                from_lang, to_lang, right_queries, right_indices, right_prompt, split_level+1  
-            )  
+            right_prompt, _ = next(self._assemble_prompts(from_lang, to_lang, right_queries))
+            
+            # 使用 asyncio.gather 实现并发翻译  
+            # Use asyncio.gather for concurrent translation
+            self.logger.info(f"Starting split translation: left batch size {len(left_queries)}, right batch size {len(right_queries)}")
+            
+            try:
+                (left_success, left_results), (right_success, right_results) = await asyncio.gather(
+                    self._translate_batch(from_lang, to_lang, left_queries, left_indices, left_prompt, split_level+1),
+                    self._translate_batch(from_lang, to_lang, right_queries, right_indices, right_prompt, split_level+1),
+                    return_exceptions=False
+                )
+            except Exception as e:
+                self.logger.error(f"Error during split translation: {e}")
+                # 如果并发失败，回退到串行处理
+                self.logger.info("Falling back to sequential processing due to split translation error")
+                left_success, left_results = await self._translate_batch(
+                    from_lang, to_lang, left_queries, left_indices, left_prompt, split_level+1
+                )
+                right_success, right_results = await self._translate_batch(
+                    from_lang, to_lang, right_queries, right_indices, right_prompt, split_level+1
+                )
 
             # 合并结果  
             # Merge results  
@@ -651,20 +673,57 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         self.print_boxed(response_text, border_color="green", title="GPT Response")          
         return cleaned_text
 
-      
+    def _fix_prefix_spacing(self, text_to_fix):
+        """修复前缀和翻译内容之间的空格问题"""
+        lines = text_to_fix.strip().split('\n')
+        fixed_lines = []
+        
+        for line in lines:
+            # 匹配 <|数字|> 前缀格式，去除前缀后的多余空格
+            # Match <|number|> prefix format and remove extra spaces after prefix
+            match = re.match(r'^(<\|\d+\|>)\s+(.*)$', line.strip())
+            if match:
+                prefix = match.group(1)
+                content = match.group(2)
+                # 重新组合：前缀 + 内容
+                # Recombine: prefix + content (no space in between)
+                fixed_line = f"{prefix}{content}"
+                fixed_lines.append(fixed_line)
+            else:
+                fixed_lines.append(line)
+        
+        return '\n'.join(fixed_lines)
+
     # ==============修改日志输出方法 (Modify Log Output Method)==============
     def print_boxed(self, text, border_color="blue", title="OpenAITranslator Output"):  
         """将文本框起来并输出到终端"""
         """Box the text and output it to the terminal"""    
-        panel = Panel(text, title=title, border_style=border_color, expand=False)  
-        self.console.print(panel)          
- 
+        
+        # 应用修复
+        # Apply the fix
+        fixed_text = self._fix_prefix_spacing(text)
+        
+        # 输出到控制台（带颜色和边框）
+        panel = Panel(fixed_text, title=title, border_style=border_color, expand=False)  
+        self.console.print(panel)
+        
+        # 同时输出到日志文件（纯文本格式）
+        
+        if hasattr(manga_translator, '_log_console') and manga_translator._log_console:
+            # 直接输出纯文本，不使用边框
+            manga_translator._log_console.print(f"=== {title} ===")
+            manga_translator._log_console.print(fixed_text)
+            manga_translator._log_console.print("=" * (len(title) + 8))
+
     # ==============以下是术语表相关函数 (Below are glossary-related functions)==============
     
     def load_glossary(self, path):
         """加载术语表文件 / Load the glossary file"""
         if not os.path.exists(path):
-            self.logger.warning(f"The OpenAI glossary file does not exist: {path}")
+            # 只在第一次检查时显示警告
+            if not OpenAITranslator._glossary_warning_shown:
+                self.logger.warning(f"The OpenAI glossary file does not exist: {path}")
+                OpenAITranslator._glossary_warning_shown = True
             return {}
                 
         # 检测文件类型并解析 / Detect the file type and parse it

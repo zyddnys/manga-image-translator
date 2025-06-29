@@ -15,7 +15,7 @@ from .keys import CUSTOM_OPENAI_API_KEY, CUSTOM_OPENAI_API_BASE, CUSTOM_OPENAI_M
 
 
 class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
-    _INVALID_REPEAT_COUNT = 2  # 如果检测到“无效”翻译，最多重复 2 次
+    _INVALID_REPEAT_COUNT = 2  # 如果检测到"无效"翻译，最多重复 2 次
     _MAX_REQUESTS_PER_MINUTE = 40  # 每分钟最大请求次数
     _TIMEOUT = 40  # 在重试之前等待服务器响应的时间（秒）
     _RETRY_ATTEMPTS = 3  # 在放弃之前重试错误请求的次数
@@ -182,6 +182,9 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
             # Remove any text preceeding the first translation.
             new_translations = re.split(r'<\|\d+\|>', 'pre_1\n' + response)[1:]
             # new_translations = re.split(r'<\|\d+\|>', response)
+
+            # Immediately clean leading and trailing whitespace from each translation text
+            new_translations = [t.strip() for t in new_translations]
 
             # When there is only one query LLMs likes to exclude the <|1|>
             if not new_translations[0].strip():
