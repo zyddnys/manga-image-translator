@@ -1,0 +1,18 @@
+{
+  "name": "Nordic Noir",
+  "author": "Gemini",
+  "style": {
+    "colors": {
+      "background_main": "#2E3440",
+      "background_frame": "#3B4252",
+      "primary_button": "#5E81AC",
+      "primary_button_hover": "#81A1C1",
+      "slider_groove": "#4C566A",
+      "slider_handle": "#88C0D0",
+      "text_main": "#ECEFF4",
+      "border": "#4C566A",
+      "accent": "#88C0D0",
+      "checkbox_indicator": "#ECEFF4"
+    }
+  }
+}

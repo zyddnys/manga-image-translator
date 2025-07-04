@@ -1,0 +1,60 @@
+# =========================================================
+# GPT (AI TRANSLATOR) CONFIGURATION FILE
+# =========================================================
+# This file allows you to customize the behavior of AI translators
+# like OpenAI's GPT, Groq, Gemini, or a custom OpenAI-compatible API (like Ollama).
+# Use '#' for comments. The application will ignore these lines.
+
+# --- General AI Settings ---
+
+# temperature: (Default: 0.5)
+# A value between 0.0 and 2.0. Higher values (e.g., 0.8) make the output
+# more random and creative. Lower values (e.g., 0.2) make it more focused
+# and deterministic. It's recommended to keep this low for consistent translations.
+temperature: 0.3
+
+# top_p: (Default: 1)
+# An alternative to temperature. The model considers only the tokens with
+# top_p probability mass. 0.1 means only the top 10% most likely tokens
+# are considered. Usually, you modify either temperature or top_p, not both.
+top_p: 1.0
+
+
+# --- Prompt Engineering ---
+# This is where you can guide the AI to translate in a specific style.
+
+# include_template: (Default: True)
+# If set to true, the 'prompt_template' below will be prepended to the
+# text that needs to be translated.
+include_template: true
+
+# prompt_template:
+# The instruction text sent to the AI before the actual manga text.
+# Use {to_lang} to dynamically insert the target language name.
+prompt_template: 'Please translate the following manga text to colloquial and natural {to_lang}, preserving the original tone:'
+
+# chat_system_template:
+# This is the "main instruction" or "persona" for the AI. It sets the overall context.
+# A good system prompt is crucial for high-quality translations.
+chat_system_template: >
+  You are an expert translator specializing in Japanese manga.
+  Your translations must be natural, colloquial, and capture the characters' personalities.
+  You must only provide the translated text, without any extra explanations or remarks.
+  If a text is just a sound effect (like "ドーン" or "BAM"), output it as is.
+  Translate to {to_lang}.
+
+
+# --- Few-Shot Learning (Providing Examples) ---
+# You can provide a few examples to the AI to "teach" it your preferred style.
+# This is a very powerful technique.
+
+# chat_sample:
+# Provide a list of [user_prompt, expected_ai_response] pairs.
+# Key it by the target language name (e.g., English, Turkish).
+chat_sample:
+  English:
+    - <|1|>はじめまして！<|2|>よろしくお願いします。
+    - <|1|>Nice to meet you!<|2|>Please take care of me.
+  Turkish:
+    - <|1|>はじめまして！<|2|>よろしくお願いします。
+    - <|1|>Tanıştığımıza memnun oldum!<|2|>Bundan sonra iyi anlaşalım.

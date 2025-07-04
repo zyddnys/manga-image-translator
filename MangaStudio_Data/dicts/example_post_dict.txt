@@ -1,0 +1,34 @@
+# =========================================================
+# POST-TRANSLATION DICTIONARY (TRANSLATION CORRECTION)
+# =========================================================
+# Format: YourPreferredTranslation | TranslatorOutput
+# This file "beautifies" the text AFTER the translation is complete.
+#----------------------------------------------------------
+
+# --- Preserving Japanese Honorifics ---
+# The translator might turn "Eri-chan" into just "Eri".
+# We want to keep the "-chan" suffix.
+Eri-chan | Eri
+Yuki-senpai | Yuki
+Taro-kun | Taro
+
+# Sometimes the translator will translate words like "Onii-chan".
+# If we want them to remain in their original form:
+Onii-chan | Big brother
+Onii-chan | Brother
+Onee-san | Big sister
+Onee-san | Sister
+
+# --- Translation Style & Word Choice ---
+# If you dislike the translator's use of "Strange" and
+# prefer "Bizarre" instead:
+Bizarre | Strange
+
+# To make the use of "..." (ellipsis) more dramatic in English.
+# (Warning: This will replace all instances of "...")
+...— | ...
+
+# --- Reverting Placeholders from Pre-Dict ---
+# Here we revert the sound effect we encoded as [SFX_GOGOGO]
+# in the pre-dict file back to its original form.
+# ゴゴゴゴ | [SFX_GOGOGO]

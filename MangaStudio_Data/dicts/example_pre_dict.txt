@@ -1,0 +1,23 @@
+# =========================================================
+# PRE-TRANSLATION DICTIONARY (OCR CORRECTION)
+# =========================================================
+# Format: CorrectedText | OCR_Error
+# This file corrects text BEFORE it is sent to the translator.
+#----------------------------------------------------------
+
+# --- Common OCR Mistakes ---
+# Sometimes, the letter 'm' is misread as a combination of 'r' and 'n'.
+m | rn
+
+# Sometimes, the letter 'I' (capital i) is misread as 'l' (lowercase L).
+I | l
+
+# Sometimes, '!!' (double exclamation mark) is misread as '11' (eleven).
+!! | 11
+
+# --- Excluding Specific Text from Translation ---
+# We can replace special names or SFX with a placeholder code,
+# and then revert it back in the post-dict file. This prevents
+# the translator from getting confused.
+# Example: To preserve the "ゴゴゴゴ" (gogogo) sound effect.
+# [SFX_GOGOGO] | ゴゴゴゴ

@@ -1,0 +1,18 @@
+{
+  "name": "Lavender Dream",
+  "author": "Gemini",
+  "style": {
+    "colors": {
+      "background_main": "#F3E5F5",
+      "background_frame": "#E1BEE7",
+      "primary_button": "#9C27B0",
+      "primary_button_hover": "#AB47BC",
+      "slider_groove": "#CE93D8",
+      "slider_handle": "#6A1B9A",
+      "text_main": "#311B92",
+      "border": "#BA68C8",
+      "accent": "#9C27B0",
+      "checkbox_indicator": "#311B92"
+    }
+  }
+}

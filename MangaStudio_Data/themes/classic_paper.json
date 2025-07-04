@@ -1,0 +1,18 @@
+{
+  "name": "Classic Paper",
+  "author": "Gemini",
+  "style": {
+    "colors": {
+      "background_main": "#FDF5E6",
+      "background_frame": "#FAEBD7",
+      "primary_button": "#A0522D",
+      "primary_button_hover": "#BC8F8F",
+      "slider_groove": "#F5DEB3",
+      "slider_handle": "#8B4513",
+      "text_main": "#5A4F41",
+      "border": "#D2B48C",
+      "accent": "#8B4513",
+      "checkbox_indicator": "#5A4F41"
+    }
+  }
+}

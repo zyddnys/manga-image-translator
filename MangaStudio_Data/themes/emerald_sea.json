@@ -1,0 +1,18 @@
+{
+  "name": "Emerald Sea",
+  "author": "Gemini",
+  "style": {
+    "colors": {
+      "background_main": "#F0FFF0",
+      "background_frame": "#E0FFFF",
+      "primary_button": "#20B2AA",
+      "primary_button_hover": "#2E8B57",
+      "slider_groove": "#AFEEEE",
+      "slider_handle": "#FF4500",
+      "text_main": "#006400",
+      "border": "#4682B4",
+      "accent": "#FF4500",
+      "checkbox_indicator": "#006400"
+    }
+  }
+}

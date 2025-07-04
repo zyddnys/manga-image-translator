@@ -1,0 +1,94 @@
+{
+  "raw_output": {
+    "label": "RAW Output",
+    "description": "Removes text from the images, leaving blank speech bubbles. This task does not perform any translation.",
+    "settings_keys": [
+      "detector",
+      "detection_size",
+      "inpainter",
+      "inpainting_size",
+      "inpainting_precision",
+      "mask_dilation_offset"
+    ],
+    "defaults": {
+      "detector": "default",
+      "detection_size": 1536,
+      "inpainter": "lama_large",
+      "inpainting_size": 1024,
+      "inpainting_precision": "fp16",
+      "mask_dilation_offset": 5
+    },
+    "backend_config": {
+      "translator": {
+        "translator": "none"
+      },
+      "render": {
+        "renderer": "none"
+      }
+    }
+  },
+  "upscale": {
+    "label": "Image Upscaling",
+    "description": "Increases the resolution of images using a selected AI model, without any other modifications.",
+    "settings_keys": [
+      "upscaler",
+      "task_upscale_grid",
+      "revert_upscaling"
+    ],
+    "defaults": {
+      "upscaler": "esrgan",
+      "task_upscale_grid": "2x",
+      "revert_upscaling": false
+    },
+    "backend_config": {
+      "detector": {
+        "detector": "none"
+      },
+      "inpainter": {
+        "inpainter": "none"
+      },
+      "translator": {
+        "translator": "none"
+      },
+      "colorizer": {
+        "colorizer": "none"
+      },
+      "render": {
+        "renderer": "none"
+      }
+    }
+  },
+  "colorize": {
+    "label": "Image Colorization",
+    "description": "Colorizes black & white images, while attempting to preserve text areas by detecting them first.",
+    "settings_keys": [
+      "colorizer",
+      "colorization_size",
+      "denoise_sigma",
+      "ignore_bubble",
+      "restore_size_after_colorize",
+      "upscaler"
+    ],
+    "defaults": {
+      "colorization_size": 576,
+      "denoise_sigma": 30,
+      "ignore_bubble": 10,
+      "restore_size_after_colorize": false,
+      "upscaler": "esrgan"
+    },
+    "backend_config": {
+      "detector": {
+        "detector": "default"
+      },
+      "inpainter": {
+        "inpainter": "none"
+      },
+      "translator": {
+        "translator": "none"
+      },
+      "render": {
+        "renderer": "none"
+      }
+    }
+  }
+}

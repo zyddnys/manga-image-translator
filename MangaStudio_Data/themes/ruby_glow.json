@@ -1,0 +1,18 @@
+{
+  "name": "Ruby Glow",
+  "author": "Gemini",
+  "style": {
+    "colors": {
+      "background_main": "#2B2B2B",
+      "background_frame": "#3C3F41",
+      "primary_button": "#C70039",
+      "primary_button_hover": "#FF5733",
+      "slider_groove": "#5A5A5A",
+      "slider_handle": "#900C3F",
+      "text_main": "#F0F0F0",
+      "border": "#5A5A5A",
+      "accent": "#FF5733",
+      "checkbox_indicator": "#F0F0F0"
+    }
+  }
+}
