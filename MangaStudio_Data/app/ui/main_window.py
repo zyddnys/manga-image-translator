@@ -280,7 +280,11 @@ class TranslatorStudioApp(QMainWindow):
         log_layout.addWidget(QLabel("The live log will be displayed here."))
 
         self.main_tabs.addTab(tab_config, "Configuration ⚙️")
-        self.main_tabs.addTab(tab_compare, "Visual Compare 👁️")
+        # --- DISABLED FEATURE: The Visual Compare tab is hidden until its core bug is fixed. ---
+        # TODO: The 'translated_view' panel does not correctly display the output image after
+        #       the single-image pipeline finishes. The underlying logic in _run_visual_test
+        #       and _display_test_result needs to be debugged.
+        # self.main_tabs.addTab(tab_compare, "Visual Compare 👁️") 
         self.main_tabs.addTab(tab_log, "Live Log 📊")
 
         return self.main_tabs
@@ -1440,14 +1444,16 @@ class TranslatorStudioApp(QMainWindow):
         return row_widget
 
     def _on_font_scale_changed(self, text: str):
-        """Applies a global font size based on the combobox selection."""
-        # A base font size, e.g., 10pt is a good standard default
-        base_size = 10
-        percentage = int(text.split('%')[0])
-        new_size = base_size * (percentage / 100.0)
-
-        print(f"[UI] Setting global font size to {percentage}% ({new_size}pt)")
-        self.setStyleSheet(f"QWidget {{ font-size: {new_size}pt; }}")
+        """
+        Applies a global font size by RE-APPLYING the currently selected theme,
+        which will automatically use the new font scale.
+        """
+        # Get the name of the currently selected theme from the combobox
+        current_theme_name = self.theme_combobox.currentText()
+        
+        # Re-apply the theme. This function is smart enough to read the new font
+        # scale from the combobox and include it in the full stylesheet.
+        self._apply_theme(current_theme_name)
 
     def _connect_widget_signal(self, key: str, widget: QWidget, context_key: str = None):
         """
