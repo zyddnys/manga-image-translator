@@ -1,87 +1,126 @@
-# Manga Translation Studio - GUI Module
+# Manga Translation Studio
 
-## 1. About This Project
+This document describes the **Manga Translation Studio**, a comprehensive graphical user interface (GUI) built with PySide6 for the powerful `zyddnys/manga-image-translator` backend.
 
-This GUI is the result of a "vibe coding" collaboration:
-
--   **Ideas, Direction & Testing:** [Kostraw](https://github.com/Kostraw)
--   **Code Implementation:** Gemini AI
-
-This project provides a user-friendly graphical interface (GUI) for the incredible command-line tool, **`manga-image-translator`**, created by **zyddnys**.
-
-**Original Project Link:** [https://github.com/zyddnys/manga-image-translator](https://github.com/zyddnys/manga-image-translator)
-
-[A screenshot of the application interface would go here.]
+This GUI provides a user-friendly studio environment to manage, configure, and run manga/comic translation tasks without needing to use the command line.
 
 ---
 
-## 2. Motivation ("Why This GUI?")
-
-I love the power and flexibility of the original `manga-image-translator` tool. However, as someone who prefers a visual workflow, I wanted to create an interface to harness its full potential without using the command line.
-
-This project started as a personal tool to make my own life easier. As it grew and became more powerful, I decided to polish it and share it with the community, hoping it might be useful to others.
+### **Table of Contents**
+1.  [Core Features](#-core-features)
+2.  [Requirements](#-requirements)
+3.  [How to Install](#-how-to-install)
+4.  [Project Structure](#-project-structure)
+5.  [Quick Start Guide](#-quick-start-guide)
+6.  [Key Concepts Explained](#-key-concepts-explained)
+    *   [The Checkpoint System](#the-checkpoint-system)
+    *   [Tasks vs. Configuration](#tasks-vs-configuration)
+    *   [Advanced Dictionaries and GPT Configs](#advanced-dictionaries-and-gpt-configs)
 
 ---
 
-## 3. Installation & Usage
+## ✨ Core Features
 
-1.  **Prerequisites:** Ensure you have a working Python environment and the `manga-image-translator` tool itself installed and functional.
-2.  **Install GUI Libraries:** Open a terminal and run the following command to install the necessary libraries for the interface:
+*   **Intuitive Job Management:** Add translation jobs via a file dialog or simple drag-and-drop. Reorder, duplicate, or remove jobs with ease.
+*   **Checkpoint System:** Save specific settings directly to a job, making it independent of the global panel settings. Queue up multiple jobs with different configurations.
+*   **Dedicated Task System:** Go beyond translation with pre-configured tasks for "RAW Output" (text removal), "Image Upscaling", or "Image Colorization".
+*   **Smart VRAM Management:** Choose between **High VRAM** (fast), **Low VRAM** (safe for less powerful GPUs), or **Automatic** modes to prevent CUDA "Out of Memory" errors.
+*   **Safe & Smart Processing:**
+    *   **Resume on Relaunch:** Automatically skips already processed files in the output folder.
+    *   **Conflict-Free Outputs:** By default, creates new numbered folders (e.g., `Manga-ENG (1)`) to prevent overwriting previous results.
+*   **Full Backend Control:** Access and configure nearly every feature of the backend, from advanced detector settings to text rendering options.
+*   **Live Log & History:** Monitor progress in real-time and review completed jobs in the History panel. Re-queue past jobs with a single click.
+*   **Secure API & File Management:** Includes helpers for managing API keys (`.env`), translation dictionaries (`--pre/--post-dict`), and custom GPT configurations.
+
+## 📋 Requirements
+
+1.  **Backend Project:** This GUI requires the original `manga-image-translator` project. Please follow the setup instructions from the [official repository](https://github.com/zyddnys/manga-image-translator) first. This will install the core dependencies like `torch`.
+
+2.  **Python Libraries for the GUI:** This user interface requires two additional libraries. Ensure they are installed in your activated virtual environment:
     ```bash
-    pip install customtkinter Pillow tkinterdnd2 CTkToolTip
+    pip install PySide6 Pillow
     ```
-3.  **Run the Application:** Navigate to the directory containing the script and run:
+    *   **PySide6:** The core framework for the user interface.
+    *   **Pillow:** Used for image processing tasks, such as reading image dimensions for the smart colorization feature.
+
+## 🚀 How to Install
+
+1.  Place the `MangaStudioMain.py` file and the entire `MangaStudio_Data` folder into the **root directory** of your cloned `manga-image-translator` project.
+2.  Make sure your Python virtual environment (`venv`) is activated.
+3.  Run the application from the root directory:
     ```bash
-    python MangaStudio.py
+    python MangaStudioMain.py
     ```
-4.  **Data Folder:** On first launch, the application will create a `MangaStudio_Data` folder next to the script. All user settings, profiles, and temporary files will be stored here to keep the main directory clean.
 
----
+## 📁 Project Structure
 
-## 4. Key Features
+The GUI's core files are self-contained within the `MangaStudio_Data` directory to keep the main project folder clean.
 
--   **Full Control:** Access and manage all settings provided by the `manga-image-translator` tool through an intuitive tabbed interface.
--   **Job Queue:** Drag and drop multiple folders to process them sequentially.
--   **Preset Manager:** Save, load, and manage your favorite setting configurations for different tasks.
--   **Special Tasks Workshop:** A dedicated section to perform standalone tasks like **RAW Output (Text Cleaning)**, **Upscaling**, or **Colorization** with their own independent, fine-tuned settings.
--   **Model Manager:** View, download, and delete required AI models from within the application.
--   **Advanced Debug Mode:** An optional mode for power users to save all intermediate processing steps for detailed troubleshooting.
--   **Centralized File Structure:** Keeps the root directory clean by storing all GUI-related data in the `MangaStudio_Data` folder.
+```
+manga-image-translator/ (Project Root)
+|
+|-- MangaStudioMain.py       # <-- Main executable to run the UI
+|-- MangaStudioMainRun.py    # <-- Run
+|
+|-- MangaStudio_Data/
+|   |-- app/                 # Core application logic and UI window
+|   |-- dicts/               # Folder for pre/post-translation dictionaries
+|   |-- fonts/               # Place custom .ttf/.otf fonts here
+|   |-- gpt_configs/         # Folder for custom GPT/AI configurations
+|   |-- profiles/            # Saved user setting presets
+|   |-- temp/                # For temporary files (ignored by Git)
+|   |-- themes/              # UI theme files
+|   |-- tasks.json           # Configuration for the "Tasks" tab
+|   |-- ui_map.json          # Maps backend settings to UI widgets
+|   |-- README.md            # This file
+|
+|-- ... (all other original backend folders and files)
+```
 
----
+## 📖 Quick Start Guide
 
-## 5. Current Status & Disclaimer
+1.  **Add a Job:**
+    *   Click `➕ Add Job` to select a folder containing your images.
+    *   Or, simply **drag and drop** the folder onto the "Queue" panel.
 
-This GUI has been developed and tested to be stable for its main intended workflows. However, as a complex project built on top of another tool, there may be undiscovered bugs or edge cases in specific, untested scenarios. It is provided "as-is".
+2.  **Configure Your Job:**
+    *   Select the job in the "Queue".
+    *   Go to the **`Configuration ⚙️`** tab on the right.
+    *   Set your desired `Translator`, `Target Language`, `Output Format`, and other settings.
 
----
+3.  **Create a Checkpoint:**
+    *   This is the most important step. **Right-click** the configured job in the queue.
+    *   Select **`✅ Save Settings to Job (Checkpoint)`**.
+    *   The job's icon will turn green (🟢), indicating it's ready and its settings are locked in.
 
-## 6. A Note on Support & Future Development
+4.  **Start Processing:**
+    *   Click the **`▶️ START PIPELINE`** button.
+    *   You can monitor the detailed progress in the **`Live Log 📊`** tab.
 
-This GUI was a passion project. **I am not the official maintainer of this GUI module.** My goal was to build it, share it, and then step back.
+## 💡 Key Concepts Explained
 
-Therefore, please **do not contact me directly** for bug reports, feature requests, or support.
+#### The Checkpoint System
 
--   **For Bugs or Feature Ideas:** Please use the **"Issues"** tab on the main `zyddnys/manga-image-translator` GitHub repository. This allows the original author and the entire community to track and manage contributions centrally.
--   **For Help:** Please consult the community or wait for the original project owner to address the issue.
+A "Checkpoint" is created when you use `Save Settings to Job`. This action "locks" all the settings from the right-hand panel onto that specific job. This is powerful because you can:
+*   Configure a job for Japanese-to-English translation.
+*   Configure a second job for German-to-Spanish translation with different quality settings.
+*   Run them back-to-back in the same pipeline without the settings interfering with each other.
 
-Feel free to modify, improve, or take over the development of this GUI.
+A job **must** have a checkpoint (🟢) to be processed.
 
----
+#### Tasks vs. Configuration
 
-## 7. Future Development Ideas
+*   The **`Configuration`** tab is for the main goal: translating manga. It gives you full control over every detail.
+*   The **`Tasks 🛠️`** tab is for specific, one-off jobs where you don't need a full translation.
+    *   **RAW Output:** Just removes the text from the bubbles.
+    *   **Image Upscaling:** Just increases the resolution of the images.
+    *   **Image Colorization:** Just colorizes black-and-white images.
+    
+To use a task, select a job, go to the `Tasks` tab, configure the few settings available, and click the **`Assign...`** button. This will automatically create a checkpoint for that task.
 
-If someone wishes to continue developing this GUI, here are some potential next steps:
--   **API Key Management:** A dedicated section to securely store and use API keys for services like DeepL, OpenAI, etc. A placeholder frame for this already exists in the "Extra Settings" tab.
--   **"Ultra Quality" Colorize Mode:** Implementing a two-pass system (AI upscale + standard resize) for the colorize task to potentially achieve higher quality results. A developer note for this exists in the code.
+#### Advanced Dictionaries and GPT Configs
 
----
+Under `Configuration ⚙️` > `General & Translator (Advanced)`, you can find powerful customization options:
 
-## 8. License
-
-This GUI module, as a derivative work, falls under the same license as the original `manga-image-translator` project.
-
-**License:** [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html)
-
----
-*This GUI was developed in collaboration with an AI assistant.*
+*   **Pre/Post-Translation Dictionaries:** These allow you to provide your own `.txt` files to automatically fix common OCR errors or standardize translation terms for consistency. Example files are provided in the `MangaStudio_Data/dicts` folder.
+*   **GPT Config File:** This allows you to provide a `.yaml` file to deeply customize the behavior of AI translators (like GPT-4o or Gemini). You can change their "persona," style, and more. An example file is provided in `MangaStudio_Data/gpt_configs`.

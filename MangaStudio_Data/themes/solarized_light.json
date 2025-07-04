@@ -1,0 +1,18 @@
+{
+  "name": "Solarized Light",
+  "author": "MangaStudio",
+  "style": {
+    "colors": {
+      "background_main": "#fdf6e3",
+      "background_frame": "#eee8d5",
+      "primary_button": "#268bd2",
+      "primary_button_hover": "#3ea2e0",
+      "slider_groove": "#eee8d5",
+      "slider_handle": "#268bd2",
+      "text_main": "#657b83",
+      "border": "#93a1a1",
+      "accent": "#268bd2",
+      "checkbox_indicator": "#657b83"
+    }
+  }
+}

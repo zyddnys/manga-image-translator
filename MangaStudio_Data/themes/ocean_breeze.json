@@ -1,0 +1,18 @@
+{
+  "name": "Ocean Breeze",
+  "author": "Gemini",
+  "style": {
+    "colors": {
+      "background_main": "#E1F5FE",
+      "background_frame": "#B3E5FC",
+      "primary_button": "#03A9F4",
+      "primary_button_hover": "#29B6F6",
+      "slider_groove": "#81D4FA",
+      "slider_handle": "#01579B",
+      "text_main": "#01579B",
+      "border": "#4FC3F7",
+      "accent": "#03A9F4",
+      "checkbox_indicator": "#01579B"
+    }
+  }
+}
