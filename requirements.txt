@@ -58,13 +58,4 @@ python-multipart
 google-genai
 rich
 regex
-
-# Currently CUDA 11.8 and 12.3 are supported. 
-# Let pip choose the cuda version to use:
---extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cu118/
---extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cu123/
---extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cu126/
---extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cu129/
-paddleocr
-paddlepaddle
-paddlepaddle-gpu; sys_platform != 'darwin'
+rusty-manga-image-translator
