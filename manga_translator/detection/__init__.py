@@ -4,7 +4,7 @@ from .default import DefaultDetector
 from .dbnet_convnext import DBConvNextDetector
 from .ctd import ComicTextDetector
 from .craft import CRAFTDetector
-from .paddle import PaddleDetector
+from .paddle_rust import PaddleDetector
 from .none import NoneDetector
 from .common import CommonDetector, OfflineDetector
 from ..config import Detector
