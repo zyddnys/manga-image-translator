@@ -2,7 +2,7 @@ import os
 import shutil
 import numpy as np
 import cv2
-from paddleocr import TextDetection #采用文本检测模块而非完整的OCR模块
+from paddleocr import PaddleOCR  # Use stable public API
 from typing import List, Tuple
 
 from .common import OfflineDetector
@@ -31,14 +31,19 @@ class PaddleDetector(OfflineDetector, ModelWrapper):
     async def _load(self, device: str):
         if device in ['cuda', 'mps']:
             self.use_gpu = True
-            device = 'gpu'
+            use_gpu = True
         else:
             self.use_gpu = False
-            device = 'cpu'
-        self.model=TextDetection(
-            model_name='PP-OCRv5_server_det',
-            model_dir=os.path.join(self.model_dir, 'PP-OCRv5_server_det_infer'),
-            device=device,
+            use_gpu = False
+
+        # Use PaddleOCR in detection-only mode
+        self.model = PaddleOCR(
+            det=True,
+            rec=False,
+            use_angle_cls=False,
+            lang='en',
+            use_gpu=use_gpu,
+            det_model_dir=os.path.join(self.model_dir, 'PP-OCRv5_server_det_infer'),
         )
         global MODEL
         MODEL = self.model
@@ -49,34 +54,22 @@ class PaddleDetector(OfflineDetector, ModelWrapper):
     async def _infer(self, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float,
                      unclip_ratio: float, verbose: bool = False):
         global MODEL
-        
-        # 使用TextDetection进行推理
-        results = MODEL.predict_iter(
-            image, batch_size=1,
-            limit_side_len=detect_size,
-            thresh=text_threshold, 
-            box_thresh=box_threshold,
-            unclip_ratio=unclip_ratio
-        )
+
+        # Run detection
+        results = MODEL.ocr(image, cls=False)
 
         textlines = []
         mask = np.zeros((image.shape[0], image.shape[1]), dtype=np.uint8)
-        
-        for result in results:
-            #result.save_to_img(save_path="./output/")
-            if result['dt_polys'] is not None and len(result['dt_polys']) > 0:
-                # 遍历每个检测到的文本框
-                for i, poly in enumerate(result['dt_polys']):
 
-                    # 转换为整数坐标
-                    poly_int = poly.astype(np.int32)
+        for line in results:
+            for box_info in line:
+                box, _, score = box_info  # box: 4 points, score is float
 
-                    # 获取置信度
-                    score = result['dt_scores'][i]
-                    
-                    textlines.append(Quadrilateral(poly_int, '', score))
-                    
-                    # 在mask上绘制四边形
-                    cv2.fillPoly(mask, [poly_int], color=255)
+                if score < text_threshold:
+                    continue
+
+                poly_int = np.array(box).astype(np.int32)
+                textlines.append(Quadrilateral(poly_int, '', score))
+                cv2.fillPoly(mask, [poly_int], color=255)
 
         return textlines, mask, None
