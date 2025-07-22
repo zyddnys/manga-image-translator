@@ -56,6 +56,7 @@ ISO_639_1_TO_VALID_LANGUAGES = {
     'hu': 'HUN',
     'it': 'ITA',
     'pl': 'POL',
+    'pl': 'POL',
     'pt': 'PTB',
     'ro': 'ROM',
     'ru': 'RUS',
