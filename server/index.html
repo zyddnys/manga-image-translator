@@ -441,10 +441,21 @@
         get fileUri() {
           return this.file ? URL.createObjectURL(this.file) : null;
         },
-        detectionResolution: "1536",
-        textDetector: "default",
-        renderTextDirection: "auto",
-        translator: "youdao",
+
+        //This Block is responsible of reading last value from local memory----------------------------------------------------
+        // Default values with localStorage fallback
+        detectionResolution :            localStorage.getItem('detectionResolution')           || "1536",
+        textDetector        :            localStorage.getItem('textDetector')                  || "default",
+        renderTextDirection :            localStorage.getItem('renderTextDirection')           || "auto",
+        translator          :            localStorage.getItem('translator')                    || "youdao",
+        targetLanguage      :            localStorage.getItem('targetLanguage')                || "CHS",
+        inpaintingSize      :            localStorage.getItem('inpaintingSize')                || "2048",
+        customUnclipRatio   : parseFloat(localStorage.getItem('customUnclipRatio'))            || 2.3,
+        customBoxThreshold  : parseFloat(localStorage.getItem('customBoxThreshold'))           || 0.7,
+        maskDilationOffset  :   parseInt(localStorage.getItem('maskDilationOffset'))           || 30,
+        inpainter           :            localStorage.getItem('inpainter')                     || "lama_large",
+        //---------------------------------------------------------------------------------------------------------------------
+
         validTranslators: [
           "youdao",
           "baidu",
@@ -475,12 +486,6 @@
           if (key === "none") return "No Text";
           return key ? key[0].toUpperCase() + key.slice(1) : "";
         },
-        targetLanguage: "CHS",
-        inpaintingSize: "2048",
-        customUnclipRatio: 2.3,
-        customBoxThreshold: 0.7,
-        maskDilationOffset: 30,
-        inpainter: "lama_large",
         sessionId: null,
         uploadController: null,
 
@@ -648,6 +653,19 @@
         }`;
 
           formData.append("config", config);
+
+          // Watchers to save changes to localStorage
+          localStorage.setItem('detectionResolution'    ,this.detectionResolution);
+          localStorage.setItem('textDetector'           ,this.textDetector); 
+          localStorage.setItem('renderTextDirection'    ,this.renderTextDirection); 
+          localStorage.setItem('translator'             ,this.translator); 
+          localStorage.setItem('targetLanguage'         ,this.targetLanguage); 
+          localStorage.setItem('inpaintingSize'         ,this.inpaintingSize); 
+          localStorage.setItem('customUnclipRatio'      ,this.customUnclipRatio); 
+          localStorage.setItem('customBoxThreshold'     ,this.customBoxThreshold); 
+          localStorage.setItem('maskDilationOffset'     ,this.maskDilationOffset); 
+          localStorage.setItem('inpainter'              ,this.inpainter);
+         
 
           const processChunk = (value) => {
             if (this.error) return;

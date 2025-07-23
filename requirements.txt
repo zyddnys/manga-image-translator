@@ -68,3 +68,4 @@ regex
 paddleocr
 paddlepaddle
 paddlepaddle-gpu; sys_platform != 'darwin'
+python-bidi
