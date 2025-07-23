@@ -425,16 +425,11 @@
         return `${formatSize(loaded)}/${formatSize(total)}`;
       }
 
-      // 生成唯一的会话ID
-      function generateSessionId() {
-        return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-      }
+
 
       PetiteVue.createApp({
         onmounted() {
           window.addEventListener("paste", this.onpaste);
-          // 初始化会话ID
-          this.sessionId = generateSessionId();
         },
 
         file: null,
@@ -481,7 +476,7 @@
         customBoxThreshold: 0.7,
         maskDilationOffset: 30,
         inpainter: "lama_large",
-        sessionId: null,
+
         uploadController: null,
 
         ondrop(e) {
@@ -565,52 +560,20 @@
           return /^error/.test(this.status);
         },
         result: null,
+        currentFolder: null, // 存储当前处理图片的文件夹名称
+        finalPngDisplayed: false, // 标记是否已显示final.png
         useFileResult: true, // 是否使用文件结果
         get resultUri() {
           // 如果result为假值，则不生成URI，防止在清除时触发不必要的请求
           if (!this.result) return "";
 
-          // 如果使用文件结果，使用最新结果端点；否则使用blob URL
-          if (this.useFileResult) {
-            const params = new URLSearchParams();
-            
-            // 如果有会话ID，添加到请求参数
-            if (this.sessionId) {
-              params.append('session_id', this.sessionId);
-            }
-            
-            return `${BASE_URI}latest-result?${params.toString()}`;
+          // 如果使用文件结果且有当前文件夹，则使用final.png
+          if (this.useFileResult && this.currentFolder) {
+            return `${BASE_URI}result/${this.currentFolder}/final.png`;
           }
           return this.result ? URL.createObjectURL(this.result) : null;
         },
-        // 简化：此函数现在只进行单次请求，因为后端已实现轮询
-        async checkFileExists() {
-          try {
-            const params = new URLSearchParams();
-            
-            if (this.sessionId) {
-              params.append('session_id', this.sessionId);
-            }
-            
-            // 后端会等待，所以我们只需发起一次HEAD请求进行检查
-            const response = await fetch(`${BASE_URI}latest-result?${params.toString()}`, { method: 'HEAD' });
 
-            if (response.ok) {
-              console.log("结果已就绪，开始显示图片。");
-              this.useFileResult = true;
-              this.result = true; // 设置一个真值以显示<img>标签
-              this.status = null; // 清除"处理中"的状态
-              return true;
-            } else {
-              // 理论上如果后端等待足够长，这里不会被触发
-              this.status = "error";
-              return false;
-            }
-          } catch (error) {
-            this.status = "error-disconnect";
-            return false;
-          }
-        },
         async onsubmit(e) {
           if (!this.file) return;
 
@@ -669,20 +632,33 @@
               const data = buffer.slice(5, totalSize);
               switch (statusCode) {
                 case 0:
-                  // 如果使用文件结果模式，忽略blob数据，使用文件URL
+                  // 如果已经显示了final.png文件，忽略占位符数据
+                  if (this.finalPngDisplayed) {
+                    console.log("已显示final.png，忽略占位符数据");
+                    break;
+                  }
+
+                  // 如果使用文件结果模式，忽略数据，使用文件URL
                   if (!this.useFileResult) {
                     this.result = new Blob([data], { type: "image/png" });
                     this.status = null;
                   }
-                  // 在文件模式下，不在此处设置 result 和 status，
-                  // 而是依赖 checkFileExists 流程来更新 UI
+                  // 在文件模式下，依赖 final_ready 消息来更新 UI
                   break;
                 case 1:
                   const newStatus = decoder.decode(data);
-                  this.status = newStatus;
-                  // 如果是rendering状态，立即开始异步检查文件，不阻塞流处理
-                  if (newStatus === "rendering") {
-                    this.checkFileExists();
+
+                  // 检查是否是rendering_folder消息
+                  if (newStatus.startsWith("rendering_folder:")) {
+                    this.currentFolder = newStatus.substring(17); // 移除"rendering_folder:"前缀
+                    console.log("收到文件夹信息:", this.currentFolder);
+                  } else if (newStatus.startsWith("final_ready:")) {
+                    // final.png已就绪，立即显示
+                    const readyFolder = newStatus.substring(12); // 移除"final_ready:"前缀
+                    console.log("final.png已就绪，文件夹:", readyFolder);
+                    this.showFinalResult();
+                  } else {
+                    this.status = newStatus;
                   }
                   break;
                 case 2:
@@ -706,22 +682,10 @@
 
           const uploadWithProgress = async (formData) => {
             try {
-              // 将会话ID添加到表单数据中
-              if (this.sessionId) {
-                formData.append("session_id", this.sessionId);
-              }
-              
-              // 设置请求头，包含会话ID
-              const headers = {};
-              if (this.sessionId) {
-                headers['X-Session-ID'] = this.sessionId;
-              }
-              
               const response = await fetch(
-                `${BASE_URI}translate/with-form/image/stream`,
+                `${BASE_URI}translate/with-form/image/stream/web`,
                 {
                   method: "POST",
-                  headers: headers,
                   body: formData,
                   signal: this.uploadController.signal,
                 }
@@ -758,17 +722,32 @@
 
           uploadWithProgress(formData);
         },
+
+        // 显示final.png结果
+        showFinalResult() {
+          console.log("final.png已就绪，立即显示");
+
+          // 立即显示final.png
+          this.useFileResult = true;
+          this.result = true; // 设置一个真值以显示<img>标签
+          this.status = "finished"; // 设置为finished状态
+
+          // 标记已显示final.png，后续占位符数据将被忽略
+          this.finalPngDisplayed = true;
+        },
+
         clear() {
           this.uploadController?.abort();
           this.file = null;
           this.result = null;
+          this.currentFolder = null;
+          this.finalPngDisplayed = false;
           this.useFileResult = true;
           this.status = null;
           this.progress = null;
           this.queuePos = null;
           this.errorMessage = null;
-          // Generate a new session ID for each new translation
-          this.sessionId = generateSessionId();
+
         },
       }).mount();
     </script>

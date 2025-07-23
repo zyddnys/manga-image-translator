@@ -54,7 +54,7 @@ class ConfigGPT:
         '## Translation Rules\n'  
         '- Translate line by line, maintaining accuracy and the authentic; Faithfully reproducing the original text and emotional intent.\n'          
         '- Preserve original gibberish or sound effects without translation.\n'            
-        '- Output each segment with its prefix (<|number|> format exactly) and only provide the translation.\n'  
+        '- Output each segment with its prefix (<|number|> format exactly) and only provide the translation without raw text.\n'  
         '- Translate content only—no additional interpretation or commentary.\n'  
         
         'Translate the following text into {to_lang}:\n'  

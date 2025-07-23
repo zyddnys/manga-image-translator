@@ -165,7 +165,7 @@ def chunks(lst, n):
 
 def get_digest(file_path: str) -> str:
     h = hashlib.sha256()
-    BUF_SIZE = 65536 
+    BUF_SIZE = 65536
 
     with open(file_path, 'rb') as file:
         while True:
@@ -175,6 +175,29 @@ def get_digest(file_path: str) -> str:
                 break
             h.update(chunk)
     return h.hexdigest()
+
+def get_image_md5(image) -> str:
+    """计算PIL Image对象的MD5哈希值，确保相同图片内容产生相同的哈希值"""
+    import io
+    from PIL import Image
+
+    try:
+        # 将PIL Image转换为字节数据进行MD5计算
+        img_byte_arr = io.BytesIO()
+        # 统一转换为RGB格式以确保一致性
+        if hasattr(image, 'mode') and image.mode != 'RGB':
+            image = image.convert('RGB')
+        image.save(img_byte_arr, format='PNG')
+        img_bytes = img_byte_arr.getvalue()
+
+        # 计算MD5哈希值
+        h = hashlib.md5()
+        h.update(img_bytes)
+        return h.hexdigest()[:8]  # 只取前8位，避免文件夹名过长
+    except Exception as e:
+        # 如果计算失败，返回基于时间戳的fallback值
+        import time
+        return f"fallback_{int(time.time() * 1000)}"
 
 def get_filename_from_url(url: str, default: str = '') -> str:
     m = re.search(r'/([^/?]+)[^/]*$', url)

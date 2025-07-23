@@ -513,6 +513,52 @@ def _simple_sort(regions: List[TextBlock], right_to_left: bool) -> List[TextBloc
             sorted_regions.append(region)
     
     return sorted_regions
+    
+
+def _sort_panels_fill(panels: List[Tuple[int, int, int, int]], right_to_left: bool) -> List[Tuple[int, int, int, int]]:
+    """Return panels in desired reading order.
+
+    1. Panels are processed row-by-row from top to bottom (smallest *y1* first).
+    2. Inside a row we proceed from right to left (*x1* descending when RTL, ascending otherwise).
+    3. **Key point**: when moving horizontally, every panel that *roughly* shares
+       the same x-range (both *x1* and *x2* close) with the current one is treated
+       as a vertical stack and is inserted immediately after the current panel
+       (top-to-bottom).  This mirrors how humans read stacked panels.
+
+    The logic assumes panels fill the whole page (common in manga pages).
+    """
+
+    if not panels:
+        return panels
+
+    # Make a working copy we can pop from.
+    remaining = sorted(list(panels), key=lambda p: p[1])  # sort by top-y first
+    ordered: List[Tuple[int, int, int, int]] = []
+
+    # Dynamic thresholds based on average panel size for reasonable robustness.
+    avg_w = np.mean([p[2] - p[0] for p in remaining])
+    avg_h = np.mean([p[3] - p[1] for p in remaining])
+    X_THR = max(10, avg_w * 0.1)   # panels whose x-range differs <10% width are considered same column
+    Y_THR = max(10, avg_h * 0.3)   # y-difference to decide panels are on the same row
+
+    while remaining:
+        # Start a new row from the current top-most panel
+        base_y = remaining[0][1]
+
+        # Gather all panels whose top-y 距离 base_y 不超过阈值 → 同一行
+        row = []
+        i = 0
+        while i < len(remaining):
+            if abs(remaining[i][1] - base_y) <= Y_THR:
+                row.append(remaining.pop(i))
+            else:
+                i += 1
+
+        # Sort that row right-to-left (或 LTR) 再加入
+        row.sort(key=lambda p: (-p[0] if right_to_left else p[0]))
+        ordered.extend(row)
+ 
+    return ordered
 
 
 def sort_regions(
@@ -535,8 +581,8 @@ def sort_regions(
             panels_raw = get_panels_from_array(img, rtl=right_to_left)
             # Convert to [x1, y1, x2, y2]
             panels = [(x, y, x + w, y + h) for x, y, w, h in panels_raw]
-            # Sort panels themselves: first by y, then by x (RTL x descending)
-            panels.sort(key=lambda p: (p[1], -p[0] if right_to_left else p[0]))
+            # Use the customised sorter that keeps vertically stacked panels together.
+            panels = _sort_panels_fill(panels, right_to_left)
 
             # Assign panel_index to each region
             for r in regions:
@@ -627,8 +673,29 @@ def sort_regions(
     return sorted_regions
 
 
-def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock]):
+def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock], show_panels: bool = False, img_rgb: np.ndarray = None, right_to_left: bool = True):
     lw = max(round(sum(canvas.shape) / 2 * 0.003), 2)  # line width
+    
+    # Panel detection and drawing
+    panels = None
+    if show_panels and img_rgb is not None:
+        try:
+            panels_raw = get_panels_from_array(img_rgb, rtl=right_to_left)
+            panels = [(x, y, x + w, y + h) for x, y, w, h in panels_raw]
+            # Use the customised sorter that keeps vertically stacked panels together.
+            panels = _sort_panels_fill(panels, right_to_left)
+            
+            # Draw panel boxes and order
+            for panel_idx, (x1, y1, x2, y2) in enumerate(panels):
+                cv2.rectangle(canvas, (x1, y1), (x2, y2), (255, 0, 255), lw)  # Magenta color for panels
+                # Put panel number inside the box with deep blue color for better visibility and aesthetics
+                cv2.putText(canvas, str(panel_idx), (x1+5, y1+60), cv2.FONT_HERSHEY_SIMPLEX, 
+                           lw/2, (200, 100, 0), max(lw-1, 1), cv2.LINE_AA)
+        except Exception as e:
+            from ..utils import get_logger
+            logger = get_logger('textblock')
+            logger.warning(f'Panel visualization failed: {e}')
+    
     for i, blk in enumerate(blk_list):
         bx1, by1, bx2, by2 = blk.xyxy
         cv2.rectangle(canvas, (bx1, by1), (bx2, by2), (127, 255, 127), lw)

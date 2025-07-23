@@ -78,6 +78,8 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         else:
             self.console = Console()  
         self.prev_context = ""
+        # 可选的回退模型（通过环境变量 OPENAI_FALLBACK_MODEL 指定）
+        self._fallback_model = os.getenv("OPENAI_FALLBACK_MODEL")
 
     def set_prev_context(self, text: str = ""):
         self.prev_context = text or ""     
@@ -171,6 +173,101 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             idx_offset += batch_size
 
         return translations
+
+    async def _try_fallback_model(self, to_lang: str, prompt: str, batch_queries: List[str]) -> tuple[bool, List[str]]:
+        """
+        尝试使用回退模型进行翻译，默认重试3次
+        Returns: (success: bool, results: List[str])
+        """
+        if not self._fallback_model:
+            return False, []
+            
+        fallback_max_attempts = 2  # 默认重试2次（总共3次请求）
+        
+        for attempt in range(fallback_max_attempts + 1):  # +1 for initial attempt
+            if attempt == 0:
+                self.logger.warning(f"Trying fallback model '{self._fallback_model}' (request {attempt+1}/3)")
+            else:
+                self.logger.warning(f"Trying fallback model '{self._fallback_model}' (retry {attempt}/2, request {attempt+1}/3)")
+            
+            # 禁用译后检测
+            try:
+                import inspect
+                for st in inspect.stack():
+                    cfg = st.frame.f_locals.get("config")
+                    if cfg and hasattr(cfg, "translator"):
+                        cfg.translator.enable_post_translation_check = False
+                        break
+            except Exception:
+                pass
+
+            from importlib import import_module
+            keys_mod = import_module("manga_translator.translators.keys")
+            original_model_const = getattr(keys_mod, "OPENAI_MODEL", None)
+
+            try:
+                # 临时替换常量，使 _request_with_retry 使用回退模型
+                setattr(keys_mod, "OPENAI_MODEL", self._fallback_model)
+
+                # 若当前处于 ChatGPT2StageTranslator 第二阶段，需要同步切换 stage2_model
+                orig_stage2 = getattr(self, "stage2_model", None)
+                if getattr(self, "_is_stage2_translation", False) and hasattr(self, "stage2_model"):
+                    self.stage2_model = self._fallback_model
+
+                # 关闭 stage2 标志，强制 _request_translation 走 OPENAI_MODEL
+                orig_stage_flag = getattr(self, "_is_stage2_translation", False)
+                try:
+                    if orig_stage_flag:
+                        self._is_stage2_translation = False
+                    response_text_fb = await self._request_with_retry(to_lang, prompt)
+                finally:
+                    if orig_stage_flag:
+                        self._is_stage2_translation = orig_stage_flag
+
+                fb_translations = [t.strip() for t in re.split(r'<\|\d+\|>', response_text_fb)]
+                if fb_translations and not fb_translations[0]:
+                    fb_translations = fb_translations[1:]
+
+                # 检查 fallback 模型是否提供了有效的翻译
+                if len(fb_translations) != len(batch_queries):
+                    self.logger.warning(f"Fallback output count mismatch: expected {len(batch_queries)}, got {len(fb_translations)}. Fallback failed.")
+                    continue  # 继续重试而不是返回成功
+
+                # 检查是否所有翻译都是空的或与原文相同
+                valid_translations = 0
+                for i, txt in enumerate(fb_translations):
+                    if txt and txt.strip() and txt.strip() != batch_queries[i].strip():
+                        valid_translations += 1
+
+                if valid_translations == 0:
+                    self.logger.warning("Fallback model returned no valid translations (all empty or same as original). Fallback failed.")
+                    continue  # 继续重试而不是返回成功
+
+                result_list = []
+                for i, txt in enumerate(fb_translations):
+                    result_list.append(txt if txt else batch_queries[i])
+
+                self.logger.info(f"Fallback model succeeded on request {attempt+1} with {valid_translations}/{len(batch_queries)} valid translations")
+                return True, result_list
+
+            except Exception as fb_err:
+                if attempt == 0:
+                    self.logger.warning(f"Fallback model request {attempt+1}/3 failed: {fb_err}")
+                else:
+                    self.logger.warning(f"Fallback model retry {attempt}/2 (request {attempt+1}/3) failed: {fb_err}")
+                if attempt < fallback_max_attempts:
+                    await asyncio.sleep(1)  # 重试前等待1秒
+                else:
+                    self.logger.error(f"All fallback model requests failed")
+
+            finally:
+                # 恢复常量与 stage2_model
+                if original_model_const is not None:
+                    setattr(keys_mod, "OPENAI_MODEL", original_model_const)
+                if getattr(self, "_is_stage2_translation", False) and hasattr(self, "stage2_model") and orig_stage2 is not None:
+                    self.stage2_model = orig_stage2
+
+        return False, []
 
     async def _translate_batch(  
         self,  
@@ -418,13 +515,28 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 )  
                 if attempt < max_attempts - 1:  
                     await asyncio.sleep(1)  
-                else:  
-                    self.logger.warning("Max attempts reached, will try to split if possible.")  
+                else:
+                    self.logger.warning("Max attempts reached.")
+                    # 尝试fallback模型
+                    success, fallback_results = await self._try_fallback_model(to_lang, prompt, batch_queries)
+                    if success:
+                        for i, result in enumerate(fallback_results):
+                            partial_results[i] = result
+                        self.logger.info("Fallback model succeeded — skipping split logic.")
+                        return True, partial_results
 
-        # 如果代码能执行到这里，说明前面多个重试都失败或不完整 => 尝试拆分。通过减小每次请求的文本量，或者隔离可能导致问题(如产生空行、风控词)的特定 query，来尝试解决问题  
-        # If the code reaches here, it means multiple retries have failed or returned incomplete results => Try splitting.  
-        # By reducing the amount of text in each request, or isolating specific queries that may cause problems  
-        # (such as producing empty lines or triggering content filters), attempt to solve the problem  
+        # 循环结束但仍未成功时，再次尝试fallback（如果之前没有因异常触发）
+        if not any(partial_results):
+            success, fallback_results = await self._try_fallback_model(to_lang, prompt, batch_queries)
+            if success:
+                for i, result in enumerate(fallback_results):
+                    partial_results[i] = result
+                self.logger.info("Fallback model succeeded — skipping split logic.")
+                return True, partial_results
+
+        # 如果仍然失败 => 尝试拆分。通过减小每次请求的文本量，或者隔离可能导致问题(如产生空行、风控词)的特定 query，来尝试解决问题  
+        self.logger.warning("Proceeding to split translation after all retries/fallback failures.")
+
         if split_level < self._MAX_SPLIT_ATTEMPTS and len(batch_queries) > 1:  
             self.logger.warning(  
                 f"Splitting batch of size {len(batch_queries)} at split_level={split_level}"  

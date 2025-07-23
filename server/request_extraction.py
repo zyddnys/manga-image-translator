@@ -52,19 +52,7 @@ async def to_pil_image(image: Union[str, bytes]) -> Image.Image:
 
 async def get_ctx(req: Request, config: Config, image: str|bytes):
     image = await to_pil_image(image)
-    
-    # 从查询参数或头信息中获取会话ID（如果有）
-    session_id = None
-    if hasattr(req, 'query_params') and 'session_id' in req.query_params:
-        session_id = req.query_params.get('session_id')
-    elif req.headers.get('x-session-id'):
-        session_id = req.headers.get('x-session-id')
-    
-    # 如果找到会话ID，添加到config中
-    if session_id:
-        if not hasattr(config, '_session_id'):
-            setattr(config, '_session_id', session_id)
-    
+
     task = QueueElement(req, image, config, 0)
     task_queue.add_task(task)
 
@@ -72,19 +60,7 @@ async def get_ctx(req: Request, config: Config, image: str|bytes):
 
 async def while_streaming(req: Request, transform, config: Config, image: bytes | str):
     image = await to_pil_image(image)
-    
-    # 从查询参数或头信息中获取会话ID（如果有）
-    session_id = None
-    if hasattr(req, 'query_params') and 'session_id' in req.query_params:
-        session_id = req.query_params.get('session_id')
-    elif req.headers.get('x-session-id'):
-        session_id = req.headers.get('x-session-id')
-    
-    # 如果找到会话ID，添加到config中
-    if session_id:
-        if not hasattr(config, '_session_id'):
-            setattr(config, '_session_id', session_id)
-    
+
     task = QueueElement(req, image, config, 0)
     task_queue.add_task(task)
 

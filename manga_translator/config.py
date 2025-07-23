@@ -114,6 +114,7 @@ class Translator(str, Enum):
     papago = "papago"
     caiyun = "caiyun"
     chatgpt = "chatgpt"
+    chatgpt_2stage = "chatgpt_2stage"
     none = "none"
     original = "original"
     sakura = "sakura"
@@ -316,9 +317,6 @@ class OcrConfig(BaseModel):
     """Minimum probability of a text region to be considered valid. If None, uses the model default."""
 
 class Config(BaseModel):
-    # Internal use for passing image name from server to translator
-    _image_name: Optional[str] = None
-    
     # General
     filter_text: Optional[str] = None
     """Filter regions by their text with a regex. Example usage: '.*badtext.*'"""
@@ -341,7 +339,7 @@ class Config(BaseModel):
     """Don't use panel detection for sorting, use a simpler fallback logic instead"""
     kernel_size: int = 3
     """Set the convolution kernel size of the text erasure area to completely clean up text residues"""
-    mask_dilation_offset: int = 0
+    mask_dilation_offset: int = 20
     """By how much to extend the text mask to remove left-over text pixels of the original image."""
     _filter_text = None
 

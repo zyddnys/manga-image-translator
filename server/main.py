@@ -46,6 +46,14 @@ async def register_instance(instance: ExecutorInstance, req: Request, req_nonce:
     executor_instances.register(instance)
 
 def transform_to_image(ctx):
+    # 检查是否使用占位符（在web模式下final.png保存后会设置此标记）
+    if hasattr(ctx, 'use_placeholder') and ctx.use_placeholder:
+        # ctx.result已经是1x1占位符图片，快速传输
+        img_byte_arr = io.BytesIO()
+        ctx.result.save(img_byte_arr, format="PNG")
+        return img_byte_arr.getvalue()
+
+    # 返回完整的翻译结果
     img_byte_arr = io.BytesIO()
     ctx.result.save(img_byte_arr, format="PNG")
     return img_byte_arr.getvalue()
@@ -91,8 +99,6 @@ async def stream_image(req: Request, data: TranslateRequest) -> StreamingRespons
 async def json_form(req: Request, image: UploadFile = File(...), config: str = Form("{}")):
     img = await image.read()
     conf = Config.parse_raw(config)
-    if image.filename:
-        conf._image_name = os.path.splitext(image.filename)[0]
     ctx = await get_ctx(req, conf, img)
     return to_translation(ctx)
 
@@ -100,8 +106,6 @@ async def json_form(req: Request, image: UploadFile = File(...), config: str = F
 async def bytes_form(req: Request, image: UploadFile = File(...), config: str = Form("{}")):
     img = await image.read()
     conf = Config.parse_raw(config)
-    if image.filename:
-        conf._image_name = os.path.splitext(image.filename)[0]
     ctx = await get_ctx(req, conf, img)
     return StreamingResponse(content=to_translation(ctx).to_bytes())
 
@@ -109,8 +113,6 @@ async def bytes_form(req: Request, image: UploadFile = File(...), config: str = 
 async def image_form(req: Request, image: UploadFile = File(...), config: str = Form("{}")) -> StreamingResponse:
     img = await image.read()
     conf = Config.parse_raw(config)
-    if image.filename:
-        conf._image_name = os.path.splitext(image.filename)[0]
     ctx = await get_ctx(req, conf, img)
     img_byte_arr = io.BytesIO()
     ctx.result.save(img_byte_arr, format="PNG")
@@ -122,89 +124,65 @@ async def image_form(req: Request, image: UploadFile = File(...), config: str = 
 async def stream_json_form(req: Request, image: UploadFile = File(...), config: str = Form("{}")) -> StreamingResponse:
     img = await image.read()
     conf = Config.parse_raw(config)
-    if image.filename:
-        conf._image_name = os.path.splitext(image.filename)[0]
+    # 标记这是Web前端调用，用于占位符优化
+    conf._is_web_frontend = True
     return await while_streaming(req, transform_to_json, conf, img)
+
+
 
 @app.post("/translate/with-form/bytes/stream", response_class=StreamingResponse,tags=["api", "form"], response_description="A stream over elements with strucure(1byte status, 4 byte size, n byte data) status code are 0,1,2,3,4 0 is result data, 1 is progress report, 2 is error, 3 is waiting queue position, 4 is waiting for translator instance")
 async def stream_bytes_form(req: Request, image: UploadFile = File(...), config: str = Form("{}"))-> StreamingResponse:
     img = await image.read()
     conf = Config.parse_raw(config)
-    if image.filename:
-        conf._image_name = os.path.splitext(image.filename)[0]
     return await while_streaming(req, transform_to_bytes, conf, img)
 
-@app.post("/translate/with-form/image/stream", response_class=StreamingResponse, tags=["api", "form"], response_description="A stream over elements with strucure(1byte status, 4 byte size, n byte data) status code are 0,1,2,3,4 0 is result data, 1 is progress report, 2 is error, 3 is waiting queue position, 4 is waiting for translator instance")
+@app.post("/translate/with-form/image/stream", response_class=StreamingResponse, tags=["api", "form"], response_description="Standard streaming endpoint - returns complete image data. Suitable for API calls and scripts.")
 async def stream_image_form(req: Request, image: UploadFile = File(...), config: str = Form("{}")) -> StreamingResponse:
+    """通用流式端点：返回完整图片数据，适用于API调用和comicread脚本"""
     img = await image.read()
     conf = Config.parse_raw(config)
-    if image.filename:
-        conf._image_name = os.path.splitext(image.filename)[0]
+    # 标记为通用模式，不使用占位符优化
+    conf._web_frontend_optimized = False
+    return await while_streaming(req, transform_to_image, conf, img)
+
+@app.post("/translate/with-form/image/stream/web", response_class=StreamingResponse, tags=["api", "form"], response_description="Web frontend optimized streaming endpoint - uses placeholder optimization for faster response.")
+async def stream_image_form_web(req: Request, image: UploadFile = File(...), config: str = Form("{}")) -> StreamingResponse:
+    """Web前端专用端点：使用占位符优化，提供极速体验"""
+    img = await image.read()
+    conf = Config.parse_raw(config)
+    # 标记为Web前端优化模式，使用占位符优化
+    conf._web_frontend_optimized = True
     return await while_streaming(req, transform_to_image, conf, img)
 
 @app.post("/queue-size", response_model=int, tags=["api", "json"])
 async def queue_size() -> int:
     return len(task_queue.queue)
 
-@app.api_route("/latest-result", methods=["GET", "HEAD"], tags=["api", "file"])
-async def get_latest_result(session_id: str = None):
-    """获取最新的翻译结果图片，通过会话ID精确查找"""
+
+@app.api_route("/result/{folder_name}/final.png", methods=["GET", "HEAD"], tags=["api", "file"])
+async def get_result_by_folder(folder_name: str):
+    """根据文件夹名称获取翻译结果图片"""
     result_dir = "../result"
     if not os.path.exists(result_dir):
         raise HTTPException(404, detail="Result directory not found")
 
-    latest_path = None
-    
-    # 增加带超时的轮询逻辑
-    max_retries = 100  
-    for attempt in range(max_retries):
-        found_dirs = []
-        matching_dirs = []
-        latest_time = 0
-        current_latest_path = None
+    folder_path = os.path.join(result_dir, folder_name)
+    if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
+        raise HTTPException(404, detail=f"Folder {folder_name} not found")
 
-        if os.path.exists(result_dir):
-            for item in os.listdir(result_dir):
-                item_path = os.path.join(result_dir, item)
-                if os.path.isdir(item_path):
-                    found_dirs.append(item)
-                    final_png_path = os.path.join(item_path, "final.png")
+    final_png_path = os.path.join(folder_path, "final.png")
+    if not os.path.exists(final_png_path):
+        raise HTTPException(404, detail="final.png not found in folder")
 
-                    if os.path.exists(final_png_path):
-                        is_matching = True
-                        if session_id:
-                            is_matching = session_id in item
-                            if is_matching:
-                                matching_dirs.append(item)
-                        
-                        if is_matching:
-                            mtime = os.path.getmtime(final_png_path)
-                            if mtime > latest_time:
-                                latest_time = mtime
-                                current_latest_path = final_png_path
-        
-        if current_latest_path:
-            latest_path = current_latest_path
-            break
+    async def file_iterator():
+        with open(final_png_path, "rb") as f:
+            yield f.read()
 
-        if attempt < max_retries - 1:
-            await asyncio.sleep(0.3)
-
-    if latest_path:
-        async def file_iterator():
-            with open(latest_path, "rb") as f:
-                yield f.read()
-        
-        return StreamingResponse(
-            file_iterator(),
-            media_type="image/png",
-            headers={"Content-Disposition": f"inline; filename={os.path.basename(latest_path)}"}
-        )
-    else:
-        error_detail = "No result image found. "
-        if session_id:
-            error_detail += f"No matches for session_id '{session_id}'. "
-        raise HTTPException(404, detail=error_detail)
+    return StreamingResponse(
+        file_iterator(),
+        media_type="image/png",
+        headers={"Content-Disposition": f"inline; filename=final.png"}
+    )
 
 @app.post("/translate/batch/json", response_model=list[TranslationResponse], tags=["api", "json", "batch"])
 async def batch_json(req: Request, data: BatchTranslateRequest):
