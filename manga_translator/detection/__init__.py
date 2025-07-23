@@ -36,10 +36,7 @@ async def dispatch(detector_key: Detector, image: np.ndarray, detect_size: int, 
                    invert: bool, gamma_correct: bool, rotate: bool, auto_rotate: bool = False, device: str = 'cpu', verbose: bool = False):
     detector = get_detector(detector_key)
     if isinstance(detector, OfflineDetector):
-        if isinstance(detector, PaddleDetector):
-            await detector.load(device, text_threshold=text_threshold, box_threshold=box_threshold, unclip_ratio=unclip_ratio, invert=invert, verbose=verbose)
-        else:
-            await detector.load(device)
+        await detector.load(device)
     return await detector.detect(image, detect_size, text_threshold, box_threshold, unclip_ratio, invert, gamma_correct, rotate, auto_rotate, verbose)
 
 async def unload(detector_key: Detector):
