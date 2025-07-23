@@ -10,7 +10,7 @@ export const languageOptions = [
   { value: "ITA", label: "italiano" },  
   { value: "JPN", label: "日本語" },  
   { value: "KOR", label: "한국어" },  
-  { value: "PLK", label: "polski" },  
+  { value: "POL", label: "polski" },  
   { value: "PTB", label: "português" },  
   { value: "ROM", label: "limba română" },  
   { value: "RUS", label: "русский язык" },  

@@ -90,7 +90,7 @@ class GoogleTranslator(CommonTranslator):
         'DEU': 'de',
         'HUN': 'hu',
         'ITA': 'it',
-        'PLK': 'pl',
+        'POL': 'pl',
         'PTB': 'pt',
         'ROM': 'ro',
         'RUS': 'ru',

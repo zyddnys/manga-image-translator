@@ -136,7 +136,7 @@ LANGDETECT_MAP = {
     'it': 'ITA',
     'ja': 'JPN',
     'ko': 'KOR',
-    'pl': 'PLK',
+    'pl': 'POL',
     'pt': 'PTB',
     'ro': 'ROM',
     'ru': 'RUS',
