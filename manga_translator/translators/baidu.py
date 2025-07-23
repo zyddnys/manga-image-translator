@@ -28,7 +28,7 @@ class BaiduTranslator(CommonTranslator):
         'DEU': 'de',
         'HUN': 'hu',
         'ITA': 'it',
-        'PLK': 'pl',
+        'POL': 'pl',
         'PTB': 'pt',
         'ROM': 'rom',
         'RUS': 'ru',
