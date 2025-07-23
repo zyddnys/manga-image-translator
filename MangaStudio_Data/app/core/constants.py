@@ -22,7 +22,7 @@ LANGUAGES = {
     "Russian": "RUS",
     "Portuguese (Brazilian)": "PTB",
     "Italian": "ITA",
-    "Polish": "PLK",
+    "Polish": "POL",
     "Dutch": "NLD",
     "Czech": "CSY",
     "Hungarian": "HUN",
