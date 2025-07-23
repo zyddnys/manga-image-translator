@@ -19,6 +19,24 @@ from ..utils import natural_sort, replace_prefix, get_color_name, rgb2hex, get_l
 # 使用专用的local logger
 logger = get_logger('local')
 
+# 提示音开关
+ENABLE_COMPLETION_SOUND = True
+
+def play_completion_sound():
+    """播放完成提示音"""
+    try:
+        import platform
+        if platform.system() == 'Windows':
+            import winsound
+            # 使用默认系统提示音
+            winsound.MessageBeep(-1)
+        else:
+            # 其他平台使用控制台蜂鸣声
+            print('\a', end='', flush=True)
+    except Exception as e:
+        # 提示音失败不影响主程序
+        logger.debug(f'Failed to play completion sound: {e}')
+
 def safe_get_memory_info():
     """安全获取内存信息，失败时返回默认值"""
     try:
@@ -174,6 +192,11 @@ class MangaTranslatorLocal(MangaTranslator):
                     
                     logger.info(f'Done. Translated {translated_count} image{"" if translated_count == 1 else "s"} in {time_str}')
                     logger.info(f'Results saved to: "{_dest}"')
+                    try:
+                        if ENABLE_COMPLETION_SOUND:
+                            play_completion_sound()
+                    except Exception as e:
+                        logger.debug(f'Failed to play completion sound: {e}')
 
     async def translate_file(self, path: str, dest: str, params: dict, config: Config):
         if not params.get('overwrite') and os.path.exists(dest):
@@ -237,9 +260,8 @@ class MangaTranslatorLocal(MangaTranslator):
                 logger.warn(f'Failed to open image: {path}')
                 return False
 
-            # 提取文件名作为image_name参数，用于调试文件夹命名
-            image_name = os.path.basename(path)
-            ctx = await self.translate(img, config, image_name)
+            # 直接翻译图片，不再需要传递文件名
+            ctx = await self.translate(img, config)
             result = ctx.result
 
             # TODO
@@ -394,9 +416,8 @@ class MangaTranslatorLocal(MangaTranslator):
             try:
                 # 批量翻译
                 logger.debug(f'Starting batch translation for {len(batch)} images...')
-                # 提取图片名称用于调试文件夹命名
-                image_names = [os.path.basename(file_path) for _, _, file_path, _ in batch]
-                batch_results = await self.translate_batch(images_with_configs, len(batch), image_names)
+                # 不再需要提取图片名称，直接进行批量翻译
+                batch_results = await self.translate_batch(images_with_configs, len(batch))
                 
                 # 保存结果
                 for j, (ctx, (img, _, file_path, output_dest)) in enumerate(zip(batch_results, batch)):
@@ -540,3 +561,8 @@ class MangaTranslatorLocal(MangaTranslator):
             
             logger.info(f'Done! Translated {translated_count} image{"" if translated_count == 1 else "s"} in {time_str}')
             logger.info(f'Results saved to: "{dest}"')
+            try:
+                if ENABLE_COMPLETION_SOUND:
+                    play_completion_sound()
+            except Exception as e:
+                logger.debug(f'Failed to play completion sound: {e}')
