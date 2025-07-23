@@ -122,8 +122,16 @@ class Page:
 		self.processing_time = int((time.time_ns() - t1) / 10**7) / 100
 
 	def get_contours(self):
-		# Black background: values above 100 will be black, the rest white
-		_, thresh = cv.threshold(self.sobel, 100, 255, cv.THRESH_BINARY)
+		# Use Otsu's method to adaptively pick threshold, then close small gaps
+		_, thresh = cv.threshold(
+			self.sobel,
+			0,
+			255,
+			cv.THRESH_BINARY + cv.THRESH_OTSU
+		)
+		# Morphological closing helps join broken panel borders (1–2 px gaps)
+		kernel = cv.getStructuringElement(cv.MORPH_RECT, (3, 3))
+		thresh = cv.morphologyEx(thresh, cv.MORPH_CLOSE, kernel, iterations=1)
 		Debug.show_time("Image threshhold")
 
 		self.contours, _ = cv.findContours(thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[-2:]
