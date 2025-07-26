@@ -5,7 +5,6 @@ from threading import Lock
 import uvicorn
 from fastapi import FastAPI, HTTPException, Path, Request, Response
 from pydantic import BaseModel
-import inspect
 
 from starlette.responses import StreamingResponse
 
@@ -16,34 +15,7 @@ class MethodCall(BaseModel):
     attributes: bytes
 
 
-async def load_data(request: Request, method):
-    attributes_bytes = await request.body()
-    attributes = pickle.loads(attributes_bytes)
-    sig = inspect.signature(method)
-    
-    # 分离必需参数和可选参数
-    required_args = set()
-    optional_args = set()
-    for name, param in sig.parameters.items():
-        if param.default == inspect.Parameter.empty:
-            required_args.add(name)
-        else:
-            optional_args.add(name)
-    
-    provided_args = set(attributes.keys())
-    
-    # 检查是否缺少必需参数
-    missing_required = required_args - provided_args
-    if missing_required:
-        raise HTTPException(status_code=400, detail=f"Missing required arguments: {missing_required}")
-    
-    # 检查是否有多余的参数（不在方法签名中）
-    all_valid_args = required_args | optional_args
-    extra_args = provided_args - all_valid_args
-    if extra_args:
-        raise HTTPException(status_code=400, detail=f"Unknown arguments: {extra_args}")
-    
-    return attributes
+
 
 
 class MangaShare:
@@ -82,7 +54,19 @@ class MangaShare:
                 result = await method(**attributes)
             else:
                 result = method(**attributes)
-            result_bytes = pickle.dumps(result)
+
+            # 检查是否使用占位符，如果是则创建最小化的结果对象
+            if hasattr(result, 'use_placeholder') and result.use_placeholder:
+                # 创建一个最小的Context对象，只包含占位符图片，避免传输大量数据
+                from manga_translator import Context
+                from PIL import Image
+                minimal_result = Context()
+                minimal_result.result = Image.new('RGB', (1, 1), color='white')
+                minimal_result.use_placeholder = True
+                result_bytes = pickle.dumps(minimal_result)
+            else:
+                result_bytes = pickle.dumps(result)
+
             encoded_result = b'\x00' + len(result_bytes).to_bytes(4, 'big') + result_bytes
             await self.progress_queue.put(encoded_result)
         except Exception as e:
@@ -125,7 +109,7 @@ class MangaShare:
             self.check_nonce(request)
             self.check_lock()
             method = self.get_fn(method_name)
-            attr = await load_data(request, method)
+            attr = pickle.loads(await request.body())
             try:
                 if asyncio.iscoroutinefunction(method):
                     result = await method(**attr)
@@ -143,7 +127,11 @@ class MangaShare:
             self.check_nonce(request)
             self.check_lock()
             method = self.get_fn(method_name)
-            attr = await load_data(request, method)
+            attr = pickle.loads(await request.body())
+
+            # 根据端点类型决定是否使用占位符优化
+            config = attr.get('config')
+            self.manga._is_streaming_mode = getattr(config, '_web_frontend_optimized', False) if config else False
 
             # streaming response
             streaming_response = StreamingResponse(self.progress_stream(), media_type="application/octet-stream")

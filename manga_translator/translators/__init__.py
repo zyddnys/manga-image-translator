@@ -11,6 +11,7 @@ from .deepl import DeeplTranslator
 from .papago import PapagoTranslator
 from .caiyun import CaiyunTranslator
 from .chatgpt import OpenAITranslator
+from .chatgpt_2stage import ChatGPT2StageTranslator
 from .nllb import NLLBTranslator, NLLBBigTranslator
 from .sugoi import JparacrawlTranslator, JparacrawlBigTranslator, SugoiTranslator
 from .m2m100 import M2M100Translator, M2M100BigTranslator
@@ -43,6 +44,7 @@ OFFLINE_TRANSLATORS = {
 
 GPT_TRANSLATORS = {
     Translator.chatgpt: OpenAITranslator,
+    Translator.chatgpt_2stage: ChatGPT2StageTranslator,
     Translator.deepseek: DeepseekTranslator,
     Translator.groq:GroqTranslator,
     Translator.custom_openai: CustomOpenAiTranslator,
@@ -102,7 +104,7 @@ async def dispatch(chain: TranslatorChain, queries: List[str], translator_config
                 pass
             if translator_config:
                 translator.parse_args(translator_config)
-            if key == "gemini_2stage":
+            if key == "gemini_2stage" or key == "chatgpt_2stage":
                 queries = await translator.translate('auto', chain.langs[flag], queries, args)
             else:
                 queries = await translator.translate('auto', chain.langs[flag], queries, use_mtpe)
@@ -117,8 +119,8 @@ async def dispatch(chain: TranslatorChain, queries: List[str], translator_config
             await translator.load('auto', tgt_lang, device)
         if translator_config:
             translator.parse_args(translator_config)
-        if key == "gemini_2stage":
-            queries = await translator.translate('auto', tgt_lang, queries, args, use_mtpe)
+        if key == "gemini_2stage" or key == "chatgpt_2stage":
+            queries = await translator.translate('auto', tgt_lang, queries, args)
         else:
             queries = await translator.translate('auto', tgt_lang, queries, use_mtpe)
         if args is not None:

@@ -109,25 +109,42 @@ async def wait_in_queue(task: QueueElement | BatchQueueElement, notify: NotifyTy
             await task_queue.remove(task)
             if notify:
                 notify(4, b"")
-            
-            # Process batch translation task
-            if isinstance(task, BatchQueueElement):
-                if notify:
-                    await instance.sent_batch_stream(task.images, task.config, task.batch_size, notify)
-                else:
-                    result = await instance.sent_batch(task.images, task.config, task.batch_size)
-            else:
-                # Process single translation task
-                if notify:
-                    await instance.sent_stream(task.image, task.config, notify)
-                else:
-                    result = await instance.sent(task.image, task.config)
 
-            await executor_instances.free_executor(instance)
+            try:
+                # Process batch translation task
+                if isinstance(task, BatchQueueElement):
+                    if notify:
+                        await instance.sent_batch_stream(task.images, task.config, task.batch_size, notify)
+                    else:
+                        result = await instance.sent_batch(task.images, task.config, task.batch_size)
+                else:
+                    # Process single translation task
+                    if notify:
+                        await instance.sent_stream(task.image, task.config, notify)
+                    else:
+                        result = await instance.sent(task.image, task.config)
 
-            if notify:
-                return
-            else:
-                return result
+                await executor_instances.free_executor(instance)
+
+                if notify:
+                    return
+                else:
+                    return result
+
+            except Exception as e:
+                # 确保实例被释放
+                await executor_instances.free_executor(instance)
+
+                # 如果是连接错误，发送友好的错误消息
+                if "Cannot connect to host" in str(e) or "Connection refused" in str(e):
+                    error_msg = "Translation service is starting up, please wait a moment and try again."
+                else:
+                    error_msg = f"Translation failed: {str(e)}"
+
+                if notify:
+                    notify(2, error_msg.encode('utf-8'))
+                    return
+                else:
+                    raise HTTPException(500, detail=error_msg)
         else:
             await task_queue.wait_for_event()
