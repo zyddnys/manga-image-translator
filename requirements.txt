@@ -9,22 +9,19 @@ opencv-python
 pyclipper
 shapely
 requests
-cryptography
 freetype-py
 aiohttp
 tqdm
 deepl
 ImageHash
 kornia
-backports.cached-property
+backports.cached-property; python_version < "3.8"
 huggingface_hub
 transformers
 py3langid==0.2.2
 sentencepiece
-editdistance
 numpy==1.26.4
 tensorboardX
-websockets
 protobuf<6.0.0,>=3.20.2 # `google-genai` dependancy requirement
 ctranslate2<=3.24.0 # last version compatible with CUDA 11
 colorama
@@ -38,19 +35,14 @@ onnxruntime
 timm
 omegaconf
 python-dotenv
-nest-asyncio
-marshmallow
 cython
-aioshutil
-aiofiles
 arabic-reshaper
 pyhyphen
 langcodes
 manga-ocr
-langdetect
 pydensecrf@https://github.com/lucasb-eyer/pydensecrf/archive/refs/heads/master.zip
-accelerate
 bitsandbytes
+psutil
 uvicorn
 fastapi
 pydantic==2.5.0
