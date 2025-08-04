@@ -26,7 +26,7 @@ class M2M100Translator(OfflineTranslator):
         'JPN': '__ja__',
         'KOR': '__ko__',
         'MSL': '__ms__',
-        'PLK': '__pl__',
+        'POL': '__pl__',
         'PTB': '__pt__',
         'ROM': '__ro__',
         'RUS': '__ru__',

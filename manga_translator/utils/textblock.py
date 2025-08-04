@@ -27,7 +27,7 @@ LANGUAGE_ORIENTATION_PRESETS = {
     'JPN': 'auto',
     'KOR': 'h',
     'MSL': 'h',
-    'PLK': 'h',
+    'POL': 'h',
     'PTB': 'h',
     'ROM': 'h',
     'RUS': 'h',

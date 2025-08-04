@@ -24,7 +24,7 @@ class Qwen2Translator(OfflineTranslator, ConfigGPT):
         'ITA': 'Italian',
         'JPN': 'Japanese',
         'KOR': 'Korean',
-        'PLK': 'Polish',
+        'POL': 'Polish',
         'PTB': 'Portuguese',
         'ROM': 'Romanian',
         'RUS': 'Russian',

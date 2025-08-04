@@ -15,7 +15,7 @@ class DeeplTranslator(CommonTranslator):
         'DEU': 'DE',
         'HUN': 'HU',
         'ITA': 'IT',
-        'PLK': 'PL',
+        'POL': 'PL',
         'PTB': 'PT-BR',
         'ROM': 'RO',
         'RUS': 'RU',

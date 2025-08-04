@@ -44,7 +44,7 @@ class NLLBTranslator(OfflineTranslator):
         'DEU': 'deu_Latn',
         'HUN': 'hun_Latn',
         'ITA': 'ita_Latn',
-        'PLK': 'pol_Latn',
+        'POL': 'pol_Latn',
         'PTB': 'por_Latn',
         'ROM': 'ron_Latn',
         'RUS': 'rus_Cyrl',
