@@ -1,3 +1,4 @@
+
 import cv2
 import numpy as np
 from typing import List, Tuple
@@ -26,7 +27,7 @@ LANGUAGE_ORIENTATION_PRESETS = {
     'ITA': 'h',
     'JPN': 'auto',
     'KOR': 'h',
-    'PLK': 'h',
+    'POL': 'h',
     'PTB': 'h',
     'ROM': 'h',
     'RUS': 'h',
@@ -388,7 +389,7 @@ class TextBlock(object):
                     if area > max_area:
                         max_area = area
                         # Calculate aspect ratio of this detection box
-                        # Get bounding box of detection box
+                        # Get bounding box of detection box                  
                         x_coords = line[:, 0]
                         y_coords = line[:, 1]
                         width = np.max(x_coords) - np.min(x_coords)
@@ -513,8 +514,7 @@ def _simple_sort(regions: List[TextBlock], right_to_left: bool) -> List[TextBloc
             sorted_regions.append(region)
     
     return sorted_regions
-
-
+    
 def _sort_panels_fill(panels: List[Tuple[int, int, int, int]], right_to_left: bool) -> List[Tuple[int, int, int, int]]:
     """Return panels in desired reading order with simplified vertical stack handling.
 
@@ -710,7 +710,6 @@ def _sort_panels_fill(panels: List[Tuple[int, int, int, int]], right_to_left: bo
         row_id += 1
 
     return ordered
-
 
 def sort_regions(
     regions: List[TextBlock],
