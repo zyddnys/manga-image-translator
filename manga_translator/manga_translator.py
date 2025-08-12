@@ -1106,26 +1106,7 @@ class MangaTranslator:
                     json.dump(translated_sentences, f, indent=4, ensure_ascii=False)  
                 print("Don't continue if --save-text is used")  
                 exit(-1)  
-            # Save translation if args.save_text is set and quit  
-            if self.save_text:  
-                input_filename = os.path.splitext(os.path.basename(self.input_files[0]))[0]  
-                with open(self._result_path(f"{input_filename}_translations.txt"), "w") as f:  
-                    json.dump(translated_sentences, f, indent=4, ensure_ascii=False)  
-                print("Don't continue if --save-text is used")  
-                exit(-1)  
 
-        # 如果不是none翻译器或者是none翻译器但没有prep_manual  
-        # If not none translator or none translator without prep_manual  
-        if config.translator.translator != Translator.none or not self.prep_manual:  
-            for region, translation in zip(ctx.text_regions, translated_sentences):  
-                if config.render.uppercase:  
-                    translation = translation.upper()  
-                elif config.render.lowercase:  
-                    translation = translation.lower()  # 修正：应该是lower而不是upper  
-                region.translation = translation  
-                region.target_lang = config.translator.target_lang  
-                region._alignment = config.render.alignment  
-                region._direction = config.render.direction  
         # 如果不是none翻译器或者是none翻译器但没有prep_manual  
         # If not none translator or none translator without prep_manual  
         if config.translator.translator != Translator.none or not self.prep_manual:  

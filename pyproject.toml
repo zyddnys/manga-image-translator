@@ -62,14 +62,17 @@ dependencies = [
     "bitsandbytes",
     "uvicorn",
     "fastapi",
-    "pydantic",
+    "pydantic==2.5.0",
     "python-multipart",
     "google-genai",
     "rich",
-    "paddleocr",
-    "paddlepaddle",
-    "paddlepaddle-gpu; sys_platform != 'darwin'"
+    "regex",
+    "rusty-manga-image-translator",
+    "python-bidi"
 ]
+
+[tool.uv.pip]
+extra-index-url = "https://frederik-uni.github.io/manga-image-translator-rust/python/wheels/simple/"
 
 [tool.isort]
 profile = 'black'
