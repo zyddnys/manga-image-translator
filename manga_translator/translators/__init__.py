@@ -64,7 +64,6 @@ TRANSLATORS = {
     Translator.original: OriginalTranslator,
     Translator.sakura: SakuraTranslator,
     **GPT_TRANSLATORS,
-    **GPT_TRANSLATORS,
     **OFFLINE_TRANSLATORS,
 }
 translator_cache = {}

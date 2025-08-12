@@ -1,6 +1,5 @@
 import re
 import os
-import os
 import asyncio
 import time
 import string
@@ -10,7 +9,6 @@ from rich.panel import Panel
 from .. import manga_translator
 from .config_gpt import ConfigGPT
 from .common import CommonTranslator, MissingAPIKeyException, VALID_LANGUAGES
-from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE, OPENAI_MODEL, OPENAI_GLOSSARY_PATH
 from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE, OPENAI_MODEL, OPENAI_GLOSSARY_PATH
 
 try:
@@ -697,37 +695,10 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         if hasattr(self, 'chat_sample') and lang_chat_samples:
             messages.append({'role': 'user', 'content': lang_chat_samples[0]})
             messages.append({'role': 'assistant', 'content': lang_chat_samples[1]})
-        # Add chat samples if available
-        lang_chat_samples = self.get_chat_sample(to_lang)
-
-        # 如果需要先给出示例对话 / Provide an example dialogue first if necessary
-        if hasattr(self, 'chat_sample') and lang_chat_samples:
-            messages.append({'role': 'user', 'content': lang_chat_samples[0]})
-            messages.append({'role': 'assistant', 'content': lang_chat_samples[1]})
 
         # 最终用户请求 / End-user request 
         messages.append({'role': 'user', 'content': prompt})  
-        # 最终用户请求 / End-user request 
-        messages.append({'role': 'user', 'content': prompt})  
 
-        # 准备输出的 prompt 文本 / Prepare the output prompt text 
-        if self.verbose_logging:  
-            prompt_text = "\n".join(f"{m['role'].upper()}:\n{m['content']}" for m in messages) 
-                    
-            self.print_boxed(prompt_text, border_color="cyan", title="GPT Prompt")      
-        else:  
-            simplified_msgs = []  
-            for i, m in enumerate(messages):  
-                if (has_glossary and i == 1) or (i == len(messages) - 1):  
-                    simplified_msgs.append(f"{m['role'].upper()}:\n{m['content']}")  
-                else:  
-                    simplified_msgs.append(f"{m['role'].upper()}:\n[HIDDEN CONTENT]")  
-            prompt_text = "\n".join(simplified_msgs)
-            # 使用 rich 输出 prompt / Use rich to output the prompt
-            self.print_boxed(prompt_text, border_color="cyan", title="GPT Prompt (verbose=False)") 
-        
-
-        # 发起请求 / Initiate the request
         # 准备输出的 prompt 文本 / Prepare the output prompt text 
         if self.verbose_logging:  
             prompt_text = "\n".join(f"{m['role'].upper()}:\n{m['content']}" for m in messages) 
@@ -798,15 +769,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         # 记录 token 消耗 / Record token consumption
         if not hasattr(response, 'usage') or not hasattr(response.usage, 'total_tokens'):
             self.logger.warning("Response does not contain usage information") #第三方逆向中转api不返回token数 / The third-party reverse proxy API does not return token counts
-            self.logger.warning("Response does not contain usage information") #第三方逆向中转api不返回token数 / The third-party reverse proxy API does not return token counts
             self.token_count_last = 0
-            
-        # 记录 token 消耗   (rich模式) / Record token consumption (rich mode)
-        # if not hasattr(response, 'usage') or not hasattr(response.usage, 'total_tokens'):  
-            # warning_text = "WARNING: [OpenAITranslator] Response does not contain usage information"  
-            # self.print_boxed(warning_text, border_color="yellow")  
-            # self.token_count_last = 0              
-            
             
         # 记录 token 消耗   (rich模式) / Record token consumption (rich mode)
         # if not hasattr(response, 'usage') or not hasattr(response.usage, 'total_tokens'):  
@@ -817,9 +780,6 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         else:
             self.token_count += response.usage.total_tokens
             self.token_count_last = response.usage.total_tokens
-        
-        response_text = cleaned_text
-        self.print_boxed(response_text, border_color="green", title="GPT Response")          
         
         response_text = cleaned_text
         self.print_boxed(response_text, border_color="green", title="GPT Response")          

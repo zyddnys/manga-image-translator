@@ -13,22 +13,8 @@ class TextValue(BaseModel):
 class TranslationList(BaseModel):
     TextList: list[TextValue]
     
-from langcodes import Language, closest_supported_match
-from .common import VALID_LANGUAGES
-from pydantic import BaseModel
-
-# Define the schema for the response
-class TextValue(BaseModel):
-    ID: int
-    text: str
-
-class TranslationList(BaseModel):
-    TextList: list[TextValue]
-    
 
 class ConfigGPT:
-    _LANGUAGE_CODE_MAP = VALID_LANGUAGES
-
     _LANGUAGE_CODE_MAP = VALID_LANGUAGES
 
     _CHAT_SYSTEM_TEMPLATE = (
@@ -188,8 +174,6 @@ class ConfigGPT:
         # This key is used to locate nested configuration entries
         self._CONFIG_KEY = config_key
         self.config = None
-        self.langSamples = None # Cache chat/json_samples[to_lang]
-        self._json_sample = None
         self.langSamples = None # Cache chat/json_samples[to_lang]
         self._json_sample = None
 
@@ -373,13 +357,6 @@ class ConfigGPT:
     def top_p(self) -> float:
         return self._config_get('top_p', default=1)
     
-    @property  
-    def verbose_logging(self) -> bool:  
-        return self._config_get('verbose_logging', default=False)  
-
-    @property  
-    def glossary_system_template(self) -> str:  
-        return self._config_get('glossary_system_template', self._GLOSSARY_SYSTEM_TEMPLATE)  
     @property  
     def verbose_logging(self) -> bool:  
         return self._config_get('verbose_logging', default=False)  
