@@ -1,3 +1,4 @@
+
 import cv2
 import numpy as np
 from typing import List, Tuple
@@ -374,34 +375,34 @@ class TextBlock(object):
             if d in ('h', 'v', 'hr', 'vr'):
                 return d
 
-            # 根据region中面积最大的文本框的宽高比来判断排版方向
+            # Determine layout direction based on aspect ratio of largest text box in region
             if len(self.lines) > 0:
-                # 计算每个检测框的面积和宽高比
+                # Calculate area and aspect ratio for each detection box
                 max_area = 0
                 largest_box_aspect_ratio = 1
                 
                 for line in self.lines:
-                    # 计算检测框的面积
+                    # Calculate detection box area
                     line_polygon = Polygon(line)
                     area = line_polygon.area
                     
                     if area > max_area:
                         max_area = area
-                        # 计算该检测框的宽高比
-                        # 获取检测框的边界框
+                        # Calculate aspect ratio of this detection box
+                        # Get bounding box of detection box                  
                         x_coords = line[:, 0]
                         y_coords = line[:, 1]
                         width = np.max(x_coords) - np.min(x_coords)
                         height = np.max(y_coords) - np.min(y_coords)
                         largest_box_aspect_ratio = width / height if height > 0 else 1
                 
-                # 根据面积最大的检测框的宽高比判断方向
+                # Determine direction based on aspect ratio of largest detection box
                 if largest_box_aspect_ratio < 1:
                     return 'v'
                 else:
                     return 'h'
             else:
-                # 如果没有lines，则使用整体的宽高比作为fallback
+                # If no lines, use overall aspect ratio as fallback
                 if self.aspect_ratio < 1:
                     return 'v'
                 else:
@@ -514,58 +515,209 @@ def _simple_sort(regions: List[TextBlock], right_to_left: bool) -> List[TextBloc
     
     return sorted_regions
     
-
 def _sort_panels_fill(panels: List[Tuple[int, int, int, int]], right_to_left: bool) -> List[Tuple[int, int, int, int]]:
-    """Return panels in desired reading order.
+    """Return panels in desired reading order with simplified vertical stack handling.
 
-    1. Panels are processed row-by-row from top to bottom (smallest *y1* first).
-    2. Inside a row we proceed from right to left (*x1* descending when RTL, ascending otherwise).
-    3. **Key point**: when moving horizontally, every panel that *roughly* shares
-       the same x-range (both *x1* and *x2* close) with the current one is treated
-       as a vertical stack and is inserted immediately after the current panel
-       (top-to-bottom).  This mirrors how humans read stacked panels.
-
-    The logic assumes panels fill the whole page (common in manga pages).
+    Improved algorithm:
+    1. Check for nested panels (if a panel contains 70%+ of another panel's area, it forms a single stack)
+    2. Identify vertical stacks (panels with high x-overlap and vertical adjacency)
+    3. Post-stack validation: check if remaining panels have 70%+ cumulative overlap with multiple stack members
+    4. If validation fails, cancel the stack and isolate the base panel
+    5. Treat each stack as a single unit for sorting
+    6. Sort units by row (top y-coordinate) then by column (x-coordinate)
+    7. Maintain top-to-bottom order within each vertical stack
+    
+    Nested panel handling:
+    - Pre-check: Panels containing 70%+ of other panels' area are isolated as single-panel stacks
+    - Post-check: Stacks are cancelled if remaining panels overlap 70%+ with multiple stack members
+    - This prevents both container panels and complex overlapping scenarios from forming incorrect stacks
+    - Ensures proper reading order for complex nested and overlapping layouts
     """
 
     if not panels:
         return panels
 
-    # Make a working copy we can pop from.
-    remaining = sorted(list(panels), key=lambda p: p[1])  # sort by top-y first
-    ordered: List[Tuple[int, int, int, int]] = []
+    # Dynamic thresholds based on average panel size
+    avg_w = np.mean([p[2] - p[0] for p in panels])
+    avg_h = np.mean([p[3] - p[1] for p in panels])
+    nested_threshold = 0.7  # If 70%+ of another panel's area is within the base panel, consider it nested
+    # Note: Y_THR is now calculated dynamically for each row based on current panel height
 
-    # Dynamic thresholds based on average panel size for reasonable robustness.
-    avg_w = np.mean([p[2] - p[0] for p in remaining])
-    avg_h = np.mean([p[3] - p[1] for p in remaining])
-    X_THR = max(10, avg_w * 0.1)   # panels whose x-range differs <10% width are considered same column
-    Y_THR = max(10, avg_h * 0.3)   # y-difference to decide panels are on the same row
+    # Step 1: Identify vertical stacks
+    vertical_stacks = []
+    remaining = list(panels)
+    stack_id = 0
 
     while remaining:
-        # Start a new row from the current top-most panel
-        base_y = remaining[0][1]
+        base_panel = remaining.pop(0)
+        stack = [base_panel]
+        base_x1, base_y1, base_x2, base_y2 = base_panel
 
-        # Gather all panels whose top-y 距离 base_y 不超过阈值 → 同一行
-        row = []
+        # Check if base panel contains most area of other panels (nested check)
+        def calculate_overlap_ratio(panel_a, panel_b):
+            """Calculate overlap ratio of panel_b within panel_a"""
+            ax1, ay1, ax2, ay2 = panel_a
+            bx1, by1, bx2, by2 = panel_b
+            
+            # Calculate overlap area
+            overlap_x1 = max(ax1, bx1)
+            overlap_y1 = max(ay1, by1)
+            overlap_x2 = min(ax2, bx2)
+            overlap_y2 = min(ay2, by2)
+            
+            if overlap_x1 < overlap_x2 and overlap_y1 < overlap_y2:
+                overlap_area = (overlap_x2 - overlap_x1) * (overlap_y2 - overlap_y1)
+                panel_b_area = (bx2 - bx1) * (by2 - by1)
+                return overlap_area / panel_b_area if panel_b_area > 0 else 0
+            return 0
+        
+        # Check if base panel contains most area of other panels
+        contains_nested_panels = False
+        
+        for other_panel in remaining:
+            overlap_ratio = calculate_overlap_ratio(base_panel, other_panel)
+            if overlap_ratio >= nested_threshold:
+                contains_nested_panels = True
+                break
+        
+        if contains_nested_panels:
+            # Sort stack top-to-bottom (though only one panel)
+            stack.sort(key=lambda p: p[1])
+            vertical_stacks.append(stack)
+            stack_id += 1
+            continue
+
+        # Look for panels that vertically stack with base_panel
         i = 0
         while i < len(remaining):
-            if abs(remaining[i][1] - base_y) <= Y_THR:
-                row.append(remaining.pop(i))
+            panel = remaining[i]
+            x1, y1, x2, y2 = panel
+
+            # Check x-range overlap
+            x_overlap = min(base_x2, x2) - max(base_x1, x1)
+            x_union = max(base_x2, x2) - min(base_x1, x1)
+
+            # Check if vertically adjacent (allowing small gaps)
+            vertical_gap = min(abs(y1 - base_y2), abs(base_y1 - y2))
+            
+            # Calculate overlap ratio
+            overlap_ratio = x_overlap / x_union if x_union > 0 else 0
+            gap_threshold = max(10, avg_w * 0.15)
+
+            # 85%+ x-overlap and small vertical gap = vertical stack
+            if (x_overlap > 0 and x_union > 0 and overlap_ratio > 0.85 and
+                vertical_gap <= gap_threshold):
+                stack.append(remaining.pop(i))
+                # Update stack bounds
+                base_x1 = min(base_x1, x1)
+                base_x2 = max(base_x2, x2)
+                base_y1 = min(base_y1, y1)
+                base_y2 = max(base_y2, y2)
+                i = 0  # Restart search for more stack members
             else:
                 i += 1
 
-        # Sort that row right-to-left (或 LTR) 再加入
-        row.sort(key=lambda p: (-p[0] if right_to_left else p[0]))
-        ordered.extend(row)
- 
-    return ordered
+        # Stack overlap check: if stack contains multiple panels, check if remaining panels overlap with multiple stack panels
+        if len(stack) > 1:
+            stack_should_break = False
+            
+            for remaining_panel in remaining:
+                rx1, ry1, rx2, ry2 = remaining_panel
+                remaining_area = (rx2 - rx1) * (ry2 - ry1)
+                total_overlap_area = 0
+                overlapping_count = 0
+                
+                # Calculate cumulative overlap area between remaining panel and all panels in stack
+                for stack_panel in stack:
+                    sx1, sy1, sx2, sy2 = stack_panel
+                    
+                    # Calculate overlap area
+                    overlap_x1 = max(rx1, sx1)
+                    overlap_y1 = max(ry1, sy1)
+                    overlap_x2 = min(rx2, sx2)
+                    overlap_y2 = min(ry2, sy2)
+                    
+                    if overlap_x1 < overlap_x2 and overlap_y1 < overlap_y2:
+                        overlap_area = (overlap_x2 - overlap_x1) * (overlap_y2 - overlap_y1)
+                        total_overlap_area += overlap_area
+                        overlapping_count += 1
+                
+                # Calculate cumulative overlap ratio
+                overlap_ratio = total_overlap_area / remaining_area if remaining_area > 0 else 0
+                
+                # If cumulative overlap reaches threshold and involves multiple stack panels, cancel stacking
+                if overlap_ratio >= nested_threshold and overlapping_count >= 2:
+                    stack_should_break = True
+                    break
+            
+            if stack_should_break:
+                # Cancel stacking: return all panels except base panel back to remaining
+                base_panel = stack[0]  # Base panel (first one)
+                returned_panels = stack[1:]  # Other panels
+                remaining.extend(returned_panels)
+                stack = [base_panel]  # Keep only base panel
 
+        # Sort stack top-to-bottom
+        stack.sort(key=lambda p: p[1])
+        vertical_stacks.append(stack)
+        stack_id += 1
+
+    # Step 2: Sort stacks using original row-based logic
+    # Each stack is treated as a single unit with its top-left corner as reference
+    stack_units = []
+    for i, stack in enumerate(vertical_stacks):
+        # Use the top-left corner of the stack as reference point
+        top_panel = stack[0]  # Already sorted top-to-bottom
+        stack_units.append((top_panel[0], top_panel[1], stack))  # (x, y, panels)
+
+    # Apply original row-based sorting to stack units
+    remaining_units = sorted(stack_units, key=lambda unit: unit[1])  # sort by top-y first
+    ordered = []
+    row_id = 0
+
+    while remaining_units:
+        # Start a new row from the current top-most unit
+        base_unit = remaining_units[0]
+        base_y = base_unit[1]
+        
+        # Calculate Y_THR based on current base unit's height
+        base_stack = base_unit[2]  # Get the stack (list of panels)
+        base_panel = base_stack[0]  # Get the top panel in the stack
+        current_panel_height = base_panel[3] - base_panel[1]  # Calculate height
+        Y_THR = max(10, current_panel_height * 0.15)  # y-difference threshold based on current panel
+
+        # Gather all units whose top-y is within threshold of base_y
+        row = []
+        i = 0
+        while i < len(remaining_units):
+            unit_y = remaining_units[i][1]
+            y_diff = abs(unit_y - base_y)
+            
+            if y_diff <= Y_THR:
+                row.append(remaining_units.pop(i))
+            else:
+                i += 1
+
+        # Sort that row right-to-left (or LTR) by x-coordinate
+        row.sort(key=lambda unit: (-unit[0] if right_to_left else unit[0]))
+
+        # Add all panels from each unit in the row
+        for unit in row:
+            unit_panels = unit[2]  # unit[2] is the list of panels in the stack
+            for panel in unit_panels:
+                ordered.append(panel)
+        
+        row_id += 1
+
+    return ordered
 
 def sort_regions(
     regions: List[TextBlock],
     right_to_left: bool = True,
     img: np.ndarray = None,
-    force_simple_sort: bool = False
+    force_simple_sort: bool = False,
+    use_gpu: bool = False,
+    panel_detector: str = 'dl'
 ) -> List[TextBlock]:
     
     if not regions:
@@ -578,21 +730,29 @@ def sort_regions(
     # 1. Panel detection + sorting within panels
     if img is not None:
         try:
-            panels_raw = get_panels_from_array(img, rtl=right_to_left)
+            panels_raw = get_panels_from_array(img, rtl=right_to_left, method=panel_detector, use_gpu=use_gpu)
             # Convert to [x1, y1, x2, y2]
             panels = [(x, y, x + w, y + h) for x, y, w, h in panels_raw]
+            
             # Use the customised sorter that keeps vertically stacked panels together.
             panels = _sort_panels_fill(panels, right_to_left)
 
-            # Assign panel_index to each region
+            # Improved text assignment logic: select smallest containing panel
             for r in regions:
                 cx, cy = r.center
                 r.panel_index = -1
+                containing_panels = []
+                
+                # Find all panels that contain this text block
                 for idx, (x1, y1, x2, y2) in enumerate(panels):
                     if x1 <= cx <= x2 and y1 <= cy <= y2:
-                        r.panel_index = idx
-                        break
-                if r.panel_index < 0:
+                        area = (x2 - x1) * (y2 - y1)  # Calculate panel area
+                        containing_panels.append((area, idx))
+                
+                if containing_panels:
+                    # Select smallest area panel (innermost in nested structure)
+                    r.panel_index = min(containing_panels)[1]
+                else:
                     # If not inside any panel, find the closest one
                     dists = [
                         ((max(x1-cx, 0, cx-x2))**2 + (max(y1-cy, 0, cy-y2))**2, i)
@@ -615,32 +775,27 @@ def sort_regions(
             return sorted_all
             
         except (cv2.error, MemoryError, Exception) as e:
-            # When panel detection fails, use simple sort, log a warning but continue translation.
-            from ..utils import get_logger
-            logger = get_logger('textblock')
-            logger.warning(f'Panel detection failed ({e.__class__.__name__}: {str(e)[:100]}), using simple text sorting')
-            
-            # Use the simple sorting logic as a fallback.
+            # When panel detection fails, use simple sort as fallback
             return _simple_sort(regions, right_to_left)
 
     # 2. Smart sorting (if img is None and not forced simple)
     xs = [r.center[0] for r in regions]
     ys = [r.center[1] for r in regions]
     
-    # 改进的分散度计算：使用标准差
+    # Improved variance calculation: using standard deviation
     if len(regions) > 1:
         x_std = np.std(xs) if len(xs) > 1 else 0
         y_std = np.std(ys) if len(ys) > 1 else 0
         
-        # 使用标准差比值来判断排列方向
+        # Use standard deviation ratio to determine arrangement direction
         is_horizontal = x_std > y_std
     else:
-        # 只有一个文本块时，默认为纵向
+        # When only one text block, default to vertical
         is_horizontal = False
 
     sorted_regions = []
     if is_horizontal:
-        # 横向更分散：先 x 再 y
+        # More horizontal spread: sort by x first, then y
         primary = sorted(regions, key=lambda r: -r.center[0] if right_to_left else r.center[0])
         group, prev = [], None
         for r in primary:
@@ -655,7 +810,7 @@ def sort_regions(
             group.sort(key=lambda r: r.center[1])
             sorted_regions += group
     else:
-        # 纵向更分散：先 y 再 x
+        # More vertical spread: sort by y first, then x
         primary = sorted(regions, key=lambda r: r.center[1])
         group, prev = [], None
         for r in primary:
@@ -673,14 +828,14 @@ def sort_regions(
     return sorted_regions
 
 
-def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock], show_panels: bool = False, img_rgb: np.ndarray = None, right_to_left: bool = True):
+def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock], show_panels: bool = False, img_rgb: np.ndarray = None, right_to_left: bool = True, use_gpu: bool = False, panel_detector: str = 'dl'):
     lw = max(round(sum(canvas.shape) / 2 * 0.003), 2)  # line width
     
     # Panel detection and drawing
     panels = None
     if show_panels and img_rgb is not None:
         try:
-            panels_raw = get_panels_from_array(img_rgb, rtl=right_to_left)
+            panels_raw = get_panels_from_array(img_rgb, rtl=right_to_left, method=panel_detector, use_gpu=use_gpu)
             panels = [(x, y, x + w, y + h) for x, y, w, h in panels_raw]
             # Use the customised sorter that keeps vertically stacked panels together.
             panels = _sort_panels_fill(panels, right_to_left)
@@ -692,9 +847,8 @@ def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock], show_pan
                 cv2.putText(canvas, str(panel_idx), (x1+5, y1+60), cv2.FONT_HERSHEY_SIMPLEX, 
                            lw/2, (200, 100, 0), max(lw-1, 1), cv2.LINE_AA)
         except Exception as e:
-            from ..utils import get_logger
-            logger = get_logger('textblock')
-            logger.warning(f'Panel visualization failed: {e}')
+            # Panel visualization failed, skip panel drawing
+            pass
     
     for i, blk in enumerate(blk_list):
         bx1, by1, bx2, by2 = blk.xyxy
@@ -710,22 +864,22 @@ def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock], show_pan
         x_text = 'x: %s' % bx1
         y_text = 'y: %s' % by1
         
-        # 添加描边效果，文本居中
+        # Add outline effect, text centered
         def put_text_with_outline(text, center_x, y, font_size=0.8, thickness=2, color=(127,127,255)):
             
             (text_width, text_height), baseline = cv2.getTextSize(
                 text, cv2.FONT_HERSHEY_SIMPLEX, font_size, thickness)
             text_x = center_x - text_width // 2
             
-            # 绘制描边
+            # Draw outline
             for dx, dy in [(-1,-1), (-1,1), (1,-1), (1,1), (-2,0), (2,0), (0,-2), (0,2)]:
                 cv2.putText(canvas, text, (text_x+dx, y+dy), 
                           cv2.FONT_HERSHEY_SIMPLEX, font_size, (35,24,22), thickness)
-            # 绘制原始颜色的主文本
+            # Draw main text in original color
             cv2.putText(canvas, text, (text_x, y), 
                       cv2.FONT_HERSHEY_SIMPLEX, font_size, color, thickness)
         
-        # 在文本框水平中央位置绘制带描边的文本
+        # Draw outlined text at horizontal center of text box
         center_x = center[0]  
         put_text_with_outline(angle_text, center_x, center[1] - 10)
         put_text_with_outline(x_text, center_x, center[1] + 15)
