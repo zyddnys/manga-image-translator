@@ -151,10 +151,6 @@ class Upscaler(str, Enum):
     esrgan = "esrgan"
     upscler4xultrasharp = "4xultrasharp"
 
-class PanelDetector(str, Enum):
-    kumiko = "kumiko"
-    dl = "dl"
-
 class RenderConfig(BaseModel):
     renderer: Renderer = Renderer.default
     """Render english text translated from manga with some additional typesetting. Ignores some other argument options"""
@@ -292,11 +288,6 @@ class DetectorConfig(BaseModel):
     unclip_ratio: float = 2.3
     """How much to extend text skeleton to form bounding box"""
 
-class PanelDetectorConfig(BaseModel):
-    """Panel detection configuration"""
-    panel_detector: PanelDetector = PanelDetector.dl
-    """Panel detector to use for manga panel detection. 'kumiko' for traditional method, 'dl' for deep learning"""
-
 class InpainterConfig(BaseModel):
     inpainter: Inpainter = Inpainter.lama_large
     """Inpainting model to use"""
@@ -337,8 +328,6 @@ class Config(BaseModel):
     """tanslator configs"""
     detector: DetectorConfig = DetectorConfig()
     """detector configs"""
-    panel_detector: PanelDetectorConfig = PanelDetectorConfig()
-    """panel detector configs"""
     colorizer: ColorizerConfig = ColorizerConfig()
     """colorizer configs"""
     inpainter: InpainterConfig = InpainterConfig()
