@@ -58,7 +58,7 @@ dependencies = [
     "manga-ocr",
     "langdetect",
     "pydensecrf@https://github.com/lucasb-eyer/pydensecrf/archive/refs/heads/master.zip",
-    "accelerate",
+    "accelerate==0.20.3", # compatible with pytorch 2.0.1
     "bitsandbytes",
     "uvicorn",
     "fastapi",
@@ -67,12 +67,12 @@ dependencies = [
     "google-genai",
     "rich",
     "regex",
-    "rusty-manga-image-translator",
+    #"rusty-manga-image-translator",
     "python-bidi"
 ]
 
-[tool.uv.pip]
-extra-index-url = "https://frederik-uni.github.io/manga-image-translator-rust/python/wheels/simple/"
+#[tool.uv.pip]
+#extra-index-url = "https://frederik-uni.github.io/manga-image-translator-rust/python/wheels/simple/"
 
 [tool.isort]
 profile = 'black'

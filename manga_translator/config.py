@@ -86,7 +86,7 @@ class Detector(str, Enum):
     dbconvnext = "dbconvnext"
     ctd = "ctd"
     craft = "craft"
-    paddle = "paddle"
+    #paddle = "paddle"
     none = "none"
     switch = "switch"
 
