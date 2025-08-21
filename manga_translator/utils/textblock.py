@@ -7,8 +7,13 @@ from functools import cached_property
 import copy
 import re
 import py3langid as langid
-from .panel import get_panels_from_array
+
 from .generic import color_difference, is_right_to_left_char, is_valuable_char
+from .log import get_logger
+from ..panel_detection import dispatch as dispatch_panel_detection
+from ..config import PanelDetector, PanelDetectorConfig
+
+logger = get_logger('textblock')
 # from ..detection.ctd_utils.utils.imgproc_utils import union_area, xywh2xyxypoly
 
 # LANG_LIST = ['eng', 'ja', 'unknown']
@@ -711,31 +716,51 @@ def _sort_panels_fill(panels: List[Tuple[int, int, int, int]], right_to_left: bo
 
     return ordered
 
-def sort_regions(
+async def sort_regions(
     regions: List[TextBlock],
     right_to_left: bool = True,
     img: np.ndarray = None,
-    force_simple_sort: bool = False,
-    use_gpu: bool = False,
-    panel_detector: str = 'dl'
+    device: str = 'cpu',
+    panel_detector: str = 'none',
+    panel_config: PanelDetectorConfig = None,
+    ctx = None
 ) -> List[TextBlock]:
-    
+
     if not regions:
         return []
 
-    # If simple sort is forced, use it and return immediately.
-    if force_simple_sort:
+    # If panel detection is disabled, use simple sort and return immediately.
+    if panel_detector == 'none':
         return _simple_sort(regions, right_to_left)
 
     # 1. Panel detection + sorting within panels
     if img is not None:
         try:
-            panels_raw = get_panels_from_array(img, rtl=right_to_left, method=panel_detector, use_gpu=use_gpu)
+            # Convert string to enum
+            if panel_detector == 'dl':
+                detector_key = PanelDetector.dl
+            elif panel_detector == 'kumiko':
+                detector_key = PanelDetector.kumiko
+            else:
+                # Should not reach here due to early return for 'none'
+                return _simple_sort(regions, right_to_left)
+            panels_raw = await dispatch_panel_detection(detector_key, img, rtl=right_to_left, device=device, config=panel_config)
             # Convert to [x1, y1, x2, y2]
             panels = [(x, y, x + w, y + h) for x, y, w, h in panels_raw]
-            
-            # Use the customised sorter that keeps vertically stacked panels together.
-            panels = _sort_panels_fill(panels, right_to_left)
+
+            # Apply sorting based on detector type
+            if detector_key == PanelDetector.kumiko:
+                # Kumiko already sorts panels internally, trust its ordering
+                pass
+            else:
+                # Use our custom sorter for other detectors (like DL)
+                panels = _sort_panels_fill(panels, right_to_left)
+
+            # Cache panel data in Context for reuse by visualize_textblocks
+            if ctx is not None:
+                ctx.panels_data = panels
+                ctx.panel_detector_used = panel_detector
+                ctx.panel_config_used = panel_config
 
             # Improved text assignment logic: select smallest containing panel
             for r in regions:
@@ -770,10 +795,10 @@ def sort_regions(
             # Ensure panels that couldn't be assigned are handled (e.g., panel_index=-1)
             # and sorted based on their panel index.
             for pi in sorted(grouped.keys()):
-                panel_sorted = sort_regions(grouped[pi], right_to_left, img=None, force_simple_sort=False)
+                panel_sorted = await sort_regions(grouped[pi], right_to_left, img=None, panel_detector='none')
                 sorted_all += panel_sorted
             return sorted_all
-            
+
         except (cv2.error, MemoryError, Exception) as e:
             # When panel detection fails, use simple sort as fallback
             return _simple_sort(regions, right_to_left)
@@ -828,17 +853,45 @@ def sort_regions(
     return sorted_regions
 
 
-def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock], show_panels: bool = False, img_rgb: np.ndarray = None, right_to_left: bool = True, use_gpu: bool = False, panel_detector: str = 'dl'):
+async def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock], show_panels: bool = False, img_rgb: np.ndarray = None, right_to_left: bool = True, device: str = 'cpu', panel_detector: str = 'dl', panel_config: PanelDetectorConfig = None, ctx = None):
     lw = max(round(sum(canvas.shape) / 2 * 0.003), 2)  # line width
-    
+
     # Panel detection and drawing
     panels = None
     if show_panels and img_rgb is not None:
         try:
-            panels_raw = get_panels_from_array(img_rgb, rtl=right_to_left, method=panel_detector, use_gpu=use_gpu)
-            panels = [(x, y, x + w, y + h) for x, y, w, h in panels_raw]
-            # Use the customised sorter that keeps vertically stacked panels together.
-            panels = _sort_panels_fill(panels, right_to_left)
+            # Try to use cached panel data first
+            if (ctx is not None and
+                hasattr(ctx, 'panels_data') and
+                hasattr(ctx, 'panel_detector_used') and
+                hasattr(ctx, 'panel_config_used') and
+                ctx.panel_detector_used == panel_detector):
+                # Use cached panel data from sort_regions
+                panels = ctx.panels_data
+            else:
+                # Fallback: perform panel detection
+                if panel_detector == 'none':
+                    panels = []  # No panels when detection is disabled
+                else:
+                    if panel_detector == 'dl':
+                        detector_key = PanelDetector.dl
+                    elif panel_detector == 'kumiko':
+                        detector_key = PanelDetector.kumiko
+                    else:
+                        panels = []  # Fallback for unknown detector
+                        detector_key = None
+
+                    if detector_key:
+                        panels_raw = await dispatch_panel_detection(detector_key, img_rgb, rtl=right_to_left, device=device, config=panel_config)
+                        panels = [(x, y, x + w, y + h) for x, y, w, h in panels_raw]
+
+                # Apply sorting based on detector type
+                if detector_key == PanelDetector.kumiko:
+                    # Kumiko already sorts panels internally, trust its ordering
+                    pass
+                else:
+                    # Use our custom sorter for other detectors (like DL)
+                    panels = _sort_panels_fill(panels, right_to_left)
             
             # Draw panel boxes and order
             for panel_idx, (x1, y1, x2, y2) in enumerate(panels):
@@ -848,7 +901,7 @@ def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock], show_pan
                            lw/2, (200, 100, 0), max(lw-1, 1), cv2.LINE_AA)
         except Exception as e:
             # Panel visualization failed, skip panel drawing
-            pass
+            logger.error(f"Panel visualization failed: {e}")
     
     for i, blk in enumerate(blk_list):
         bx1, by1, bx2, by2 = blk.xyxy

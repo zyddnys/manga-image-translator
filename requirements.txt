@@ -2,6 +2,7 @@ networkx
 torch
 groq
 torchvision
+git+https://github.com/facebookresearch/detectron2.git
 torch-summary
 einops
 scikit-image

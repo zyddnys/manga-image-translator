@@ -14,7 +14,7 @@ from PIL import Image
 from typing import Optional, Any, List
 import py3langid as langid
 
-from .config import Config, Colorizer, Detector, Translator, Renderer, Inpainter
+from .config import Config, Colorizer, Detector, Translator, Renderer, Inpainter, PanelDetector
 from .utils import (
     BASE_PATH,
     LANGUAGE_ORIENTATION_PRESETS,
@@ -33,6 +33,7 @@ from .ocr import dispatch as dispatch_ocr, prepare as prepare_ocr, unload as unl
 from .textline_merge import dispatch as dispatch_textline_merge
 from .mask_refinement import dispatch as dispatch_mask_refinement
 from .inpainting import dispatch as dispatch_inpainting, prepare as prepare_inpainting, unload as unload_inpainting
+from .panel_detection import prepare as prepare_panel_detection, unload as unload_panel_detection
 from .translators import (
     dispatch as dispatch_translation,
     prepare as prepare_translation,
@@ -417,6 +418,8 @@ class MangaTranslator:
             if config.upscale.upscale_ratio:
                 await prepare_upscaling(config.upscale.upscaler)
             await prepare_detection(config.detector.detector)
+            if config.panel_detector.panel_detector != 'none':
+                await prepare_panel_detection(config.panel_detector.panel_detector)
             await prepare_ocr(config.ocr.ocr, self.device)
             await prepare_inpainting(config.inpainter.inpainter, self.device)
             await prepare_translation(config.translator.translator_gen)
@@ -535,9 +538,9 @@ class MangaTranslator:
 
         if self.verbose and ctx.text_regions:
             bbox_start_time = time.time()
-            show_panels = not config.force_simple_sort  # 当不使用简单排序时显示panel | Show panel when not using simple sort
-            bboxes = visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions,
-                                        show_panels=show_panels, img_rgb=ctx.img_rgb, right_to_left=config.render.rtl, use_gpu=self.using_gpu, panel_detector=config.panel_detector.panel_detector)
+            show_panels = config.panel_detector.panel_detector != 'none'  # 当启用分镜检测时显示panel | Show panel when panel detection is enabled
+            bboxes = await visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions,
+                                        show_panels=show_panels, img_rgb=ctx.img_rgb, right_to_left=config.render.rtl, device=self.device, panel_detector=config.panel_detector.panel_detector, panel_config=config.panel_detector, ctx=ctx)
             cv2.imwrite(self._result_path('bboxes.png'), bboxes)
             bbox_end_time = time.time()
 
@@ -710,8 +713,10 @@ class MangaTranslator:
                                         config.detector.box_threshold,
                                         config.detector.unclip_ratio, config.detector.det_invert, config.detector.det_gamma_correct, config.detector.det_rotate,
                                         config.detector.det_auto_rotate,
-                                        self.device, self.verbose)        
+                                        self.device, self.verbose)
         return result
+
+
 
     async def _unload_model(self, tool: str, model: str):
         logger.info(f"Unloading {tool} model: {model}")
@@ -720,6 +725,8 @@ class MangaTranslator:
                 await unload_colorization(model)
             case 'detection':
                 await unload_detection(model)
+            case 'panel_detection':
+                await unload_panel_detection(model)
             case 'inpainting':
                 await unload_inpainting(model)
             case 'ocr':
@@ -921,13 +928,19 @@ class MangaTranslator:
                 new_text_regions.append(region)
         text_regions = new_text_regions
 
-        text_regions = sort_regions(
+        # Record panel detection usage for TTL management (only if not disabled)
+        if config.panel_detector.panel_detector != 'none':
+            current_time = time.time()
+            self._model_usage_timestamps[("panel_detection", config.panel_detector.panel_detector)] = current_time
+
+        text_regions = await sort_regions(
             text_regions,
             right_to_left=config.render.rtl,
             img=ctx.img_rgb,
-            force_simple_sort=config.force_simple_sort,
-            use_gpu=self.using_gpu,
-            panel_detector=config.panel_detector.panel_detector
+            device=self.device,
+            panel_detector=config.panel_detector.panel_detector,
+            panel_config=config.panel_detector,
+            ctx=ctx
         )
         
         return text_regions
@@ -1526,6 +1539,8 @@ class MangaTranslator:
             if config.upscale.upscale_ratio:
                 await prepare_upscaling(config.upscale.upscaler)
             await prepare_detection(config.detector.detector)
+            if config.panel_detector.panel_detector != 'none':
+                await prepare_panel_detection(config.panel_detector.panel_detector)
             await prepare_ocr(config.ocr.ocr, self.device)
             await prepare_inpainting(config.inpainter.inpainter, self.device)
             await prepare_translation(config.translator.translator_gen)
@@ -1629,9 +1644,9 @@ class MangaTranslator:
 
         if self.verbose and ctx.text_regions:
             bbox_start_time = time.time()
-            show_panels = not config.force_simple_sort  # 当不使用简单排序时显示panel | Show panel when not using simple sort
-            bboxes = visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions,
-                                        show_panels=show_panels, img_rgb=ctx.img_rgb, right_to_left=config.render.rtl, use_gpu=self.using_gpu, panel_detector=config.panel_detector.panel_detector)
+            show_panels = config.panel_detector.panel_detector != 'none'  # 当启用分镜检测时显示panel | Show panel when panel detection is enabled
+            bboxes = await visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions,
+                                        show_panels=show_panels, img_rgb=ctx.img_rgb, right_to_left=config.render.rtl, device=self.device, panel_detector=config.panel_detector.panel_detector, panel_config=config.panel_detector, ctx=ctx)
             cv2.imwrite(self._result_path('bboxes.png'), bboxes)
             bbox_end_time = time.time()
 
