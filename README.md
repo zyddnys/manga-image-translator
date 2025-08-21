@@ -1081,7 +1081,7 @@ HUN: Hungarian
 ITA: Italian
 JPN: Japanese
 KOR: Korean
-PLK: Polish
+POL: Polish
 PTB: Portuguese (Brazilian)
 ROM: Romanian
 RUS: Russian

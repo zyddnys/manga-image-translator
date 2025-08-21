@@ -1,7 +1,7 @@
 import os
 import cv2
 import numpy as np
-from typing import List, Optional
+from typing import List
 from shapely import affinity
 from shapely.geometry import Polygon
 from tqdm import tqdm
@@ -9,6 +9,7 @@ from tqdm import tqdm
 # from .ballon_extractor import extract_ballon_region
 from . import text_render
 from .text_render_eng import render_textblock_list_eng
+from .text_render_pillow_eng import render_textblock_list_eng as render_textblock_list_eng_pillow
 from ..utils import (
     BASE_PATH,
     TextBlock,
@@ -33,133 +34,203 @@ def fg_bg_compare(fg, bg):
         bg = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
     return fg, bg
 
+def count_text_length(text: str) -> float:
+    """Calculate text length, treating っッぁぃぅぇぉ as 0.5 characters"""
+    half_width_chars = 'っッぁぃぅぇぉ'  
+    length = 0.0
+    for char in text.strip():
+        if char in half_width_chars:
+            length += 0.5
+        else:
+            length += 1.0
+    return length
+
 def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock'], font_size_fixed: int, font_size_offset: int, font_size_minimum: int):  
-    """  
-    Adjusts the size of text regions to accommodate font size and translated text length. 
-
-    This function adjusts the bounding box of each text region based on the following logic:  
-    1. Determine the minimum font size.  
-    2. Calculate the target font size based on the original font size, fixed font size, and offset.  
-    3. **If the translated text length is greater than the original text, calculate a scaling factor based on the length ratio and constrain it between 1.1 and 1.4 times.**  
-    4. **Use the calculated scaling factor (if applied) and target font size to adjust the size of the original bounding box.**  
-    5. Clip the adjusted bounding box to within the image boundaries.  
-    6. Update the font size of the TextBlock object.  
-
+    """
+    Adjust text region size to accommodate font size and translated text length.
+    
     Args:  
-        img (np.ndarray): The input image.  
-        text_regions (List[TextBlock]): A list of TextBlock objects to process.  
-        font_size_fixed (int): Fixed font size (if provided, other font size parameters are ignored).  
-        font_size_offset (int): Font size offset.  
-        font_size_minimum (int): Minimum font size. If -1, it's automatically calculated based on image dimensions.  
+        img: Input image
+        text_regions: List of text regions to process
+        font_size_fixed: Fixed font size (overrides other font parameters)
+        font_size_offset: Font size offset
+        font_size_minimum: Minimum font size (-1 for auto-calculation)
 
     Returns:  
-        List[np.ndarray]: A list of adjusted text region bounding boxes, where each bounding box is a (4, 2) NumPy array.  
-    """  
-    # 1. Determine the minimum font size  
+        List of adjusted text region bounding boxes
+    """    
+    
+    # Define minimum font size
     if font_size_minimum == -1:  
         font_size_minimum = round((img.shape[0] + img.shape[1]) / 200)  
     # logger.debug(f'font_size_minimum {font_size_minimum}')  
-    font_size_minimum = max(1, font_size_minimum) # Ensure minimum font size is at least 1  
+    font_size_minimum = max(1, font_size_minimum)  
 
     dst_points_list = []  
-    for region in text_regions:  
-        # Store the original font size for the region  
+    for region in text_regions: 
+    
+        # Store and validate original font size
         original_region_font_size = region.font_size  
-        # Ensure the original font size is valid  
         if original_region_font_size <= 0:  
-            # logger.warning(f"Invalid original font size ({original_region_font_size}) for text '{region.translation[:10]}'. Using default value {font_size_minimum}.")  
-            original_region_font_size = font_size_minimum # Use minimum as default  
+            # logger.warning(f"Invalid original font size ({original_region_font_size}) for text '{region.translation}'. Using default value {font_size_minimum}.")  
+            original_region_font_size = font_size_minimum
 
-        # 2. Determine the target font size  
+        # Determine target font size
         current_base_font_size = original_region_font_size  
         if font_size_fixed is not None:  
             target_font_size = font_size_fixed  
         else:  
-            # Apply the offset to the original font size  
             target_font_size = current_base_font_size + font_size_offset  
 
-        # Apply the minimum font size constraint  
-        target_font_size = max(target_font_size, font_size_minimum)  
-        # Ensure font size is at least 1  
-        target_font_size = max(1, target_font_size)  
-        # logger.debug(f"Calculated target font size: {target_font_size} for text '{region.translation[:10]}'")  
+        target_font_size = max(target_font_size, font_size_minimum, 1)  
+        # print("-" * 50)
+        # logger.debug(f"Calculated target font size: {target_font_size} for text '{region.translation}'")  
 
-        # 3. Calculate a scaling factor based on text length ratio  
-        #char_count_orig = len(region.text.strip())  
-        orig_text = getattr(region, "text_raw", region.text)  # Fallback to existing text if text_raw is not saved  
-        char_count_orig = len(orig_text.strip())  
-        char_count_trans = len(region.translation.strip())  
-        length_ratio = 1.0 # Default scaling factor is 1.0  
+        # Single-axis text box expansion
+        single_axis_expanded = False
+        dst_points = None
+        
+        if region.horizontal: 
+            used_rows = len(region.texts)
+            # logger.debug(f"Horizontal text - used rows: {used_rows}")
+            
+            line_text_list, _ = text_render.calc_horizontal(
+                region.font_size,
+                region.translation,
+                max_width=region.unrotated_size[0],
+                max_height=region.unrotated_size[1],
+                language=getattr(region, "target_lang", "en_US")
+            )
+            needed_rows = len(line_text_list)
+            # logger.debug(f"Needed rows: {needed_rows}")                
 
-        if char_count_orig > 0 and char_count_trans > char_count_orig:  
-             # Translated text is longer, calculate length ratio  
-            length_ratio = char_count_trans / char_count_orig  
-            # logger.debug(f"Text length ratio: {length_ratio:.2f} ({char_count_trans} / {char_count_orig}) for text '{region.translation}'")  
-            # Constrain the scaling factor between 1.1 and 1.4 times  
-            target_scale = max(1.1, min(length_ratio, 1.4))  
-            # logger.debug(f"Applying length ratio scaling, target scale (constrained): {target_scale:.2f}")  
-        else:  
-            # Translated text is not longer than original, do not apply length ratio scaling, only consider font size adjustment  
-            target_scale = 1.1  # Cannot be 1, sometimes font size shrinks even if shorter than original, There is still logic to shrink the font size somewhere else..  
-            # print("-" * 50)  
-            # logger.debug(f"Translated text is not longer than original ({char_count_trans} <= {char_count_orig}) or original length is 0, no length ratio scaling applied. Target scale: {target_scale:.2f}")  
+            if needed_rows > used_rows:
+                scale_x = ((needed_rows - used_rows) / used_rows) * 1 + 1
+                try:  
+                    poly = Polygon(region.unrotated_min_rect[0])
+                    minx, miny, maxx, maxy = poly.bounds
+                    poly = affinity.scale(poly, xfact=scale_x, yfact=1.0, origin=(minx, miny))        
+                
+                    pts = np.array(poly.exterior.coords[:4])  
+                    dst_points = rotate_polygons(  
+                        region.center, pts.reshape(1, -1), -region.angle,  
+                        to_int=False  
+                    ).reshape(-1, 4, 2)  
+                    # 移除边界限制，允许文本超出检测框边界
+                    # dst_points[..., 0] = dst_points[..., 0].clip(0, img.shape[1] - 1)  
+                    # dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0] - 1)  
+                    dst_points = dst_points.astype(np.int64)
+                    single_axis_expanded = True
+                    # logger.debug(f"Successfully expanded horizontal text width: xfact={scale_x:.2f}")  
+                except Exception as e:  
+                    # logger.error(f"Failed to expand horizontal text: {e}")  
+                    pass
+                    
+        if region.vertical:
+            used_cols = len(region.texts)
+            # logger.debug(f"Vertical text - used columns: {used_cols}")
+            
+            line_text_list, _ = text_render.calc_vertical(
+                region.font_size, 
+                region.translation, 
+                max_height=region.unrotated_size[1],
+            )
+            needed_cols = len(line_text_list)
+            # logger.debug(f"Needed columns: {needed_cols}") 
+            if needed_cols > used_cols:
+                scale_x = ((needed_cols - used_cols) / used_cols) * 1 + 1
+                try:  
+                    poly = Polygon(region.unrotated_min_rect[0])
+                    minx, miny, maxx, maxy = poly.bounds
+                    poly = affinity.scale(poly, xfact=1.0, yfact=scale_x, origin=(minx, miny))                    
+                    
+                    pts = np.array(poly.exterior.coords[:4])  
+                    dst_points = rotate_polygons(  
+                        region.center, pts.reshape(1, -1), -region.angle,  
+                        to_int=False  
+                    ).reshape(-1, 4, 2)  
+                    # 移除边界限制，允许文本超出检测框边界
+                    # dst_points[..., 0] = dst_points[..., 0].clip(0, img.shape[1] - 1)  
+                    # dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0] - 1)  
+                    dst_points = dst_points.astype(np.int64)
+                    single_axis_expanded = True
+                    # logger.debug(f"Successfully expanded vertical text width: xfact={scale_x:.2f}")  
+                except Exception as e:  
+                    # logger.error(f"Failed to expand vertical text: {e}")  
+                    pass
 
+        # If single-axis expansion failed, use general scaling
+        if not single_axis_expanded:
+            # Calculate scaling factor based on text length ratio
+            orig_text = getattr(region, "text_raw", region.text)
+            char_count_orig = count_text_length(orig_text)
+            char_count_trans = count_text_length(region.translation.strip())     
+            length_ratio = 1.0
 
-        # 4. Calculate the final scaling factor based on target font size and length ratio (if applied)  
-        # We need a scaling factor to adjust the original bounding box to accommodate the new font size and potentially longer text.  
-        # A simple approach is to combine the font size change and length ratio.  
-        # If original font size is valid and different from target, first consider font size scaling.  
-        font_size_scale = target_font_size / original_region_font_size if original_region_font_size > 0 else 1.0  
-        # If length ratio scaling was applied, take the maximum of font size scaling and length ratio scaling.  
-        # This ensures the region can accommodate at least the longer text or larger font.  
-        final_scale = max(font_size_scale, target_scale) # Use the previously calculated target_scale (considering length ratio)  
-        # Ensure the final scaling factor is at least 1.0  
-        final_scale = max(1.0, final_scale)  
+            if char_count_orig > 0 and char_count_trans > char_count_orig:  
+                increase_percentage = (char_count_trans - char_count_orig) / char_count_orig
+                font_increase_ratio = 1 + (increase_percentage * 0.3)
+                font_increase_ratio = min(1.5, max(1.0, font_increase_ratio))
+                # logger.debug(f"Translation is {increase_percentage:.2%} longer, font increase ratio: {font_increase_ratio:.2f}")
+                target_font_size = int(target_font_size * font_increase_ratio)
+                # logger.debug(f"Adjusted target font size: {target_font_size}")
+                # Need greater bounding box scaling to accommodate larger font size and longer text
+                target_scale = max(1, min(1 + increase_percentage * 0.3, 2))  # Possibly max(1, min(1 + (font_increase_ratio-1), 2))
+                # logger.debug(f"Translation is longer than original and font increased, need larger bounding box scaling. Target scale factor: {target_scale:.2f}")
+            # Short text box expansion is quite aggressive, in many cases short text boxes don't need expansion
+            # elif char_count_orig > 0 and char_count_trans < char_count_orig:
+            #     # Translation is shorter, increase font proportionally
+            #     decrease_percentage = (char_count_orig - char_count_trans) / char_count_orig
+            #     # Font increase ratio equals text reduction ratio
+            #     font_increase_ratio = 1 + decrease_percentage
+            #     # Limit font increase ratio to reasonable range, e.g., between 1.0 and 1.5
+            #     font_increase_ratio = min(1.5, max(1.0, font_increase_ratio))
+            #     logger.debug(f"Translation is {decrease_percentage:.2%} shorter than original, font increase ratio: {font_increase_ratio:.2f}")
+            #     # Update target font size
+            #     target_font_size = int(target_font_size * font_increase_ratio)
+            #     logger.debug(f"Adjusted target font size: {target_font_size}")
+            #     target_scale = 1.0  # No additional bounding box scaling needed
+            #     logger.debug(f"Translation is shorter than original, no bounding box scaling applied, only font increase. Target scale factor: {target_scale:.2f}")            
+            else:  
+                target_scale = 1              
+                # logger.debug(f"No length ratio scaling applied. Target scale factor: {target_scale:.2f}")   
 
-        # logger.debug(f"Font size scaling factor: {font_size_scale:.2f}")  
-        # logger.debug(f"Final bounding box scaling factor: {final_scale:.2f}")  
+            # Calculate final scaling factor
+            font_size_scale = (((target_font_size - original_region_font_size) / original_region_font_size) * 0.4 + 1) if original_region_font_size > 0 else 1.0  
+            # logger.debug(f"Font size ratio: ({target_font_size} / {original_region_font_size})")  
+            final_scale = max(font_size_scale, target_scale)
+            final_scale = max(1, min(final_scale, 1.1))  
+            
+            # logger.debug(f"Final scaling factor: {final_scale:.2f}")  
 
+            # Scale bounding box if needed
+            if final_scale > 1.001:  
+                # logger.debug(f"Scaling bounding box: text='{region.translation}', scale={final_scale:.2f}")  
+                try:  
+                    poly = Polygon(region.unrotated_min_rect[0])  
+                     # Scale from the center  
+                    poly = affinity.scale(poly, xfact=final_scale, yfact=final_scale, origin='center')  
+                    scaled_unrotated_points = np.array(poly.exterior.coords[:4])  
 
-        # 5. Scale the bounding box, rotate it back, and clip  
-        if final_scale > 1.001: # Apply scaling only if it's significantly greater than 1  
-            # logger.debug(f"Scaling bounding box required: text='{region.translation}', scale={final_scale:.2f}")  
-            try:  
-                # Use unrotated_min_rect for scaling  
-                poly = Polygon(region.unrotated_min_rect[0])  
-                # Scale from the center  
-                poly = affinity.scale(poly, xfact=final_scale, yfact=final_scale, origin='center')  
-                scaled_unrotated_points = np.array(poly.exterior.coords[:4])  
+                    dst_points = rotate_polygons(region.center, scaled_unrotated_points.reshape(1, -1), -region.angle, to_int=False).reshape(-1, 4, 2)  
+                    # 移除边界限制，允许文本超出检测框边界
+                    # dst_points[..., 0] = dst_points[..., 0].clip(0, img.shape[1] - 1)  
+                    # dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0] - 1)  
+                    dst_points = dst_points.astype(np.int64)  
+                    dst_points = dst_points.reshape((-1, 4, 2))  
+                    # logger.debug(f"Finished calculating scaled dst_points.")  
 
-                # Rotate the scaled points back to the original orientation  
-                # Use to_int=False to preserve precision for clipping  
-                dst_points = rotate_polygons(region.center, scaled_unrotated_points.reshape(1, -1), -region.angle, to_int=False).reshape(-1, 4, 2)  
+                except Exception as e:  
+                    # logger.error(f"Error during scaling for text '{region.translation}': {e}. Using original min_rect.")  
+                    dst_points = region.min_rect
+            else:
+                dst_points = region.min_rect
 
-                # Clip coordinates to within the image boundaries  
-                # Use img.shape[1]-1 and img.shape[0]-1 to avoid off-by-one issues  
-                dst_points[..., 0] = dst_points[..., 0].clip(0, img.shape[1] - 1)  
-                dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0] - 1)  
-
-                # Convert to int64 after clipping  
-                dst_points = dst_points.astype(np.int64)  
-
-                # Reshape to ensure correct final shape (just in case)  
-                dst_points = dst_points.reshape((-1, 4, 2))  
-                # logger.debug(f"Finished calculating scaled dst_points.")  
-
-            except Exception as e:  
-                # If an error occurs during scaling/rotating the geometric shape, use the original min_rect  
-                # logger.error(f"Error during scaling/rotating geometric shape for text '{region.translation}': {e}. Using original min_rect.")  
-                dst_points = region.min_rect # Use original value on error  
-        else:  
-            # No significant scaling needed, use the original min_rect  
-            # logger.debug(f"No significant scaling needed for text '{region.translation}'. Using original min_rect.")  
-            dst_points = region.min_rect  
-
-        # 6. Store the final dst_points and update the region's font size  
+        # Store results and update font size
         dst_points_list.append(dst_points)  
-        region.font_size = int(target_font_size) # Update the TextBlock's font size to the calculated target font size  
+        region.font_size = int(target_font_size)
 
-    return dst_points_list  
+    return dst_points_list
 
 async def dispatch(
     img: np.ndarray,
@@ -171,8 +242,7 @@ async def dispatch(
     hyphenate: bool = True,
     render_mask: np.ndarray = None,
     line_spacing: int = None,
-    disable_font_border: bool = False,
-    upscale_ratio: Optional[int] = None
+    disable_font_border: bool = False
     ) -> np.ndarray:
 
     text_render.set_font(font_path)
@@ -188,7 +258,7 @@ async def dispatch(
         if render_mask is not None:
             # set render_mask to 1 for the region that is inside dst_points
             cv2.fillConvexPoly(render_mask, dst_points.astype(np.int32), 1)
-        img = render(img, region, dst_points, hyphenate, line_spacing, disable_font_border, upscale_ratio)
+        img = render(img, region, dst_points, hyphenate, line_spacing, disable_font_border)
     return img
 
 def render(
@@ -197,8 +267,7 @@ def render(
     dst_points,
     hyphenate,
     line_spacing,
-    disable_font_border,
-    upscale_ratio: Optional[int] = None
+    disable_font_border
 ):
     fg, bg = region.get_font_colors()
     fg, bg = fg_bg_compare(fg, bg)
@@ -211,7 +280,7 @@ def render(
     norm_v = np.linalg.norm(middle_pts[:, 2] - middle_pts[:, 0], axis=1)
     r_orig = np.mean(norm_h / norm_v)
 
-    # 如果配置中设定了非自动模式，则直接使用配置决定方向
+    # If configuration is set to non-automatic mode, use configuration to determine direction directly
     forced_direction = region._direction if hasattr(region, "_direction") else region.direction
     if forced_direction != "auto":
         if forced_direction in ["horizontal", "h"]:
@@ -273,7 +342,6 @@ def render(
                 #print(f"Creating new box with dimensions: {h + h_ext * 2}x{w}")  
                 box = np.zeros((h + h_ext * 2, w, 4), dtype=np.uint8)  
                 #print(f"Placing temp_box at position [h_ext:h_ext+h, :w] = [{h_ext}:{h_ext+h}, 0:{w}]")  
-                # 列已排满，行居中
                 # Columns fully filled, rows centered
                 box[h_ext:h_ext+h, 0:w] = temp_box  
             else:  
@@ -289,8 +357,6 @@ def render(
                 box = np.zeros((h, w + w_ext * 2, 4), dtype=np.uint8)  
                 #print(f"Placing temp_box at position [:, :w] = [0:{h}, 0:{w}]")  
          
-                # 行已排满，文字左侧不留空列，否则当存在多个文本框的左边线处于一条线上时译后文本无法对齐，搭配左对齐更美观。常见场景：无框漫画、漫画后记    
-                # 当前页面存在气泡时则可改为居中：box[0:h, w_ext:w_ext+w] = temp_box，需更准确的气泡检测。但不改也没太大影响。                
                 # The line is full, and there should be no empty columns on the left side of the text. Otherwise, when multiple text boxes are aligned on the left, the translated text cannot be aligned. Common scenarios: borderless comics, comic postscript.  
                 # When there are bubbles on the current page, it can be changed to center: box[0:h, w_ext:w_ext+w] = temp_box, requiring more accurate bubble detection. But not changing it doesn't have much impact.
                 box[0:h, 0:w] = temp_box  
@@ -309,8 +375,6 @@ def render(
                 #print(f"Creating new box with dimensions: {h + h_ext * 2}x{w}")  
                 box = np.zeros((h + h_ext * 2, w, 4), dtype=np.uint8)  
                 #print(f"Placing temp_box at position [0:h, 0:w] = [0:{h}, 0:{w}]")  
-                # 列已排满，文字的上方不留空行，否则当存在多个文本框的上边线在一条线上时文本无法对齐，常见场景：无框漫画、CG
-                # 当前页面存在气泡时则可改为居中：box[h_ext:h_ext+h, 0:w] = temp_box，需更准确的气泡检测。
                 # The rows are full, and there should be no empty lines above the text; otherwise, when multiple text boxes have their top edges aligned, the text cannot be aligned. Common scenario: borderless comics, CG. 
                 # When there are bubbles on the current page, it can be changed to center: box[h_ext:h_ext+h, 0:w] = temp_box, requiring more accurate bubble detection.
                 box[0:h, 0:w] = temp_box  
@@ -326,7 +390,6 @@ def render(
                 #print(f"Creating new box with dimensions: {h}x{w + w_ext * 2}")  
                 box = np.zeros((h, w + w_ext * 2, 4), dtype=np.uint8)  
                 #print(f"Placing temp_box at position [0:h, w_ext:w_ext+w] = [0:{h}, {w_ext}:{w_ext+w}]") 
-                # 行已排满，列居中                
                 # Rows are fully filled, columns are centered
                 box[0:h, w_ext:w_ext+w] = temp_box  
             else:   
@@ -339,9 +402,7 @@ def render(
     #src_pts[:, 1] = np.clip(np.round(src_pts[:, 1]), 0, enlarged_h * 2)
 
     M, _ = cv2.findHomography(src_points, dst_points, cv2.RANSAC, 5.0)
-    # 当开启了upscaler且upscale_ratio不为空时使用线性插值
-    interpolation = cv2.INTER_LINEAR if upscale_ratio is not None else cv2.INTER_NEAREST
-    rgba_region = cv2.warpPerspective(box, M, (img.shape[1], img.shape[0]), flags=interpolation, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    rgba_region = cv2.warpPerspective(box, M, (img.shape[1], img.shape[0]), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
     x, y, w, h = cv2.boundingRect(dst_points.astype(np.int32))
     canvas_region = rgba_region[y:y+h, x:x+w, :3]
     mask_region = rgba_region[y:y+h, x:x+w, 3:4].astype(np.float32) / 255.0
@@ -357,3 +418,13 @@ async def dispatch_eng_render(img_canvas: np.ndarray, original_img: np.ndarray, 
     text_render.set_font(font_path)
 
     return render_textblock_list_eng(img_canvas, text_regions, line_spacing=line_spacing, size_tol=1.2, original_img=original_img, downscale_constraint=0.8,disable_font_border=disable_font_border)
+
+async def dispatch_eng_render_pillow(img_canvas: np.ndarray, original_img: np.ndarray, text_regions: List[TextBlock], font_path: str = '', line_spacing: int = 0, disable_font_border: bool = False) -> np.ndarray:
+    if len(text_regions) == 0:
+        return img_canvas
+
+    if not font_path:
+        font_path = os.path.join(BASE_PATH, 'fonts/NotoSansMonoCJK-VF.ttf.ttc')
+    text_render.set_font(font_path)
+
+    return render_textblock_list_eng_pillow(font_path, img_canvas, text_regions, original_img=original_img, downscale_constraint=0.95)

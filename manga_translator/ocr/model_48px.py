@@ -67,6 +67,7 @@ class Model48pxOCR(OfflineOCR):
     async def _infer(self, image: np.ndarray, textlines: List[Quadrilateral], config: OcrConfig, verbose: bool = False, ignore_bubble: int = 0) -> List[TextBlock]:
         text_height = 48
         max_chunk_size = 16
+        threshold = 0.2 if config.prob is None else config.prob
 
         quadrilaterals = list(self._generate_text_direction(textlines))
         region_imgs = [q.get_transformed_region(image, d, text_height) for q, d in quadrilaterals]
@@ -89,11 +90,27 @@ class Model48pxOCR(OfflineOCR):
                 tmp = region_imgs[idx]
                 region[i, :, : W, :]=tmp
                 if verbose:
-                    os.makedirs('result/ocrs/', exist_ok=True)
+                    # 保存OCR调试图片，使用优化的保存方式
+                    ocr_result_dir = os.environ.get('MANGA_OCR_RESULT_DIR', 'result/ocrs/')
+                    os.makedirs(ocr_result_dir, exist_ok=True)
+                    
+                    # 转换图片数据
+                    img_data = cv2.cvtColor(region[i, :, :, :], cv2.COLOR_RGB2BGR)
                     if quadrilaterals[idx][1] == 'v':
-                        cv2.imwrite(f'result/ocrs/{ix}.png', cv2.rotate(cv2.cvtColor(region[i, :, :, :], cv2.COLOR_RGB2BGR), cv2.ROTATE_90_CLOCKWISE))
-                    else:
-                        cv2.imwrite(f'result/ocrs/{ix}.png', cv2.cvtColor(region[i, :, :, :], cv2.COLOR_RGB2BGR))
+                        img_data = cv2.rotate(img_data, cv2.ROTATE_90_CLOCKWISE)
+                    
+                    # 限制OCR调试图片最大尺寸为200像素（OCR图片通常很小）
+                    max_ocr_size = 200
+                    height, width = img_data.shape[:2]
+                    if max(height, width) > max_ocr_size:
+                        scale = max_ocr_size / max(height, width)
+                        new_width = int(width * scale)
+                        new_height = int(height * scale)
+                        img_data = cv2.resize(img_data, (new_width, new_height), interpolation=cv2.INTER_AREA)
+                    
+                    # 使用高压缩保存
+                    compression_params = [cv2.IMWRITE_PNG_COMPRESSION, 9]
+                    cv2.imwrite(os.path.join(ocr_result_dir, f'{ix}.png'), img_data, compression_params)
                 ix += 1
             image_tensor = (torch.from_numpy(region).float() - 127.5) / 127.5
             image_tensor = einops.rearrange(image_tensor, 'N H W C -> N C H W')
@@ -102,7 +119,7 @@ class Model48pxOCR(OfflineOCR):
             with torch.no_grad():
                 ret = self.model.infer_beam_batch_tensor(image_tensor, widths, beams_k = 5, max_seq_length = 255)
             for i, (pred_chars_index, prob, fg_pred, bg_pred, fg_ind_pred, bg_ind_pred) in enumerate(ret):
-                if prob < 0.2:
+                if prob < threshold:
                     continue
                 has_fg = (fg_ind_pred[:, 1] > fg_ind_pred[:, 0])
                 has_bg = (bg_ind_pred[:, 1] > bg_ind_pred[:, 0])

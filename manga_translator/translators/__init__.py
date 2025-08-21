@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 import py3langid as langid
 
@@ -11,6 +11,7 @@ from .deepseek import DeepseekTranslator
 # from .papago import PapagoTranslator
 # from .caiyun import CaiyunTranslator
 from .chatgpt import OpenAITranslator
+# from .chatgpt_2stage import ChatGPT2StageTranslator
 # from .nllb import NLLBTranslator, NLLBBigTranslator
 # from .sugoi import JparacrawlTranslator, JparacrawlBigTranslator, SugoiTranslator
 # from .m2m100 import M2M100Translator, M2M100BigTranslator
@@ -22,6 +23,7 @@ from .original import OriginalTranslator
 # from .qwen2 import Qwen2Translator, Qwen2BigTranslator
 # from .groq import GroqTranslator
 from .gemini import GeminiTranslator
+from .gemini_2stage import Gemini2StageTranslator
 from .custom_openai import CustomOpenAiTranslator
 from ..config import Translator, TranslatorConfig, TranslatorChain
 from ..utils import Context
@@ -42,10 +44,12 @@ OFFLINE_TRANSLATORS = {
 
 GPT_TRANSLATORS = {
     Translator.chatgpt: OpenAITranslator,
+    # Translator.chatgpt_2stage: ChatGPT2StageTranslator,
     Translator.deepseek: DeepseekTranslator,
     # Translator.groq:GroqTranslator,
     Translator.custom_openai: CustomOpenAiTranslator,
     Translator.gemini: GeminiTranslator,
+    Translator.gemini_2stage: Gemini2StageTranslator,
 }
 
 
@@ -100,7 +104,10 @@ async def dispatch(chain: TranslatorChain, queries: List[str], translator_config
                 pass
             if translator_config:
                 translator.parse_args(translator_config)
-            queries = await translator.translate('auto', chain.langs[flag], queries, use_mtpe)
+            if key == "gemini_2stage" or key == "chatgpt_2stage":
+                queries = await translator.translate('auto', chain.langs[flag], queries, args)
+            else:
+                queries = await translator.translate('auto', chain.langs[flag], queries, use_mtpe)
             await translator.unload(device)
             flag+=1
         return queries
@@ -112,10 +119,49 @@ async def dispatch(chain: TranslatorChain, queries: List[str], translator_config
             await translator.load('auto', tgt_lang, device)
         if translator_config:
             translator.parse_args(translator_config)
-        queries = await translator.translate('auto', tgt_lang, queries, use_mtpe)
+        if key == "gemini_2stage" or key == "chatgpt_2stage":
+            queries = await translator.translate('auto', tgt_lang, queries, args)
+        else:
+            queries = await translator.translate('auto', tgt_lang, queries, use_mtpe)
         if args is not None:
             args['translations'][tgt_lang] = queries
     return queries
+
+
+async def dispatch_batch(chain: TranslatorChain, batch_queries: List[List[str]], translator_config: Optional[TranslatorConfig] = None, use_mtpe: bool = False, args:Optional[Context] = None, device: str = 'cpu') -> List[List[str]]:
+    """
+    批量翻译调度器，将多个文本列表一次性发送给翻译器
+    Args:
+        chain: 翻译器链
+        batch_queries: 批量查询列表，每个元素是一个字符串列表
+        translator_config: 翻译器配置
+        use_mtpe: 是否使用机器翻译后编辑
+        args: 上下文参数
+        device: 设备
+    Returns:
+        批量翻译结果列表
+    """
+    if not batch_queries or not any(batch_queries):
+        return batch_queries
+    
+    # 将批量查询平铺为单一列表
+    flat_queries = []
+    query_mapping = []  # 记录每个查询属于哪个批次
+    
+    for batch_idx, queries in enumerate(batch_queries):
+        for query in queries:
+            flat_queries.append(query)
+            query_mapping.append(batch_idx)
+    
+    # 使用现有的翻译调度器处理平铺的查询列表
+    flat_results = await dispatch(chain, flat_queries, translator_config, use_mtpe, args, device)
+    
+    # 将结果重新分组回批量结构
+    batch_results = [[] for _ in batch_queries]
+    for result, batch_idx in zip(flat_results, query_mapping):
+        batch_results[batch_idx].append(result)
+    
+    return batch_results
 
 LANGDETECT_MAP = {
     'zh-cn': 'CHS',
@@ -129,7 +175,7 @@ LANGDETECT_MAP = {
     'it': 'ITA',
     'ja': 'JPN',
     'ko': 'KOR',
-    'pl': 'PLK',
+    'pl': 'POL',
     'pt': 'PTB',
     'ro': 'ROM',
     'ru': 'RUS',

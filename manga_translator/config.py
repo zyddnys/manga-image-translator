@@ -2,10 +2,10 @@ import argparse
 import re
 from enum import Enum
 
-from typing import Optional
+from typing import Optional, Any, Literal, List
 
 from omegaconf import OmegaConf
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # TODO: Refactor
@@ -59,6 +59,7 @@ def hex2rgb(h):
 class Renderer(str, Enum):
     default = "default"
     manga2Eng = "manga2eng"
+    manga2EngPillow = "manga2eng_pillow"
     none = "none"
 
 class Alignment(str, Enum):
@@ -113,12 +114,14 @@ class Translator(str, Enum):
     papago = "papago"
     caiyun = "caiyun"
     chatgpt = "chatgpt"
+    chatgpt_2stage = "chatgpt_2stage"
     none = "none"
     original = "original"
     sakura = "sakura"
     deepseek = "deepseek"
     groq = "groq"
     gemini = "gemini"
+    gemini_2stage = "gemini_2stage"
     custom_openai = "custom_openai"
     offline = "offline"
     nllb = "nllb"
@@ -226,6 +229,17 @@ class TranslatorConfig(BaseModel):
     """Output of one translator goes in another. Example: --translator-chain "google:JPN;sugoi:ENG"."""
     selective_translation: Optional[str] = None
     """Select a translator based on detected language in image. Note the first translation service acts as default if the language isn\'t defined. Example: --translator-chain "google:JPN;sugoi:ENG".'"""
+    
+    # 译后检查配置项
+    enable_post_translation_check: bool = True
+    """Enable post-translation validation check"""
+    post_check_max_retry_attempts: int = 3
+    """Maximum retry attempts for failed translation validation"""
+    post_check_repetition_threshold: int = 20
+    """Minimum number of consecutive repetitions to trigger hallucination detection"""
+    post_check_target_lang_threshold: float = 0.5  
+    """Minimum ratio of target language in translation text for ratio check"""
+    
     _translator_gen = None
     _gpt_config = None
 
@@ -299,8 +313,11 @@ class OcrConfig(BaseModel):
     """Minimum text length of a text region"""
     ignore_bubble: int = 0
     """The threshold for ignoring text in non bubble areas, with valid values ranging from 1 to 50, does not ignore others. Recommendation 5 to 10. If it is too low, normal bubble areas may be ignored, and if it is too large, non bubble areas may be considered normal bubbles"""
+    prob: float | None = None
+    """Minimum probability of a text region to be considered valid. If None, uses the model default."""
 
 class Config(BaseModel):
+    # General
     filter_text: Optional[str] = None
     """Filter regions by their text with a regex. Example usage: '.*badtext.*'"""
     render: RenderConfig = RenderConfig()
@@ -318,9 +335,11 @@ class Config(BaseModel):
     ocr: OcrConfig = OcrConfig()
     """Ocr configs"""
     # ?
+    force_simple_sort: bool = False
+    """Don't use panel detection for sorting, use a simpler fallback logic instead"""
     kernel_size: int = 3
     """Set the convolution kernel size of the text erasure area to completely clean up text residues"""
-    mask_dilation_offset: int = 0
+    mask_dilation_offset: int = 20
     """By how much to extend the text mask to remove left-over text pixels of the original image."""
     _filter_text = None
 

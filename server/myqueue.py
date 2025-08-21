@@ -40,15 +40,34 @@ class QueueElement:
         return False
 
 
+class BatchQueueElement:
+    """Batch translation queue element"""
+    req: Request
+    images: List[Image.Image]
+    config: Config
+    batch_size: int
+
+    def __init__(self, req: Request, images: List[Image.Image], config: Config, batch_size: int):
+        self.req = req
+        self.images = images
+        self.config = config
+        self.batch_size = batch_size
+
+    async def is_client_disconnected(self) -> bool:
+        if await self.req.is_disconnected():
+            return True
+        return False
+
+
 class TaskQueue:
     def __init__(self):
-        self.queue: List[QueueElement] = []
+        self.queue: List[QueueElement | BatchQueueElement] = []
         self.queue_event: asyncio.Event = asyncio.Event()
 
-    def add_task(self, task: QueueElement):
+    def add_task(self, task: QueueElement | BatchQueueElement):
         self.queue.append(task)
 
-    def get_pos(self, task: QueueElement) -> Optional[int]:
+    def get_pos(self, task: QueueElement | BatchQueueElement) -> Optional[int]:
         try:
             return self.queue.index(task)
         except ValueError:
@@ -58,7 +77,7 @@ class TaskQueue:
         self.queue_event.set()
         self.queue_event.clear()
 
-    async def remove(self, task: QueueElement):
+    async def remove(self, task: QueueElement | BatchQueueElement):
         self.queue.remove(task)
         await self.update_event()
 
@@ -67,7 +86,7 @@ class TaskQueue:
 
 task_queue = TaskQueue()
 
-async def wait_in_queue(task: QueueElement, notify: NotifyType):
+async def wait_in_queue(task: QueueElement | BatchQueueElement, notify: NotifyType):
     """Will get task position report it. If its in the range of translators then it will try to aquire an instance(blockig) and sent a task to it. when done the item will be removed from the queue and result will be returned"""
     while True:
         queue_pos = task_queue.get_pos(task)
@@ -90,16 +109,42 @@ async def wait_in_queue(task: QueueElement, notify: NotifyType):
             await task_queue.remove(task)
             if notify:
                 notify(4, b"")
-            if notify:
-                await instance.sent_stream(task.image, task.config, notify)
-            else:
-                result = await instance.sent(task.image, task.config)
 
-            await executor_instances.free_executor(instance)
+            try:
+                # Process batch translation task
+                if isinstance(task, BatchQueueElement):
+                    if notify:
+                        await instance.sent_batch_stream(task.images, task.config, task.batch_size, notify)
+                    else:
+                        result = await instance.sent_batch(task.images, task.config, task.batch_size)
+                else:
+                    # Process single translation task
+                    if notify:
+                        await instance.sent_stream(task.image, task.config, notify)
+                    else:
+                        result = await instance.sent(task.image, task.config)
 
-            if notify:
-                return
-            else:
-                return result
+                await executor_instances.free_executor(instance)
+
+                if notify:
+                    return
+                else:
+                    return result
+
+            except Exception as e:
+                # 确保实例被释放
+                await executor_instances.free_executor(instance)
+
+                # 如果是连接错误，发送友好的错误消息
+                if "Cannot connect to host" in str(e) or "Connection refused" in str(e):
+                    error_msg = "Translation service is starting up, please wait a moment and try again."
+                else:
+                    error_msg = f"Translation failed: {str(e)}"
+
+                if notify:
+                    notify(2, error_msg.encode('utf-8'))
+                    return
+                else:
+                    raise HTTPException(500, detail=error_msg)
         else:
             await task_queue.wait_for_event()

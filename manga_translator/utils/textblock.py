@@ -26,7 +26,7 @@ LANGUAGE_ORIENTATION_PRESETS = {
     'ITA': 'h',
     'JPN': 'auto',
     'KOR': 'h',
-    'PLK': 'h',
+    'POL': 'h',
     'PTB': 'h',
     'ROM': 'h',
     'RUS': 'h',
@@ -374,10 +374,38 @@ class TextBlock(object):
             if d in ('h', 'v', 'hr', 'vr'):
                 return d
 
-            if self.aspect_ratio < 1:
-                return 'v'
+            # 根据region中面积最大的文本框的宽高比来判断排版方向
+            if len(self.lines) > 0:
+                # 计算每个检测框的面积和宽高比
+                max_area = 0
+                largest_box_aspect_ratio = 1
+                
+                for line in self.lines:
+                    # 计算检测框的面积
+                    line_polygon = Polygon(line)
+                    area = line_polygon.area
+                    
+                    if area > max_area:
+                        max_area = area
+                        # 计算该检测框的宽高比
+                        # 获取检测框的边界框
+                        x_coords = line[:, 0]
+                        y_coords = line[:, 1]
+                        width = np.max(x_coords) - np.min(x_coords)
+                        height = np.max(y_coords) - np.min(y_coords)
+                        largest_box_aspect_ratio = width / height if height > 0 else 1
+                
+                # 根据面积最大的检测框的宽高比判断方向
+                if largest_box_aspect_ratio < 1:
+                    return 'v'
+                else:
+                    return 'h'
             else:
-                return 'h'
+                # 如果没有lines，则使用整体的宽高比作为fallback
+                if self.aspect_ratio < 1:
+                    return 'v'
+                else:
+                    return 'h'
         return self._direction
 
     @property
@@ -456,56 +484,162 @@ def rotate_polygons(center, polygons, rotation, new_center=None, to_int=True):
     return rotated
 
 
+def _simple_sort(regions: List[TextBlock], right_to_left: bool) -> List[TextBlock]:
+    """
+    A simple fallback sorting logic. Sorts regions from top to bottom,
+    then by x-coordinate based on reading direction.
+    """
+    sorted_regions = []
+    # Sort primarily by the y-coordinate of the center
+    for region in sorted(regions, key=lambda r: r.center[1]):
+        for i, sorted_region in enumerate(sorted_regions):
+            # If the current region is clearly below a sorted region, continue
+            if region.center[1] > sorted_region.xyxy[3]:
+                continue
+            # If the current region is clearly above a sorted region, it means we went too far
+            if region.center[1] < sorted_region.xyxy[1]:
+                sorted_regions.insert(i, region)
+                break
+
+            # y-center of the region is within the y-range of the sorted_region, so sort by x instead
+            if right_to_left and region.center[0] > sorted_region.center[0]:
+                sorted_regions.insert(i, region)
+                break
+            if not right_to_left and region.center[0] < sorted_region.center[0]:
+                sorted_regions.insert(i, region)
+                break
+        else:
+            # If the loop finishes without breaking, append the region to the end
+            sorted_regions.append(region)
+    
+    return sorted_regions
+    
+
+def _sort_panels_fill(panels: List[Tuple[int, int, int, int]], right_to_left: bool) -> List[Tuple[int, int, int, int]]:
+    """Return panels in desired reading order.
+
+    1. Panels are processed row-by-row from top to bottom (smallest *y1* first).
+    2. Inside a row we proceed from right to left (*x1* descending when RTL, ascending otherwise).
+    3. **Key point**: when moving horizontally, every panel that *roughly* shares
+       the same x-range (both *x1* and *x2* close) with the current one is treated
+       as a vertical stack and is inserted immediately after the current panel
+       (top-to-bottom).  This mirrors how humans read stacked panels.
+
+    The logic assumes panels fill the whole page (common in manga pages).
+    """
+
+    if not panels:
+        return panels
+
+    # Make a working copy we can pop from.
+    remaining = sorted(list(panels), key=lambda p: p[1])  # sort by top-y first
+    ordered: List[Tuple[int, int, int, int]] = []
+
+    # Dynamic thresholds based on average panel size for reasonable robustness.
+    avg_w = np.mean([p[2] - p[0] for p in remaining])
+    avg_h = np.mean([p[3] - p[1] for p in remaining])
+    X_THR = max(10, avg_w * 0.1)   # panels whose x-range differs <10% width are considered same column
+    Y_THR = max(10, avg_h * 0.3)   # y-difference to decide panels are on the same row
+
+    while remaining:
+        # Start a new row from the current top-most panel
+        base_y = remaining[0][1]
+
+        # Gather all panels whose top-y 距离 base_y 不超过阈值 → 同一行
+        row = []
+        i = 0
+        while i < len(remaining):
+            if abs(remaining[i][1] - base_y) <= Y_THR:
+                row.append(remaining.pop(i))
+            else:
+                i += 1
+
+        # Sort that row right-to-left (或 LTR) 再加入
+        row.sort(key=lambda p: (-p[0] if right_to_left else p[0]))
+        ordered.extend(row)
+ 
+    return ordered
+
+
 def sort_regions(
     regions: List[TextBlock],
     right_to_left: bool = True,
-    img: np.ndarray = None
+    img: np.ndarray = None,
+    force_simple_sort: bool = False
 ) -> List[TextBlock]:
     
     if not regions:
         return []
 
-    # 1. 分镜检测 + 分镜内排序
+    # If simple sort is forced, use it and return immediately.
+    if force_simple_sort:
+        return _simple_sort(regions, right_to_left)
+
+    # 1. Panel detection + sorting within panels
     if img is not None:
-        panels_raw = get_panels_from_array(img, rtl=right_to_left)
-        # 转 [x1,y1,x2,y2]
-        panels = [(x, y, x + w, y + h) for x, y, w, h in panels_raw]
-        # 对 panels 本身排序：先 y 再 x（RTL x 降序）
-        panels.sort(key=lambda p: (p[1], -p[0] if right_to_left else p[0]))
+        try:
+            panels_raw = get_panels_from_array(img, rtl=right_to_left)
+            # Convert to [x1, y1, x2, y2]
+            panels = [(x, y, x + w, y + h) for x, y, w, h in panels_raw]
+            # Use the customised sorter that keeps vertically stacked panels together.
+            panels = _sort_panels_fill(panels, right_to_left)
 
-        # 标记 panel_index
-        for r in regions:
-            cx, cy = r.center
-            r.panel_index = -1
-            for idx, (x1, y1, x2, y2) in enumerate(panels):
-                if x1 <= cx <= x2 and y1 <= cy <= y2:
-                    r.panel_index = idx
-                    break
-            if r.panel_index < 0:
-                # 如果不在任何 panel 内，找最近的
-                dists = [
-                    ((max(x1-cx,0,cx-x2))**2 + (max(y1-cy,0,cy-y2))**2, i)
-                    for i,(x1,y1,x2,y2) in enumerate(panels)
-                ]
-                r.panel_index = min(dists)[1]
+            # Assign panel_index to each region
+            for r in regions:
+                cx, cy = r.center
+                r.panel_index = -1
+                for idx, (x1, y1, x2, y2) in enumerate(panels):
+                    if x1 <= cx <= x2 and y1 <= cy <= y2:
+                        r.panel_index = idx
+                        break
+                if r.panel_index < 0:
+                    # If not inside any panel, find the closest one
+                    dists = [
+                        ((max(x1-cx, 0, cx-x2))**2 + (max(y1-cy, 0, cy-y2))**2, i)
+                        for i, (x1, y1, x2, y2) in enumerate(panels)
+                    ]
+                    if dists:
+                        r.panel_index = min(dists)[1]
 
-        # 按 panel_index 分组，然后递归调用 sort_regions（不传 img 用坐标排序）
-        grouped = {}
-        for r in regions:
-            grouped.setdefault(r.panel_index, []).append(r)
-        sorted_all = []
-        for pi in sorted(grouped):
-            sorted_all += sort_regions(grouped[pi], right_to_left)
-        return sorted_all
+            # Group by panel_index, then recursively call sort_regions (without img for coordinate sorting)
+            grouped = {}
+            for r in regions:
+                grouped.setdefault(r.panel_index, []).append(r)
+            
+            sorted_all = []
+            # Ensure panels that couldn't be assigned are handled (e.g., panel_index=-1)
+            # and sorted based on their panel index.
+            for pi in sorted(grouped.keys()):
+                panel_sorted = sort_regions(grouped[pi], right_to_left, img=None, force_simple_sort=False)
+                sorted_all += panel_sorted
+            return sorted_all
+            
+        except (cv2.error, MemoryError, Exception) as e:
+            # When panel detection fails, use simple sort, log a warning but continue translation.
+            from ..utils import get_logger
+            logger = get_logger('textblock')
+            logger.warning(f'Panel detection failed ({e.__class__.__name__}: {str(e)[:100]}), using simple text sorting')
+            
+            # Use the simple sorting logic as a fallback.
+            return _simple_sort(regions, right_to_left)
 
-    # 2. 智能排序
+    # 2. Smart sorting (if img is None and not forced simple)
     xs = [r.center[0] for r in regions]
     ys = [r.center[1] for r in regions]
-    x_norm = (max(xs)-min(xs)) / (max(xs) or 1)
-    y_norm = (max(ys)-min(ys)) / (max(ys) or 1)
+    
+    # 改进的分散度计算：使用标准差
+    if len(regions) > 1:
+        x_std = np.std(xs) if len(xs) > 1 else 0
+        y_std = np.std(ys) if len(ys) > 1 else 0
+        
+        # 使用标准差比值来判断排列方向
+        is_horizontal = x_std > y_std
+    else:
+        # 只有一个文本块时，默认为纵向
+        is_horizontal = False
 
     sorted_regions = []
-    if x_norm > y_norm * 1.5:
+    if is_horizontal:
         # 横向更分散：先 x 再 y
         primary = sorted(regions, key=lambda r: -r.center[0] if right_to_left else r.center[0])
         group, prev = [], None
@@ -513,8 +647,10 @@ def sort_regions(
             cx = r.center[0]
             if prev is not None and abs(cx - prev) > 20:
                 group.sort(key=lambda r: r.center[1])
-                sorted_regions += group; group = []
-            group.append(r); prev = cx
+                sorted_regions += group
+                group = []
+            group.append(r)
+            prev = cx
         if group:
             group.sort(key=lambda r: r.center[1])
             sorted_regions += group
@@ -526,264 +662,40 @@ def sort_regions(
             cy = r.center[1]
             if prev is not None and abs(cy - prev) > 15:
                 group.sort(key=lambda r: -r.center[0] if right_to_left else r.center[0])
-                sorted_regions += group; group = []
-            group.append(r); prev = cy
+                sorted_regions += group
+                group = []
+            group.append(r)
+            prev = cy
         if group:
             group.sort(key=lambda r: -r.center[0] if right_to_left else r.center[0])
             sorted_regions += group
-
+    
     return sorted_regions
 
 
-# def sort_textblk_list(blk_list: List[TextBlock], im_w: int, im_h: int) -> List[TextBlock]:
-#     if len(blk_list) == 0:
-#         return blk_list
-#     num_ja = 0
-#     xyxy = []
-#     for blk in blk_list:
-#         if blk.language == 'ja':
-#             num_ja += 1
-#         xyxy.append(blk.xyxy)
-#     xyxy = np.array(xyxy)
-#     flip_lr = num_ja > len(blk_list) / 2
-#     im_oriw = im_w
-#     if im_w > im_h:
-#         im_w /= 2
-#     num_gridy, num_gridx = 4, 3
-#     img_area = im_h * im_w
-#     center_x = (xyxy[:, 0] + xyxy[:, 2]) / 2
-#     if flip_lr:
-#         if im_w != im_oriw:
-#             center_x = im_oriw - center_x
-#         else:
-#             center_x = im_w - center_x
-#     grid_x = (center_x / im_w * num_gridx).astype(np.int32)
-#     center_y = (xyxy[:, 1] + xyxy[:, 3]) / 2
-#     grid_y = (center_y / im_h * num_gridy).astype(np.int32)
-#     grid_indices = grid_y * num_gridx + grid_x
-#     grid_weights = grid_indices * img_area + 1.2 * (center_x - grid_x * im_w / num_gridx) + (center_y - grid_y * im_h / num_gridy)
-#     if im_w != im_oriw:
-#         grid_weights[np.where(grid_x >= num_gridx)] += img_area * num_gridy * num_gridx
-
-#     for blk, weight in zip(blk_list, grid_weights):
-#         blk.sort_weight = weight
-#     blk_list.sort(key=lambda blk: blk.sort_weight)
-#     return blk_list
-
-# # TODO: Make these cached_properties
-# def examine_textblk(blk: TextBlock, im_w: int, im_h: int, sort: bool = False) -> None:
-#     lines = blk.lines_array()
-#     middle_pnts = (lines[:, [1, 2, 3, 0]] + lines) / 2
-#     vec_v = middle_pnts[:, 2] - middle_pnts[:, 0]   # vertical vectors of textlines
-#     vec_h = middle_pnts[:, 1] - middle_pnts[:, 3]   # horizontal vectors of textlines
-#     # if sum of vertical vectors is longer, then text orientation is vertical, and vice versa.
-#     center_pnts = (lines[:, 0] + lines[:, 2]) / 2
-#     v = np.sum(vec_v, axis=0)
-#     h = np.sum(vec_h, axis=0)
-#     norm_v, norm_h = np.linalg.norm(v), np.linalg.norm(h)
-#     if blk.language == 'ja':
-#         vertical = norm_v > norm_h
-#     else:
-#         vertical = norm_v > norm_h * 2
-#     # calculate distance between textlines and origin 
-#     if vertical:
-#         primary_vec, primary_norm = v, norm_v
-#         distance_vectors = center_pnts - np.array([[im_w, 0]], dtype=np.float64)   # vertical manga text is read from right to left, so origin is (imw, 0)
-#         font_size = int(round(norm_h / len(lines)))
-#     else:
-#         primary_vec, primary_norm = h, norm_h
-#         distance_vectors = center_pnts - np.array([[0, 0]], dtype=np.float64)
-#         font_size = int(round(norm_v / len(lines)))
-
-#     rotation_angle = int(math.atan2(primary_vec[1], primary_vec[0]) / math.pi * 180)     # rotation angle of textlines
-#     distance = np.linalg.norm(distance_vectors, axis=1)     # distance between textlinecenters and origin
-#     rad_matrix = np.arccos(np.einsum('ij, j->i', distance_vectors, primary_vec) / (distance * primary_norm))
-#     distance = np.abs(np.sin(rad_matrix) * distance)
-#     blk.lines = lines.astype(np.int32).tolist()
-#     blk.distance = distance
-#     blk.angle = rotation_angle
-#     if vertical:
-#         blk.angle -= 90
-#     if abs(blk.angle) < 3:
-#         blk.angle = 0
-#     blk.font_size = font_size
-#     blk.vertical = vertical
-#     blk.vec = primary_vec
-#     blk.norm = primary_norm
-#     if sort:
-#         blk.sort_lines()
-
-# def try_merge_textline(blk: TextBlock, blk2: TextBlock, fntsize_tol=1.4, distance_tol=2) -> bool:
-#     if blk2.merged:
-#         return False
-#     fntsize_div = blk.font_size / blk2.font_size
-#     num_l1, num_l2 = len(blk), len(blk2)
-#     fntsz_avg = (blk.font_size * num_l1 + blk2.font_size * num_l2) / (num_l1 + num_l2)
-#     vec_prod = blk.vec @ blk2.vec
-#     vec_sum = blk.vec + blk2.vec
-#     cos_vec = vec_prod / blk.norm / blk2.norm
-#     distance = blk2.distance[-1] - blk.distance[-1]
-#     distance_p1 = np.linalg.norm(np.array(blk2.lines[-1][0]) - np.array(blk.lines[-1][0]))
-#     l1, l2 = Polygon(blk.lines[-1]), Polygon(blk2.lines[-1])
-#     if not l1.intersects(l2):
-#         if fntsize_div > fntsize_tol or 1 / fntsize_div > fntsize_tol:
-#             return False
-#         if abs(cos_vec) < 0.866:   # cos30
-#             return False
-#         # if distance > distance_tol * fntsz_avg or distance_p1 > fntsz_avg * 2.5:
-#         if distance > distance_tol * fntsz_avg:
-#             return False
-#         if blk.vertical and blk2.vertical and distance_p1 > fntsz_avg * 2.5:
-#             return False
-#     # merge
-#     blk.lines.append(blk2.lines[0])
-#     blk.vec = vec_sum
-#     blk.angle = int(round(np.rad2deg(math.atan2(vec_sum[1], vec_sum[0]))))
-#     if blk.vertical:
-#         blk.angle -= 90
-#     blk.norm = np.linalg.norm(vec_sum)
-#     blk.distance = np.append(blk.distance, blk2.distance[-1])
-#     blk.font_size = fntsz_avg
-#     blk2.merged = True
-#     return True
-
-# def merge_textlines(blk_list: List[TextBlock]) -> List[TextBlock]:
-#     if len(blk_list) < 2:
-#         return blk_list
-#     blk_list.sort(key=lambda blk: blk.distance[0])
-#     merged_list = []
-#     for ii, current_blk in enumerate(blk_list):
-#         if current_blk.merged:
-#             continue
-#         for jj, blk in enumerate(blk_list[ii+1:]):
-#             try_merge_textline(current_blk, blk)
-#         merged_list.append(current_blk)
-#     for blk in merged_list:
-#         blk.adjust_bbox(with_bbox=False)
-#     return merged_list
-
-# def split_textblk(blk: TextBlock):
-#     font_size, distance, lines = blk.font_size, blk.distance, blk.lines
-#     l0 = np.array(blk.lines[0])
-#     lines.sort(key=lambda line: np.linalg.norm(np.array(line[0]) - l0[0]))
-#     distance_tol = font_size * 2
-#     current_blk = copy.deepcopy(blk)
-#     current_blk.lines = [l0]
-#     sub_blk_list = [current_blk]
-#     textblock_splitted = False
-#     for jj, line in enumerate(lines[1:]):
-#         l1, l2 = Polygon(lines[jj]), Polygon(line)
-#         split = False
-#         if not l1.intersects(l2):
-#             line_disance = abs(distance[jj+1] - distance[jj])
-#             if line_disance > distance_tol:
-#                 split = True
-#             elif blk.vertical and abs(blk.angle) < 15:
-#                 if len(current_blk.lines) > 1 or line_disance > font_size:
-#                     split = abs(lines[jj][0][1] - line[0][1]) > font_size
-#         if split:
-#             current_blk = copy.deepcopy(current_blk)
-#             current_blk.lines = [line]
-#             sub_blk_list.append(current_blk)
-#         else:
-#             current_blk.lines.append(line)
-#     if len(sub_blk_list) > 1:
-#         textblock_splitted = True
-#         for current_blk in sub_blk_list:
-#             current_blk.adjust_bbox(with_bbox=False)
-#     return textblock_splitted, sub_blk_list
-
-# def group_output(blks, lines, im_w, im_h, mask=None, sort_blklist=True) -> List[TextBlock]:
-#     blk_list: List[TextBlock] = []
-#     scattered_lines = {'ver': [], 'hor': []}
-#     for bbox, lang_id, conf in zip(*blks):
-#         # cls could give wrong result
-#         blk_list.append(TextBlock(bbox, language=LANG_LIST[lang_id]))
-
-#     # step1: filter & assign lines to textblocks
-#     bbox_score_thresh = 0.4
-#     mask_score_thresh = 0.1
-#     for line in lines:
-#         bx1, bx2 = line[:, 0].min(), line[:, 0].max()
-#         by1, by2 = line[:, 1].min(), line[:, 1].max()
-#         bbox_score, bbox_idx = -1, -1
-#         line_area = (by2-by1) * (bx2-bx1)
-#         for i, blk in enumerate(blk_list):
-#             score = union_area(blk.xyxy, [bx1, by1, bx2, by2]) / line_area
-#             if bbox_score < score:
-#                 bbox_score = score
-#                 bbox_idx = i
-#         if bbox_score > bbox_score_thresh:
-#             blk_list[bbox_idx].lines.append(line)
-#         else: # if no textblock was assigned, check whether there is "enough" textmask
-#             if mask is not None:
-#                 mask_score = mask[by1: by2, bx1: bx2].mean() / 255
-#                 if mask_score < mask_score_thresh:
-#                     continue
-#             blk = TextBlock([bx1, by1, bx2, by2], [line])
-#             examine_textblk(blk, im_w, im_h, sort=False)
-#             if blk.vertical:
-#                 scattered_lines['ver'].append(blk)
-#             else:
-#                 scattered_lines['hor'].append(blk)
-
-#     # step2: filter textblocks, sort & split textlines
-#     final_blk_list = []
-#     for blk in blk_list:
-#         # filter textblocks 
-#         if len(blk.lines) == 0:
-#             bx1, by1, bx2, by2 = blk.xyxy
-#             if mask is not None:
-#                 mask_score = mask[by1: by2, bx1: bx2].mean() / 255
-#                 if mask_score < mask_score_thresh:
-#                     continue
-#             xywh = np.array([[bx1, by1, bx2-bx1, by2-by1]])
-#             blk.lines = xywh2xyxypoly(xywh).reshape(-1, 4, 2).tolist()
-#         examine_textblk(blk, im_w, im_h, sort=True)
-
-#         # split manga text if there is a distance gap
-#         textblock_splitted = False
-#         if len(blk.lines) > 1:
-#             if blk.language == 'ja':
-#                 textblock_splitted = True
-#             elif blk.vertical:
-#                 textblock_splitted = True
-#         if textblock_splitted:
-#             textblock_splitted, sub_blk_list = split_textblk(blk)
-#         else:
-#             sub_blk_list = [blk]
-#         # modify textblock to fit its textlines
-#         if not textblock_splitted:
-#             for blk in sub_blk_list:
-#                 blk.adjust_bbox(with_bbox=True)
-#         final_blk_list += sub_blk_list
-
-#     # step3: merge scattered lines, sort textblocks by "grid"
-#     final_blk_list += merge_textlines(scattered_lines['hor'])
-#     final_blk_list += merge_textlines(scattered_lines['ver'])
-#     if sort_blklist:
-#         final_blk_list = sort_textblk_list(final_blk_list, im_w, im_h)
-
-#     for blk in final_blk_list:
-#         if blk.language != 'ja' and not blk.vertical:
-#             num_lines = len(blk.lines)
-#             if num_lines == 0:
-#                 continue
-#             # blk.line_spacing = blk.bounding_rect()[3] / num_lines / blk.font_size
-#             expand_size = max(int(blk.font_size * 0.1), 3)
-#             rad = np.deg2rad(blk.angle)
-#             shifted_vec = np.array([[[-1, -1],[1, -1],[1, 1],[-1, 1]]])
-#             shifted_vec = shifted_vec * np.array([[[np.sin(rad), np.cos(rad)]]]) * expand_size
-#             lines = blk.lines_array() + shifted_vec
-#             lines[..., 0] = np.clip(lines[..., 0], 0, im_w-1)
-#             lines[..., 1] = np.clip(lines[..., 1], 0, im_h-1)
-#             blk.lines = lines.astype(np.int64).tolist()
-#             blk.font_size += expand_size
-
-#     return final_blk_list
-
-def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock]):
+def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock], show_panels: bool = False, img_rgb: np.ndarray = None, right_to_left: bool = True):
     lw = max(round(sum(canvas.shape) / 2 * 0.003), 2)  # line width
+    
+    # Panel detection and drawing
+    panels = None
+    if show_panels and img_rgb is not None:
+        try:
+            panels_raw = get_panels_from_array(img_rgb, rtl=right_to_left)
+            panels = [(x, y, x + w, y + h) for x, y, w, h in panels_raw]
+            # Use the customised sorter that keeps vertically stacked panels together.
+            panels = _sort_panels_fill(panels, right_to_left)
+            
+            # Draw panel boxes and order
+            for panel_idx, (x1, y1, x2, y2) in enumerate(panels):
+                cv2.rectangle(canvas, (x1, y1), (x2, y2), (255, 0, 255), lw)  # Magenta color for panels
+                # Put panel number inside the box with deep blue color for better visibility and aesthetics
+                cv2.putText(canvas, str(panel_idx), (x1+5, y1+60), cv2.FONT_HERSHEY_SIMPLEX, 
+                           lw/2, (200, 100, 0), max(lw-1, 1), cv2.LINE_AA)
+        except Exception as e:
+            from ..utils import get_logger
+            logger = get_logger('textblock')
+            logger.warning(f'Panel visualization failed: {e}')
+    
     for i, blk in enumerate(blk_list):
         bx1, by1, bx2, by2 = blk.xyxy
         cv2.rectangle(canvas, (bx1, by1), (bx2, by2), (127, 255, 127), lw)

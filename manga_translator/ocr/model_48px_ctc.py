@@ -63,6 +63,7 @@ class Model48pxCTCOCR(OfflineOCR):
         text_height = 48
         max_chunk_size = 16
         ignore_bubble = config.ignore_bubble
+        threshold = 0.5 if config.prob is None else config.prob
 
         quadrilaterals = list(self._generate_text_direction(textlines))
         region_imgs = [q.get_transformed_region(image, d, text_height) for q, d in quadrilaterals]
@@ -128,7 +129,7 @@ class Model48pxCTCOCR(OfflineOCR):
                         total_bg(int(bg * 255))
                         total_bb(int(bb * 255))
                 prob = np.exp(total_logprob())
-                if prob < 0.5:
+                if prob < threshold:
                     continue
                 txt = ''.join(cur_texts)
                 fr = int(total_fr())

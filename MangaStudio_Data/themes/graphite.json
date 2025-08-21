@@ -1,0 +1,18 @@
+{
+  "name": "Graphite",
+  "author": "Gemini",
+  "style": {
+    "colors": {
+      "background_main": "#1E1E1E",
+      "background_frame": "#2D2D2D",
+      "primary_button": "#616161",
+      "primary_button_hover": "#757575",
+      "slider_groove": "#424242",
+      "slider_handle": "#9E9E9E",
+      "text_main": "#E0E0E0",
+      "border": "#424242",
+      "accent": "#9E9E9E",
+      "checkbox_indicator": "#E0E0E0"
+    }
+  }
+}

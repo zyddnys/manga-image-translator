@@ -41,7 +41,7 @@ class MBart50Translator(OfflineTranslator):
         "ITA": "it_IT",
         "JPN": "ja_XX",
         "NLD": "nl_XX",
-        "PLK": "pl_PL",
+        "POL": "pl_PL",
         "PTB": "pt_XX",
         "RUS": "ru_RU",
         "SWA": "sw_KE",

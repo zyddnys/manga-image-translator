@@ -122,8 +122,16 @@ class Page:
 		self.processing_time = int((time.time_ns() - t1) / 10**7) / 100
 
 	def get_contours(self):
-		# Black background: values above 100 will be black, the rest white
-		_, thresh = cv.threshold(self.sobel, 100, 255, cv.THRESH_BINARY)
+		# Use Otsu's method to adaptively pick threshold, then close small gaps
+		_, thresh = cv.threshold(
+			self.sobel,
+			0,
+			255,
+			cv.THRESH_BINARY + cv.THRESH_OTSU
+		)
+		# Morphological closing helps join broken panel borders (1–2 px gaps)
+		kernel = cv.getStructuringElement(cv.MORPH_RECT, (3, 3))
+		thresh = cv.morphologyEx(thresh, cv.MORPH_CLOSE, kernel, iterations=1)
 		Debug.show_time("Image threshhold")
 
 		self.contours, _ = cv.findContours(thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[-2:]
@@ -224,7 +232,8 @@ class Page:
 
 			self.panels.append(big_panel)
 			for p in small_panels:
-				self.panels.remove(p)
+				if p in self.panels:
+					self.panels.remove(p)
 
 			Debug.draw_contours(list(map(lambda p: p.polygon, small_panels)), Debug.colours['lightblue'])
 			Debug.draw_contours([big_panel.polygon], Debug.colours['red'])
@@ -242,7 +251,8 @@ class Page:
 				split = p.split()
 				if split is not None:
 					did_split = True
-					self.panels.remove(p)
+					if p in self.panels:
+						self.panels.remove(p)
 					self.panels += split.subpanels
 
 					Debug.draw_contours(list(map(lambda n: n.polygon, split.subpanels)), Debug.colours['blue'])
@@ -297,7 +307,8 @@ class Page:
 					p2 = p2.merge(p1)
 
 		for p in set(panels_to_remove):
-			self.panels.remove(p)
+			if p in self.panels:
+				self.panels.remove(p)
 
 		Debug.add_step('Merge panels', self.get_infos())
 
@@ -393,8 +404,10 @@ class Page:
 						continue
 
 					self.panels.append(p3)
-					self.panels.remove(p1)
-					self.panels.remove(p2)
+					if p1 in self.panels:
+						self.panels.remove(p1)
+					if p2 in self.panels:
+						self.panels.remove(p2)
 					grouped = True
 					break
 
