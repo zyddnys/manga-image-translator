@@ -56,7 +56,7 @@ class MoeflowFile(BaseModel):
         result.append(f">>>>[{self.local_path.name}]<<<<")
         for idx, block in enumerate(self.text_blocks):
             logging.debug(
-                "block: %s,%s / %s",
+                "block: %s,%s / %s => %s",
                 block.normalized_center_x,
                 block.normalized_center_y,
                 block.source,

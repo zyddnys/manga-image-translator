@@ -1,38 +1,44 @@
-PYTHON_BIN ?= python3
-CONDA_YML ?= conda.yaml
-# CONDA_ENV = OVERRIDE_ME
+###
+### SECTION dev scripts
+###
 
-deps: venv venv/.deps_installed
+format-bean:
+	find . -name '*.bean' -print0 | xargs -0 --max-procs=8 -I % venv/bin/bean-format --output=% %
 
-venv/.deps_installed: venv requirements-moeflow.txt
-	venv/bin/pip install -r requirements-moeflow.txt --editable .
+format-py:
+	venv/bin/ruff format moeflow_companion
+
+test: deps
+	venv/bin/pytest lib
+
+test-watch: deps
+	. venv/bin/activate && exec pytest-watcher lib
+
+###
+### SECTION deps
+###
+
+PYTHON_VER ?= 3.11
+
+# comma separated packages
+FREEZE_PY_REQ = elasticsearch,fava-dashboard,opentelemetry-api,opentelemetry-sdk
+
+REQUIREMENTS = -r requirements-moeflow.txt
+
+deps: venv/.deps_installed # .PHONY
+
+venv/.deps_installed: venv requirements-moeflow.txt Makefile
+	@# the most useful feature of uv
+	UV_PYTHON=venv UV_LINK_MODE=symlink uv pip install $(REQUIREMENTS)
 	@echo "deps installed"
 	@touch $@
 
 upgrade-deps:
-	venv/bin/pur -r requirements-moeflow.txt
-
-test:
-	venv/bin/pytest
-
-format:
-	venv/bin/ruff format moeflow_companion
+	venv/bin/pur -r requirements.txt --force --skip=$(FREEZE_PY_REQ)
 
 venv: venv/.venv_created
 
-# default:
-venv/.venv_created:
-	$(PYTHON_BIN) -mvenv venv
+venv/.venv_created: Makefile
+	@# the 2nd most useful feature of uv
+	uv venv --clear --python=$(PYTHON_VER) venv
 	@touch $@
-
-# alter: `make conda-venv` to uses conda python
-conda-venv: .conda_env_created
-	micromamba run --attach '' -n $(CONDA_ENV) $(PYTHON_BIN) -mvenv --system-site-packages  ./venv
-	@touch venv/.venv_created
-
-.conda_env_created: $(CONDA_YML)
-	# setup conda environment AND env-wise deps
-	micromamba env create -n $(CONDA_ENV) --yes -f $(CONDA_YML)
-	@touch $@
-
-.PHONY:

@@ -125,8 +125,8 @@ async def process_files(
     path_list = copy_files(filename_list)
 
     with load_model_mutex:
-        await mit_detection.prepare(detector_key)
-        await mit_ocr.prepare(ocr_key, device)
+        await mit_detection.prepare(detector_key)  # type: ignore
+        await mit_ocr.prepare(ocr_key, device)  # type: ignore
 
     results: list[FileProcessResult] = await asyncio.gather(
         *[

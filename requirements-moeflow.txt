@@ -46,11 +46,11 @@ python-dotenv
 # aioshutil
 # aiofiles
 # arabic-reshaper
-# pyhyphen
+pyhyphen
 langcodes
 manga-ocr
 # langdetect
-# pydensecrf@https://github.com/lucasb-eyer/pydensecrf/archive/refs/heads/master.zip
+pydensecrf@https://github.com/lucasb-eyer/pydensecrf/archive/refs/heads/master.zip
 # accelerate
 # bitsandbytes
 # uvicorn
@@ -60,9 +60,8 @@ pydantic==2.11.5
 google-genai==1.18.0
 rich
 
-paddleocr==2.10.0
-paddlepaddle==2.6.2
-paddlepaddle-gpu==2.6.2; sys_platform != 'darwin'
-
+rusty-manga-image-translator
+pipdeptree
 gradio==5.32.1
 orjson==3.10.18
+freetype-py
