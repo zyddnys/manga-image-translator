@@ -346,14 +346,14 @@ class Config(BaseModel):
     """tanslator configs"""
     detector: DetectorConfig = DetectorConfig()
     """detector configs"""
-    panel_detector: PanelDetectorConfig = PanelDetectorConfig()
-    """panel detector configs"""
     colorizer: ColorizerConfig = ColorizerConfig()
     """colorizer configs"""
     inpainter: InpainterConfig = InpainterConfig()
     """inpainter configs"""
     ocr: OcrConfig = OcrConfig()
     """Ocr configs"""
+    panel_detector: PanelDetectorConfig = PanelDetectorConfig()
+    """panel detector configs"""
     # ?
     kernel_size: int = 3
     """Set the convolution kernel size of the text erasure area to completely clean up text residues"""

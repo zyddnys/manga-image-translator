@@ -1,4 +1,3 @@
-
 import cv2
 import numpy as np
 from typing import List, Tuple
@@ -16,8 +15,7 @@ from ..config import PanelDetector, PanelDetectorConfig
 logger = get_logger('textblock')
 # from ..detection.ctd_utils.utils.imgproc_utils import union_area, xywh2xyxypoly
 
-# LANG_LIST = ['eng', 'ja', 'unknown']
-# LANGCLS2IDX = {'eng': 0, 'ja': 1, 'unknown': 2}
+logger = get_logger('textblock')
 
 # determines render direction
 LANGUAGE_ORIENTATION_PRESETS = {
@@ -78,21 +76,20 @@ class TextBlock(object):
                  prob: float = 1,
                  **kwargs) -> None:
         self.lines = np.array(lines, dtype=np.int32)
-        # self.lines.sort()
         self.language = language
         self.font_size = round(font_size)
         self.angle = angle
         self._direction = direction
 
         self.texts = texts if texts is not None else []
-        self.text = texts[0]
+        self.text = texts[0] if texts else ""
         if self.text and len(texts) > 1:
             for txt in texts[1:]:
                 first_cjk = '\u3000' <= self.text[-1] <= '\u9fff'
                 second_cjk = txt and ('\u3000' <= txt[0] <= '\u9fff')
-                if first_cjk or second_cjk :
+                if first_cjk or second_cjk:
                     self.text += txt
-                else :
+                else:
                     self.text += ' ' + txt
         self.prob = prob
 
@@ -101,7 +98,6 @@ class TextBlock(object):
         self.fg_colors = fg_color
         self.bg_colors = bg_color
 
-        # self.stroke_width = stroke_width
         self.font_family: str = font_family
         self.bold: bool = bold
         self.underline: bool = underline
@@ -251,7 +247,7 @@ class TextBlock(object):
         norm_h = np.linalg.norm(vec_h)
 
         if textheight is None:
-            if direction == 'h' :
+            if direction == 'h':
                 textheight = int(norm_v)
             else:
                 textheight = int(norm_h)
@@ -261,7 +257,7 @@ class TextBlock(object):
             return np.zeros((textheight, textheight, 3), dtype=np.uint8)
         ratio = norm_v / norm_h
 
-        if direction == 'h' :
+        if direction == 'h':
             h = int(textheight)
             w = int(round(textheight / ratio))
             dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
@@ -270,7 +266,7 @@ class TextBlock(object):
                 print('invalid textpolygon to target img')
                 return np.zeros((textheight, textheight, 3), dtype=np.uint8)
             region = cv2.warpPerspective(img_croped, M, (w, h))
-        elif direction == 'v' :
+        elif direction == 'v':
             w = int(textheight)
             h = int(round(textheight * ratio))
             dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
@@ -357,7 +353,6 @@ class TextBlock(object):
             self.bg_colors += bg_colors / nlines
 
     def get_font_colors(self, bgr=False):
-
         frgb = np.array(self.fg_colors).astype(np.int32)
         brgb = np.array(self.bg_colors).astype(np.int32)
 
@@ -436,30 +431,6 @@ class TextBlock(object):
             return 'right'
         else:
             return 'left'
-
-        # x1, y1, x2, y2 = self.xyxy
-        # polygons = self.unrotated_polygons
-        # polygons = polygons.reshape(-1, 4, 2)
-        # print(self.polygon_aspect_ratio, self.xyxy)
-        # print(polygons[:, :, 0] - x1)
-        # print()
-        # if self.polygon_aspect_ratio < 1:
-        #     left_std = abs(np.std(polygons[:, :2, 1] - y1))
-        #     right_std = abs(np.std(polygons[:, 2:, 1] - y2))
-        #     center_std = abs(np.std(((polygons[:, :, 1] + polygons[:, :, 1]) - (y2 - y1)) / 2))
-        #     print(center_std)
-        #     print('a', left_std, right_std, center_std)
-        # else:
-        #     left_std = abs(np.std(polygons[:, ::2, 0] - x1))
-        #     right_std = abs(np.std(polygons[:, 2:, 0] - x2))
-        #     center_std = abs(np.std(((polygons[:, :, 0] + polygons[:, :, 0]) - (x2 - x1)) / 2))
-        # min_std = min(left_std, right_std, center_std)
-        # if left_std == min_std:
-        #     return 'left'
-        # elif right_std == min_std:
-        #     return 'right'
-        # else:
-        #     return 'center'
 
     @property
     def stroke_width(self):

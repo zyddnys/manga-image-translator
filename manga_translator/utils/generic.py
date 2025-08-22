@@ -12,8 +12,6 @@ import re
 import einops
 import unicodedata
 import json
-import io
-import time
 from shapely import affinity
 from shapely.geometry import Polygon, MultiPoint
 
@@ -179,30 +177,27 @@ def get_digest(file_path: str) -> str:
     return h.hexdigest()
 
 def get_image_md5(image) -> str:
-    """计算PIL Image对象的MD5哈希值，优化版本：智能选择编码格式提升性能"""
+    """计算PIL Image对象的MD5哈希值，确保相同图片内容产生相同的哈希值"""
+    import io
+    from PIL import Image
+
     try:
-        # 确保RGB格式一致性
-        if image.mode != 'RGB':
+        # 将PIL Image转换为字节数据进行MD5计算
+        img_byte_arr = io.BytesIO()
+        # 统一转换为RGB格式以确保一致性
+        if hasattr(image, 'mode') and image.mode != 'RGB':
             image = image.convert('RGB')
+        image.save(img_byte_arr, format='PNG')
+        img_bytes = img_byte_arr.getvalue()
 
-
-        width, height = image.size
-        pixel_count = width * height
-
-        with io.BytesIO() as img_buffer:
-            if pixel_count > 1048576:  # > 1MP，使用JPEG格式
-                image.save(img_buffer, format='JPEG', quality=95, optimize=True)
-            else:
-                image.save(img_buffer, format='PNG', optimize=True)
-
-            # 直接计算MD5，避免额外的getvalue()调用
-            img_buffer.seek(0)
-            h = hashlib.md5()
-            h.update(img_buffer.read())
-            return h.hexdigest()[:8]
-
-    except Exception:
-        return f"fb_{int(time.time() * 1000) % 100000000}"
+        # 计算MD5哈希值
+        h = hashlib.md5()
+        h.update(img_bytes)
+        return h.hexdigest()[:8]  # 只取前8位，避免文件夹名过长
+    except Exception as e:
+        # 如果计算失败，返回基于时间戳的fallback值
+        import time
+        return f"fallback_{int(time.time() * 1000)}"
 
 def get_filename_from_url(url: str, default: str = '') -> str:
     m = re.search(r'/([^/?]+)[^/]*$', url)
