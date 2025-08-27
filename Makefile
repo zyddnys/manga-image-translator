@@ -4,10 +4,13 @@ build-image:
 
 run-web-server:
 	docker run --gpus all -p 5003:5003 --ipc=host --rm manga-image-translator \
-		--target-lang=ENG \
-		--manga2eng \
 		--verbose \
-		--mode=web \
 		--use-gpu \
 		--host=0.0.0.0 \
-		--port=5003
+		--port=5003 \
+		--entrypoint python \
+		-v /demo/doc/../../result:/app/result \
+		-v /demo/doc/../../server/main.py:/app/server/main.py \
+		-v /demo/doc/../../server/instance.py:/app/server/instance.py \	
+		zyddnys/manga-image-translator:main \
+		server/main.py --verbose --start-instance --host=0.0.0.0 --port=5003 --use-gpu

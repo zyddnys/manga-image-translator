@@ -19,6 +19,7 @@ Lib
 include
 share
 .DS_Store
+dev/
 
 # Distribution / packaging
 .Python
@@ -41,7 +42,12 @@ share/python-wheels/
 MANIFEST
 .history
 /venv
+.venv/
 
 # Input and Output
 /input/
 /input-translated/
+
+# SSL Used for running server locally
+cert.pem
+key.pem

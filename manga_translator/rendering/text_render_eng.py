@@ -453,15 +453,17 @@ def render_textblock_list_eng(
         region_area = line_width * line_height + delimiter_len * (len(words) - 1) * line_height
         area_ratio = ballon_area / region_area
         resize_ratio = 1
-        # if ballon_area is smaller than 2*region_area
-        if area_ratio < ballonarea_thresh:
-            # resize so that it is 2*region_area
-            resize_ratio = ballonarea_thresh / area_ratio
-            ballon_area = int(resize_ratio * ballon_area) # = ballonarea_thresh * line_area
-            resize_ratio = min(np.sqrt(resize_ratio), (1/downscale_constraint)**2)
-            rx *= resize_ratio
-            ry *= resize_ratio
-            ballon_mask = cv2.resize(ballon_mask, (int(resize_ratio * ballon_mask.shape[1]), int(resize_ratio * ballon_mask.shape[0])))
+
+        # In many cases this code makes the font size too small.
+        # # if ballon_area is smaller than 2*region_area
+        # if area_ratio < ballonarea_thresh:
+        #     # resize so that it is 2*region_area
+        #     resize_ratio = ballonarea_thresh / area_ratio
+        #     ballon_area = int(resize_ratio * ballon_area) # = ballonarea_thresh * line_area
+        #     resize_ratio = min(np.sqrt(resize_ratio), (1/downscale_constraint)**2)
+        #     rx *= resize_ratio
+        #     ry *= resize_ratio
+        #     ballon_mask = cv2.resize(ballon_mask, (int(resize_ratio * ballon_mask.shape[1]), int(resize_ratio * ballon_mask.shape[0])))
 
         # new region bbox
         region_x, region_y, region_w, region_h = cv2.boundingRect(cv2.findNonZero(ballon_mask))
@@ -500,7 +502,9 @@ def render_textblock_list_eng(
             line.pos_x -= canvas_x1
             line.pos_y -= canvas_y1
 
-        textlines_image = render_lines(textlines, canvas_h, canvas_w, font_size, sw, line_spacing, font_color, stroke_color)
+        region_font_color, region_stroke_color = region.get_font_colors()
+
+        textlines_image = render_lines(textlines, canvas_h, canvas_w, font_size, sw, line_spacing, region_font_color, region_stroke_color)
         rel_cx = ((canvas_x1 + canvas_x2) / 2 - rx) / resize_ratio
         rel_cy = ((canvas_y1 + canvas_y2) / 2 - ry + y_offset) / resize_ratio
 
@@ -523,8 +527,9 @@ def render_textblock_list_eng(
         abs_cx = rel_cx + xyxy[0]
         abs_cy = rel_cy + xyxy[1]
 
-        if resize_ratio != 1:
-            textlines_image = textlines_image.resize((int(textlines_image.width / resize_ratio), int(textlines_image.height / resize_ratio)))
+        # In many cases this code makes the font size too small.
+        # if resize_ratio != 1:
+        #     textlines_image = textlines_image.resize((int(textlines_image.width / resize_ratio), int(textlines_image.height / resize_ratio)))
         abs_x = int(abs_cx - textlines_image.width / 2)
         abs_y = int(abs_cy - textlines_image.height / 2)
         img_pil.paste(textlines_image, (abs_x, abs_y), mask=textlines_image)

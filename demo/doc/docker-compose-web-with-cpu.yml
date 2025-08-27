@@ -1,11 +1,60 @@
-version: "3.8"
 services:
   manga_image_translator:
     image: zyddnys/manga-image-translator:main
     container_name: manga_image_translator_cpu
+    entrypoint: python
     command: server/main.py --verbose --start-instance --host=0.0.0.0 --port=5003
     volumes:
       - ./../../result:/app/result
+      - ./../../server/main.py:/app/server/main.py
+      - ./../../server/instance.py:/app/server/instance.py      
     ports:
       - 5003:5003
     ipc: host
+    environment:  
+      # baidu  
+      BAIDU_APP_ID: ''  
+      BAIDU_SECRET_KEY: ''  
+      
+      # youdao  
+      YOUDAO_APP_KEY: ''  
+      YOUDAO_SECRET_KEY: ''  
+      
+      # deepl  
+      DEEPL_AUTH_KEY: ''  
+      
+      # openai/ChatGPT  
+      OPENAI_API_KEY: ''
+      OPENAI_API_BASE: ''
+      OPENAI_MODEL: ''
+      OPENAI_HTTP_PROXY: ''
+      
+      # glossary
+      OPENAI_GLOSSARY_PATH: './sakura_dict.txt'  
+      
+      # Groq  
+      GROQ_API_KEY: ''  
+      GROQ_MODEL: 'mixtral-8x7b-32768'  
+      
+      # sakura  
+      SAKURA_API_BASE: 'http://127.0.0.1:8080/v1'  
+      SAKURA_VERSION: '0.9'  
+      SAKURA_DICT_PATH: './sakura_dict.txt'  
+      
+      # Caiyun  
+      CAIYUN_TOKEN: ''  
+      
+      # Gemini  
+      GEMINI_API_KEY: ''  
+      GEMINI_MODEL: 'gemini-1.5-flash-002'  
+      
+      # DeepSeek  
+      DEEPSEEK_API_KEY: ''  
+      DEEPSEEK_API_BASE: 'https://api.deepseek.com'  
+      DEEPSEEK_MODEL: 'deepseek-chat'  
+      
+      # Custom OpenAI compatible API  
+      CUSTOM_OPENAI_API_KEY: 'ollama'  
+      CUSTOM_OPENAI_API_BASE: 'http://localhost:11434/v1'  
+      CUSTOM_OPENAI_MODEL: ''  
+      CUSTOM_OPENAI_MODEL_CONF: ''        

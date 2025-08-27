@@ -8,8 +8,18 @@ from .keys import CAIYUN_TOKEN
 class CaiyunTranslator(CommonTranslator):
     _LANGUAGE_CODE_MAP = {
         'CHS': 'zh',
-        'JPN': "ja",
+        'CHT': 'zh-Hant',
         'ENG': 'en',
+        'JPN': 'ja',
+        'KOR': 'ko',
+        'DEU': 'de',
+        'ESP': 'es',
+        'FRA': 'fr',
+        'ITA': 'it',
+        'PTB': 'pt',
+        'RUS': 'ru',
+        'TUR': 'tr',
+        'VIN': 'vi',
     }
     _API_URL = 'https://api.interpreter.caiyunai.com/v1/translator'
 
@@ -19,23 +29,14 @@ class CaiyunTranslator(CommonTranslator):
             raise MissingAPIKeyException('Please set the CAIYUN_TOKEN environment variables before using the caiyun translator.')
 
     async def _translate(self, from_lang, to_lang, queries):
-        data = {}
-        if from_lang=="auto":
-            print("[CaiyunTranlsator] from_lang was set to \"auto\", but Caiyun API doesn't support it. Trying to detect...")
-            # detect language with stupid & simple trick
-            queriesText = '\n'.join(queries)
-            for char in queriesText:
-                if 0x3000 <= ord(char) <= 0x9FFF:
-                    from_lang = "ja"
-                    break
-            else:
-                from_lang = "en"
+        data = {
+            "trans_type": from_lang + "2" + to_lang,
+            "source": queries,
+            "request_id": "manga-image-translator"
+        }
+        if from_lang == "auto":
+            data["detect"] = True
 
-            print(f'[CaiyunTranlsator] from_lang seems to be "{from_lang}"')
-            
-        data['trans_type'] = from_lang + "2" + to_lang
-        data['source'] = queries
-        data['request_id'] = "manga-image-translator"
         result = await self._do_request(data)
         if "target" not in result:
             raise InvalidServerResponse(f'Caiyun returned invalid response: {result}\nAre the API keys set correctly?')

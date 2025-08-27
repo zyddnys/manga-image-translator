@@ -7,7 +7,6 @@ from pydantic import BaseModel
 from manga_translator import Config
 from server.sent_data_internal import fetch_data_stream, NotifyType, fetch_data
 
-
 class ExecutorInstance(BaseModel):
     ip: str
     port: int
