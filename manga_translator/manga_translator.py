@@ -1015,6 +1015,18 @@ class MangaTranslator:
         # Build the context string
         prev_ctx = self._build_prev_context()
 
+        # Check if the page prefers Gemini for translation
+        if getattr(ctx, '_prefer_gemini_for_page', False):
+            from .translators.gemini import GeminiTranslator
+            translator = GeminiTranslator()
+            # Pass the same translator parameters as ChatGPT (temperature/TopP, etc.)
+            translator.parse_args(config.translator)
+            return await translator._translate(
+                ctx.from_lang,          
+                config.translator.target_lang, 
+                texts
+            )
+
         # 如果是 ChatGPT 或 ChatGPT2Stage 翻译器，则专门处理上下文注入
         # Special handling for ChatGPT and ChatGPT2Stage translators: inject context
         if config.translator.translator in [Translator.chatgpt, Translator.chatgpt_2stage]:

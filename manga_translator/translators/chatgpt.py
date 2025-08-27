@@ -25,7 +25,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
 
     # ---- 关键参数 ----
     _MAX_REQUESTS_PER_MINUTE = 0
-    _TIMEOUT = 999                # 每次请求的超时时间
+    _TIMEOUT = 30                # 每次请求的超时时间
     _RETRY_ATTEMPTS = 2          # 对同一个批次的最大整体重试次数
     _TIMEOUT_RETRY_ATTEMPTS = 3  # 请求因超时被取消后，最大尝试次数
     _RATELIMIT_RETRY_ATTEMPTS = 3# 遇到 429 等限流时的最大尝试次数
@@ -83,6 +83,132 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
 
     def set_prev_context(self, text: str = ""):
         self.prev_context = text or ""     
+
+    _ERROR_KEYWORDS = [
+        # ENGLISH
+        r"I must decline",
+        r'(i(\'m| am)?\s+)?sorry(.|\n)*?(can(\'t|not)|unable to|cannot)\s+(assist|help)',
+        r"I cannot (provide|assist|help)",
+        r"I'm not able to",
+        r"against my guidelines",
+        
+        # CHINESE (ZH_CN)
+        r"(抱歉，|对不起，)?我(无法[将把]|不[能会便](提供|处理))", 
+        r"我无法(满足|回答|处理|提供)",  
+        r"这超出了我的范围", 
+        r"我需要婉拒", 
+        r"翻译或生成", 
+        r"[的个]内容(吧)?",
+        
+        # JAPANESE (JA_JP)
+        r"申し訳ありませんが",
+        r"お手伝いできません",
+        r"対応できません",
+        r"提供することはできません",
+        
+        # SPANISH (ES_ES)
+        r"Lo siento, no puedo",
+        r"No puedo (ayudar|asistir|proporcionar)",
+        r"Me temo que no puedo",
+        r"No estoy en condiciones de",
+        r"Debo declinar",
+        
+        # FRENCH (FR_FR)
+        r"Je suis désolé, je ne peux pas",
+        r"Je ne peux pas (aider|assister|fournir)",
+        r"Je ne suis pas en mesure de",
+        r"Je dois décliner",
+        r"Malheureusement, je ne peux pas",
+        
+        # GERMAN (DE_DE)
+        r"Es tut mir leid, ich kann nicht",
+        r"Ich kann (nicht helfen|nicht unterstützen|nicht bereitstellen)",
+        r"Ich bin nicht in der Lage",
+        r"Ich muss ablehnen",
+        r"Leider kann ich nicht",
+        
+        # ITALIAN (IT_IT)
+        r"Mi dispiace, non posso",
+        r"Non posso (aiutare|assistere|fornire)",
+        r"Non sono in grado di",
+        r"Devo rifiutare",
+        r"Purtroppo non posso",
+        
+        # PORTUGUESE (PT_PT)
+        r"Desculpe, não posso",
+        r"Não posso (ajudar|assistir|fornecer)",
+        r"Não estou em condições de",
+        r"Devo recusar",
+        r"Infelizmente não posso",
+        
+        # KOREAN (KO_KR)
+        r"죄송하지만.*할 수 없습니다",
+        r"도움을 드릴 수 없습니다",
+        r"제공할 수 없습니다",
+        r"거절해야 합니다",
+        
+        # POLISH (PL_PL)
+        r"Przepraszam, nie mogę",
+        r"Nie mogę (pomóc|wspomóc|zapewnić)",
+        r"Nie jestem w stanie",
+        r"Muszę odmówić",
+        r"Niestety nie mogę",
+        
+        # INDONESIAN (ID_ID)
+        r"Maaf, saya tidak bisa",
+        r"Saya tidak dapat (membantu|memberikan|menyediakan)",
+        r"Saya tidak mampu",
+        r"Saya harus menolak",
+        r"Sayangnya saya tidak bisa",
+        
+        # THAI (TH_TH)
+        r"ขออภัย.*ไม่สามารถ",
+        r"ไม่สามารถ(ช่วย|ให้|จัดหา)",
+        r"ไม่สามารถทำได้",
+        r"ต้องปฏิเสธ",
+        
+        # RUSSIAN (RU_RU)
+        r"Извините, я не могу",
+        r"Я не могу (помочь|предоставить|оказать)",
+        r"Я не в состоянии",
+        r"Я должен отказаться",
+        r"К сожалению, я не могу",
+        
+        # TURKISH (TR_TR)
+        r"Üzgünüm, yapamam",
+        r"(Yardım edemem|Sağlayamam)",
+        r"Maalesef yapamam",
+        r"Reddetmek zorundayım",
+        
+        # VIETNAMESE (VI_VN)
+        r"Xin lỗi, tôi không thể",
+        r"Tôi không thể (giúp|hỗ trợ|cung cấp)",
+        r"Tôi không có khả năng",
+        r"Tôi phải từ chối",
+        
+        # MALAY (MS_MY)
+        r"Maaf, saya tidak boleh",
+        r"Saya tidak dapat (membantu|memberikan)",
+        r"Saya tidak mampu",
+        r"Saya terpaksa menolak",
+        
+        # ARABIC (AR_AE)
+        r"آسف، لا أستطيع",
+        r"لا يمكنني (المساعدة|تقديم|توفير)",
+        r"لست قادراً على",
+        r"يجب أن أرفض",
+    ]
+
+    def _cannot_assist(self, response: str) -> bool:  
+        """  
+        判断是否出现了常见的 "我不能帮你" / "我拒绝" 等拒绝关键词。  
+        """  
+        resp = response.strip()  
+        for kw in self._ERROR_KEYWORDS:  
+            if re.search(kw, resp, re.IGNORECASE):  
+                self.logger.warning(f"Detected refusal keyword: {kw}")  
+                return True  
+        return False
 
     def parse_args(self, args: CommonTranslator):
         """如果你有外部参数要解析，可在此对 self.config 做更新"""
@@ -313,6 +439,47 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 # 发起请求  
                 # Send request  
                 response_text = await self._request_with_retry(to_lang, prompt)  
+
+                # Check for refusal messages, this is a global check and needs to be done first  
+                if self._cannot_assist(response_text):  
+                    try:
+                        import inspect
+                        for st in inspect.stack():
+                            ctx_obj = st.frame.f_locals.get("ctx")
+                            if ctx_obj is not None:
+                                setattr(ctx_obj, "_prefer_gemini_for_page", True)
+                                break
+                    except Exception:
+                        pass
+
+                    try:
+                        from ..translators.gemini import GeminiTranslator
+                    except Exception:
+                        from .gemini import GeminiTranslator
+
+                    try:
+                        gtr = GeminiTranslator()
+
+                        # Reverse mapping: convert display name back to language code if needed
+                        fallback_lang = to_lang
+                        if to_lang not in self._LANGUAGE_CODE_MAP.keys():
+                            for code, name in self._LANGUAGE_CODE_MAP.items():
+                                if name == to_lang:
+                                    fallback_lang = code
+                                    break
+                        gemini_results = await gtr.translate('auto', fallback_lang, batch_queries, False)
+                        if gemini_results and len(gemini_results) == len(batch_queries):
+                            for i in range(len(batch_queries)):
+                                partial_results[i] = gemini_results[i]
+                            self.logger.info("Gemini fallback succeeded for refusal case.")
+                            return True, partial_results
+                        else:
+                            self.logger.warning("Gemini fallback returned mismatched count or empty; will retry OpenAI.")
+                    except Exception as fb_e:
+                        self.logger.warning(f"Gemini fallback failed: {fb_e}. Will retry OpenAI.")
+
+                    self.logger.warning(f"Detected refusal message from model. Will retry (attempt {attempt+1}/{max_attempts}).")  
+                    continue  
 
                 # 解析响应
                 # Parse response
