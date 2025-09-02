@@ -5,11 +5,17 @@ import {
   type TranslatorKey,
   type FileStatus,
   type ChunkProcessingResult,
+  type QueuedImage,
+  type TranslationSettings,
+  type FinishedImage,
 } from "@/types";
 import { imageMimeTypes } from "@/config";
 import { OptionsPanel } from "@/components/OptionsPanel";
 import { ImageHandlingArea } from "@/components/ImageHandlingArea";
+import { ImageQueue } from "@/components/ImageQueue";
+import { ResultGallery } from "@/components/ResultGallery";
 import { Header } from "@/components/Header";
+import { loadSettings, saveSettings, loadFinishedImages, addFinishedImage } from "@/utils/localStorage";
 
 export const App: React.FC = () => {
   // State Hooks
@@ -18,6 +24,11 @@ export const App: React.FC = () => {
   );
   const [shouldTranslate, setShouldTranslate] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
+
+  // New state for improved UI features
+  const [queuedImages, setQueuedImages] = useState<QueuedImage[]>([]);
+  const [finishedImages, setFinishedImages] = useState<FinishedImage[]>([]);
+  const [currentProcessingImage, setCurrentProcessingImage] = useState<QueuedImage | null>(null);
 
   // Translation Options State Hooks
   const [detectionResolution, setDetectionResolution] = useState("1536");
@@ -56,6 +67,52 @@ export const App: React.FC = () => {
   }, [files, fileStatuses]);
 
   // Effects
+  /** Load saved settings and finished images from localStorage */
+  useEffect(() => {
+    const savedSettings = loadSettings();
+    if (savedSettings.detectionResolution) setDetectionResolution(savedSettings.detectionResolution);
+    if (savedSettings.textDetector) setTextDetector(savedSettings.textDetector);
+    if (savedSettings.renderTextDirection) setRenderTextDirection(savedSettings.renderTextDirection);
+    if (savedSettings.translator) setTranslator(savedSettings.translator);
+    if (savedSettings.targetLanguage) setTargetLanguage(savedSettings.targetLanguage);
+    if (savedSettings.inpaintingSize) setInpaintingSize(savedSettings.inpaintingSize);
+    if (savedSettings.customUnclipRatio) setCustomUnclipRatio(savedSettings.customUnclipRatio);
+    if (savedSettings.customBoxThreshold) setCustomBoxThreshold(savedSettings.customBoxThreshold);
+    if (savedSettings.maskDilationOffset) setMaskDilationOffset(savedSettings.maskDilationOffset);
+    if (savedSettings.inpainter) setInpainter(savedSettings.inpainter);
+
+    const savedFinishedImages = loadFinishedImages();
+    setFinishedImages(savedFinishedImages);
+  }, []);
+
+  /** Save settings to localStorage whenever they change */
+  useEffect(() => {
+    const settings: TranslationSettings = {
+      detectionResolution,
+      textDetector,
+      renderTextDirection,
+      translator,
+      targetLanguage,
+      inpaintingSize,
+      customUnclipRatio,
+      customBoxThreshold,
+      maskDilationOffset,
+      inpainter,
+    };
+    saveSettings(settings);
+  }, [
+    detectionResolution,
+    textDetector,
+    renderTextDirection,
+    translator,
+    targetLanguage,
+    inpaintingSize,
+    customUnclipRatio,
+    customBoxThreshold,
+    maskDilationOffset,
+    inpainter,
+  ]);
+
   /** クリップボード ペースト対応 */
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -117,6 +174,26 @@ export const App: React.FC = () => {
       newStatuses.delete(fileName);
       return newStatuses;
     });
+  };
+
+  // Queue management functions
+  const addToQueue = (newFiles: File[]) => {
+    const newQueuedImages: QueuedImage[] = newFiles.map(file => ({
+      id: `${file.name}-${Date.now()}-${Math.random()}`,
+      file,
+      addedAt: new Date(),
+      status: 'queued' as const,
+    }));
+    setQueuedImages(prev => [...prev, ...newQueuedImages]);
+  };
+
+  const removeFromQueue = (id: string) => {
+    setQueuedImages(prev => prev.filter(img => img.id !== id));
+  };
+
+  const clearGallery = () => {
+    setFinishedImages([]);
+    localStorage.removeItem('manga-translator-finished-images');
   };
 
   /**
@@ -299,10 +376,36 @@ export const App: React.FC = () => {
   ): void => {
     switch (statusCode) {
       case 0: // 結果が返ってきた
+        const resultBlob = new Blob([data], { type: "image/png" });
         updateFileStatus(fileId, {
           status: "finished",
-          result: new Blob([data], { type: "image/png" }),
+          result: resultBlob,
         });
+        
+        // Add to finished images gallery
+        const settings: TranslationSettings = {
+          detectionResolution,
+          textDetector,
+          renderTextDirection,
+          translator,
+          targetLanguage,
+          inpaintingSize,
+          customUnclipRatio,
+          customBoxThreshold,
+          maskDilationOffset,
+          inpainter,
+        };
+        
+        const finishedImage: FinishedImage = {
+          id: `${fileId}-${Date.now()}`,
+          originalName: fileId,
+          result: resultBlob,
+          finishedAt: new Date(),
+          settings,
+        };
+        
+        setFinishedImages(prev => [finishedImage, ...prev]);
+        addFinishedImage(finishedImage);
         break;
       case 1: // 翻訳中
         const newStatus = decodedData as StatusKey;
@@ -336,7 +439,7 @@ export const App: React.FC = () => {
     <div>
       <Header />
       <div className="bg-gray-100 min-h-screen flex flex-col pt-10 items-center">
-        <div className="bg-white shadow-md rounded-lg p-6 w-full max-w-4xl space-y-6">
+        <div className="bg-white shadow-md rounded-lg p-6 w-full max-w-6xl space-y-6">
           <OptionsPanel
             detectionResolution={detectionResolution}
             textDetector={textDetector}
@@ -359,17 +462,39 @@ export const App: React.FC = () => {
             setMaskDilationOffset={setMaskDilationOffset}
             setInpainter={setInpainter}
           />
-          <ImageHandlingArea
-            files={files}
-            fileStatuses={fileStatuses}
-            isProcessing={isProcessing}
-            isProcessingAllFinished={isProcessingAllFinished}
-            handleFileChange={handleFileChange}
-            handleDrop={handleDrop}
-            handleSubmit={handleSubmit}
-            clearForm={clearForm}
-            removeFile={removeFile}
-          />
+          
+          {/* Image Queue Section */}
+          <div className="border-t pt-6">
+            <ImageQueue
+              queuedImages={queuedImages}
+              onRemoveFromQueue={removeFromQueue}
+              onAddToQueue={addToQueue}
+              isProcessing={isProcessing}
+            />
+          </div>
+
+          {/* Main Image Handling Area */}
+          <div className="border-t pt-6">
+            <ImageHandlingArea
+              files={files}
+              fileStatuses={fileStatuses}
+              isProcessing={isProcessing}
+              isProcessingAllFinished={isProcessingAllFinished}
+              handleFileChange={handleFileChange}
+              handleDrop={handleDrop}
+              handleSubmit={handleSubmit}
+              clearForm={clearForm}
+              removeFile={removeFile}
+            />
+          </div>
+
+          {/* Results Gallery */}
+          <div className="border-t pt-6">
+            <ResultGallery
+              finishedImages={finishedImages}
+              onClearGallery={clearGallery}
+            />
+          </div>
         </div>
       </div>
     </div>
