@@ -87,9 +87,9 @@ def load_dictionary(file_path):
 
 def apply_dictionary(text, dictionary):
     for pattern, value, line_number in dictionary:
-        original_text = text  
+        original_text = text
         text = pattern.sub(value, text)
-        if text != original_text:  
+        if text != original_text:
             logger.info(f'Line {line_number}: Replaced "{original_text}" with "{text}" using pattern "{pattern.pattern}" and value "{value}"')
     return text
 
@@ -528,20 +528,7 @@ class MangaTranslator:
             cv2.imwrite(self._result_path('bboxes.png'), bboxes)
 
         # Apply pre-dictionary after textline merge
-        pre_dict = load_dictionary(self.pre_dict)
-        pre_replacements = []
-        for region in ctx.text_regions:
-            original = region.text  
-            region.text = apply_dictionary(region.text, pre_dict)
-            if original != region.text:
-                pre_replacements.append(f"{original} => {region.text}")
-
-        if pre_replacements:
-            logger.info("Pre-translation replacements:")
-            for replacement in pre_replacements:
-                logger.info(replacement)
-        else:
-            logger.info("No pre-translation replacements made.")
+        await self._apply_pre_translation_replacements(ctx)
             
         # -- Translation
         await self._report_progress('translating')
@@ -624,7 +611,7 @@ class MangaTranslator:
         ctx.result = dump_image(ctx.input, ctx.img_rendered, ctx.img_alpha)
 
         return await self._revert_upscale(config, ctx)
-    
+
     # If `revert_upscaling` is True, revert to input size
     # Else leave `ctx` as-is
     async def _revert_upscale(self, config: Config, ctx: Context):
@@ -1136,236 +1123,23 @@ class MangaTranslator:
                 region._alignment = config.render.alignment  
                 region._direction = config.render.direction  
 
-        # Punctuation correction logic. for translators often incorrectly change quotation marks from the source language to those commonly used in the target language.
-        check_items = [
-            # 圆括号处理
-            ["(", "（", "「", "【"],
-            ["（", "(", "「", "【"],
-            [")", "）", "」", "】"],
-            ["）", ")", "」", "】"],
-            
-            # 方括号处理
-            ["[", "［", "【", "「"],
-            ["［", "[", "【", "「"],
-            ["]", "］", "】", "」"],
-            ["］", "]", "】", "」"],
-            
-            # 引号处理
-            ["「", "“", "‘", "『", "【"],
-            ["」", "”", "’", "』", "】"],
-            ["『", "“", "‘", "「", "【"],
-            ["』", "”", "’", "」", "】"],
-            
-            # 新增【】处理
-            ["【", "(", "（", "「", "『", "["],
-            ["】", ")", "）", "」", "』", "]"],
-        ]
 
-        replace_items = [
-            ["「", "“"],
-            ["「", "‘"],
-            ["」", "”"],
-            ["」", "’"],
-            ["【", "["],  
-            ["】", "]"],  
-        ]
+        # 第一步：幻觉检测（基于完整翻译结果） | Step 1: Hallucination detection (based on complete translation results)
+        await self._perform_hallucination_detection(ctx, config)
 
-        for region in ctx.text_regions:
-            if region.text and region.translation:
-                if '『' in region.text and '』' in region.text:
-                    quote_type = '『』'
-                elif '「' in region.text and '」' in region.text:
-                    quote_type = '「」'
-                elif '【' in region.text and '】' in region.text: 
-                    quote_type = '【】'
-                else:
-                    quote_type = None
-                
-                if quote_type:
-                    src_quote_count = region.text.count(quote_type[0])
-                    dst_dquote_count = region.translation.count('"')
-                    dst_fwquote_count = region.translation.count('＂')
-                    
-                    if (src_quote_count > 0 and
-                        (src_quote_count == dst_dquote_count or src_quote_count == dst_fwquote_count) and
-                        not region.translation.isascii()):
-                        
-                        if quote_type == '「」':
-                            region.translation = re.sub(r'"([^"]*)"', r'「\1」', region.translation)
-                        elif quote_type == '『』':
-                            region.translation = re.sub(r'"([^"]*)"', r'『\1』', region.translation)
-                        elif quote_type == '【】':  
-                            region.translation = re.sub(r'"([^"]*)"', r'【\1】', region.translation)
+        # 第二步：页面级目标语言检查（基于完整翻译结果） | Step 2: Page-level target language check (based on complete translation results)
+        await self._perform_target_language_check_with_retry(ctx, config, "page")
 
-                # === 优化后的数量判断逻辑 ===
-                # === Optimized quantity judgment logic ===
-                for v in check_items:
-                    num_src_std = region.text.count(v[0])
-                    num_src_var = sum(region.text.count(t) for t in v[1:])
-                    num_dst_std = region.translation.count(v[0])
-                    num_dst_var = sum(region.translation.count(t) for t in v[1:])
-                    
-                    if (num_src_std > 0 and
-                        num_src_std != num_src_var and
-                        num_src_std == num_dst_std + num_dst_var):
-                        for t in v[1:]:
-                            region.translation = region.translation.replace(t, v[0])
+        # 第三步：过滤逻辑 | Step 3: Filtering logic
+        ctx.text_regions = await self._filter_translation_results(ctx, config)
 
-                # 强制替换规则
-                # Forced replacement rules
-                for v in replace_items:
-                    region.translation = region.translation.replace(v[1], v[0])
+        # 第四步：保持括号一致性 | Step 4: Maintain bracket consistency
+        await self._apply_bracket_corrections(ctx)
 
-        # 注意：翻译结果的保存移动到了翻译流程的最后，确保保存的是最终结果而不是重试前的结果
+        # 第五步：字典替换 | Step 5: Dictionary replacement
+        await self._apply_post_translation_dictionary(ctx)
 
-        # Apply post dictionary after translating
-        post_dict = load_dictionary(self.post_dict)
-        post_replacements = []  
-        for region in ctx.text_regions:  
-            original = region.translation  
-            region.translation = apply_dictionary(region.translation, post_dict)
-            if original != region.translation:  
-                post_replacements.append(f"{original} => {region.translation}")  
-
-        if post_replacements:  
-            logger.info("Post-translation replacements:")  
-            for replacement in post_replacements:  
-                logger.info(replacement)  
-        else:  
-            logger.info("No post-translation replacements made.")
-
-        # 译后检查和重试逻辑 - 第一阶段：单个region幻觉检测
-        failed_regions = []
-        if config.translator.enable_post_translation_check:
-            logger.info("Starting post-translation check...")
-            
-            # 单个region级别的幻觉检测（在过滤前进行）
-            for region in ctx.text_regions:
-                if region.translation and region.translation.strip():
-                    # 只检查重复内容幻觉，不进行页面级目标语言检查
-                    if await self._check_repetition_hallucination(
-                        region.translation, 
-                        config.translator.post_check_repetition_threshold,
-                        silent=False
-                    ):
-                        failed_regions.append(region)
-            
-            # 对失败的区域进行重试
-            if failed_regions:
-                logger.warning(f"Found {len(failed_regions)} regions that failed repetition check, starting retry...")
-                for region in failed_regions:
-                    await self._retry_translation_with_validation(region, config, ctx)
-                logger.info("Repetition check retry finished.")
-
-        # 译后检查和重试逻辑 - 第二阶段：页面级目标语言检查（使用过滤后的区域）
-        if config.translator.enable_post_translation_check:
-            
-            # 页面级目标语言检查（使用过滤后的区域数量）
-            page_lang_check_result = True
-            if ctx.text_regions and len(ctx.text_regions) > 5:
-                logger.info(f"Starting page-level target language check with {len(ctx.text_regions)} regions...")
-                page_lang_check_result = await self._check_target_language_ratio(
-                    ctx.text_regions,
-                    config.translator.target_lang,
-                    min_ratio=0.5
-                )
-                
-                if not page_lang_check_result:
-                    logger.warning("Page-level target language ratio check failed")
-                    
-                    # 第二阶段：整个批次重新翻译逻辑
-                    max_batch_retry = config.translator.post_check_max_retry_attempts
-                    batch_retry_count = 0
-                    
-                    while batch_retry_count < max_batch_retry and not page_lang_check_result:
-                        batch_retry_count += 1
-                        logger.warning(f"Starting batch retry {batch_retry_count}/{max_batch_retry} for page-level target language check...")
-                        
-                        # 重新翻译所有区域
-                        original_texts = []
-                        for region in ctx.text_regions:
-                            if hasattr(region, 'text') and region.text:
-                                original_texts.append(region.text)
-                            else:
-                                original_texts.append("")
-                        
-                        if original_texts:
-                            try:
-                                # 重新批量翻译
-                                logger.info(f"Retrying translation for {len(original_texts)} regions...")
-                                new_translations = await self._batch_translate_texts(original_texts, config, ctx)
-                                
-                                # 更新翻译结果到regions
-                                for i, region in enumerate(ctx.text_regions):
-                                    if i < len(new_translations) and new_translations[i]:
-                                        old_translation = region.translation
-                                        region.translation = new_translations[i]
-                                        logger.debug(f"Region {i+1} translation updated: '{old_translation}' -> '{new_translations[i]}'")
-                                    
-                                # 重新检查目标语言比例
-                                logger.info(f"Re-checking page-level target language ratio after batch retry {batch_retry_count}...")
-                                page_lang_check_result = await self._check_target_language_ratio(
-                                    ctx.text_regions,
-                                    config.translator.target_lang,
-                                    min_ratio=0.5
-                                )
-                                
-                                if page_lang_check_result:
-                                    logger.info(f"Page-level target language check passed")
-                                    break
-                                else:
-                                    logger.warning(f"Page-level target language check still failed")
-                                    
-                            except Exception as e:
-                                logger.error(f"Error during batch retry {batch_retry_count}: {e}")
-                                break
-                        else:
-                            logger.warning("No text found for batch retry")
-                            break
-                    
-                    if not page_lang_check_result:
-                        logger.error(f"Page-level target language check failed after all {max_batch_retry} batch retries")
-                else:
-                    logger.info("Page-level target language ratio check passed")
-            else:
-                logger.info(f"Skipping page-level target language check: only {len(ctx.text_regions)} regions (threshold: 5)")
-            
-            # 统一的成功信息
-            if page_lang_check_result:
-                logger.info("All translation regions passed post-translation check.")
-            else:
-                logger.warning("Some translation regions failed post-translation check.")
-
-        # 过滤逻辑（简化版本，保留主要过滤条件）
-        new_text_regions = []
-        for region in ctx.text_regions:
-            should_filter = False
-            filter_reason = ""
-
-            if not region.translation.strip():
-                should_filter = True
-                filter_reason = "Translation contain blank areas"
-            elif config.translator.translator != Translator.none:
-                if region.translation.isnumeric():
-                    should_filter = True
-                    filter_reason = "Numeric translation"
-                elif config.filter_text and re.search(config.re_filter_text, region.translation):
-                    should_filter = True
-                    filter_reason = f"Matched filter text: {config.filter_text}"
-                elif not config.translator.translator == Translator.original:
-                    text_equal = region.text.lower().strip() == region.translation.lower().strip()
-                    if text_equal:
-                        should_filter = True
-                        filter_reason = "Translation identical to original"
-
-            if should_filter:
-                if region.translation.strip():
-                    logger.info(f'Filtered out: {region.translation}')
-                    logger.info(f'Reason: {filter_reason}')
-            else:
-                new_text_regions.append(region)
-
-        return new_text_regions
+        return ctx.text_regions
 
     async def _run_mask_refinement(self, config: Config, ctx: Context):
         return await dispatch_mask_refinement(ctx.text_regions, ctx.img_rgb, ctx.mask_raw, 'fit_text',
@@ -1489,7 +1263,6 @@ class MangaTranslator:
                 results.append(ctx)
             return results
         
-        logger.debug(f'Starting batch translation: {len(images_with_configs)} images, batch size: {batch_size}')
         
         # 简化的内存检查
         memory_optimization_enabled = not self.disable_memory_optimization
@@ -1499,7 +1272,6 @@ class MangaTranslator:
         results = []
         
         # 处理所有图片到翻译之前的步骤
-        logger.debug('Starting pre-processing phase...')
         pre_translation_contexts = []
         
         for i, (image, config) in enumerate(images_with_configs):
@@ -1538,43 +1310,7 @@ class MangaTranslator:
                 logger.debug(f'Image {i+1} pre-processing successful')
             except MemoryError as e:
                 logger.error(f'Memory error in pre-processing image {i+1}: {e}')
-                if not memory_optimization_enabled:
-                    logger.error('Consider enabling memory optimization')
-                    raise
-                    
-                # 尝试降级处理
-                try:
-                    logger.warning(f'Image {i+1} attempting fallback processing...')
-                    import copy
-                    recovery_config = copy.deepcopy(config)
-                    
-                    # 强制清理
-                    import gc
-                    gc.collect()
-                    if torch.cuda.is_available():
-                        torch.cuda.empty_cache()
-                    
-                    # 重新设置图片上下文
-                    self._set_image_context(recovery_config, image)
-                    # 保存fallback图片上下文
-                    if self._current_image_context:
-                        image_md5 = self._current_image_context['file_md5']
-                        self._save_current_image_context(image_md5)
-                    ctx = await self._translate_until_translation(image, recovery_config)
-                    # 保存图片上下文到Context对象中
-                    if self._current_image_context:
-                        ctx.image_context = self._current_image_context.copy()
-                    # 保存verbose标志到Context对象中
-                    ctx.verbose = self.verbose
-                    pre_translation_contexts.append((ctx, recovery_config))
-                    logger.info(f'Image {i+1} fallback processing successful')
-                except Exception as retry_error:
-                    logger.error(f'Image {i+1} fallback processing also failed: {retry_error}')
-                    # 创建空context作为占位符
-                    ctx = Context()
-                    ctx.input = image
-                    ctx.text_regions = []  # 确保text_regions被初始化为空列表
-                    pre_translation_contexts.append((ctx, config))
+                raise
             except Exception as e:
                 logger.error(f'Image {i+1} pre-processing error: {e}')
                 # 创建空context作为占位符
@@ -1600,36 +1336,7 @@ class MangaTranslator:
                 translated_contexts = await self._batch_translate_contexts(pre_translation_contexts, batch_size)
         except MemoryError as e:
             logger.error(f'Memory error in batch translation: {e}')
-            if not memory_optimization_enabled:
-                logger.error('Consider enabling memory optimization')
-                raise
-                
-            logger.warning('Batch translation failed, switching to individual page translation mode...')
-            # 降级到每页逐个翻译
-            translated_contexts = []
-            for ctx, config in pre_translation_contexts:
-                try:
-                    if ctx.text_regions:  # 检查text_regions是否不为None且不为空
-                        # 对整页进行翻译处理
-                        translated_texts = await self._batch_translate_texts([region.text for region in ctx.text_regions], config, ctx)
-                        
-                        # 将翻译结果应用到各个region
-                        for region, translation in zip(ctx.text_regions, translated_texts):
-                            region.translation = translation
-                            region.target_lang = config.translator.target_lang
-                            region._alignment = config.render.alignment
-                            region._direction = config.render.direction
-                    translated_contexts.append((ctx, config))
-                    
-                    # 每页翻译后都清理内存
-                    import gc
-                    gc.collect()
-                    if torch.cuda.is_available():
-                        torch.cuda.empty_cache()
-                        
-                except Exception as individual_error:
-                    logger.error(f'Individual page translation failed: {individual_error}')
-                    translated_contexts.append((ctx, config))
+            raise
         
         # 完成翻译后的处理
         logger.debug('Starting post-processing phase...')
@@ -1654,15 +1361,15 @@ class MangaTranslator:
         
         logger.info(f'Batch translation completed: processed {len(results)} images')
 
-        # 批处理完成后，保存所有页面的最终翻译结果
+        # 批处理完成后，保存所有页面的最终翻译结果 | After batch processing, save final translation results for all pages
         for ctx in results:
             if ctx.text_regions:
-                # 汇总本页翻译，供下一页做上文
+                # 汇总本页翻译，供下一页做上文 | Summarize current page translations for next page context
                 page_translations = {r.text_raw if hasattr(r, "text_raw") else r.text: r.translation
                                      for r in ctx.text_regions}
                 self.all_page_translations.append(page_translations)
 
-                # 同时保存原文用于并发模式的上下文
+                # 同时保存原文用于并发模式的上下文 | Also save original text for concurrent mode context
                 page_original_texts = {i: (r.text_raw if hasattr(r, "text_raw") else r.text)
                                       for i, r in enumerate(ctx.text_regions)}
                 self._original_page_texts.append(page_original_texts)
@@ -1799,20 +1506,7 @@ class MangaTranslator:
             cv2.imwrite(self._result_path('bboxes.png'), bboxes)
 
         # Apply pre-dictionary after textline merge
-        pre_dict = load_dictionary(self.pre_dict)
-        pre_replacements = []
-        for region in ctx.text_regions:
-            original = region.text  
-            region.text = apply_dictionary(region.text, pre_dict)
-            if original != region.text:
-                pre_replacements.append(f"{original} => {region.text}")
-
-        if pre_replacements:
-            logger.info("Pre-translation replacements:")
-            for replacement in pre_replacements:
-                logger.info(replacement)
-        else:
-            logger.info("No pre-translation replacements made.")
+        await self._apply_pre_translation_replacements(ctx)
 
         # 保存当前图片上下文到ctx中，用于并发翻译时的路径管理
         if self._current_image_context:
@@ -1875,133 +1569,32 @@ class MangaTranslator:
                             region._direction = config.render.direction
                             text_idx += 1
                         
-                # 应用后处理逻辑（括号修正、过滤等）
+                # 第一步：幻觉检测（基于完整翻译结果）
+                # Step 1: Hallucination detection (based on complete translation results)
                 for ctx, config in batch:
                     if ctx.text_regions:
-                        ctx.text_regions = await self._apply_post_translation_processing(ctx, config)
-                        
-                # 批次级别的目标语言检查
-                if batch and batch[0][1].translator.enable_post_translation_check:
-                    # 收集批次内所有页面的filtered regions
-                    all_batch_regions = []
-                    for ctx, config in batch:
-                        if ctx.text_regions:
-                            all_batch_regions.extend(ctx.text_regions)
-                    
-                    # 进行批次级别的目标语言检查
-                    batch_lang_check_result = True
-                    if all_batch_regions and len(all_batch_regions) > 10:
-                        sample_config = batch[0][1]
-                        logger.info(f"Starting batch-level target language check with {len(all_batch_regions)} regions...")
-                        batch_lang_check_result = await self._check_target_language_ratio(
-                            all_batch_regions,
-                            sample_config.translator.target_lang,
-                            min_ratio=0.5
-                        )
-                        
-                        if not batch_lang_check_result:
-                            logger.warning("Batch-level target language ratio check failed")
-                            
-                            # 批次重新翻译逻辑
-                            max_batch_retry = sample_config.translator.post_check_max_retry_attempts
-                            batch_retry_count = 0
-                            
-                            while batch_retry_count < max_batch_retry and not batch_lang_check_result:
-                                batch_retry_count += 1
-                                logger.warning(f"Starting batch retry {batch_retry_count}/{max_batch_retry}")
-                                
-                                # 重新翻译批次内所有区域
-                                all_original_texts = []
-                                region_mapping = []  # 记录每个text属于哪个ctx
-                                
-                                for ctx_idx, (ctx, config) in enumerate(batch):
-                                    if ctx.text_regions:
-                                        for region in ctx.text_regions:
-                                            if hasattr(region, 'text') and region.text:
-                                                all_original_texts.append(region.text)
-                                                region_mapping.append((ctx_idx, region))
-                                
-                                if all_original_texts:
-                                    try:
-                                        # 重新批量翻译
-                                        logger.info(f"Retrying translation for {len(all_original_texts)} regions...")
-                                        new_translations = await self._batch_translate_texts(all_original_texts, sample_config, batch[0][0])
-                                        
-                                        # 更新翻译结果到各个region
-                                        for i, (ctx_idx, region) in enumerate(region_mapping):
-                                            if i < len(new_translations) and new_translations[i]:
-                                                old_translation = region.translation
-                                                region.translation = new_translations[i]
-                                                logger.debug(f"Region {i+1} translation updated: '{old_translation}' -> '{new_translations[i]}'")
-                                        
-                                        # 重新收集所有regions并检查目标语言比例
-                                        all_batch_regions = []
-                                        for ctx, config in batch:
-                                            if ctx.text_regions:
-                                                all_batch_regions.extend(ctx.text_regions)
-                                        
-                                        logger.info(f"Re-checking batch-level target language ratio after batch retry {batch_retry_count}...")
-                                        batch_lang_check_result = await self._check_target_language_ratio(
-                                            all_batch_regions,
-                                            sample_config.translator.target_lang,
-                                            min_ratio=0.5
-                                        )
-                                        
-                                        if batch_lang_check_result:
-                                            logger.info(f"Batch-level target language check passed")
-                                            break
-                                        else:
-                                            logger.warning(f"Batch-level target language check still failed")
-                                            
-                                    except Exception as e:
-                                        logger.error(f"Error during batch retry {batch_retry_count}: {e}")
-                                        break
-                                else:
-                                    logger.warning("No text found for batch retry")
-                                    break
-                            
-                            if not batch_lang_check_result:
-                                logger.error(f"Batch-level target language check failed after all {max_batch_retry} batch retries")
-                    else:
-                        logger.info(f"Skipping batch-level target language check: only {len(all_batch_regions)} regions (threshold: 10)")
-                    
-                    # 统一的成功信息
-                    if batch_lang_check_result:
-                        logger.info("All translation regions passed post-translation check.")
-                    else:
-                        logger.warning("Some translation regions failed post-translation check.")
-                        
-                # 过滤逻辑（简化版本，保留主要过滤条件）
+                        await self._perform_hallucination_detection(ctx, config)
+
+                # 第二步：批次级别的目标语言检查 | Step 2: Batch-level target language check
+                await self._perform_target_language_check_with_retry(batch, None, "batch")
+
+                # 第三步：过滤逻辑
+                # Step 3: Filtering logic
                 for ctx, config in batch:
                     if ctx.text_regions:
-                        new_text_regions = []
-                        for region in ctx.text_regions:
-                            should_filter = False
-                            filter_reason = ""
+                        ctx.text_regions = await self._filter_translation_results(ctx, config)
 
-                            if not region.translation.strip():
-                                should_filter = True
-                                filter_reason = "Translation contain blank areas"
-                            elif config.translator.translator != Translator.none:
-                                if region.translation.isnumeric():
-                                    should_filter = True
-                                    filter_reason = "Numeric translation"
-                                elif config.filter_text and re.search(config.re_filter_text, region.translation):
-                                    should_filter = True
-                                    filter_reason = f"Matched filter text: {config.filter_text}"
-                                elif not config.translator.translator == Translator.original:
-                                    text_equal = region.text.lower().strip() == region.translation.lower().strip()
-                                    if text_equal:
-                                        should_filter = True
-                                        filter_reason = "Translation identical to original"
+                # 第四步：保持括号一致性
+                # Step 4: Maintain bracket consistency
+                for ctx, config in batch:
+                    if ctx.text_regions:
+                        await self._apply_bracket_corrections(ctx)
 
-                            if should_filter:
-                                if region.translation.strip():
-                                    logger.info(f'Filtered out: {region.translation}')
-                                    logger.info(f'Reason: {filter_reason}')
-                            else:
-                                new_text_regions.append(region)
-                        ctx.text_regions = new_text_regions
+                # 第五步：字典替换
+                # Step 5: Dictionary replacement
+                for ctx, config in batch:
+                    if ctx.text_regions:
+                        await self._apply_post_translation_dictionary(ctx)
                         
                 results.extend(batch)
                 
@@ -2083,94 +1676,28 @@ class MangaTranslator:
                         region._alignment = config.render.alignment
                         region._direction = config.render.direction
                 
-                # 应用后处理逻辑（括号修正、过滤等）
+                # 第一步：幻觉检测（基于完整翻译结果）
+                # Step 1: Hallucination detection (based on complete translation results)
                 if ctx.text_regions:
-                    ctx.text_regions = await self._apply_post_translation_processing(ctx, config)
-                
-                # 单页目标语言检查（如果启用）
-                if config.translator.enable_post_translation_check and ctx.text_regions:
-                    page_lang_check_result = await self._check_target_language_ratio(
-                        ctx.text_regions,
-                        config.translator.target_lang,
-                        min_ratio=0.3  # 对单页使用更宽松的阈值
-                    )
-                    
-                    if not page_lang_check_result:
-                        logger.warning(f"Page-level target language check failed for single image")
-                        
-                        # 单页重试逻辑
-                        max_retry = config.translator.post_check_max_retry_attempts
-                        retry_count = 0
-                        
-                        while retry_count < max_retry and not page_lang_check_result:
-                            retry_count += 1
-                            logger.info(f"Retrying single image translation {retry_count}/{max_retry}")
-                            
-                            # 重新翻译
-                            original_texts = [region.text for region in ctx.text_regions if hasattr(region, 'text') and region.text]
-                            if original_texts:
-                                try:
-                                    new_translations = await self._batch_translate_texts(original_texts, config, ctx)
-                                    
-                                    # 更新翻译结果
-                                    text_idx = 0
-                                    for region in ctx.text_regions:
-                                        if hasattr(region, 'text') and region.text and text_idx < len(new_translations):
-                                            old_translation = region.translation
-                                            region.translation = new_translations[text_idx]
-                                            logger.debug(f"Region translation updated: '{old_translation}' -> '{new_translations[text_idx]}'")
-                                            text_idx += 1
-                                    
-                                    # 重新检查
-                                    page_lang_check_result = await self._check_target_language_ratio(
-                                        ctx.text_regions,
-                                        config.translator.target_lang,
-                                        min_ratio=0.3
-                                    )
-                                    
-                                    if page_lang_check_result:
-                                        logger.info(f"Single image target language check passed after retry {retry_count}")
-                                        break
-                                        
-                                except Exception as e:
-                                    logger.error(f"Error during single image retry {retry_count}: {e}")
-                                    break
-                            else:
-                                break
-                        
-                        if not page_lang_check_result:
-                            logger.warning(f"Single image target language check failed after all {max_retry} retries")
-                
-                # 过滤逻辑
+                    await self._perform_hallucination_detection(ctx, config)
+
+                # 第二步：单页目标语言检查（如果启用） | Step 2: Single page target language check (if enabled)
+                await self._perform_target_language_check_with_retry(ctx, config, "single")
+
+                # 第三步：过滤逻辑
+                # Step 3: Filtering logic
                 if ctx.text_regions:
-                    new_text_regions = []
-                    for region in ctx.text_regions:
-                        should_filter = False
-                        filter_reason = ""
+                    ctx.text_regions = await self._filter_translation_results(ctx, config)
 
-                        if not region.translation.strip():
-                            should_filter = True
-                            filter_reason = "Translation contain blank areas"
-                        elif config.translator.translator != Translator.none:
-                            if region.translation.isnumeric():
-                                should_filter = True
-                                filter_reason = "Numeric translation"
-                            elif config.filter_text and re.search(config.re_filter_text, region.translation):
-                                should_filter = True
-                                filter_reason = f"Matched filter text: {config.filter_text}"
-                            elif not config.translator.translator == Translator.original:
-                                text_equal = region.text.lower().strip() == region.translation.lower().strip()
-                                if text_equal:
-                                    should_filter = True
-                                    filter_reason = "Translation identical to original"
+                # 第四步：保持括号一致性
+                # Step 4: Maintain bracket consistency
+                if ctx.text_regions:
+                    await self._apply_bracket_corrections(ctx)
 
-                        if should_filter:
-                            if region.translation.strip():
-                                logger.info(f'Filtered out: {region.translation}')
-                                logger.info(f'Reason: {filter_reason}')
-                        else:
-                            new_text_regions.append(region)
-                    ctx.text_regions = new_text_regions
+                # 第五步：字典替换
+                # Step 5: Dictionary replacement
+                if ctx.text_regions:
+                    await self._apply_post_translation_dictionary(ctx)
                 
                 return ctx, config
                 
@@ -2359,143 +1886,6 @@ class MangaTranslator:
                 'cpu' if self._gpu_limited_memory else self.device
             )
             
-    async def _apply_post_translation_processing(self, ctx: Context, config: Config) -> List:
-        """
-        应用翻译后处理逻辑（括号修正、过滤等）
-        """
-        # 检查text_regions是否为None或空
-        if not ctx.text_regions:
-            return []
-            
-        check_items = [
-            # 圆括号处理
-            ["(", "（", "「", "【"],
-            ["（", "(", "「", "【"],
-            [")", "）", "」", "】"],
-            ["）", ")", "」", "】"],
-            
-            # 方括号处理
-            ["[", "［", "【", "「"],
-            ["［", "[", "【", "「"],
-            ["]", "］", "】", "」"],
-            ["］", "]", "】", "」"],
-            
-            # 引号处理
-            ["「", "“", "‘", "『", "【"],
-            ["」", "”", "’", "』", "】"],
-            ["『", "“", "‘", "「", "【"],
-            ["』", "”", "’", "」", "】"],
-            
-            # 新增【】处理
-            ["【", "(", "（", "「", "『", "["],
-            ["】", ")", "）", "」", "』", "]"],
-        ]
-
-        replace_items = [
-            ["「", "“"],
-            ["「", "‘"],
-            ["」", "”"],
-            ["」", "’"],
-            ["【", "["],  
-            ["】", "]"],  
-        ]
-
-        for region in ctx.text_regions:
-            if region.text and region.translation:
-                # 引号处理逻辑
-                if '『' in region.text and '』' in region.text:
-                    quote_type = '『』'
-                elif '「' in region.text and '」' in region.text:
-                    quote_type = '「」'
-                elif '【' in region.text and '】' in region.text: 
-                    quote_type = '【】'
-                else:
-                    quote_type = None
-                
-                if quote_type:
-                    src_quote_count = region.text.count(quote_type[0])
-                    dst_dquote_count = region.translation.count('"')
-                    dst_fwquote_count = region.translation.count('＂')
-                    
-                    if (src_quote_count > 0 and
-                        (src_quote_count == dst_dquote_count or src_quote_count == dst_fwquote_count) and
-                        not region.translation.isascii()):
-                        
-                        if quote_type == '「」':
-                            region.translation = re.sub(r'"([^"]*)"', r'「\1」', region.translation)
-                        elif quote_type == '『』':
-                            region.translation = re.sub(r'"([^"]*)"', r'『\1』', region.translation)
-                        elif quote_type == '【】':  
-                            region.translation = re.sub(r'"([^"]*)"', r'【\1】', region.translation)
-
-                # 括号修正逻辑
-                for v in check_items:
-                    num_src_std = region.text.count(v[0])
-                    num_src_var = sum(region.text.count(t) for t in v[1:])
-                    num_dst_std = region.translation.count(v[0])
-                    num_dst_var = sum(region.translation.count(t) for t in v[1:])
-                    
-                    if (num_src_std > 0 and
-                        num_src_std != num_src_var and
-                        num_src_std == num_dst_std + num_dst_var):
-                        for t in v[1:]:
-                            region.translation = region.translation.replace(t, v[0])
-
-                # 强制替换规则
-                for v in replace_items:
-                    region.translation = region.translation.replace(v[1], v[0])
-
-        # 注意：翻译结果的保存移动到了translate方法的最后，确保保存的是最终结果
-
-        # 应用后字典
-        post_dict = load_dictionary(self.post_dict)
-        post_replacements = []  
-        for region in ctx.text_regions:  
-            original = region.translation  
-            region.translation = apply_dictionary(region.translation, post_dict)
-            if original != region.translation:  
-                post_replacements.append(f"{original} => {region.translation}")  
-
-        if post_replacements:  
-            logger.info("Post-translation replacements:")  
-            for replacement in post_replacements:  
-                logger.info(replacement)  
-        else:  
-            logger.info("No post-translation replacements made.")
-
-        # 单个region幻觉检测
-        failed_regions = []
-        if config.translator.enable_post_translation_check:
-            logger.info("Starting post-translation check...")
-            
-            # 单个region级别的幻觉检测
-            for region in ctx.text_regions:
-                if region.translation and region.translation.strip():
-                    # 只检查重复内容幻觉
-                    if await self._check_repetition_hallucination(
-                        region.translation, 
-                        config.translator.post_check_repetition_threshold,
-                        silent=False
-                    ):
-                        failed_regions.append(region)
-            
-            # 对失败的区域进行重试
-            if failed_regions:
-                logger.warning(f"Found {len(failed_regions)} regions that failed repetition check, starting retry...")
-                for region in failed_regions:
-                    try:
-                        logger.info(f"Retrying translation for region with text: '{region.text}'")
-                        new_translation = await self._retry_translation_with_validation(region, config, ctx)
-                        if new_translation:
-                            old_translation = region.translation
-                            region.translation = new_translation
-                            logger.info(f"Region retry successful: '{old_translation}' -> '{new_translation}'")
-                        else:
-                            logger.warning(f"Region retry failed, keeping original: '{region.translation}'")
-                    except Exception as e:
-                        logger.error(f"Error during region retry: {e}")
-
-        return ctx.text_regions
 
     async def _complete_translation_pipeline(self, ctx: Context, config: Config) -> Context:
         """
@@ -2594,16 +1984,15 @@ class MangaTranslator:
     
     async def _check_repetition_hallucination(self, text: str, threshold: int = 5, silent: bool = False) -> bool:
         """
-        检查文本是否包含重复内容（模型幻觉）
-        Check if the text contains repetitive content (model hallucination)
+        检查文本是否包含重复内容（模型幻觉） | Check if the text contains repetitive content (model hallucination)
         """
         if not text or len(text.strip()) < threshold:
             return False
-            
-        # 检查字符级重复
+
+        # 检查字符级重复 | Check character-level repetition
         consecutive_count = 1
         prev_char = None
-        
+
         for char in text:
             if char == prev_char:
                 consecutive_count += 1
@@ -2614,14 +2003,14 @@ class MangaTranslator:
             else:
                 consecutive_count = 1
             prev_char = char
-        
-        # 检查词语级重复（按字符分割中文，按空格分割其他语言）
+
+        # 检查词语级重复（按字符分割中文，按空格分割其他语言） | Check word-level repetition (split Chinese by character, other languages by space)
         segments = re.findall(r'[\u4e00-\u9fff]|\S+', text)
-        
+
         if len(segments) >= threshold:
             consecutive_segments = 1
             prev_segment = None
-            
+
             for segment in segments:
                 if segment == prev_segment:
                     consecutive_segments += 1
@@ -2632,184 +2021,543 @@ class MangaTranslator:
                 else:
                     consecutive_segments = 1
                 prev_segment = segment
-        
-        # 检查短语级重复
+
+        # 检查词语重复模式 | Check word pattern repetition
+        # 检测文本开头的2-4字符重复模式 | Detect 2-4 character repetition patterns at the beginning of text
+        for pattern_length in [2, 3, 4]:
+            if pattern_length * 3 > len(text):  # 至少需要3次重复才有意义 | At least 3 repetitions needed to be meaningful
+                continue
+
+            pattern = text[:pattern_length]
+            # 快速检查：如果文本开头的模式重复出现 | Quick check: if the pattern at the beginning repeats
+            if len(text) >= pattern_length * 3 and text.startswith(pattern * 3):
+                repeat_count = 0
+                pos = 0
+                # 计算连续重复次数 | Count consecutive repetitions
+                while pos + pattern_length <= len(text) and text[pos:pos + pattern_length] == pattern:
+                    repeat_count += 1
+                    pos += pattern_length
+
+                # 如果重复次数达到阈值 | If repetition count reaches threshold
+                if repeat_count >= max(3, threshold // 2):
+                    if not silent:
+                        logger.warning(f'Detected pattern repetition hallucination: "{text}" - repeated pattern: "{pattern}", repeat count: {repeat_count}')
+                    return True
+
+        # 检查短语级重复 | Check phrase-level repetition
         words = text.split()
-        if len(words) >= threshold * 2:
-            for i in range(len(words) - threshold + 1):
-                phrase = ' '.join(words[i:i + threshold//2])
-                remaining_text = ' '.join(words[i + threshold//2:])
-                if phrase in remaining_text:
+        if len(words) >= 6:  # 至少6个单词才检查短语重复 | At least 6 words needed to check phrase repetition
+            # 检查2-3个单词的短语重复 | Check 2-3 word phrase repetition
+            for phrase_len in [2, 3]:
+                if phrase_len * 3 > len(words):
+                    continue
+
+                # 检查开头短语的重复 | Check repetition of the beginning phrase
+                phrase = ' '.join(words[:phrase_len])
+                if phrase and len(phrase.strip()) > 1:  # 确保短语有意义 | Ensure phrase is meaningful
+                    # 计算这个短语在文本中出现的次数 | Count occurrences of this phrase in the text
                     phrase_count = text.count(phrase)
-                    if phrase_count >= 3:  # 降低短语重复检测阈值
+                    if phrase_count >= 3:  # 至少出现3次 | At least 3 occurrences
                         if not silent:
                             logger.warning(f'Detected phrase repetition hallucination: "{text}" - repeated phrase: "{phrase}", occurrence count: {phrase_count}')
                         return True
-                        
+
         return False
 
-    async def _check_target_language_ratio(self, text_regions: List, target_lang: str, min_ratio: float = 0.5) -> bool:
+    async def _check_target_language_ratio(self, text_regions: List, target_lang: str, min_ratio: float = 0.5, threshold: int = 0) -> bool:
         """
-        检查翻译结果中目标语言的占比是否达到要求
-        使用py3langid进行语言检测
-        Check if the target language ratio meets the requirement by detecting the merged translation text
-        
+        检查翻译结果中目标语言的占比是否达到要求 | Check if the target language ratio meets the requirement
+        使用py3langid进行语言检测 | Use py3langid for language detection
+
         Args:
-            text_regions: 文本区域列表
-            target_lang: 目标语言代码
-            min_ratio: 最小目标语言占比（此参数在新逻辑中不使用，保留为兼容性）
-            
+            text_regions: 文本区域列表 | List of text regions
+            target_lang: 目标语言代码 | Target language code
+            min_ratio: 最小目标语言占比（此参数在新逻辑中不使用，保留为兼容性） | Minimum target language ratio (not used in new logic, kept for compatibility)
+            threshold: 最小区域数量阈值，如果区域数量 <= threshold 则跳过检查 | Minimum region count threshold, skip check if region count <= threshold
+
         Returns:
-            bool: True表示通过检查，False表示未通过
+            bool: True表示通过检查，False表示未通过 | True means passed check, False means failed
         """
-        if not text_regions or len(text_regions) <= 10:
-            # 如果区域数量不超过10个，跳过此检查
+        if not text_regions or (threshold > 0 and len(text_regions) <= threshold):
+            # 如果区域数量不超过阈值，跳过此检查 | If region count doesn't exceed threshold, skip this check
             return True
-            
-        # 合并所有翻译文本
+
+        # 合并所有翻译文本 | Merge all translation texts
         all_translations = []
         for region in text_regions:
             translation = getattr(region, 'translation', '')
             if translation and translation.strip():
                 all_translations.append(translation.strip())
-        
+
         if not all_translations:
             logger.debug('No valid translation texts for language ratio check')
             return True
-            
-        # 将所有翻译合并为一个文本进行检测
+
+        # 将所有翻译合并为一个文本进行检测 | Merge all translations into one text for detection
         merged_text = ''.join(all_translations)
-        
+
         # logger.info(f'Target language check - Merged text preview (first 200 chars): "{merged_text[:200]}"')
         # logger.info(f'Target language check - Total merged text length: {len(merged_text)} characters')
         # logger.info(f'Target language check - Number of regions: {len(all_translations)}')
-        
-        # 使用py3langid进行语言检测
+
+        # 使用py3langid进行语言检测 | Use py3langid for language detection
         try:
             detected_lang, confidence = langid.classify(merged_text)
             detected_language = ISO_639_1_TO_VALID_LANGUAGES.get(detected_lang, 'UNKNOWN')
             if detected_language != 'UNKNOWN':
                 detected_language = detected_language.upper()
-            
+
             # logger.info(f'Target language check - py3langid result: "{detected_lang}" -> "{detected_language}" (confidence: {confidence:.3f})')
         except Exception as e:
             logger.debug(f'py3langid failed for merged text: {e}')
             detected_language = 'UNKNOWN'
             confidence = -9999
-        
-        # 检查检测出的语言是否为目标语言
+
+        # 检查检测出的语言是否为目标语言 | Check if detected language matches target language
         is_target_lang = (detected_language == target_lang.upper())
-        
+
         # logger.info(f'Target language check: Detected language "{detected_language}" using py3langid (confidence: {confidence:.3f})')
         # logger.info(f'Target language check: Target is "{target_lang.upper()}"')
         # logger.info(f'Target language check result: {"PASSED" if is_target_lang else "FAILED"}')
-        
+
         return is_target_lang
 
-    async def _validate_translation(self, original_text: str, translation: str, target_lang: str, config, ctx: Context = None, silent: bool = False, page_lang_check_result: bool = None) -> bool:
+    async def _filter_translation_results(self, ctx: Context, config: Config) -> List:
         """
-        验证翻译质量（包含目标语言比例检查和幻觉检测）
-        Validate translation quality (includes target language ratio check and hallucination detection)
-        
-        Args:
-            page_lang_check_result: 页面级目标语言检查结果，如果为None则进行检查，如果已有结果则直接使用
+        过滤翻译结果，移除不需要的翻译 | Filter translation results, remove unwanted translations
         """
-        if not config.translator.enable_post_translation_check:
-            return True
-            
-        if not translation or not translation.strip():
-            return True
-        
-        # 1. 目标语言比例检查（页面级别）
-        if page_lang_check_result is None and ctx and ctx.text_regions and len(ctx.text_regions) > 10:
-            # 进行页面级目标语言检查
-            page_lang_check_result = await self._check_target_language_ratio(
-                ctx.text_regions,
-                target_lang,
-                min_ratio=0.5
-            )
-            
-        # 如果页面级检查失败，直接返回失败
-        if page_lang_check_result is False:
-            if not silent:
-                logger.debug("Target language ratio check failed for this region")
-            return False
-        
-        # 2. 检查重复内容幻觉（region级别）
-        if await self._check_repetition_hallucination(
-            translation, 
-            config.translator.post_check_repetition_threshold,
-            silent
-        ):
-            return False
-                
-        return True
+        if not ctx.text_regions:
+            return []
 
-    async def _retry_translation_with_validation(self, region, config: Config, ctx: Context) -> str:
+        new_text_regions = []
+        for region in ctx.text_regions:
+            should_filter = False
+            filter_reason = ""
+
+            if not region.translation.strip():
+                should_filter = True
+                filter_reason = "Translation contain blank areas"
+            elif config.translator.translator != Translator.none:
+                if region.translation.isnumeric():
+                    should_filter = True
+                    filter_reason = "Numeric translation"
+                elif config.filter_text and re.search(config.re_filter_text, region.translation):
+                    should_filter = True
+                    filter_reason = f"Matched filter text: {config.filter_text}"
+                elif not config.translator.translator == Translator.original:
+                    text_equal = region.text.lower().strip() == region.translation.lower().strip()
+                    if text_equal:
+                        should_filter = True
+                        filter_reason = "Translation identical to original"
+
+            if should_filter:
+                if region.translation.strip():
+                    logger.info(f'Filtered out: {region.translation}')
+                    logger.info(f'Reason: {filter_reason}')
+            else:
+                new_text_regions.append(region)
+
+        return new_text_regions
+
+    async def _apply_pre_translation_replacements(self, ctx: Context):
         """
-        带验证的重试翻译
-        Retry translation with validation
+        应用译前替换（字典替换） | Apply pre-translation replacements (dictionary replacement)
+        """
+        if not ctx.text_regions:
+            return
+
+        # Apply pre-dictionary after textline merge
+        pre_dict = load_dictionary(self.pre_dict)
+        pre_replacements = []
+        for region in ctx.text_regions:
+            original = region.text
+            region.text = apply_dictionary(region.text, pre_dict)
+            if original != region.text:
+                pre_replacements.append(f"{original} => {region.text}")
+
+        if pre_replacements:
+            logger.info("Pre-translation replacements:")
+            for replacement in pre_replacements:
+                logger.info(replacement)
+        else:
+            logger.info("No pre-translation replacements made.")
+
+    async def _apply_bracket_corrections(self, ctx: Context):
+        """
+        保持括号一致性 | Maintain bracket consistency
+        """
+        if not ctx.text_regions:
+            return
+
+        check_items = [
+            # 圆括号处理 | Round bracket handling
+            ["(", "（", "「", "【"],
+            ["（", "(", "「", "【"],
+            [")", "）", "」", "】"],
+            ["）", ")", "」", "】"],
+
+            # 方括号处理 | Square bracket handling
+            ["[", "［", "【", "「"],
+            ["［", "[", "【", "「"],
+            ["]", "］", "】", "」"],
+            ["］", "]", "】", "」"],
+
+            # 引号处理 | Quote handling
+            ["「", "“", "‘", "『", "【"],
+            ["」", "”", "’", "』", "】"],
+            ["『", "“", "‘", "「", "【"],
+            ["』", "”", "’", "」", "】"],
+            # 新增【】处理 | Added 【】 handling
+            ["【", "(", "（", "「", "『", "["],
+            ["】", ")", "）", "」", "』", "]"],
+        ]
+
+        replace_items = [
+            ["「", "“"],
+            ["「", "‘"],
+            ["」", "”"],
+            ["」", "’"],
+            ["【", "["],
+            ["】", "]"],
+        ]
+
+        for region in ctx.text_regions:
+            if region.text and region.translation:
+                # 引号处理逻辑 | Quote handling logic
+                if '『' in region.text and '』' in region.text:
+                    quote_type = '『』'
+                elif '「' in region.text and '」' in region.text:
+                    quote_type = '「」'
+                elif '【' in region.text and '】' in region.text:
+                    quote_type = '【】'
+                else:
+                    quote_type = None
+
+                if quote_type:
+                    src_quote_count = region.text.count(quote_type[0])
+                    dst_dquote_count = region.translation.count('"')
+                    dst_fwquote_count = region.translation.count('＂')
+
+                    if (src_quote_count > 0 and
+                        (src_quote_count == dst_dquote_count or src_quote_count == dst_fwquote_count) and
+                        not region.translation.isascii()):
+
+                        if quote_type == '「」':
+                            region.translation = re.sub(r'"([^"]*)"', r'「\1」', region.translation)
+                        elif quote_type == '『』':
+                            region.translation = re.sub(r'"([^"]*)"', r'『\1』', region.translation)
+                        elif quote_type == '【】':
+                            region.translation = re.sub(r'"([^"]*)"', r'【\1】', region.translation)
+
+                # 括号修正逻辑 | Bracket correction logic
+                for v in check_items:
+                    num_src_std = region.text.count(v[0])
+                    num_src_var = sum(region.text.count(t) for t in v[1:])
+                    num_dst_std = region.translation.count(v[0])
+                    num_dst_var = sum(region.translation.count(t) for t in v[1:])
+
+                    if (num_src_std > 0 and
+                        num_src_std != num_src_var and
+                        num_src_std == num_dst_std + num_dst_var):
+                        for t in v[1:]:
+                            region.translation = region.translation.replace(t, v[0])
+
+                # 强制替换规则 | Forced replacement rules
+                for v in replace_items:
+                    region.translation = region.translation.replace(v[1], v[0])
+
+    async def _apply_post_translation_dictionary(self, ctx: Context):
+        """
+        应用译后字典替换 | Apply post-translation dictionary replacement
+        """
+        if not ctx.text_regions:
+            return
+
+        # 应用后字典 | Apply post-translation dictionary
+        post_dict = load_dictionary(self.post_dict)
+        post_replacements = []
+        for region in ctx.text_regions:
+            original = region.translation
+            region.translation = apply_dictionary(region.translation, post_dict)
+            if original != region.translation:
+                post_replacements.append(f"{original} => {region.translation}")
+
+        if post_replacements:
+            logger.info("Post-translation replacements:")
+            for replacement in post_replacements:
+                logger.info(replacement)
+        else:
+            logger.info("No post-translation replacements made.")
+
+    async def _perform_target_language_check_with_retry(self, contexts_or_ctx, config: Config = None, check_type: str = "page"):
+        """
+        统一的目标语言检查和重试逻辑 | Unified target language check and retry logic
+
+        Args:
+            contexts_or_ctx: 单个Context或Context列表（批量模式） | Single Context or Context list (batch mode)
+            config: 配置对象（批量模式时可为None，会从第一个Context获取） | Configuration object (can be None in batch mode, will get from first Context)
+            check_type: 检查类型 ("page", "single", "batch") | Check type ("page", "single", "batch")
+        """
+        # 处理不同的输入类型 | Handle different input types
+        if check_type == "batch":
+            batch = contexts_or_ctx
+            if not batch or not batch[0][1].translator.enable_post_translation_check:
+                return
+            config = batch[0][1]
+
+            # 收集所有regions | Collect all regions
+            all_regions = []
+            for ctx, _ in batch:
+                if ctx.text_regions:
+                    all_regions.extend(ctx.text_regions)
+
+            min_ratio = config.translator.post_check_target_lang_threshold
+            threshold = 10  # 批量模式保持较高阈值 | Batch mode maintains higher threshold
+            check_name = "batch-level"
+        else:
+            # 单个Context的情况 | Single Context case
+            ctx = contexts_or_ctx
+            if not config.translator.enable_post_translation_check or not ctx.text_regions:
+                return
+
+            all_regions = ctx.text_regions
+
+            if check_type == "single":
+                min_ratio = config.translator.post_check_target_lang_threshold
+                threshold = 3  # 统一阈值为3 | Unified threshold to 3
+                check_name = "single image"
+            else:  # page
+                min_ratio = config.translator.post_check_target_lang_threshold
+                threshold = 3  # 统一阈值为3 | Unified threshold to 3
+                check_name = "page-level"
+
+        # 检查是否需要进行目标语言检查 | Check if target language check is needed
+        if threshold > 0 and len(all_regions) <= threshold:
+            logger.info(f"Skipping {check_name} target language check: only {len(all_regions)} regions (threshold: {threshold})")
+            return
+
+        # 执行目标语言检查 | Execute target language check
+        logger.info(f"Starting {check_name} target language check with {len(all_regions)} regions...")
+        lang_check_result = await self._check_target_language_ratio(
+            all_regions,
+            config.translator.target_lang,
+            min_ratio=min_ratio,
+            threshold=threshold
+        )
+
+        if not lang_check_result:
+            logger.warning(f"{check_name.capitalize()} target language ratio check failed")
+
+            # 重试逻辑 | Retry logic
+            max_retry = config.translator.post_check_max_retry_attempts
+            retry_count = 0
+
+            while retry_count < max_retry and not lang_check_result:
+                retry_count += 1
+                logger.warning(f"Starting {check_name} retry {retry_count}/{max_retry}")
+
+                # 根据类型执行不同的重试逻辑 | Execute different retry logic based on type
+                if check_type == "batch":
+                    lang_check_result = await self._retry_translation_batch(batch, config, retry_count, min_ratio, is_batch=True)
+                else:
+                    lang_check_result = await self._retry_translation_batch(ctx, config, retry_count, min_ratio, is_batch=False)
+
+                if lang_check_result:
+                    logger.info(f"{check_name.capitalize()} target language check passed after retry {retry_count}")
+                    break
+
+            if not lang_check_result:
+                logger.error(f"{check_name.capitalize()} target language check failed after all {max_retry} retries")
+        else:
+            logger.info(f"{check_name.capitalize()} target language ratio check passed")
+
+        # 统一的成功信息 | Unified success message
+        if lang_check_result:
+            logger.info("All translation regions passed post-translation check.")
+        else:
+            logger.warning("Some translation regions failed post-translation check.")
+
+    async def _retry_translation_batch(self, contexts_or_ctx, config: Config, retry_count: int, min_ratio: float, is_batch: bool = False) -> bool:
+        """统一的重试逻辑 | Unified retry logic"""
+        if is_batch:
+            # 批量模式：处理多个Context | Batch mode: handle multiple Contexts
+            batch = contexts_or_ctx
+            all_original_texts = []
+            region_mapping = []  # 记录每个text属于哪个ctx | Record which ctx each text belongs to
+
+            for ctx_idx, (ctx, _) in enumerate(batch):
+                if ctx.text_regions:
+                    for region in ctx.text_regions:
+                        if hasattr(region, 'text') and region.text:
+                            all_original_texts.append(region.text)
+                            region_mapping.append((ctx_idx, region))
+
+            if not all_original_texts:
+                logger.warning("No text found for batch retry")
+                return False
+
+            try:
+                # 重新批量翻译 | Re-translate in batch
+                logger.info(f"Retrying translation for {len(all_original_texts)} regions...")
+                new_translations = await self._batch_translate_texts(all_original_texts, config, batch[0][0])
+
+                # 更新翻译结果到各个region | Update translation results to each region
+                for i, (ctx_idx, region) in enumerate(region_mapping):
+                    if i < len(new_translations) and new_translations[i]:
+                        old_translation = region.translation
+                        region.translation = new_translations[i]
+                        logger.debug(f"Region {i+1} translation updated: '{old_translation}' -> '{new_translations[i]}'")
+
+                # 重试后需要重新进行幻觉检测 | Need to re-run hallucination detection after retry
+                for ctx, config_item in batch:
+                    if ctx.text_regions:
+                        await self._perform_hallucination_detection(ctx, config_item)
+
+                # 重新收集所有regions并检查目标语言比例 | Re-collect all regions and check target language ratio
+                all_batch_regions = []
+                for ctx, _ in batch:
+                    if ctx.text_regions:
+                        all_batch_regions.extend(ctx.text_regions)
+
+                logger.info(f"Re-checking batch-level target language ratio after batch retry {retry_count}...")
+                return await self._check_target_language_ratio(
+                    all_batch_regions,
+                    config.translator.target_lang,
+                    min_ratio=min_ratio,
+                    threshold=10  # 批量模式使用阈值10 | Batch mode uses threshold 10
+                )
+
+            except Exception as e:
+                logger.error(f"Error during batch retry {retry_count}: {e}")
+                return False
+        else:
+            # 单页模式：处理单个Context | Single page mode: handle single Context
+            ctx = contexts_or_ctx
+            original_texts = [region.text for region in ctx.text_regions if hasattr(region, 'text') and region.text]
+            if not original_texts:
+                return False
+
+            try:
+                new_translations = await self._batch_translate_texts(original_texts, config, ctx)
+
+                # 更新翻译结果 | Update translation results
+                text_idx = 0
+                for region in ctx.text_regions:
+                    if hasattr(region, 'text') and region.text and text_idx < len(new_translations):
+                        old_translation = region.translation
+                        region.translation = new_translations[text_idx]
+                        logger.debug(f"Region translation updated: '{old_translation}' -> '{new_translations[text_idx]}'")
+                        text_idx += 1
+
+                # 重试后需要重新进行幻觉检测 | Need to re-run hallucination detection after retry
+                await self._perform_hallucination_detection(ctx, config)
+
+                # 重新检查目标语言比例 | Re-check target language ratio
+                return await self._check_target_language_ratio(
+                    ctx.text_regions,
+                    config.translator.target_lang,
+                    min_ratio=min_ratio,
+                    threshold=3  # 单页模式使用阈值3 | Single page mode uses threshold 3
+                )
+
+            except Exception as e:
+                logger.error(f"Error during single retry {retry_count}: {e}")
+                return False
+
+    async def _perform_hallucination_detection(self, ctx: Context, config: Config):
+        """
+        执行幻觉检测并重试失败的区域 | Execute hallucination detection and retry failed regions
+        """
+        # 检查text_regions是否为None或空 | Check if text_regions is None or empty
+        if not ctx.text_regions:
+            return
+
+        # 单个region幻觉检测 | Single region hallucination detection
+        failed_regions = []
+        if config.translator.enable_post_translation_check:
+            logger.info("Starting hallucination detection...")
+
+            # 单个region级别的幻觉检测 | Single region level hallucination detection
+            for region in ctx.text_regions:
+                if region.translation and region.translation.strip():
+                    # 检查重复内容幻觉 | Check repetition hallucination
+                    if await self._check_repetition_hallucination(
+                        region.translation,
+                        config.translator.post_check_repetition_threshold,
+                        silent=False
+                    ):
+                        failed_regions.append(region)
+
+            # 对失败的区域进行重试 | Retry failed regions
+            if failed_regions:
+                logger.warning(f"Found {len(failed_regions)} regions that failed hallucination check, starting retry...")
+                for region in failed_regions:
+                    try:
+                        logger.info(f"Retrying translation for region with text: '{region.text}'")
+                        new_translation = await self._retry_single_region_translation(region, config, ctx)
+                        if new_translation:
+                            old_translation = region.translation
+                            region.translation = new_translation
+                            logger.info(f"Region retry successful: '{old_translation}' -> '{new_translation}'")
+                        else:
+                            logger.warning(f"Region retry failed, keeping original: '{region.translation}'")
+                    except Exception as e:
+                        logger.error(f"Error during region retry: {e}")
+
+    async def _retry_single_region_translation(self, region, config: Config, ctx: Context) -> str:
+        """
+        重试单个区域的翻译直到通过幻觉检测 | Retry translation of single region until passing hallucination detection
         """
         original_translation = region.translation
         max_attempts = config.translator.post_check_max_retry_attempts
-        
+
         for attempt in range(max_attempts):
-            # 验证当前翻译 - 在重试过程中只检查单个region（幻觉检测），不进行页面级检查
-            is_valid = await self._validate_translation(
-                region.text, 
-                region.translation, 
-                config.translator.target_lang,
-                config,
-                ctx=None,  # 不传ctx避免页面级检查
-                silent=True,  # 重试过程中禁用日志输出
-                page_lang_check_result=True  # 传入True跳过页面级检查，只做region级检查
+            # 检查当前翻译是否有幻觉 | Check if current translation has hallucination
+            has_hallucination = await self._check_repetition_hallucination(
+                region.translation,
+                config.translator.post_check_repetition_threshold,
+                silent=True  # 重试过程中禁用日志输出 | Disable logging during retry
             )
-            
-            if is_valid:
+
+            if not has_hallucination:
                 if attempt > 0:
-                    logger.info(f'Post-translation check passed (Attempt {attempt + 1}/{max_attempts}): "{region.translation}"')
+                    logger.info(f'Hallucination check passed (Attempt {attempt + 1}/{max_attempts}): "{region.translation}"')
                 return region.translation
-            
-            # 如果不是最后一次尝试，进行重新翻译
+
+            # 如果不是最后一次尝试，进行重新翻译 | If not the last attempt, perform re-translation
             if attempt < max_attempts - 1:
                 logger.warning(f'Post-translation check failed (Attempt {attempt + 1}/{max_attempts}), re-translating: "{region.text}"')
-                
+
                 try:
-                    # 单独重新翻译这个文本区域
+                    # 单独重新翻译这个文本区域 | Re-translate this text region individually
                     if config.translator.translator != Translator.none:
                         from .translators import dispatch
                         retranslated = await dispatch(
-                            config.translator.translator_gen,
+                            config.translator.translator,
+                            config.translator.target_lang,
                             [region.text],
                             config.translator,
-                            self.use_mtpe,
-                            ctx,
-                            'cpu' if self._gpu_limited_memory else self.device
+                            ctx
                         )
                         if retranslated:
                             region.translation = retranslated[0]
-                            
-                            # 应用格式化处理
+
+                            # 应用格式化处理 | Apply formatting
                             if config.render.uppercase:
                                 region.translation = region.translation.upper()
                             elif config.render.lowercase:
                                 region.translation = region.translation.lower()
-                                
-                            logger.info(f'Re-translation finished: "{region.text}" -> "{region.translation}"')
-                        else:
-                            logger.warning(f'Re-translation failed, keeping original translation: "{original_translation}"')
-                            region.translation = original_translation
-                            break
                     else:
-                        logger.warning('Translator is none, cannot re-translate.')
-                        break
-                        
+                        # 如果翻译器是none，直接返回原文
+                        region.translation = region.text
+
                 except Exception as e:
-                    logger.error(f'Error during re-translation: {e}')
-                    region.translation = original_translation
+                    logger.error(f"Error during region retry {attempt + 1}: {e}")
                     break
             else:
-                logger.warning(f'Post-translation check failed, maximum retry attempts ({max_attempts}) reached, keeping original translation: "{original_translation}"')
-                region.translation = original_translation
-        
+                # 最后一次尝试失败，记录警告
+                logger.warning(f'Post-translation check failed after all {max_attempts} attempts, keeping original: "{original_translation}"')
+
+        # 返回最终的翻译结果（可能是原始翻译或重试后的翻译）
         return region.translation
+
