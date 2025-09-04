@@ -104,10 +104,8 @@ async def dispatch(chain: TranslatorChain, queries: List[str], translator_config
                 pass
             if translator_config:
                 translator.parse_args(translator_config)
-            if key == "gemini_2stage" or key == "chatgpt_2stage":
-                queries = await translator.translate('auto', chain.langs[flag], queries, args)
-            else:
-                queries = await translator.translate('auto', chain.langs[flag], queries, use_mtpe)
+            # Unified translate call for all translators
+            queries = await translator.translate('auto', chain.langs[flag], queries, use_mtpe, args)
             await translator.unload(device)
             flag+=1
         return queries
@@ -119,10 +117,8 @@ async def dispatch(chain: TranslatorChain, queries: List[str], translator_config
             await translator.load('auto', tgt_lang, device)
         if translator_config:
             translator.parse_args(translator_config)
-        if key == "gemini_2stage" or key == "chatgpt_2stage":
-            queries = await translator.translate('auto', tgt_lang, queries, args)
-        else:
-            queries = await translator.translate('auto', tgt_lang, queries, use_mtpe)
+        # Unified translate call for all translators
+        queries = await translator.translate('auto', tgt_lang, queries, use_mtpe, args)
         if args is not None:
             args['translations'][tgt_lang] = queries
     return queries

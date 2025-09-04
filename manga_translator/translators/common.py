@@ -1,10 +1,11 @@
 import re
 import time
 import asyncio
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from abc import abstractmethod
 
 from ..utils import InfererModule, ModelWrapper, repeating_sequence, is_valuable_text
+from ..utils.generic import Context
 
 try:
     import readline
@@ -144,7 +145,7 @@ class CommonTranslator(InfererModule):
         _to_lang = self._LANGUAGE_CODE_MAP.get(to_lang)
         return _from_lang, _to_lang
 
-    async def translate(self, from_lang: str, to_lang: str, queries: List[str], use_mtpe: bool = False) -> List[str]:
+    async def translate(self, from_lang: str, to_lang: str, queries: List[str], use_mtpe: bool = False, ctx: Optional[Context] = None) -> List[str]:
         """
         Translates list of queries of one language into another.
         """
