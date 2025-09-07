@@ -25,6 +25,7 @@ from .groq import GroqTranslator
 from .gemini import GeminiTranslator
 from .gemini_2stage import Gemini2StageTranslator
 from .custom_openai import CustomOpenAiTranslator
+from .post_processor import PostProcessorTranslator
 from ..config import Translator, TranslatorConfig, TranslatorChain
 from ..utils import Context
 
@@ -68,12 +69,32 @@ TRANSLATORS = {
 }
 translator_cache = {}
 
+def get_post_processed_translator(translator: CommonTranslator, key: Translator) -> CommonTranslator:
+    """
+    Apply PostProcessorTranslator wrapper to GPT translators.
+    为GPT翻译器应用PostProcessorTranslator包装器。
+
+    Args:
+        translator: The base translator instance
+        key: The translator key to check if it needs post-processing
+
+    Returns:
+        Wrapped translator if it's a GPT translator, otherwise original translator
+    """
+    if key in GPT_TRANSLATORS:
+        return PostProcessorTranslator(translator)
+    return translator
+
 def get_translator(key: Translator, *args, **kwargs) -> CommonTranslator:
     if key not in TRANSLATORS:
         raise ValueError(f'Could not find translator for: "{key}". Choose from the following: %s' % ','.join(TRANSLATORS))
     if not translator_cache.get(key):
         translator = TRANSLATORS[key]
-        translator_cache[key] = translator(*args, **kwargs)
+        base_translator = translator(*args, **kwargs)
+        # Apply post-processing wrapper for GPT translators
+        # 为GPT翻译器应用译后处理包装器
+        wrapped_translator = get_post_processed_translator(base_translator, key)
+        translator_cache[key] = wrapped_translator
     return translator_cache[key]
 
 prepare_selective_translator(get_translator)
