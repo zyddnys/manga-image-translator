@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <title>Image/Manga Translator</title>
+    <link rel="icon" type="image/png" href="https://avatars.githubusercontent.com/u/17797982?s=48&v=4">
     <!-- Tailwind Reset (UnoCSS Reset) -->
     <link
       rel="stylesheet"
@@ -23,10 +24,8 @@
     </style>
   </head>
   <body class="bg-gray-100">
-    <form
-      action="#"
+    <div
       class="flex flex-col min-h-screen items-center justify-center py-8 px-4"
-      @submit.prevent="onsubmit"
       @vue:mounted="onmounted"
       v-scope
       v-cloak
@@ -50,6 +49,7 @@
               <select
                 class="appearance-none bg-transparent border-b border-gray-300 pl-4 pr-7 py-1 outline-none focus:border-blue-500"
                 v-model="detectionResolution"
+                @change="onSettingChange"
               >
                 <option value="1024">1024px</option>
                 <option value="1536">1536px</option>
@@ -73,6 +73,7 @@
               <select
                 class="appearance-none bg-transparent border-b border-gray-300 pl-4 pr-7 py-1 outline-none focus:border-blue-500"
                 v-model="textDetector"
+                @change="onSettingChange"
               >
                 <option value="default">Default</option>
                 <option value="ctd">CTD</option>
@@ -95,6 +96,7 @@
               <select
                 class="appearance-none bg-transparent border-b border-gray-300 pl-4 pr-7 py-1 outline-none focus:border-blue-500"
                 v-model="renderTextDirection"
+                @change="onSettingChange"
               >
                 <option value="auto">Auto</option>
                 <option value="horizontal">Horizontal</option>
@@ -117,6 +119,7 @@
               <select
                 class="appearance-none bg-transparent border-b border-gray-300 pl-4 pr-7 py-1 outline-none focus:border-blue-500"
                 v-model="translator"
+                @change="onSettingChange"
               >
                 <option v-for="key in validTranslators" :value="key" :key="key">
                   {{getTranslatorName(key)}}
@@ -136,6 +139,7 @@
               <select  
                   class="appearance-none bg-transparent border-b border-gray-300 pl-4 pr-7 py-1 outline-none focus:border-blue-500"  
                   v-model="targetLanguage"  
+                  @change="onSettingChange"
               >  
                   <option value="CHS">简体中文</option>  
                   <option value="CHT">繁體中文</option>  
@@ -181,6 +185,7 @@
               <select
                 class="appearance-none bg-transparent border-b border-gray-300 pl-4 pr-7 py-1 outline-none focus:border-blue-500"
                 v-model="inpaintingSize"
+                @change="onSettingChange"
               >
                 <option value="516">516px</option>
                 <option value="1024">1024px</option>
@@ -207,6 +212,7 @@
                 v-model="customUnclipRatio"
                 placeholder="2.3 (Default)"
                 step="0.01"
+                @change="onSettingChange"
               />
             </div>
           </div>
@@ -224,6 +230,7 @@
                 v-model="customBoxThreshold"
                 placeholder="0.7 (Default)"
                 step="0.01"
+                @change="onSettingChange"
               />
             </div>
           </div>
@@ -241,6 +248,7 @@
                 v-model="maskDilationOffset"
                 placeholder="30 (Default)"
                 step="1"
+                @change="onSettingChange"
               />
             </div>
           </div>
@@ -252,6 +260,7 @@
               <select
                 class="appearance-none bg-transparent border-b border-gray-300 pl-4 pr-7 py-1 outline-none focus:border-blue-500 w-28"
                 v-model="inpainter"
+                @change="onSettingChange"
               >
                 <option value="default">Default</option>
                 <option value="lama_large">Lama Large</option>
@@ -310,7 +319,7 @@
             </div>
           </div>
 
-          <!-- 画像未アップロード時のアップロードボックス -->
+          <!-- ファイルアップロードエリア -->
           <label
             v-else
             class="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-md p-8 h-72 cursor-pointer hover:border-blue-400 transition-colors py-57"
@@ -325,6 +334,7 @@
               v-if="file"
               class="flex flex-col items-center gap-4 text-center"
             >
+
               <div class="text-gray-700">
                 <span
                   class="iconify-inline inline-block mr-2 text-xl"
@@ -336,19 +346,31 @@
                 class="max-w-[18rem] max-h-[18rem] rounded-md border border-gray-200"
                 :src="fileUri"
               />
+              <div class="flex space-x-2">
               <button
-                type="submit"
-                style="background-color: cadetblue"
-                class="px-4 py-2 rounded-md hover:bg-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                Translate
+                  type="button"
+                  @click="clearFile"
+                  class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-500"
+                  style="color: white !important; background-color: #4B5563 !important;"
+                >
+                  Clear
               </button>
+                <button
+                  type="button"
+                  @click="startTranslation"
+                  class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-green-500"
+                  style="color: white !important; background-color: #059669 !important;"
+                >
+                  Start Translating
+                </button>
+              </div>
               <div class="text-sm text-gray-500">
                 Click the empty space or paste/drag a new one to replace
               </div>
             </div>
             <!-- まだファイルがない場合 -->
             <div v-else class="flex flex-col items-center gap-2 text-center">
+
               <i
                 class="iconify w-8 h-8 text-gray-500"
                 data-icon="carbon:cloud-upload"
@@ -357,6 +379,8 @@
                 Paste an image, click to select one, or drag and drop here
               </div>
             </div>
+            
+
             <input
               id="file"
               type="file"
@@ -401,8 +425,248 @@
             Source Code
           </a>
         </div>
+
+        <!-- Image Queue Section -->
+        <div class="border-t pt-6 mt-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-800">
+              Translation Queue ({{ queuedImages.length }})
+            </h3>
+            <div class="flex space-x-2">
+              <button @click="skipCurrentTranslation" 
+                      class="px-3 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
+                Skip Current
+              </button>
+              <button @click="clearFinishedItems" 
+                      class="px-3 py-1 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                Clear Finished
+              </button>
       </div>
-    </form>
+          </div>
+          
+          <!-- Queue is empty message -->
+          <div v-if="queuedImages.length === 0" class="text-center py-8 text-gray-500">
+            <i class="iconify w-8 h-8 mx-auto mb-2 text-gray-300" data-icon="carbon:list"></i>
+            <p>No images in queue</p>
+            <p class="text-sm">Upload an image and click "Start Translating" to begin</p>
+          </div>
+          
+                    <!-- Queue items -->
+          <div v-else class="space-y-3">
+            <div v-for="queuedImage in queuedImages" :key="queuedImage.id" 
+                 class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border">
+              <!-- Image preview -->
+              <div class="w-16 h-16 flex-shrink-0">
+                <img :src="URL.createObjectURL(queuedImage.file)" 
+                     :alt="queuedImage.file.name"
+                     class="w-full h-full object-cover rounded">
+              </div>
+              
+              <!-- Image info -->
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-gray-900 truncate">
+                  {{ queuedImage.file.name }}
+                </div>
+                <div class="text-xs text-gray-500">
+                  Added: {{ queuedImage.addedAt.toLocaleTimeString() }}
+                </div>
+                <div class="text-xs text-gray-500">
+                  Size: {{ formatSize(queuedImage.file.size) }}
+                </div>
+                
+                <!-- Progress bar for processing items -->
+                <div v-if="queuedImage.status !== 'queued' && queuedImage.status !== 'finished' && queuedImage.status !== 'error' && getStepProgress(queuedImage).percentage > 0" class="mt-2">
+                  <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                         :style="{ width: getStepProgress(queuedImage).percentage + '%' }"></div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Status and actions -->
+              <div class="flex items-center space-x-2">
+                <div class="px-2 py-1 rounded-full text-xs font-medium" 
+                     :class="{
+                       'bg-yellow-100 text-yellow-800': queuedImage.status === 'queued',
+                       'bg-blue-100 text-blue-800': queuedImage.status === 'processing' || queuedImage.status === 'upload',
+                       'bg-green-100 text-green-800': queuedImage.status === 'finished',
+                       'bg-red-100 text-red-800': queuedImage.status === 'error'
+                     }">
+                  {{ queuedImage.status === 'queued' ? 'Queued' : 
+                     queuedImage.status === 'processing' ? 'Processing' :
+                     queuedImage.status === 'upload' ? 'Uploading' :
+                     queuedImage.status === 'finished' ? 'Finished' : 
+                     queuedImage.status === 'error' ? 'Error' : getStepName(queuedImage.status) }}
+                </div>
+                
+                <!-- Show step progress if processing -->
+                <div v-if="queuedImage.status !== 'queued' && queuedImage.status !== 'finished' && queuedImage.status !== 'error' && getStepProgress(queuedImage).percentage > 0" class="flex flex-col">
+                  <div class="text-xs text-gray-500">
+                    {{ getStepProgress(queuedImage).percentage }}%
+                  </div>
+                </div>
+                
+                <!-- Show current step name if processing -->
+                <div v-if="queuedImage.status === 'processing' && queuedImage.progress" 
+                     class="text-xs text-blue-600 max-w-32 truncate" :title="queuedImage.progress">
+                  {{ queuedImage.progress }}
+                </div>
+                
+                <!-- Show queue position if processing -->
+                <div v-if="queuedImage.status === 'processing' && queuedImage.queuePos" 
+                     class="text-xs text-blue-600">
+                  Position: {{ queuedImage.queuePos }}
+                </div>
+                
+                <!-- Show error if any -->
+                <div v-if="queuedImage.status === 'error' && queuedImage.error" 
+                     class="text-xs text-red-600 max-w-32 truncate" :title="queuedImage.error">
+                  {{ queuedImage.error }}
+                </div>
+                
+                <!-- Remove button for all items -->
+                <button @click="removeFromQueue(queuedImage.id)"
+                        class="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                        :title="queuedImage.status === 'processing' ? 'Cancel translation' : 'Remove from queue'">
+                  <i class="iconify w-4 h-4" data-icon="carbon:close"></i>
+                </button>
+                
+                <!-- Manual mark as finished button for testing -->
+                <button v-if="queuedImage.status === 'processing'" 
+                        @click="markAsFinished(queuedImage.id)"
+                        class="p-1 text-gray-400 hover:text-green-500 transition-colors"
+                        title="Mark as finished (testing)">
+                  <i class="iconify w-4 h-4" data-icon="carbon:checkmark"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results Gallery Section -->
+        <div class="border-t pt-6 mt-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-800">
+              Translation Results ({{ finishedImages.length }})
+            </h3>
+            <div class="flex space-x-2">
+              <button @click="toggleGallery" 
+                      class="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                {{ showGallery ? 'Hide' : 'Show' }} Gallery
+              </button>
+              <button @click="syncGalleryWithResults"
+                      class="px-3 py-1 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                Sync with Results
+              </button>
+              <button @click="refreshGallery"
+                      class="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                Refresh
+              </button>
+              <button v-if="finishedImages.length > 0" @click="clearGallery"
+                      class="px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors">
+                Delete All
+              </button>
+            </div>
+          </div>
+          
+          <!-- Gallery Grid -->
+          <div v-if="showGallery && finishedImages.length > 0" 
+               class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div v-for="image in finishedImages" :key="image.id"
+                 class="group cursor-pointer bg-white rounded-lg border hover:border-blue-400 hover:shadow-md transition-all duration-200"
+                 @click="openImageModal(image)">
+              <div class="relative aspect-square overflow-hidden rounded-t-lg">
+                <img :src="image.result" 
+                     :alt="'Translated: ' + image.originalName"
+                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200">
+                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                  <i class="iconify w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                     data-icon="carbon:view"></i>
+                </div>
+              </div>
+              <div class="p-2">
+                <div class="text-xs text-gray-600 truncate" :title="image.originalName">
+                  {{ image.originalName }}
+                </div>
+                <div class="text-xs text-gray-400">
+                  {{ new Date(image.finishedAt).toLocaleDateString() }}
+                </div>
+                <!-- Delete button -->
+                <button @click.stop="deleteImage(image)" 
+                        class="mt-1 p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                        title="Delete this image">
+                  <i class="iconify w-3 h-3" data-icon="carbon:trash-can"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Empty gallery message -->
+          <div v-else-if="showGallery" class="text-center py-12 text-gray-500">
+            <i class="iconify w-12 h-12 mx-auto mb-4 text-gray-300" data-icon="carbon:image"></i>
+            <p>No finished translations yet</p>
+            <p class="text-sm">Completed translations will appear here</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Image Modal -->
+      <div v-if="showImageModal" 
+           class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+           @click="closeImageModal">
+        <div class="relative max-w-4xl max-h-full p-4" @click.stop>
+          <!-- Close button -->
+          <button @click="closeImageModal" 
+                  class="absolute top-2 right-2 z-10 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all">
+            <i class="iconify w-6 h-6" data-icon="carbon:close"></i>
+          </button>
+          
+          <!-- Zoom button -->
+          <button @click="toggleZoom" 
+                  class="absolute top-2 right-12 z-10 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all"
+                  :title="isImageZoomed ? 'Zoom out' : 'Zoom in'">
+            <i class="iconify w-6 h-6" :data-icon="isImageZoomed ? 'carbon:zoom-out' : 'carbon:zoom-in'"></i>
+          </button>
+          
+          <!-- Navigation buttons -->
+          <button v-if="finishedImages.length > 1" 
+                  @click="previousImage" 
+                  class="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all">
+            <i class="iconify w-6 h-6" data-icon="carbon:arrow-left"></i>
+          </button>
+          
+          <button v-if="finishedImages.length > 1" 
+                  @click="nextImage" 
+                  class="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-75 transition-all">
+            <i class="iconify w-6 h-6" data-icon="carbon:arrow-right"></i>
+          </button>
+          
+          <!-- Image -->
+          <img v-if="selectedImage" 
+               :src="selectedImage.result" 
+               :alt="'Translated: ' + selectedImage.originalName"
+               class="max-w-full max-h-full object-contain rounded-lg cursor-pointer"
+               :class="{ 'transition-transform duration-300': !isDragging }"
+               :style="{ 
+                 transform: `scale(${imageTransform.scale}) translate(${imageTransform.translateX}px, ${imageTransform.translateY}px)`
+               }"
+               @click="toggleZoom"
+               @mousedown="onImageMouseDown"
+               @mousemove="onImageMouseMove"
+               @mouseup="onImageMouseUp"
+               @mouseleave="onImageMouseUp">
+          
+          <!-- Image info -->
+          <div v-if="selectedImage" 
+               class="absolute bottom-4 left-4 right-4 bg-black bg-opacity-50 text-white p-3 rounded-lg">
+            <div class="text-sm font-medium">{{ selectedImage.originalName }}</div>
+            <div class="text-xs text-gray-300">
+              {{ new Date(selectedImage.finishedAt).toLocaleString() }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <script>
       const BASE_URI = "./";
@@ -430,11 +694,69 @@
       PetiteVue.createApp({
         onmounted() {
           window.addEventListener("paste", this.onpaste);
+          this.loadSettings();
+          this.loadFinishedImages();
+          // Sync gallery with results folder on page load
+          setTimeout(() => {
+            this.syncGalleryWithResults();
+          }, 1000);
+          
+          // Periodically sync gallery with results folder
+          setInterval(() => {
+            this.syncGalleryWithResults();
+          }, 30000); // Sync every 30 seconds
+          
+          // Add keyboard event listeners for modal navigation
+          window.addEventListener('keydown', this.handleKeydown);
         },
 
         file: null,
         get fileUri() {
           return this.file ? URL.createObjectURL(this.file) : null;
+        },
+        
+        // New features: Queue and Gallery
+        queuedImages: [],
+        finishedImages: [],
+        showGallery: false,
+        
+        // Gallery modal
+        selectedImage: null,
+        showImageModal: false,
+        isImageZoomed: false,
+        imageTransform: {
+          scale: 1,
+          translateX: 0,
+          translateY: 0
+        },
+        isDragging: false,
+        
+        // Step tracking for progress
+        translationSteps: [
+          'upload',
+          'pending', 
+          'detection',
+          'ocr',
+          'mask-generation',
+          'inpainting',
+          'upscaling',
+          'translating',
+          'rendering',
+          'finished'
+        ],
+        
+        // Map actual server status to step numbers for better progress tracking
+        statusToStep: {
+          'upload': 1,
+          'pending': 2,
+          'detection': 3,
+          'ocr': 4,
+          'mask-generation': 5,
+          'inpainting': 6,
+          'upscaling': 7,
+          'translating': 8,
+          'rendering': 9,
+          'finished': 10
         },
         detectionResolution: "1536",
         textDetector: "default",
@@ -479,6 +801,53 @@
 
         uploadController: null,
 
+        // Settings change handlers for auto-saving
+        onSettingChange() {
+          this.saveSettings();
+        },
+
+        // Settings persistence
+        loadSettings() {
+          try {
+            const saved = localStorage.getItem('manga-translator-settings');
+            if (saved) {
+              const settings = JSON.parse(saved);
+              if (settings.detectionResolution) this.detectionResolution = settings.detectionResolution;
+              if (settings.textDetector) this.textDetector = settings.textDetector;
+              if (settings.renderTextDirection) this.renderTextDirection = settings.renderTextDirection;
+              if (settings.translator) this.translator = settings.translator;
+              if (settings.targetLanguage) this.targetLanguage = settings.targetLanguage;
+              if (settings.inpaintingSize) this.inpaintingSize = settings.inpaintingSize;
+              if (settings.customUnclipRatio) this.customUnclipRatio = settings.customUnclipRatio;
+              if (settings.customBoxThreshold) this.customBoxThreshold = settings.customBoxThreshold;
+              if (settings.maskDilationOffset) this.maskDilationOffset = settings.maskDilationOffset;
+              if (settings.inpainter) this.inpainter = settings.inpainter;
+            }
+          } catch (error) {
+            console.warn('Failed to load settings:', error);
+          }
+        },
+
+        saveSettings() {
+          try {
+            const settings = {
+              detectionResolution: this.detectionResolution,
+              textDetector: this.textDetector,
+              renderTextDirection: this.renderTextDirection,
+              translator: this.translator,
+              targetLanguage: this.targetLanguage,
+              inpaintingSize: this.inpaintingSize,
+              customUnclipRatio: this.customUnclipRatio,
+              customBoxThreshold: this.customBoxThreshold,
+              maskDilationOffset: this.maskDilationOffset,
+              inpainter: this.inpainter,
+            };
+            localStorage.setItem('manga-translator-settings', JSON.stringify(settings));
+          } catch (error) {
+            console.warn('Failed to save settings:', error);
+          }
+        },
+
         ondrop(e) {
           const file = e.dataTransfer?.files?.[0];
           if (file && acceptTypes.includes(file.type)) {
@@ -501,6 +870,351 @@
               this.file = file;
             }
           }
+        },
+
+        // Queue management
+        clearFile() {
+          this.file = null;
+        },
+
+        removeFromQueue(id) {
+          const itemIndex = this.queuedImages.findIndex(img => img.id === id);
+          if (itemIndex !== -1) {
+            const item = this.queuedImages[itemIndex];
+            
+            // If it's currently processing, abort the translation
+            if (item.status === 'processing') {
+              this.uploadController?.abort();
+            }
+            
+            // Remove the item from queue
+            this.queuedImages.splice(itemIndex, 1);
+            
+            // If we removed a processing item, start the next one
+            if (item.status === 'processing') {
+              setTimeout(() => {
+                this.processNextInQueue();
+              }, 500);
+            }
+          }
+        },
+
+        // Gallery management
+        loadFinishedImages() {
+          try {
+            const saved = localStorage.getItem('manga-translator-finished-images');
+            if (saved) {
+              this.finishedImages = JSON.parse(saved);
+            }
+          } catch (error) {
+            console.warn('Failed to load finished images:', error);
+          }
+        },
+
+        addToFinishedImages(imageData) {
+          const finishedImage = {
+            id: Date.now() + Math.random(),
+            originalName: imageData.name || 'Unknown',
+            result: imageData.result,
+            finishedAt: new Date(),
+            settings: {
+              detectionResolution: this.detectionResolution,
+              textDetector: this.textDetector,
+              renderTextDirection: this.renderTextDirection,
+              translator: this.translator,
+              targetLanguage: this.targetLanguage,
+              inpaintingSize: this.inpaintingSize,
+              customUnclipRatio: this.customUnclipRatio,
+              customBoxThreshold: this.customBoxThreshold,
+              maskDilationOffset: this.maskDilationOffset,
+              inpainter: this.inpainter,
+            }
+          };
+          this.finishedImages.unshift(finishedImage);
+          
+          // Save to localStorage (keep only last 20)
+          try {
+            const limited = this.finishedImages.slice(0, 20);
+            localStorage.setItem('manga-translator-finished-images', JSON.stringify(limited));
+          } catch (error) {
+            console.warn('Failed to save finished images:', error);
+          }
+        },
+
+        clearGallery() {
+          // Show confirmation dialog
+          if (confirm('Are you sure you want to delete all finished translations? This will permanently delete all result files.')) {
+            this.clearGalleryFromServer();
+          }
+        },
+
+        async clearGalleryFromServer() {
+          try {
+            const response = await fetch(`${BASE_URI}results/clear`, {
+              method: 'DELETE'
+            });
+            
+            if (response.ok) {
+              const result = await response.json();
+              console.log('Gallery cleared:', result.message);
+              
+              // Clear from localStorage and UI
+              this.finishedImages = [];
+              localStorage.removeItem('manga-translator-finished-images');
+            } else {
+              console.error('Failed to clear gallery from server');
+              alert('Failed to delete files from server. Please try again.');
+            }
+          } catch (error) {
+            console.error('Error clearing gallery:', error);
+            alert('Error deleting files. Please try again.');
+          }
+        },
+
+        toggleGallery() {
+          this.showGallery = !this.showGallery;
+        },
+
+        // Start translation for current file
+        startTranslation() {
+          if (!this.file) return;
+
+          // Clear any finished items from queue
+          this.clearFinishedItems();
+          
+          const currentFile = this.file;
+          
+          // Check if something is actually currently translating (has a real processing step status)
+          const processingSteps = ['upload', 'pending', 'detection', 'ocr', 'mask-generation', 'inpainting', 'upscaling', 'translating', 'rendering'];
+          const isCurrentlyTranslating = this.queuedImages.some(item => 
+            processingSteps.includes(item.status)
+          );
+          console.log('Currently translating:', isCurrentlyTranslating);
+          console.log('Current queue statuses:', this.queuedImages.map(item => ({ id: item.id, status: item.status })));
+          
+          if (isCurrentlyTranslating) {
+            // Add to back of queue with 'queued' status
+            const queuedImage = {
+              id: Date.now() + Math.random(),
+              file: currentFile,
+              addedAt: new Date(),
+              status: 'queued'  // Explicitly set as queued
+            };
+            this.queuedImages.push(queuedImage);
+            this.file = null; // Clear current file
+            console.log('Added image to queue with status:', queuedImage.status);
+          } else {
+            // Start translating immediately with 'processing' status
+            const queuedImage = {
+              id: Date.now() + Math.random(),
+              file: currentFile,
+              addedAt: new Date(),
+              status: 'processing'  // This one will be processing
+            };
+            this.queuedImages.push(queuedImage);
+            this.file = null; // Clear current file
+            
+            console.log('Starting translation with status:', queuedImage.status);
+            // Start the translation process
+            this.processTranslation(queuedImage);
+          }
+        },
+
+
+
+        // Process translation for a specific queued image
+        async processTranslation(queuedImage) {
+          this.uploadController?.abort();
+          this.uploadController = new AbortController();
+
+          // Reset translation state for new translation
+          this.currentFolder = null;
+          this.finalPngDisplayed = false;
+          this.useFileResult = true;
+          
+          console.log("Started new translation, reset currentFolder to null");
+
+          // Status is already set correctly in startTranslation, no need to change it here
+
+          let buffer = new Uint8Array();
+
+          const formData = new FormData();
+          formData.append("image", queuedImage.file);
+
+          const config = `{
+          "detector": {
+            "detector": "${this.textDetector}",
+            "detection_size": ${this.detectionResolution},
+            "box_threshold": ${this.customBoxThreshold},
+            "unclip_ratio": ${this.customUnclipRatio}
+          },
+          "render": {
+            "direction": "${this.renderTextDirection}"
+          },
+          "translator": {
+            "translator": "${this.translator}",
+            "target_lang": "${this.targetLanguage}"
+          },
+          "inpainter": {
+            "inpainter": "${this.inpainter}",
+            "inpainting_size": ${this.inpaintingSize}
+          },
+          "mask_dilation_offset": ${this.maskDilationOffset}
+        }`;
+
+          formData.append("config", config);
+
+          const processChunk = (value) => {
+            const newBuffer = new Uint8Array(buffer.length + value.length);
+            newBuffer.set(buffer);
+            newBuffer.set(value, buffer.length);
+            buffer = newBuffer;
+
+            while (buffer.length >= 5) {
+              const dataSize = new DataView(buffer.buffer).getUint32(1, false);
+              const totalSize = 5 + dataSize;
+              if (buffer.length < totalSize) {
+                break;
+              }
+
+              const statusCode = buffer[0];
+              const decoder = new TextDecoder("utf-8");
+              const data = buffer.slice(5, totalSize);
+              
+              // Find the current processing item index for Vue reactivity
+              const processingItemIndex = this.queuedImages.findIndex(item => item.id === queuedImage.id);
+              
+              switch (statusCode) {
+                case 0:
+                  // 如果已经显示了final.png文件，忽略占位符数据
+                  if (this.finalPngDisplayed) {
+                    console.log("已显示final.png，忽略占位符数据");
+                    break;
+                  }
+
+                  // 如果使用文件结果模式，忽略数据，使用文件URL
+                  if (!this.useFileResult && processingItemIndex !== -1) {
+                    this.queuedImages[processingItemIndex] = {
+                      ...this.queuedImages[processingItemIndex],
+                      result: new Blob([data], { type: "image/png" }),
+                      status: 'finished'
+                    };
+                  }
+                  // 在文件模式下，依赖 final_ready 消息来更新 UI
+                  break;
+                case 1:
+                  const newStatus = decoder.decode(data);
+
+                  // 检查是否是rendering_folder消息
+                  if (newStatus.startsWith("rendering_folder:")) {
+                    this.currentFolder = newStatus.substring(17); // 移除"rendering_folder:"前缀
+                    console.log("收到文件夹信息:", this.currentFolder);
+                  } else if (newStatus.startsWith("final_ready:")) {
+                    // final.png已就绪，立即显示
+                    const readyFolder = newStatus.substring(12); // 移除"final_ready:"前缀
+                    console.log("final.png已就绪，文件夹:", readyFolder);
+                    
+                    // Ensure currentFolder is set
+                    if (!this.currentFolder) {
+                      this.currentFolder = readyFolder;
+                      console.log("Set currentFolder from final_ready:", this.currentFolder);
+                    }
+                    
+                    this.showFinalResult();
+                  } else if (processingItemIndex !== -1) {
+                    // Update the processing item status and progress using Vue reactivity
+                    console.log('Updating status for queued image:', queuedImage.id, 'to:', newStatus);
+                    this.queuedImages[processingItemIndex] = {
+                      ...this.queuedImages[processingItemIndex],
+                      status: newStatus,
+                      progress: newStatus
+                    };
+                  }
+                  break;
+                case 2:
+                  const errorText = decoder.decode(data);
+                  // Update the processing item status
+                  if (processingItemIndex !== -1) {
+                    this.queuedImages[processingItemIndex] = {
+                      ...this.queuedImages[processingItemIndex],
+                      status: 'error',
+                      error: errorText
+                    };
+                  }
+                  console.error(errorText);
+                  break;
+                case 3:
+                  const queuePos = decoder.decode(data);
+                  // Update the processing item queue position
+                  if (processingItemIndex !== -1) {
+                    this.queuedImages[processingItemIndex] = {
+                      ...this.queuedImages[processingItemIndex],
+                      queuePos: queuePos
+                    };
+                  }
+                  break;
+                case 4:
+                  // Update the processing item queue position
+                  if (processingItemIndex !== -1) {
+                    this.queuedImages[processingItemIndex] = {
+                      ...this.queuedImages[processingItemIndex],
+                      queuePos: null
+                    };
+                  }
+                  break;
+              }
+              buffer = buffer.slice(totalSize);
+            }
+          };
+
+          const uploadWithProgress = async (formData) => {
+            try {
+              const response = await fetch(
+                `${BASE_URI}translate/with-form/image/stream/web`,
+                {
+                  method: "POST",
+                  body: formData,
+                  signal: this.uploadController.signal,
+                }
+              );
+
+              if (response.status !== 200) {
+                const processingItemIndex = this.queuedImages.findIndex(item => item.id === queuedImage.id);
+                if (processingItemIndex !== -1) {
+                  this.queuedImages[processingItemIndex] = {
+                    ...this.queuedImages[processingItemIndex],
+                    status: "error",
+                    error: "Upload failed"
+                  };
+                }
+                return;
+              }
+
+              const reader = response.body.getReader();
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                processChunk(value);
+              }
+
+            } catch (error) {
+              if (error.name === 'AbortError') {
+                console.log('Fetch aborted');
+                return;
+              }
+              console.error(error);
+              const processingItemIndex = this.queuedImages.findIndex(item => item.id === queuedImage.id);
+              if (processingItemIndex !== -1) {
+                this.queuedImages[processingItemIndex] = {
+                  ...this.queuedImages[processingItemIndex],
+                  status: "error",
+                  error: "Connection error"
+                };
+              }
+            }
+          };
+
+          uploadWithProgress(formData);
         },
 
         progress: null,
@@ -574,166 +1288,429 @@
           return this.result ? URL.createObjectURL(this.result) : null;
         },
 
-        async onsubmit(e) {
-          if (!this.file) return;
 
-          this.uploadController?.abort();
-          this.uploadController = new AbortController();
-
-          this.progress = null;
-          this.queuePos = null;
-          this.status = "upload";
-          this.errorMessage = null;
-          let buffer = new Uint8Array();
-
-          const formData = new FormData();
-          formData.append("image", this.file);
-
-          const config = `{
-          "detector": {
-            "detector": "${this.textDetector}",
-            "detection_size": ${this.detectionResolution},
-            "box_threshold": ${this.customBoxThreshold},
-            "unclip_ratio": ${this.customUnclipRatio}
-          },
-          "render": {
-            "direction": "${this.renderTextDirection}"
-          },
-          "translator": {
-            "translator": "${this.translator}",
-            "target_lang": "${this.targetLanguage}"
-          },
-          "inpainter": {
-            "inpainter": "${this.inpainter}",
-            "inpainting_size": ${this.inpaintingSize}
-          },
-          "mask_dilation_offset": ${this.maskDilationOffset}
-        }`;
-
-          formData.append("config", config);
-
-          const processChunk = (value) => {
-            if (this.error) return;
-
-            const newBuffer = new Uint8Array(buffer.length + value.length);
-            newBuffer.set(buffer);
-            newBuffer.set(value, buffer.length);
-            buffer = newBuffer;
-
-            while (buffer.length >= 5) {
-              const dataSize = new DataView(buffer.buffer).getUint32(1, false);
-              const totalSize = 5 + dataSize;
-              if (buffer.length < totalSize) {
-                break;
-              }
-
-              const statusCode = buffer[0];
-              const decoder = new TextDecoder("utf-8");
-              const data = buffer.slice(5, totalSize);
-              switch (statusCode) {
-                case 0:
-                  // 如果已经显示了final.png文件，忽略占位符数据
-                  if (this.finalPngDisplayed) {
-                    console.log("已显示final.png，忽略占位符数据");
-                    break;
-                  }
-
-                  // 如果使用文件结果模式，忽略数据，使用文件URL
-                  if (!this.useFileResult) {
-                    this.result = new Blob([data], { type: "image/png" });
-                    this.status = null;
-                  }
-                  // 在文件模式下，依赖 final_ready 消息来更新 UI
-                  break;
-                case 1:
-                  const newStatus = decoder.decode(data);
-
-                  // 检查是否是rendering_folder消息
-                  if (newStatus.startsWith("rendering_folder:")) {
-                    this.currentFolder = newStatus.substring(17); // 移除"rendering_folder:"前缀
-                    console.log("收到文件夹信息:", this.currentFolder);
-                  } else if (newStatus.startsWith("final_ready:")) {
-                    // final.png已就绪，立即显示
-                    const readyFolder = newStatus.substring(12); // 移除"final_ready:"前缀
-                    console.log("final.png已就绪，文件夹:", readyFolder);
-                    this.showFinalResult();
-                  } else {
-                    this.status = newStatus;
-                  }
-                  break;
-                case 2:
-                  const errorText = decoder.decode(data);
-                  this.status = "error";
-                  this.errorMessage = errorText;
-                  console.error(errorText);
-                  break;
-                case 3:
-                  this.status = "pending";
-                  this.queuePos = decoder.decode(data);
-                  break;
-                case 4:
-                  this.status = "pending";
-                  this.queuePos = null;
-                  break;
-              }
-              buffer = buffer.slice(totalSize);
-            }
-          };
-
-          const uploadWithProgress = async (formData) => {
-            try {
-              const response = await fetch(
-                `${BASE_URI}translate/with-form/image/stream/web`,
-                {
-                  method: "POST",
-                  body: formData,
-                  signal: this.uploadController.signal,
-                }
-              );
-
-              if (response.status !== 200) {
-                this.status = "error-upload";
-                this.status = "pending";
-                return;
-              }
-
-              const reader = response.body.getReader();
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                processChunk(value);
-              }
-
-              // 流结束后不再需要检查，因为检查已在rendering时触发
-              // if (!this.error) {
-              //     this.status = "finished";
-              //     await this.checkFileExists();
-              // }
-
-            } catch (error) {
-              if (error.name === 'AbortError') {
-                console.log('Fetch aborted');
-                return;
-              }
-              console.error(error);
-              this.status = "error-disconnect";
-            }
-          };
-
-          uploadWithProgress(formData);
-        },
 
         // 显示final.png结果
         showFinalResult() {
           console.log("final.png已就绪，立即显示");
-
-          // 立即显示final.png
-          this.useFileResult = true;
-          this.result = true; // 设置一个真值以显示<img>标签
-          this.status = "finished"; // 设置为finished状态
+          console.log("Current folder:", this.currentFolder);
 
           // 标记已显示final.png，后续占位符数据将被忽略
           this.finalPngDisplayed = true;
+
+          // Find the item that was just processed - it might already be 'finished' or still processing
+          // Look for the first item that's not 'queued' (either 'finished' or still processing)
+          const processingItemIndex = this.queuedImages.findIndex(item => 
+            item.status !== 'queued'
+          );
+          
+          console.log("Looking for processing/finished item, found at index:", processingItemIndex);
+          console.log("Current queue statuses:", this.queuedImages.map(item => ({ id: item.id, status: item.status })));
+          
+          if (processingItemIndex !== -1) {
+            const processingItem = this.queuedImages[processingItemIndex];
+            
+            // Check if currentFolder is available
+            if (!this.currentFolder) {
+              console.warn("currentFolder is null, cannot set result URL");
+              return;
+            }
+            
+            // Update the item using Vue reactivity - ensure it has the correct result URL
+            this.queuedImages[processingItemIndex] = {
+              ...processingItem,
+              status: 'finished',
+              result: `${BASE_URI}result/${this.currentFolder}/final.png`
+            };
+            
+            console.log("Updated queued image:", this.queuedImages[processingItemIndex]);
+            
+            // Add to finished images gallery
+            this.addToFinishedImages({
+              name: processingItem.file.name,
+              result: `${BASE_URI}result/${this.currentFolder}/final.png`
+            });
+            
+            // Auto-process next item in queue FIRST
+            setTimeout(() => {
+              console.log("Auto-processing next item in queue");
+              this.processNextInQueue();
+            }, 500); // Wait 500ms before processing next
+            
+            // Clear finished items from queue AFTER processing next
+            setTimeout(() => {
+              this.clearFinishedItems();
+            }, 3000); // Wait 3 seconds before clearing so user can see the finished status
+          } else {
+            console.warn("No processing item found in queue");
+          }
+        },
+
+    // Process next item in queue
+    processNextInQueue() {
+      console.log("processNextInQueue called");
+      console.log("Current queue:", this.queuedImages.map(item => ({ id: item.id, status: item.status })));
+      
+      const nextItemIndex = this.queuedImages.findIndex(item => item.status === 'queued');
+      console.log("Next queued item index:", nextItemIndex);
+      
+      if (nextItemIndex !== -1) {
+        const nextItem = this.queuedImages[nextItemIndex];
+        console.log("Found next item:", nextItem);
+        
+        // Update the item using Vue reactivity
+        this.queuedImages[nextItemIndex] = {
+          ...nextItem,
+          status: 'processing'
+        };
+        
+        console.log("Starting translation for next item:", this.queuedImages[nextItemIndex]);
+        this.processTranslation(this.queuedImages[nextItemIndex]);
+      } else {
+        console.log("No queued items to process");
+      }
+    },
+
+    // Get current settings for saving with finished images
+    getCurrentSettings() {
+      return {
+        detectionResolution: this.detectionResolution,
+        textDetector: this.textDetector,
+        renderTextDirection: this.renderTextDirection,
+        translator: this.translator,
+        targetLanguage: this.targetLanguage,
+        inpaintingSize: this.inpaintingSize,
+        customUnclipRatio: this.customUnclipRatio,
+        customBoxThreshold: this.customBoxThreshold,
+        maskDilationOffset: this.maskDilationOffset,
+        inpainter: this.inpainter
+      };
+    },
+
+    // Sync gallery with results folder
+    async syncGalleryWithResults() {
+      try {
+        const response = await fetch(`${BASE_URI}results/list`);
+        if (response.ok) {
+          const data = await response.json();
+          const folders = data.directories || [];
+          
+          // Add any new results that aren't in our gallery
+          for (const folder of folders) {
+            const existingImage = this.finishedImages.find(img => 
+              img.result && img.result.includes(folder)
+            );
+            
+            if (!existingImage) {
+              // Check if final.png exists in this folder
+              const finalResponse = await fetch(`${BASE_URI}result/${folder}/final.png`);
+              if (finalResponse.ok) {
+                const newImage = {
+                  id: Date.now() + Math.random(),
+                  originalName: folder, // Use folder name as original name
+                  result: `${BASE_URI}result/${folder}/final.png`,
+                  finishedAt: new Date(),
+                  settings: this.getCurrentSettings()
+                };
+                this.finishedImages.unshift(newImage);
+              }
+            }
+          }
+          
+          // Save updated gallery
+          try {
+            const limited = this.finishedImages.slice(0, 50);
+            localStorage.setItem('manga-translator-finished-images', JSON.stringify(limited));
+          } catch (error) {
+            console.warn('Failed to save finished images:', error);
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to sync gallery with results folder:', error);
+      }
+    },
+
+    // Refresh gallery manually
+    refreshGallery() {
+      this.syncGalleryWithResults();
+    },
+
+    // Gallery modal functions
+    openImageModal(image) {
+      console.log('openImageModal called with:', image);
+      this.selectedImage = image;
+      this.showImageModal = true;
+    },
+
+    closeImageModal() {
+      this.showImageModal = false;
+      this.selectedImage = null;
+      this.isImageZoomed = false; // Reset zoom when closing
+      this.imageTransform = { scale: 1, translateX: 0, translateY: 0 }; // Reset transform
+    },
+
+    toggleZoom(event) {
+      if (this.isImageZoomed) {
+        // Zoom out - reset to normal
+        this.isImageZoomed = false;
+        this.imageTransform = { scale: 1, translateX: 0, translateY: 0 };
+      } else {
+        // Zoom in - zoom to click point
+        this.isImageZoomed = true;
+        this.imageTransform.scale = 2;
+        
+        // Calculate click position relative to image
+        if (event) {
+          const rect = event.target.getBoundingClientRect();
+          const x = event.clientX - rect.left;
+          const y = event.clientY - rect.top;
+          
+          // Set transform origin to click point
+          event.target.style.transformOrigin = `${x}px ${y}px`;
+        }
+      }
+      console.log('Image zoomed:', this.isImageZoomed, this.imageTransform);
+    },
+
+    // Handle middle mouse button drag
+    onImageMouseDown(event) {
+      if (event.button === 1) { // Middle mouse button
+        event.preventDefault();
+        this.isDragging = true;
+        this.dragStart = { x: event.clientX, y: event.clientY };
+        this.dragStartTransform = { ...this.imageTransform };
+      }
+    },
+
+    onImageMouseMove(event) {
+      if (this.isDragging && this.isImageZoomed) {
+        const deltaX = event.clientX - this.dragStart.x;
+        const deltaY = event.clientY - this.dragStart.y;
+        
+        this.imageTransform.translateX = this.dragStartTransform.translateX + deltaX;
+        this.imageTransform.translateY = this.dragStartTransform.translateY + deltaY;
+      }
+    },
+
+    onImageMouseUp() {
+      this.isDragging = false;
+    },
+
+    nextImage() {
+      if (this.selectedImage) {
+        const currentIndex = this.finishedImages.findIndex(img => img.id === this.selectedImage.id);
+        if (currentIndex < this.finishedImages.length - 1) {
+          this.selectedImage = this.finishedImages[currentIndex + 1];
+          // Reset transform when switching images
+          this.isImageZoomed = false;
+          this.imageTransform = { scale: 1, translateX: 0, translateY: 0 };
+        }
+      }
+    },
+
+    previousImage() {
+      if (this.selectedImage) {
+        const currentIndex = this.finishedImages.findIndex(img => img.id === this.selectedImage.id);
+        if (currentIndex > 0) {
+          this.selectedImage = this.finishedImages[currentIndex - 1];
+          // Reset transform when switching images
+          this.isImageZoomed = false;
+          this.imageTransform = { scale: 1, translateX: 0, translateY: 0 };
+        }
+      }
+    },
+
+    // Keyboard navigation for modal
+    handleKeydown(event) {
+      if (!this.showImageModal) return;
+      
+      switch (event.key) {
+        case 'Escape':
+          this.closeImageModal();
+          break;
+        case 'ArrowLeft':
+          this.previousImage();
+          break;
+        case 'ArrowRight':
+          this.nextImage();
+          break;
+        case 'z':
+        case 'Z':
+          this.toggleZoom();
+          break;
+      }
+    },
+
+    // Calculate step progress for a queued image
+    getStepProgress(queuedImage) {
+      console.log('Calculating progress for status:', queuedImage.status);
+      
+      if (!queuedImage.status || queuedImage.status === 'queued') {
+        return { percentage: 0 };
+      }
+      
+      // Map status to step number for progress calculation
+      const stepMap = {
+        'upload': 1,
+        'pending': 2,
+        'detection': 3,
+        'ocr': 4,
+        'mask-generation': 5,
+        'inpainting': 6,
+        'upscaling': 7,
+        'translating': 8,
+        'rendering': 9,
+        'finished': 10
+      };
+      
+      const currentStep = stepMap[queuedImage.status];
+      console.log('Status maps to step:', currentStep);
+      
+      if (currentStep === undefined) {
+        // If status is not in our map, estimate based on known steps
+        if (queuedImage.status === 'error') {
+          return { percentage: 0 };
+        }
+        if (queuedImage.status === 'processing') {
+          // For 'processing' status, show 0% until we get actual step updates
+          return { percentage: 0 };
+        }
+        // For unknown status, assume it's in the middle
+        return { percentage: 50 };
+      }
+      
+      const totalSteps = 10;
+      const percentage = Math.round(((currentStep - 1) / (totalSteps - 1)) * 100);
+      
+      console.log('Progress result:', { percentage });
+      return { percentage: percentage };
+    },
+
+    // Get user-friendly step name
+    getStepName(step) {
+      const stepNames = {
+        'upload': 'Uploading',
+        'pending': 'Queuing',
+        'detection': 'Detecting texts',
+        'ocr': 'Running OCR',
+        'mask-generation': 'Generating text mask',
+        'inpainting': 'Running inpainting',
+        'upscaling': 'Running upscaling',
+        'translating': 'Translating',
+        'rendering': 'Rendering translated texts',
+        'finished': 'Finished'
+      };
+      return stepNames[step] || step;
+    },
+
+    // Clear finished items from queue
+    clearFinishedItems() {
+      console.log("clearFinishedItems called");
+      console.log("Before clearing:", this.queuedImages.map(item => ({ id: item.id, status: item.status })));
+      
+      // Only clear items that are actually finished, not just have 'finished' status
+      this.queuedImages = this.queuedImages.filter(item => 
+        item.status !== 'finished' && item.status !== 'error'
+      );
+      
+      console.log("After clearing:", this.queuedImages.map(item => ({ id: item.id, status: item.status })));
+    },
+
+    // Skip current translation and move to next
+    skipCurrentTranslation() {
+      console.log('Skip current translation called');
+      console.log('Current queued images:', this.queuedImages);
+      
+      const processingItemIndex = this.queuedImages.findIndex(item => item.status === 'processing');
+      console.log('Processing item index:', processingItemIndex);
+      
+      if (processingItemIndex !== -1) {
+        const processingItem = this.queuedImages[processingItemIndex];
+        console.log('Found processing item:', processingItem);
+        
+        // Abort current translation
+        this.uploadController?.abort();
+        console.log('Aborted upload controller');
+        
+        // Mark current item as skipped/error
+        this.queuedImages[processingItemIndex] = {
+          ...processingItem,
+          status: 'error',
+          error: 'Skipped by user'
+        };
+        
+        console.log('Marked item as skipped');
+        
+        // Clear finished/error items and move to next
+        setTimeout(() => {
+          this.clearFinishedItems();
+          this.processNextInQueue();
+        }, 1000);
+      } else {
+      }
+    },
+
+    // Manually mark an item as finished (for testing)
+    markAsFinished(id) {
+      const item = this.queuedImages.find(img => img.id === id);
+      if (item && item.status === 'processing') {
+        const itemIndex = this.queuedImages.findIndex(img => img.id === id);
+        this.queuedImages[itemIndex] = {
+          ...item,
+          status: 'finished',
+          result: `${BASE_URI}result/${this.currentFolder || 'test'}/final.png`
+        };
+        
+        // Add to finished images gallery
+        this.addToFinishedImages({
+          name: item.file.name,
+          result: `${BASE_URI}result/${this.currentFolder || 'test'}/final.png`
+        });
+        
+        // Clear finished items from queue after a delay
+        setTimeout(() => {
+          this.clearFinishedItems();
+        }, 2000);
+        
+        // Auto-process next item in queue
+        setTimeout(() => {
+          this.processNextInQueue();
+        }, 1000);
+      }
+    },
+
+    // Delete an image from the finished gallery
+    deleteImage(image) {
+      if (confirm(`Are you sure you want to delete "${image.originalName}"? This action cannot be undone.`)) {
+        this.deleteImageFromServer(image);
+      }
+    },
+
+    async deleteImageFromServer(image) {
+      try {
+        // Extract folder name from the result URL
+        const urlParts = image.result.split('/');
+        const folderName = urlParts[urlParts.length - 2]; // Get the folder name from the URL
+        
+        const response = await fetch(`${BASE_URI}results/${folderName}`, {
+          method: 'DELETE'
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('Image deleted:', result.message);
+          
+          // Remove from local array and localStorage
+          this.finishedImages = this.finishedImages.filter(img => img.id !== image.id);
+          localStorage.setItem('manga-translator-finished-images', JSON.stringify(this.finishedImages));
+        } else {
+          console.error('Failed to delete image from server');
+          alert('Failed to delete image. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error deleting image:', error);
+        alert('Error deleting image. Please try again.');
+      }
         },
 
         clear() {

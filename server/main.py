@@ -318,6 +318,68 @@ async def execute_batch_stream(req: Request, data: BatchTranslateRequest):
     
     return results
 
+@app.get("/results/list", tags=["api"])
+async def list_results():
+    """List all result directories"""
+    result_dir = "../result"
+    if not os.path.exists(result_dir):
+        return {"directories": []}
+    
+    try:
+        directories = []
+        for item in os.listdir(result_dir):
+            item_path = os.path.join(result_dir, item)
+            if os.path.isdir(item_path):
+                # Check if final.png exists in this directory
+                final_png_path = os.path.join(item_path, "final.png")
+                if os.path.exists(final_png_path):
+                    directories.append(item)
+        return {"directories": directories}
+    except Exception as e:
+        raise HTTPException(500, detail=f"Error listing results: {str(e)}")
+
+@app.delete("/results/clear", tags=["api"])
+async def clear_results():
+    """Delete all result directories"""
+    result_dir = "../result"
+    if not os.path.exists(result_dir):
+        return {"message": "No results directory found"}
+    
+    try:
+        deleted_count = 0
+        for item in os.listdir(result_dir):
+            item_path = os.path.join(result_dir, item)
+            if os.path.isdir(item_path):
+                # Check if final.png exists in this directory
+                final_png_path = os.path.join(item_path, "final.png")
+                if os.path.exists(final_png_path):
+                    shutil.rmtree(item_path)
+                    deleted_count += 1
+        
+        return {"message": f"Deleted {deleted_count} result directories"}
+    except Exception as e:
+        raise HTTPException(500, detail=f"Error clearing results: {str(e)}")
+
+@app.delete("/results/{folder_name}", tags=["api"])
+async def delete_result(folder_name: str):
+    """Delete a specific result directory"""
+    result_dir = "../result"
+    folder_path = os.path.join(result_dir, folder_name)
+    
+    if not os.path.exists(folder_path):
+        raise HTTPException(404, detail="Result directory not found")
+    
+    try:
+        # Check if final.png exists in this directory
+        final_png_path = os.path.join(folder_path, "final.png")
+        if not os.path.exists(final_png_path):
+            raise HTTPException(404, detail="Result file not found")
+        
+        shutil.rmtree(folder_path)
+        return {"message": f"Deleted result directory: {folder_name}"}
+    except Exception as e:
+        raise HTTPException(500, detail=f"Error deleting result: {str(e)}")
+
 #todo: restart if crash
 #todo: cache results
 #todo: cleanup cache
