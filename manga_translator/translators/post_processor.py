@@ -99,20 +99,55 @@ class PostProcessorTranslator(CommonTranslator):
         if (ctx and hasattr(ctx, 'text_regions') and ctx.text_regions and
             self.config and hasattr(self.config, 'enable_post_translation_check') and
             self.config.enable_post_translation_check):
-            
-            # Assign translations to text regions
-            # 将翻译结果分配给文本区域
-            translation_idx = 0
-            for region in ctx.text_regions:
-                if translation_idx < len(translations):
-                    region.translation = translations[translation_idx]
-                    region.target_lang = to_lang
-                    translation_idx += 1
-                else:
-                    # If we run out of translations, set empty translation
-                    # 如果翻译结果不足，设置空翻译
-                    region.translation = ""
-                    region.target_lang = to_lang
+
+            # Check if this is batch mode with multiple contexts
+            # 检查是否为包含多个上下文的批量模式
+            is_batch_mode = (hasattr(ctx, 'batch_text_mapping') and 
+                           hasattr(ctx, 'batch_contexts') and
+                           ctx.batch_text_mapping is not None and
+                           ctx.batch_contexts is not None)
+
+            if is_batch_mode:
+                # Batch mode: assign translations to all regions across all contexts
+                # 批量模式：将翻译结果分配给所有上下文中的所有区域
+                translation_idx = 0
+                for ctx_idx, region_idx in ctx.batch_text_mapping:
+                    target_ctx = ctx.batch_contexts[ctx_idx]
+                    if region_idx < len(target_ctx.text_regions) and translation_idx < len(translations):
+                        target_ctx.text_regions[region_idx].translation = translations[translation_idx]
+                        target_ctx.text_regions[region_idx].target_lang = to_lang
+                        translation_idx += 1
+                    elif region_idx < len(target_ctx.text_regions):
+                        # If we run out of translations, set empty translation
+                        # 如果翻译结果不足，设置空翻译
+                        target_ctx.text_regions[region_idx].translation = ""
+                        target_ctx.text_regions[region_idx].target_lang = to_lang
+
+                # Collect all text regions from all contexts for post-processing
+                # 收集所有上下文中的文本区域用于译后处理
+                all_regions = []
+                for batch_ctx in ctx.batch_contexts:
+                    if batch_ctx.text_regions:
+                        all_regions.extend(batch_ctx.text_regions)
+
+                # Temporarily replace ctx.text_regions with all regions for post-processing
+                # 临时用所有区域替换ctx.text_regions进行译后处理
+                original_regions = ctx.text_regions
+                ctx.text_regions = all_regions
+            else:
+                # Single page mode: assign translations to current context regions
+                # 单页模式：将翻译结果分配给当前上下文的区域
+                translation_idx = 0
+                for region in ctx.text_regions:
+                    if translation_idx < len(translations):
+                        region.translation = translations[translation_idx]
+                        region.target_lang = to_lang
+                        translation_idx += 1
+                    else:
+                        # If we run out of translations, set empty translation
+                        # 如果翻译结果不足，设置空翻译
+                        region.translation = ""
+                        region.target_lang = to_lang
             
             # Apply post-processing steps in order
             # 按顺序应用译后处理步骤
@@ -128,7 +163,18 @@ class PostProcessorTranslator(CommonTranslator):
                 
                 # Step 4: Bracket consistency correction (括号一致性修正)
                 await self._apply_bracket_corrections(ctx)
-                
+
+                # Restore original regions if in batch mode
+                # 如果是批量模式，恢复原始区域
+                if is_batch_mode:
+                    ctx.text_regions = original_regions
+                    # Clean up batch mode attributes
+                    # 清理批量模式属性
+                    if hasattr(ctx, 'batch_text_mapping'):
+                        delattr(ctx, 'batch_text_mapping')
+                    if hasattr(ctx, 'batch_contexts'):
+                        delattr(ctx, 'batch_contexts')
+
                 # Extract final translations from processed regions
                 # 从处理后的区域提取最终翻译结果
                 final_translations = []
@@ -144,12 +190,18 @@ class PostProcessorTranslator(CommonTranslator):
                 
             except Exception as e:
                 logger.error(f"Error during post-processing: {e}")
+                # Clean up batch mode attributes if they exist
+                # 如果存在批量模式属性，进行清理
+                if hasattr(ctx, 'batch_text_mapping'):
+                    delattr(ctx, 'batch_text_mapping')
+                if hasattr(ctx, 'batch_contexts'):
+                    delattr(ctx, 'batch_contexts')
                 # If post-processing fails, return original translations
                 # 如果译后处理失败，返回原始翻译结果
                 pass
         
         return translations
-    
+
     # Post-processing methods
 
     async def _perform_hallucination_detection(self, ctx: Context, config: Config):
@@ -163,7 +215,8 @@ class PostProcessorTranslator(CommonTranslator):
         # 单个region幻觉检测 | Single region hallucination detection
         failed_regions = []
         if config.enable_post_translation_check:
-            logger.info("Starting hallucination detection...")
+            region_count = len(ctx.text_regions) if ctx.text_regions else 0
+            logger.info(f"Starting hallucination detection with {region_count} regions...")
 
             # 单个region级别的幻觉检测 | Single region level hallucination detection
             for region in ctx.text_regions:

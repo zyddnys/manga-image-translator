@@ -1411,6 +1411,9 @@ class MangaTranslator:
                 if sample_config:
                     # 支持批量翻译 - 传递所有批次上下文
                     batch_contexts = [ctx for ctx, config in batch]
+                    # 为PostProcessorTranslator添加批量映射信息
+                    batch[0][0].batch_text_mapping = batch_text_mapping
+                    batch[0][0].batch_contexts = batch_contexts
                     translated_texts = await self._batch_translate_texts(all_texts, sample_config, batch[0][0], batch_contexts)
                 else:
                     translated_texts = all_texts  # 无法翻译时保持原文
