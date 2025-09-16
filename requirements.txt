@@ -26,7 +26,7 @@ numpy==1.26.4
 tensorboardX
 websockets
 protobuf<6.0.0,>=3.20.2 # `google-genai` dependancy requirement
-ctranslate2<=3.24.0 # last version compatible with CUDA 11
+ctranslate2
 colorama
 openai==1.63.0
 tiktoken

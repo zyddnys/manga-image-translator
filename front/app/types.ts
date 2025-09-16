@@ -93,3 +93,34 @@ export interface FileStatus {
   result: Blob | null;
   error: string | null;
 }
+
+// New types for the improved UI
+export interface QueuedImage {
+  id: string;
+  file: File;
+  addedAt: Date;
+  status: 'queued' | 'processing' | 'finished' | 'error';
+  result?: Blob;
+  error?: string;
+}
+
+export interface TranslationSettings {
+  detectionResolution: string;
+  textDetector: string;
+  renderTextDirection: string;
+  translator: TranslatorKey;
+  targetLanguage: string;
+  inpaintingSize: string;
+  customUnclipRatio: number;
+  customBoxThreshold: number;
+  maskDilationOffset: number;
+  inpainter: string;
+}
+
+export interface FinishedImage {
+  id: string;
+  originalName: string;
+  result: Blob;
+  finishedAt: Date;
+  settings: TranslationSettings;
+}
