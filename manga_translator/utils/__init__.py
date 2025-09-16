@@ -1,7 +1,7 @@
-
-from .log import *
-from .generic import *
-from .textblock import *
-from .inference import *
-from .threading import *
+from sort import *
 from .bubble import is_ignore
+from .generic import *
+from .inference import *
+from .log import *
+from .textblock import *
+from .threading import *
