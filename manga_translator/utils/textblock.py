@@ -423,7 +423,10 @@ class TextBlock(object):
         if self._alignment in ('left', 'center', 'right'):
             return self._alignment
         if len(self.lines) == 1:
-            return 'center'
+            if self.vertical:
+                return 'left'
+            else:
+                return 'center'
 
         if self.direction == 'h':
             return 'center'

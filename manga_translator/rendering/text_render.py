@@ -90,8 +90,7 @@ CJK_H2V = {
     "?": "︖",    
     "؟": "︖",    
     "¿": "︖",    
-    "¡": "︕",    
-    ".": "︒",    
+    "¡": "︕",     
     "。": "︒",   
     ";": "︔",    
     "；": "︔",   
@@ -294,6 +293,7 @@ def get_char_border(cdpt: str, font_size: int, direction: int):
 #         return face.get_kerning(face.get_char_index(prev), face.get_char_index(cdpt))
 
 def calc_vertical(font_size: int, text: str, max_height: int):
+    text = compact_special_symbols(text)
     line_text_list = []
     # line_width_list = []
     line_height_list = []
@@ -315,7 +315,10 @@ def calc_vertical(font_size: int, text: str, max_height: int):
             char_offset_y = ckpt.metrics.vertAdvance >> 6
         char_width = bitmap.width
         char_bearing_x = ckpt.metrics.vertBearingX >> 6
-        if line_height + char_offset_y > max_height:
+        # Allow slight overflow to avoid unnecessary column breaks due to a few pixels
+        overshoot = (line_height + char_offset_y) - max_height
+        max_overshoot = font_size * 0.5
+        if overshoot > max_overshoot:
             line_text_list.append(line_str)
             line_height_list.append(line_height)
             # line_width_list.append(line_width_left + line_width_right)
@@ -614,6 +617,7 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
     Splits up a string of text into lines. Returns list of lines and their widths.
     Will go over max_height if too much text is present.
     """
+    text = compact_special_symbols(text)
     max_width = max(max_width, 2 * font_size)
 
     whitespace_offset_x = get_char_offset_x(font_size, ' ')

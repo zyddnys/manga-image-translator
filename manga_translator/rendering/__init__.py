@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 # from .ballon_extractor import extract_ballon_region
 from . import text_render
+from .text_render import compact_special_symbols
 from .text_render_eng import render_textblock_list_eng
 from .text_render_pillow_eng import render_textblock_list_eng as render_textblock_list_eng_pillow
 from ..utils import (
@@ -33,17 +34,6 @@ def fg_bg_compare(fg, bg):
     if color_difference(fg, bg) < 30:
         bg = (255, 255, 255) if fg_avg <= 127 else (0, 0, 0)
     return fg, bg
-
-def count_text_length(text: str) -> float:
-    """Calculate text length, treating っッぁぃぅぇぉ as 0.5 characters"""
-    half_width_chars = 'っッぁぃぅぇぉ'  
-    length = 0.0
-    for char in text.strip():
-        if char in half_width_chars:
-            length += 0.5
-        else:
-            length += 1.0
-    return length
 
 def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock'], font_size_fixed: int, font_size_offset: int, font_size_minimum: int):  
     """
@@ -77,13 +67,13 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
 
         # Determine target font size
         current_base_font_size = original_region_font_size  
+        # print("-" * 50)
         if font_size_fixed is not None:  
             target_font_size = font_size_fixed  
         else:  
             target_font_size = current_base_font_size + font_size_offset  
 
         target_font_size = max(target_font_size, font_size_minimum, 1)  
-        # print("-" * 50)
         # logger.debug(f"Calculated target font size: {target_font_size} for text '{region.translation}'")  
 
         # Single-axis text box expansion
@@ -105,11 +95,11 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
             # logger.debug(f"Needed rows: {needed_rows}")                
 
             if needed_rows > used_rows:
-                scale_x = ((needed_rows - used_rows) / used_rows) * 1 + 1
+                scale_y = ((needed_rows - used_rows) / used_rows) * 1 + 1
                 try:  
                     poly = Polygon(region.unrotated_min_rect[0])
                     minx, miny, maxx, maxy = poly.bounds
-                    poly = affinity.scale(poly, xfact=scale_x, yfact=1.0, origin=(minx, miny))        
+                    poly = affinity.scale(poly, xfact=1.0, yfact=scale_y, origin='center')
                 
                     pts = np.array(poly.exterior.coords[:4])  
                     dst_points = rotate_polygons(  
@@ -121,7 +111,7 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
                     # dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0] - 1)  
                     dst_points = dst_points.astype(np.int64)
                     single_axis_expanded = True
-                    # logger.debug(f"Successfully expanded horizontal text width: xfact={scale_x:.2f}")  
+                    # logger.debug(f"Successfully expanded horizontal text height: yfact={scale_y:.2f}")  
                 except Exception as e:  
                     # logger.error(f"Failed to expand horizontal text: {e}")  
                     pass
@@ -142,8 +132,8 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
                 try:  
                     poly = Polygon(region.unrotated_min_rect[0])
                     minx, miny, maxx, maxy = poly.bounds
-                    poly = affinity.scale(poly, xfact=1.0, yfact=scale_x, origin=(minx, miny))                    
-                    
+                    poly = affinity.scale(poly, xfact=scale_x, yfact=1.0, origin='center')
+
                     pts = np.array(poly.exterior.coords[:4])  
                     dst_points = rotate_polygons(  
                         region.center, pts.reshape(1, -1), -region.angle,  
@@ -163,8 +153,11 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
         if not single_axis_expanded:
             # Calculate scaling factor based on text length ratio
             orig_text = getattr(region, "text_raw", region.text)
-            char_count_orig = count_text_length(orig_text)
-            char_count_trans = count_text_length(region.translation.strip())     
+            # Use processed text to calculate character count, keep consistent with rendering
+            processed_orig = compact_special_symbols(orig_text.strip())
+            processed_trans = compact_special_symbols(region.translation.strip())
+            char_count_orig = len(processed_orig)
+            char_count_trans = len(processed_trans)
             length_ratio = 1.0
 
             if char_count_orig > 0 and char_count_trans > char_count_orig:  
