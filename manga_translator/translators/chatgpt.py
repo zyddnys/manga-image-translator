@@ -854,8 +854,6 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             if current_page_index is not None and current_page_index > 0:
                 available_pages.extend(base_original_pages[:current_page_index])
 
-            if batch_index is not None and batch_original_texts is not None and batch_index > 0:
-                available_pages.extend(batch_original_texts[:batch_index])
         else:
             if current_page_index is not None:
                 available_pages = (all_page_translations[:current_page_index] if all_page_translations else [])

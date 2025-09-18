@@ -25,7 +25,7 @@ from .groq import GroqTranslator
 from .gemini import GeminiTranslator
 from .gemini_2stage import Gemini2StageTranslator
 from .custom_openai import CustomOpenAiTranslator
-from .post_processor import PostProcessorTranslator
+from .prepost_processor import PrePostProcessor
 from ..config import Translator, TranslatorConfig, TranslatorChain
 from ..utils import Context
 
@@ -69,31 +69,34 @@ TRANSLATORS = {
 }
 translator_cache = {}
 
-def get_post_processed_translator(translator: CommonTranslator, key: Translator) -> CommonTranslator:
+def get_pre_post_processor(translator: CommonTranslator, key: Translator,
+                          panel_config=None, rtl: bool = True) -> CommonTranslator:
     """
-    Apply PostProcessorTranslator wrapper to GPT translators.
-    为GPT翻译器应用PostProcessorTranslator包装器。
+    Apply PrePostProcessor wrapper to GPT translators.
+    为GPT翻译器应用PrePostProcessor包装器。
 
     Args:
         translator: The base translator instance
-        key: The translator key to check if it needs post-processing
+        key: The translator key to check if it needs pre/post-processing
+        panel_config: Panel detection configuration
+        rtl: Right-to-left reading direction
 
     Returns:
         Wrapped translator if it's a GPT translator, otherwise original translator
     """
     if key in GPT_TRANSLATORS:
-        return PostProcessorTranslator(translator)
+        return PrePostProcessor(translator, panel_config, rtl)
     return translator
 
-def get_translator(key: Translator, *args, **kwargs) -> CommonTranslator:
+def get_translator(key: Translator, panel_config=None, rtl: bool = True, *args, **kwargs) -> CommonTranslator:
     if key not in TRANSLATORS:
         raise ValueError(f'Could not find translator for: "{key}". Choose from the following: %s' % ','.join(TRANSLATORS))
     if not translator_cache.get(key):
         translator = TRANSLATORS[key]
         base_translator = translator(*args, **kwargs)
-        # Apply post-processing wrapper for GPT translators
-        # 为GPT翻译器应用译后处理包装器
-        wrapped_translator = get_post_processed_translator(base_translator, key)
+        # Apply pre/post-processing wrapper for GPT translators
+        # 为GPT翻译器应用预处理和后处理包装器
+        wrapped_translator = get_pre_post_processor(base_translator, key, panel_config, rtl)
         translator_cache[key] = wrapped_translator
     return translator_cache[key]
 
@@ -111,6 +114,14 @@ async def dispatch(chain: TranslatorChain, queries: List[str], translator_config
     if not queries:
         return queries
 
+    # Extract panel config and rtl from Context if available
+    # 从Context中提取panel配置和rtl设置（如果可用）
+    panel_config = None
+    rtl = True  # Default value
+    if args and hasattr(args, 'full_config') and args.full_config:
+        panel_config = args.full_config.panel_detector
+        rtl = args.full_config.render.rtl
+
     if chain.target_lang is not None:
         text_lang = ISO_639_1_TO_VALID_LANGUAGES.get(langid.classify('\n'.join(queries))[0])
         translator = None
@@ -119,7 +130,7 @@ async def dispatch(chain: TranslatorChain, queries: List[str], translator_config
             #if text_lang == lang:
                 #translator = get_translator(key)
             #if translator is None:
-            translator = get_translator(chain.translators[flag])
+            translator = get_translator(chain.translators[flag], panel_config, rtl)
             if isinstance(translator, OfflineTranslator):
                 await translator.load('auto', chain.langs[flag], device)
                 pass
@@ -133,7 +144,7 @@ async def dispatch(chain: TranslatorChain, queries: List[str], translator_config
     if args is not None:
         args['translations'] = {}
     for key, tgt_lang in chain.chain:
-        translator = get_translator(key)
+        translator = get_translator(key, panel_config, rtl)
         if isinstance(translator, OfflineTranslator):
             await translator.load('auto', tgt_lang, device)
         if translator_config:

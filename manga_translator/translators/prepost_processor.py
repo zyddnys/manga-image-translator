@@ -6,39 +6,52 @@ import py3langid as langid
 
 from .common import CommonTranslator, ISO_639_1_TO_VALID_LANGUAGES
 from ..utils.generic import Context
-from ..config import Config, Translator, TranslatorConfig
-# Note: dispatch function is not needed in PostProcessorTranslator as it wraps existing translators
+from ..config import Config, Translator, TranslatorConfig, PanelDetectorConfig
+from ..utils.textblock import sort_regions
 
 from ..utils.log import get_logger
 
-logger = get_logger('PostProcessorTranslator')
+logger = get_logger('PrePostProcessor')
 
 
-class PostProcessorTranslator(CommonTranslator):
+class PrePostProcessor(CommonTranslator):
     """
-    A wrapper translator that adds post-processing capabilities to any translator.
-    包装器翻译器，为任意翻译器添加译后处理功能。
-    
-    This wrapper applies the following post-processing steps after translation:
-    该包装器在翻译后应用以下译后处理步骤：
+    A wrapper translator that implements the PrePostProcessor design pattern.
+    实现PrePostProcessor设计模式的包装器翻译器。
+
+    This wrapper applies preprocessing and post-processing around translation:
+    该包装器在翻译前后应用预处理和后处理：
+
+    Preprocessing (预处理):
+    - Text region sorting with panel detection (文本区域排序与分镜检测)
+
+    Translation (翻译):
+    - Delegates to inner translator (委托给内部翻译器)
+
+    Post-processing (后处理):
     1. Hallucination detection (幻觉检测)
     2. Target language validation with retry (目标语言验证与重试)
     3. Translation filtering (翻译过滤)
     4. Bracket consistency correction (括号一致性修正)
     """
     
-    def __init__(self, inner_translator: CommonTranslator):
+    def __init__(self, inner_translator: CommonTranslator,
+                 panel_config=None, rtl: bool = True):
         """
         Initialize the post-processor wrapper.
         初始化译后处理包装器。
-        
+
         Args:
             inner_translator: The translator to wrap
+            panel_config: Panel detection configuration
+            rtl: Right-to-left reading direction
         """
         super().__init__()
         self.inner_translator = inner_translator
         self.config = None  # Will be set via parse_args
-        
+        self.panel_config = panel_config or PanelDetectorConfig()
+        self.rtl = rtl
+
         # Copy language support from inner translator
         self._LANGUAGE_CODE_MAP = inner_translator._LANGUAGE_CODE_MAP
         self._INVALID_REPEAT_COUNT = inner_translator._INVALID_REPEAT_COUNT
@@ -66,7 +79,85 @@ class PostProcessorTranslator(CommonTranslator):
         self.config = config
         if hasattr(self.inner_translator, 'parse_args'):
             self.inner_translator.parse_args(config)
-    
+
+    async def _preprocess_text_regions(self, ctx: Context) -> None:
+        """
+        Preprocess text regions with panel detection sorting.
+        使用分镜检测对文本区域进行预处理排序。
+
+        Args:
+            ctx: Context object containing text_regions
+        """
+        if not ctx or not ctx.text_regions:
+            logger.debug('No context or text regions, skipping preprocessing')
+            return
+
+        # 检查是否为批量模式
+        is_batch_mode = (hasattr(ctx, 'batch_text_mapping') and ctx.batch_text_mapping is not None)
+
+        if not is_batch_mode:
+            # 单页模式处理
+            panel_detector = getattr(self.panel_config, 'panel_detector', 'none')
+            try:
+                sorted_regions = await sort_regions(
+                    ctx.text_regions,
+                    right_to_left=self.rtl,
+                    img=ctx.img_rgb,
+                    device=getattr(ctx, 'device', 'cpu'),
+                    panel_detector=panel_detector,
+                    panel_config=self.panel_config,
+                    ctx=ctx
+                )
+                ctx.text_regions = sorted_regions
+            except Exception as e:
+                logger.warning(f'Text region sorting failed, using original order: {e}')
+        else:
+            # 批量模式处理
+            panel_detector = getattr(self.panel_config, 'panel_detector', 'none')
+            if hasattr(ctx, 'batch_contexts'):
+                try:
+                    for batch_ctx in ctx.batch_contexts:
+                        if batch_ctx.text_regions:
+                            sorted_regions = await sort_regions(
+                                batch_ctx.text_regions,
+                                right_to_left=self.rtl,
+                                img=batch_ctx.img_rgb,
+                                device=getattr(batch_ctx, 'device', 'cpu'),
+                                panel_detector=panel_detector,
+                                panel_config=self.panel_config,
+                                ctx=batch_ctx
+                            )
+                            batch_ctx.text_regions = sorted_regions
+                except Exception as e:
+                    logger.warning(f'Batch text region sorting failed, using original order: {e}')
+            else:
+                logger.debug('No batch contexts available, skipping batch text region sorting')
+
+        # 在并发模式下，排序后更新原文reference以确保上下文顺序正确
+        # In concurrent mode, update original text reference after sorting to ensure correct context order
+        if (hasattr(ctx, '_batch_concurrent') and ctx._batch_concurrent and
+            hasattr(ctx, '_batch_original_texts') and ctx._batch_original_texts):
+
+            if is_batch_mode and hasattr(ctx, 'batch_contexts') and ctx.batch_contexts:
+                # 批量并发模式：更新所有batch_contexts的原文reference
+                for i, batch_ctx in enumerate(ctx.batch_contexts):
+                    if batch_ctx.text_regions and i < len(ctx._batch_original_texts):
+                        sorted_page_texts = {j: region.text for j, region in enumerate(batch_ctx.text_regions)}
+                        ctx._batch_original_texts[i] = sorted_page_texts
+            elif ctx.text_regions and hasattr(ctx, '_batch_index') and ctx._batch_index is not None:
+                # 单页并发模式：更新当前页面的原文reference
+                batch_index = ctx._batch_index
+                if batch_index < len(ctx._batch_original_texts):
+                    sorted_page_texts = {i: region.text for i, region in enumerate(ctx.text_regions)}
+                    ctx._batch_original_texts[batch_index] = sorted_page_texts
+
+                    # 同时更新全局_original_page_texts（如果存在）
+                    if (hasattr(ctx, '_original_page_texts') and ctx._original_page_texts and
+                        hasattr(ctx, '_page_index') and ctx._page_index is not None):
+                        page_index = ctx._page_index
+                        if page_index < len(ctx._original_page_texts):
+                            ctx._original_page_texts[page_index] = sorted_page_texts
+
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         """
         Delegate the actual translation to inner translator.
@@ -77,8 +168,8 @@ class PostProcessorTranslator(CommonTranslator):
     async def translate(self, from_lang: str, to_lang: str, queries: List[str], 
                        use_mtpe: bool = False, ctx: Optional[Context] = None) -> List[str]:
         """
-        Translate queries and apply post-processing if Context is provided.
-        翻译查询并在提供Context时应用译后处理。
+        Translate queries with PrePostProcessor pattern: preprocessing → translation → post-processing.
+        使用PrePostProcessor模式翻译查询：预处理 → 翻译 → 后处理。
         
         Args:
             from_lang: Source language
@@ -90,8 +181,24 @@ class PostProcessorTranslator(CommonTranslator):
         Returns:
             List of translated and post-processed text
         """
-        # First, get translations from inner translator
-        # 首先，从内部翻译器获取翻译结果
+        # 预处理：文本区域排序（仅对LLM翻译器）
+        # Preprocessing: Text region sorting (only for LLM translators)
+        if ctx:
+            await self._preprocess_text_regions(ctx)
+            # 排序后重新提取文本，确保翻译顺序与排序一致
+            # Re-extract text after sorting to ensure translation order matches sorting
+            if hasattr(ctx, 'batch_contexts') and ctx.batch_contexts:
+                # 批量模式：从所有batch_contexts重新提取文本
+                queries = []
+                for batch_ctx in ctx.batch_contexts:
+                    if batch_ctx.text_regions:
+                        queries.extend([region.text for region in batch_ctx.text_regions])
+            elif ctx.text_regions:
+                # 单页模式：从主context重新提取文本
+                queries = [region.text for region in ctx.text_regions]
+
+        # 翻译：委托给内部翻译器
+        # Translation: Delegate to inner translator
         translations = await self.inner_translator.translate(from_lang, to_lang, queries, use_mtpe, ctx)
         
         # If we have Context with text_regions and config, apply post-processing

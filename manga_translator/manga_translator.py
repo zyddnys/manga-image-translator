@@ -378,6 +378,7 @@ class MangaTranslator:
         ctx.input = image
         ctx.result = None
         ctx.verbose = self.verbose
+        ctx.device = self.device  # 设置device参数用于分镜检测
 
         # 设置图片上下文以生成调试图片子文件夹
         self._set_image_context(config, image)
@@ -520,13 +521,6 @@ class MangaTranslator:
                 raise 
             ctx.text_regions = [] # Fallback to empty text_regions if textline merge fails
 
-        if self.verbose and ctx.text_regions:
-            bbox_start_time = time.time()
-            show_panels = config.panel_detector.panel_detector != 'none'  # 当启用分镜检测时显示panel | Show panel when panel detection is enabled
-            bboxes = await visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions,
-                                        show_panels=show_panels, img_rgb=ctx.img_rgb, right_to_left=config.render.rtl, device=self.device, panel_detector=config.panel_detector.panel_detector, panel_config=config.panel_detector, ctx=ctx)
-            cv2.imwrite(self._result_path('bboxes.png'), bboxes)
-
         # Apply pre-dictionary after textline merge
         await self._apply_pre_translation_replacements(ctx)
             
@@ -541,6 +535,13 @@ class MangaTranslator:
             ctx.text_regions = [] # Fallback to empty text_regions if translation fails
 
         await self._report_progress('after-translating')
+
+        if self.verbose and ctx.text_regions:
+            bbox_start_time = time.time()
+            show_panels = config.panel_detector.panel_detector != 'none'  # 当启用分镜检测时显示panel | Show panel when panel detection is enabled
+            bboxes = await visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions,
+                                        show_panels=show_panels, img_rgb=ctx.img_rgb, right_to_left=config.render.rtl, device=self.device, panel_detector=config.panel_detector.panel_detector, panel_config=config.panel_detector, ctx=ctx)
+            cv2.imwrite(self._result_path('bboxes.png'), bboxes)
 
         if not ctx.text_regions:
             await self._report_progress('error-translating', True)
@@ -907,16 +908,6 @@ class MangaTranslator:
             current_time = time.time()
             self._model_usage_timestamps[("panel_detection", config.panel_detector.panel_detector)] = current_time
 
-        text_regions = await sort_regions(
-            text_regions,
-            right_to_left=config.render.rtl,
-            img=ctx.img_rgb,
-            device=self.device,
-            panel_detector=config.panel_detector.panel_detector,
-            panel_config=config.panel_detector,
-            ctx=ctx
-        )
-        
         return text_regions
 
     async def _run_text_translation(self, config: Config, ctx: Context):
@@ -1176,6 +1167,7 @@ class MangaTranslator:
                 ctx = Context()
                 ctx.input = image
                 ctx.text_regions = []  # 确保text_regions被初始化为空列表
+                ctx.device = self.device  # 设置device参数用于分镜检测
                 pre_translation_contexts.append((ctx, config))
         
         if not pre_translation_contexts:
@@ -1245,6 +1237,7 @@ class MangaTranslator:
         ctx = Context()
         ctx.input = image
         ctx.result = None
+        ctx.device = self.device  # 设置device参数用于分镜检测
         
         # 保存原始输入图片用于调试
         if self.verbose:
@@ -1357,13 +1350,6 @@ class MangaTranslator:
                 raise 
             ctx.text_regions = []
 
-        if self.verbose and ctx.text_regions:
-            bbox_start_time = time.time()
-            show_panels = config.panel_detector.panel_detector != 'none'  # 当启用分镜检测时显示panel | Show panel when panel detection is enabled
-            bboxes = await visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions,
-                                        show_panels=show_panels, img_rgb=ctx.img_rgb, right_to_left=config.render.rtl, device=self.device, panel_detector=config.panel_detector.panel_detector, panel_config=config.panel_detector, ctx=ctx)
-            cv2.imwrite(self._result_path('bboxes.png'), bboxes)
-
         # Apply pre-dictionary after textline merge
         await self._apply_pre_translation_replacements(ctx)
 
@@ -1411,7 +1397,7 @@ class MangaTranslator:
                 if sample_config:
                     # 支持批量翻译 - 传递所有批次上下文
                     batch_contexts = [ctx for ctx, config in batch]
-                    # 为PostProcessorTranslator添加批量映射信息
+                    # 为PrePostProcessor添加批量映射信息
                     batch[0][0].batch_text_mapping = batch_text_mapping
                     batch[0][0].batch_contexts = batch_contexts
                     translated_texts = await self._batch_translate_texts(all_texts, sample_config, batch[0][0], batch_contexts)
@@ -1541,7 +1527,7 @@ class MangaTranslator:
         for i, ctx_config_pair in enumerate(contexts_with_configs):
             # 计算当前页面在整个翻译序列中的索引
             page_index = len(self.all_page_translations) + i
-            batch_index = i  # 在当前批次中的索引
+            batch_index = page_index // self.batch_size
             ctx_config_pair_with_index = (*ctx_config_pair, page_index, batch_index)
             task = asyncio.create_task(translate_single_context(ctx_config_pair_with_index))
             tasks.append(task)
@@ -1663,6 +1649,13 @@ class MangaTranslator:
         完成翻译后的处理步骤（掩码细化、修复、渲染）
         """
         await self._report_progress('after-translating')
+
+        if self.verbose and ctx.text_regions:
+            bbox_start_time = time.time()
+            show_panels = config.panel_detector.panel_detector != 'none'  # 当启用分镜检测时显示panel | Show panel when panel detection is enabled
+            bboxes = await visualize_textblocks(cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB), ctx.text_regions,
+                                        show_panels=show_panels, img_rgb=ctx.img_rgb, right_to_left=config.render.rtl, device=self.device, panel_detector=config.panel_detector.panel_detector, panel_config=config.panel_detector, ctx=ctx)
+            cv2.imwrite(self._result_path('bboxes.png'), bboxes)
 
         if not ctx.text_regions:
             await self._report_progress('error-translating', True)

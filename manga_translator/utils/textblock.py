@@ -707,6 +707,9 @@ async def sort_regions(
     # 1. Panel detection + sorting within panels
     if img is not None:
         try:
+            import time
+            panel_start_time = time.time()
+
             # Convert string to enum
             if panel_detector == 'dl':
                 detector_key = PanelDetector.dl
@@ -715,7 +718,11 @@ async def sort_regions(
             else:
                 # Should not reach here due to early return for 'none'
                 return _simple_sort(regions, right_to_left)
+
+            logger.debug(f'Starting panel detection with {panel_detector} on {device}')
             panels_raw = await dispatch_panel_detection(detector_key, img, rtl=right_to_left, device=device, config=panel_config)
+            panel_end_time = time.time()
+            logger.debug(f'Panel detection completed in {panel_end_time - panel_start_time:.2f}s, found {len(panels_raw)} panels')
             # Convert to [x1, y1, x2, y2]
             panels = [(x, y, x + w, y + h) for x, y, w, h in panels_raw]
 
@@ -836,7 +843,9 @@ async def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock], sh
                 hasattr(ctx, 'panels_data') and
                 hasattr(ctx, 'panel_detector_used') and
                 hasattr(ctx, 'panel_config_used') and
-                ctx.panel_detector_used == panel_detector):
+                ctx.panel_detector_used == panel_detector and
+                ctx.panel_config_used == panel_config and
+                ctx.panels_data is not None):
                 # Use cached panel data from sort_regions
                 panels = ctx.panels_data
             else:
