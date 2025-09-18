@@ -151,6 +151,11 @@ class Upscaler(str, Enum):
     esrgan = "esrgan"
     upscler4xultrasharp = "4xultrasharp"
 
+class PanelDetector(str, Enum):
+    none = "none"
+    kumiko = "kumiko"
+    dl = "dl"
+
 class RenderConfig(BaseModel):
     renderer: Renderer = Renderer.default
     """Render english text translated from manga with some additional typesetting. Ignores some other argument options"""
@@ -179,7 +184,7 @@ class RenderConfig(BaseModel):
     font_size: Optional[int] = None
     """Use fixed font size for rendering"""
     rtl: bool = True
-    """Right-to-left reading order for panel and text_region sorting,"""  
+    """Reading direction: True for right-to-left (manga), False for left-to-right (comics). Affects both panel detection/sorting and text region sorting/rendering"""
     _font_color_fg = None
     _font_color_bg = None
     @property
@@ -288,6 +293,19 @@ class DetectorConfig(BaseModel):
     unclip_ratio: float = 2.3
     """How much to extend text skeleton to form bounding box"""
 
+class PanelDetectorConfig(BaseModel):
+    """Panel detection configuration"""
+    panel_detector: PanelDetector = PanelDetector.dl
+    """Panel detector to use for manga panel detection. 'none' to disable panel detection, 'kumiko' for traditional method, 'dl' for deep learning"""
+
+    # Kumiko detector configuration
+    min_panel_size_ratio: Optional[float] = None
+    """Minimum panel size ratio for Kumiko detector (None for default 0.1). Panels smaller than image_size * ratio are filtered out"""
+    panel_expansion: bool = False
+    """Whether to expand panel boundaries in Kumiko"""
+    debug: bool = False
+    """Enable debug mode for Kumiko"""
+
 class InpainterConfig(BaseModel):
     inpainter: Inpainter = Inpainter.lama_large
     """Inpainting model to use"""
@@ -334,9 +352,9 @@ class Config(BaseModel):
     """inpainter configs"""
     ocr: OcrConfig = OcrConfig()
     """Ocr configs"""
+    panel_detector: PanelDetectorConfig = PanelDetectorConfig()
+    """panel detector configs"""
     # ?
-    force_simple_sort: bool = False
-    """Don't use panel detection for sorting, use a simpler fallback logic instead"""
     kernel_size: int = 3
     """Set the convolution kernel size of the text erasure area to completely clean up text residues"""
     mask_dilation_offset: int = 20

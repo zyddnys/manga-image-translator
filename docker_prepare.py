@@ -4,6 +4,7 @@ from manga_translator.utils import ModelWrapper
 from manga_translator.detection import DETECTORS
 from manga_translator.ocr import OCRS
 from manga_translator.inpainting import INPAINTERS
+from manga_translator.panel_detection import PANEL_DETECTORS
 
 
 arg_parser = ArgumentParser()
@@ -47,6 +48,13 @@ async def main():
             k: v
             for k, v in INPAINTERS.items()
             if (not models) or (f"inpaint.{k}" in models) and (k not in ["sd"])
+        }
+    )
+    await download(
+        {
+            k: v
+            for k, v in PANEL_DETECTORS.items()
+            if (not models) or (f"panel.{k}" in models)
         }
     )
 

@@ -1,6 +1,6 @@
 import os, re, asyncio, base64, json
 from io import BytesIO
-from typing import List
+from typing import List, Optional
 from collections import Counter
 from loguru import logger
 from PIL import Image
@@ -465,7 +465,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                     if reordered_regions:
                         # Generate visualization with corrected order (same numbering as reordered)
                         canvas = cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB).copy()
-                        bboxes_fixed = visualize_textblocks(canvas, reordered_regions)
+                        bboxes_fixed = await visualize_textblocks(canvas, reordered_regions)
 
                         # Save using parent's result path callback
                         result_path = ctx.result_path_callback('bboxes_fixed.png')
@@ -995,13 +995,43 @@ class ChatGPT2StageTranslator(OpenAITranslator):
         self.print_boxed(response_text, border_color="green", title="GPT Response")          
         return cleaned_text
 
-    async def translate(self, from_lang: str, to_lang: str, queries: List[str], ctx: Context, use_mtpe: bool = False) -> List[str]:
+    async def translate(self, from_lang: str, to_lang: str, queries: List[str], use_mtpe: bool = False, ctx: Optional[Context] = None) -> List[str]:
         """
         Main translation entry point - override to ensure context is passed through
         """
         self._stage2_use_fallback = False # 确保每次外部调用都重置状态
         if not queries:
             return queries
+
+        # Handle context management if context_size > 0
+        context_size = getattr(ctx, 'context_size', 0) if ctx is not None else 0
+        all_page_translations = getattr(ctx, 'all_page_translations', None) if ctx is not None else None
+        if context_size > 0:
+            # 检查是否为并发模式
+            use_original_text = getattr(ctx, '_batch_concurrent', False)
+            page_index = getattr(ctx, '_page_index', None)
+            batch_index = getattr(ctx, '_batch_index', None)
+            batch_original_texts = getattr(ctx, '_batch_original_texts', None)
+            original_page_texts = getattr(ctx, '_original_page_texts', None)
+
+            # Build context string using parent's method
+            prev_ctx = super()._build_prev_context(
+                context_size=context_size,
+                all_page_translations=all_page_translations or [],
+                use_original_text=use_original_text,
+                current_page_index=page_index,
+                batch_index=batch_index,
+                batch_original_texts=batch_original_texts,
+                original_page_texts=original_page_texts
+            )
+
+            if prev_ctx:
+                self.set_prev_context(prev_ctx)
+                context_count = prev_ctx.count("<|")
+                context_type = "original text" if use_original_text else "translation results"
+                self.logger.info(f"Context-aware translation enabled with {context_type}, {context_count} sentences as reference")
+            else:
+                self.logger.info("No context available for this translation")
 
         # Auto-detect language if needed
         if from_lang == 'auto':
@@ -1478,7 +1508,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                 if reordered_regions:
                     # Generate visualization with corrected order
                     canvas = cv2.cvtColor(ctx.img_rgb, cv2.COLOR_BGR2RGB).copy()
-                    bboxes_fixed = visualize_textblocks(canvas, reordered_regions)
+                    bboxes_fixed = await visualize_textblocks(canvas, reordered_regions)
 
                     # Save using the context's result path callback
                     result_path = ctx.result_path_callback('bboxes_fixed.png')

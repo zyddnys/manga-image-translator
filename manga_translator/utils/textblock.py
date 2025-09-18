@@ -6,12 +6,16 @@ from functools import cached_property
 import copy
 import re
 import py3langid as langid
-from .panel import get_panels_from_array
+
 from .generic import color_difference, is_right_to_left_char, is_valuable_char
+from .log import get_logger
+from ..panel_detection import dispatch as dispatch_panel_detection
+from ..config import PanelDetector, PanelDetectorConfig
+
+logger = get_logger('textblock')
 # from ..detection.ctd_utils.utils.imgproc_utils import union_area, xywh2xyxypoly
 
-# LANG_LIST = ['eng', 'ja', 'unknown']
-# LANGCLS2IDX = {'eng': 0, 'ja': 1, 'unknown': 2}
+logger = get_logger('textblock')
 
 # determines render direction
 LANGUAGE_ORIENTATION_PRESETS = {
@@ -72,21 +76,20 @@ class TextBlock(object):
                  prob: float = 1,
                  **kwargs) -> None:
         self.lines = np.array(lines, dtype=np.int32)
-        # self.lines.sort()
         self.language = language
         self.font_size = round(font_size)
         self.angle = angle
         self._direction = direction
 
         self.texts = texts if texts is not None else []
-        self.text = texts[0]
+        self.text = texts[0] if texts else ""
         if self.text and len(texts) > 1:
             for txt in texts[1:]:
                 first_cjk = '\u3000' <= self.text[-1] <= '\u9fff'
                 second_cjk = txt and ('\u3000' <= txt[0] <= '\u9fff')
-                if first_cjk or second_cjk :
+                if first_cjk or second_cjk:
                     self.text += txt
-                else :
+                else:
                     self.text += ' ' + txt
         self.prob = prob
 
@@ -95,7 +98,6 @@ class TextBlock(object):
         self.fg_colors = fg_color
         self.bg_colors = bg_color
 
-        # self.stroke_width = stroke_width
         self.font_family: str = font_family
         self.bold: bool = bold
         self.underline: bool = underline
@@ -245,7 +247,7 @@ class TextBlock(object):
         norm_h = np.linalg.norm(vec_h)
 
         if textheight is None:
-            if direction == 'h' :
+            if direction == 'h':
                 textheight = int(norm_v)
             else:
                 textheight = int(norm_h)
@@ -255,7 +257,7 @@ class TextBlock(object):
             return np.zeros((textheight, textheight, 3), dtype=np.uint8)
         ratio = norm_v / norm_h
 
-        if direction == 'h' :
+        if direction == 'h':
             h = int(textheight)
             w = int(round(textheight / ratio))
             dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
@@ -264,7 +266,7 @@ class TextBlock(object):
                 print('invalid textpolygon to target img')
                 return np.zeros((textheight, textheight, 3), dtype=np.uint8)
             region = cv2.warpPerspective(img_croped, M, (w, h))
-        elif direction == 'v' :
+        elif direction == 'v':
             w = int(textheight)
             h = int(round(textheight * ratio))
             dst_pts = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]).astype(np.float32)
@@ -351,7 +353,6 @@ class TextBlock(object):
             self.bg_colors += bg_colors / nlines
 
     def get_font_colors(self, bgr=False):
-
         frgb = np.array(self.fg_colors).astype(np.int32)
         brgb = np.array(self.bg_colors).astype(np.int32)
 
@@ -374,34 +375,34 @@ class TextBlock(object):
             if d in ('h', 'v', 'hr', 'vr'):
                 return d
 
-            # 根据region中面积最大的文本框的宽高比来判断排版方向
+            # Determine layout direction based on aspect ratio of largest text box in region
             if len(self.lines) > 0:
-                # 计算每个检测框的面积和宽高比
+                # Calculate area and aspect ratio for each detection box
                 max_area = 0
                 largest_box_aspect_ratio = 1
                 
                 for line in self.lines:
-                    # 计算检测框的面积
+                    # Calculate detection box area
                     line_polygon = Polygon(line)
                     area = line_polygon.area
                     
                     if area > max_area:
                         max_area = area
-                        # 计算该检测框的宽高比
-                        # 获取检测框的边界框
+                        # Calculate aspect ratio of this detection box
+                        # Get bounding box of detection box                  
                         x_coords = line[:, 0]
                         y_coords = line[:, 1]
                         width = np.max(x_coords) - np.min(x_coords)
                         height = np.max(y_coords) - np.min(y_coords)
                         largest_box_aspect_ratio = width / height if height > 0 else 1
                 
-                # 根据面积最大的检测框的宽高比判断方向
+                # Determine direction based on aspect ratio of largest detection box
                 if largest_box_aspect_ratio < 1:
                     return 'v'
                 else:
                     return 'h'
             else:
-                # 如果没有lines，则使用整体的宽高比作为fallback
+                # If no lines, use overall aspect ratio as fallback
                 if self.aspect_ratio < 1:
                     return 'v'
                 else:
@@ -422,7 +423,10 @@ class TextBlock(object):
         if self._alignment in ('left', 'center', 'right'):
             return self._alignment
         if len(self.lines) == 1:
-            return 'center'
+            if self.vertical:
+                return 'left'
+            else:
+                return 'center'
 
         if self.direction == 'h':
             return 'center'
@@ -430,30 +434,6 @@ class TextBlock(object):
             return 'right'
         else:
             return 'left'
-
-        # x1, y1, x2, y2 = self.xyxy
-        # polygons = self.unrotated_polygons
-        # polygons = polygons.reshape(-1, 4, 2)
-        # print(self.polygon_aspect_ratio, self.xyxy)
-        # print(polygons[:, :, 0] - x1)
-        # print()
-        # if self.polygon_aspect_ratio < 1:
-        #     left_std = abs(np.std(polygons[:, :2, 1] - y1))
-        #     right_std = abs(np.std(polygons[:, 2:, 1] - y2))
-        #     center_std = abs(np.std(((polygons[:, :, 1] + polygons[:, :, 1]) - (y2 - y1)) / 2))
-        #     print(center_std)
-        #     print('a', left_std, right_std, center_std)
-        # else:
-        #     left_std = abs(np.std(polygons[:, ::2, 0] - x1))
-        #     right_std = abs(np.std(polygons[:, 2:, 0] - x2))
-        #     center_std = abs(np.std(((polygons[:, :, 0] + polygons[:, :, 0]) - (x2 - x1)) / 2))
-        # min_std = min(left_std, right_std, center_std)
-        # if left_std == min_std:
-        #     return 'left'
-        # elif right_std == min_std:
-        #     return 'right'
-        # else:
-        #     return 'center'
 
     @property
     def stroke_width(self):
@@ -514,85 +494,271 @@ def _simple_sort(regions: List[TextBlock], right_to_left: bool) -> List[TextBloc
     
     return sorted_regions
     
-
 def _sort_panels_fill(panels: List[Tuple[int, int, int, int]], right_to_left: bool) -> List[Tuple[int, int, int, int]]:
-    """Return panels in desired reading order.
+    """Return panels in desired reading order with simplified vertical stack handling.
 
-    1. Panels are processed row-by-row from top to bottom (smallest *y1* first).
-    2. Inside a row we proceed from right to left (*x1* descending when RTL, ascending otherwise).
-    3. **Key point**: when moving horizontally, every panel that *roughly* shares
-       the same x-range (both *x1* and *x2* close) with the current one is treated
-       as a vertical stack and is inserted immediately after the current panel
-       (top-to-bottom).  This mirrors how humans read stacked panels.
-
-    The logic assumes panels fill the whole page (common in manga pages).
+    Improved algorithm:
+    1. Check for nested panels (if a panel contains 70%+ of another panel's area, it forms a single stack)
+    2. Identify vertical stacks (panels with high x-overlap and vertical adjacency)
+    3. Post-stack validation: check if remaining panels have 70%+ cumulative overlap with multiple stack members
+    4. If validation fails, cancel the stack and isolate the base panel
+    5. Treat each stack as a single unit for sorting
+    6. Sort units by row (top y-coordinate) then by column (x-coordinate)
+    7. Maintain top-to-bottom order within each vertical stack
+    
+    Nested panel handling:
+    - Pre-check: Panels containing 70%+ of other panels' area are isolated as single-panel stacks
+    - Post-check: Stacks are cancelled if remaining panels overlap 70%+ with multiple stack members
+    - This prevents both container panels and complex overlapping scenarios from forming incorrect stacks
+    - Ensures proper reading order for complex nested and overlapping layouts
     """
 
     if not panels:
         return panels
 
-    # Make a working copy we can pop from.
-    remaining = sorted(list(panels), key=lambda p: p[1])  # sort by top-y first
-    ordered: List[Tuple[int, int, int, int]] = []
+    # Dynamic thresholds based on average panel size
+    avg_w = np.mean([p[2] - p[0] for p in panels])
+    avg_h = np.mean([p[3] - p[1] for p in panels])
+    nested_threshold = 0.7  # If 70%+ of another panel's area is within the base panel, consider it nested
+    # Note: Y_THR is now calculated dynamically for each row based on current panel height
 
-    # Dynamic thresholds based on average panel size for reasonable robustness.
-    avg_w = np.mean([p[2] - p[0] for p in remaining])
-    avg_h = np.mean([p[3] - p[1] for p in remaining])
-    X_THR = max(10, avg_w * 0.1)   # panels whose x-range differs <10% width are considered same column
-    Y_THR = max(10, avg_h * 0.3)   # y-difference to decide panels are on the same row
+    # Step 1: Identify vertical stacks
+    vertical_stacks = []
+    remaining = list(panels)
+    stack_id = 0
 
     while remaining:
-        # Start a new row from the current top-most panel
-        base_y = remaining[0][1]
+        base_panel = remaining.pop(0)
+        stack = [base_panel]
+        base_x1, base_y1, base_x2, base_y2 = base_panel
 
-        # Gather all panels whose top-y 距离 base_y 不超过阈值 → 同一行
-        row = []
+        # Check if base panel contains most area of other panels (nested check)
+        def calculate_overlap_ratio(panel_a, panel_b):
+            """Calculate overlap ratio of panel_b within panel_a"""
+            ax1, ay1, ax2, ay2 = panel_a
+            bx1, by1, bx2, by2 = panel_b
+            
+            # Calculate overlap area
+            overlap_x1 = max(ax1, bx1)
+            overlap_y1 = max(ay1, by1)
+            overlap_x2 = min(ax2, bx2)
+            overlap_y2 = min(ay2, by2)
+            
+            if overlap_x1 < overlap_x2 and overlap_y1 < overlap_y2:
+                overlap_area = (overlap_x2 - overlap_x1) * (overlap_y2 - overlap_y1)
+                panel_b_area = (bx2 - bx1) * (by2 - by1)
+                return overlap_area / panel_b_area if panel_b_area > 0 else 0
+            return 0
+        
+        # Check if base panel contains most area of other panels
+        contains_nested_panels = False
+        
+        for other_panel in remaining:
+            overlap_ratio = calculate_overlap_ratio(base_panel, other_panel)
+            if overlap_ratio >= nested_threshold:
+                contains_nested_panels = True
+                break
+        
+        if contains_nested_panels:
+            # Sort stack top-to-bottom (though only one panel)
+            stack.sort(key=lambda p: p[1])
+            vertical_stacks.append(stack)
+            stack_id += 1
+            continue
+
+        # Look for panels that vertically stack with base_panel
         i = 0
         while i < len(remaining):
-            if abs(remaining[i][1] - base_y) <= Y_THR:
-                row.append(remaining.pop(i))
+            panel = remaining[i]
+            x1, y1, x2, y2 = panel
+
+            # Check x-range overlap
+            x_overlap = min(base_x2, x2) - max(base_x1, x1)
+            x_union = max(base_x2, x2) - min(base_x1, x1)
+
+            # Check if vertically adjacent (allowing small gaps)
+            vertical_gap = min(abs(y1 - base_y2), abs(base_y1 - y2))
+            
+            # Calculate overlap ratio
+            overlap_ratio = x_overlap / x_union if x_union > 0 else 0
+            gap_threshold = max(10, avg_w * 0.15)
+
+            # 85%+ x-overlap and small vertical gap = vertical stack
+            if (x_overlap > 0 and x_union > 0 and overlap_ratio > 0.85 and
+                vertical_gap <= gap_threshold):
+                stack.append(remaining.pop(i))
+                # Update stack bounds
+                base_x1 = min(base_x1, x1)
+                base_x2 = max(base_x2, x2)
+                base_y1 = min(base_y1, y1)
+                base_y2 = max(base_y2, y2)
+                i = 0  # Restart search for more stack members
             else:
                 i += 1
 
-        # Sort that row right-to-left (或 LTR) 再加入
-        row.sort(key=lambda p: (-p[0] if right_to_left else p[0]))
-        ordered.extend(row)
- 
+        # Stack overlap check: if stack contains multiple panels, check if remaining panels overlap with multiple stack panels
+        if len(stack) > 1:
+            stack_should_break = False
+            
+            for remaining_panel in remaining:
+                rx1, ry1, rx2, ry2 = remaining_panel
+                remaining_area = (rx2 - rx1) * (ry2 - ry1)
+                total_overlap_area = 0
+                overlapping_count = 0
+                
+                # Calculate cumulative overlap area between remaining panel and all panels in stack
+                for stack_panel in stack:
+                    sx1, sy1, sx2, sy2 = stack_panel
+                    
+                    # Calculate overlap area
+                    overlap_x1 = max(rx1, sx1)
+                    overlap_y1 = max(ry1, sy1)
+                    overlap_x2 = min(rx2, sx2)
+                    overlap_y2 = min(ry2, sy2)
+                    
+                    if overlap_x1 < overlap_x2 and overlap_y1 < overlap_y2:
+                        overlap_area = (overlap_x2 - overlap_x1) * (overlap_y2 - overlap_y1)
+                        total_overlap_area += overlap_area
+                        overlapping_count += 1
+                
+                # Calculate cumulative overlap ratio
+                overlap_ratio = total_overlap_area / remaining_area if remaining_area > 0 else 0
+                
+                # If cumulative overlap reaches threshold and involves multiple stack panels, cancel stacking
+                if overlap_ratio >= nested_threshold and overlapping_count >= 2:
+                    stack_should_break = True
+                    break
+            
+            if stack_should_break:
+                # Cancel stacking: return all panels except base panel back to remaining
+                base_panel = stack[0]  # Base panel (first one)
+                returned_panels = stack[1:]  # Other panels
+                remaining.extend(returned_panels)
+                stack = [base_panel]  # Keep only base panel
+
+        # Sort stack top-to-bottom
+        stack.sort(key=lambda p: p[1])
+        vertical_stacks.append(stack)
+        stack_id += 1
+
+    # Step 2: Sort stacks using original row-based logic
+    # Each stack is treated as a single unit with its top-left corner as reference
+    stack_units = []
+    for i, stack in enumerate(vertical_stacks):
+        # Use the top-left corner of the stack as reference point
+        top_panel = stack[0]  # Already sorted top-to-bottom
+        stack_units.append((top_panel[0], top_panel[1], stack))  # (x, y, panels)
+
+    # Apply original row-based sorting to stack units
+    remaining_units = sorted(stack_units, key=lambda unit: unit[1])  # sort by top-y first
+    ordered = []
+    row_id = 0
+
+    while remaining_units:
+        # Start a new row from the current top-most unit
+        base_unit = remaining_units[0]
+        base_y = base_unit[1]
+        
+        # Calculate Y_THR based on current base unit's height
+        base_stack = base_unit[2]  # Get the stack (list of panels)
+        base_panel = base_stack[0]  # Get the top panel in the stack
+        current_panel_height = base_panel[3] - base_panel[1]  # Calculate height
+        Y_THR = max(10, current_panel_height * 0.15)  # y-difference threshold based on current panel
+
+        # Gather all units whose top-y is within threshold of base_y
+        row = []
+        i = 0
+        while i < len(remaining_units):
+            unit_y = remaining_units[i][1]
+            y_diff = abs(unit_y - base_y)
+            
+            if y_diff <= Y_THR:
+                row.append(remaining_units.pop(i))
+            else:
+                i += 1
+
+        # Sort that row right-to-left (or LTR) by x-coordinate
+        row.sort(key=lambda unit: (-unit[0] if right_to_left else unit[0]))
+
+        # Add all panels from each unit in the row
+        for unit in row:
+            unit_panels = unit[2]  # unit[2] is the list of panels in the stack
+            for panel in unit_panels:
+                ordered.append(panel)
+        
+        row_id += 1
+
     return ordered
 
-
-def sort_regions(
+async def sort_regions(
     regions: List[TextBlock],
     right_to_left: bool = True,
     img: np.ndarray = None,
-    force_simple_sort: bool = False
+    device: str = 'cpu',
+    panel_detector: str = 'none',
+    panel_config: PanelDetectorConfig = None,
+    ctx = None
 ) -> List[TextBlock]:
-    
+
     if not regions:
         return []
 
-    # If simple sort is forced, use it and return immediately.
-    if force_simple_sort:
+    # If panel detection is disabled, use simple sort and return immediately.
+    if panel_detector == 'none':
         return _simple_sort(regions, right_to_left)
 
     # 1. Panel detection + sorting within panels
     if img is not None:
         try:
-            panels_raw = get_panels_from_array(img, rtl=right_to_left)
+            import time
+            panel_start_time = time.time()
+
+            # Convert string to enum
+            if panel_detector == 'dl':
+                detector_key = PanelDetector.dl
+            elif panel_detector == 'kumiko':
+                detector_key = PanelDetector.kumiko
+            else:
+                # Should not reach here due to early return for 'none'
+                return _simple_sort(regions, right_to_left)
+
+            logger.debug(f'Starting panel detection with {panel_detector} on {device}')
+            panels_raw = await dispatch_panel_detection(detector_key, img, rtl=right_to_left, device=device, config=panel_config)
+            panel_end_time = time.time()
+            logger.debug(f'Panel detection completed in {panel_end_time - panel_start_time:.2f}s, found {len(panels_raw)} panels')
             # Convert to [x1, y1, x2, y2]
             panels = [(x, y, x + w, y + h) for x, y, w, h in panels_raw]
-            # Use the customised sorter that keeps vertically stacked panels together.
-            panels = _sort_panels_fill(panels, right_to_left)
 
-            # Assign panel_index to each region
+            # Apply sorting based on detector type
+            if detector_key == PanelDetector.kumiko:
+                # Kumiko already sorts panels internally, trust its ordering
+                pass
+            else:
+                # Use our custom sorter for other detectors (like DL)
+                panels = _sort_panels_fill(panels, right_to_left)
+
+            # Cache panel data in Context for reuse by visualize_textblocks
+            if ctx is not None:
+                ctx.panels_data = panels
+                ctx.panel_detector_used = panel_detector
+                ctx.panel_config_used = panel_config
+
+            # Improved text assignment logic: select smallest containing panel
             for r in regions:
                 cx, cy = r.center
                 r.panel_index = -1
+                containing_panels = []
+                
+                # Find all panels that contain this text block
                 for idx, (x1, y1, x2, y2) in enumerate(panels):
                     if x1 <= cx <= x2 and y1 <= cy <= y2:
-                        r.panel_index = idx
-                        break
-                if r.panel_index < 0:
+                        area = (x2 - x1) * (y2 - y1)  # Calculate panel area
+                        containing_panels.append((area, idx))
+                
+                if containing_panels:
+                    # Select smallest area panel (innermost in nested structure)
+                    r.panel_index = min(containing_panels)[1]
+                else:
                     # If not inside any panel, find the closest one
                     dists = [
                         ((max(x1-cx, 0, cx-x2))**2 + (max(y1-cy, 0, cy-y2))**2, i)
@@ -610,37 +776,32 @@ def sort_regions(
             # Ensure panels that couldn't be assigned are handled (e.g., panel_index=-1)
             # and sorted based on their panel index.
             for pi in sorted(grouped.keys()):
-                panel_sorted = sort_regions(grouped[pi], right_to_left, img=None, force_simple_sort=False)
+                panel_sorted = await sort_regions(grouped[pi], right_to_left, img=None, panel_detector='none')
                 sorted_all += panel_sorted
             return sorted_all
-            
+
         except (cv2.error, MemoryError, Exception) as e:
-            # When panel detection fails, use simple sort, log a warning but continue translation.
-            from ..utils import get_logger
-            logger = get_logger('textblock')
-            logger.warning(f'Panel detection failed ({e.__class__.__name__}: {str(e)[:100]}), using simple text sorting')
-            
-            # Use the simple sorting logic as a fallback.
+            # When panel detection fails, use simple sort as fallback
             return _simple_sort(regions, right_to_left)
 
     # 2. Smart sorting (if img is None and not forced simple)
     xs = [r.center[0] for r in regions]
     ys = [r.center[1] for r in regions]
     
-    # 改进的分散度计算：使用标准差
+    # Improved variance calculation: using standard deviation
     if len(regions) > 1:
         x_std = np.std(xs) if len(xs) > 1 else 0
         y_std = np.std(ys) if len(ys) > 1 else 0
         
-        # 使用标准差比值来判断排列方向
+        # Use standard deviation ratio to determine arrangement direction
         is_horizontal = x_std > y_std
     else:
-        # 只有一个文本块时，默认为纵向
+        # When only one text block, default to vertical
         is_horizontal = False
 
     sorted_regions = []
     if is_horizontal:
-        # 横向更分散：先 x 再 y
+        # More horizontal spread: sort by x first, then y
         primary = sorted(regions, key=lambda r: -r.center[0] if right_to_left else r.center[0])
         group, prev = [], None
         for r in primary:
@@ -655,7 +816,7 @@ def sort_regions(
             group.sort(key=lambda r: r.center[1])
             sorted_regions += group
     else:
-        # 纵向更分散：先 y 再 x
+        # More vertical spread: sort by y first, then x
         primary = sorted(regions, key=lambda r: r.center[1])
         group, prev = [], None
         for r in primary:
@@ -673,17 +834,47 @@ def sort_regions(
     return sorted_regions
 
 
-def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock], show_panels: bool = False, img_rgb: np.ndarray = None, right_to_left: bool = True):
+async def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock], show_panels: bool = False, img_rgb: np.ndarray = None, right_to_left: bool = True, device: str = 'cpu', panel_detector: str = 'dl', panel_config: PanelDetectorConfig = None, ctx = None):
     lw = max(round(sum(canvas.shape) / 2 * 0.003), 2)  # line width
-    
+
     # Panel detection and drawing
     panels = None
     if show_panels and img_rgb is not None:
         try:
-            panels_raw = get_panels_from_array(img_rgb, rtl=right_to_left)
-            panels = [(x, y, x + w, y + h) for x, y, w, h in panels_raw]
-            # Use the customised sorter that keeps vertically stacked panels together.
-            panels = _sort_panels_fill(panels, right_to_left)
+            # Try to use cached panel data first
+            if (ctx is not None and
+                hasattr(ctx, 'panels_data') and
+                hasattr(ctx, 'panel_detector_used') and
+                hasattr(ctx, 'panel_config_used') and
+                ctx.panel_detector_used == panel_detector and
+                ctx.panel_config_used == panel_config and
+                ctx.panels_data is not None):
+                # Use cached panel data from sort_regions
+                panels = ctx.panels_data
+            else:
+                # Fallback: perform panel detection
+                if panel_detector == 'none':
+                    panels = []  # No panels when detection is disabled
+                else:
+                    if panel_detector == 'dl':
+                        detector_key = PanelDetector.dl
+                    elif panel_detector == 'kumiko':
+                        detector_key = PanelDetector.kumiko
+                    else:
+                        panels = []  # Fallback for unknown detector
+                        detector_key = None
+
+                    if detector_key:
+                        panels_raw = await dispatch_panel_detection(detector_key, img_rgb, rtl=right_to_left, device=device, config=panel_config)
+                        panels = [(x, y, x + w, y + h) for x, y, w, h in panels_raw]
+
+                # Apply sorting based on detector type
+                if detector_key == PanelDetector.kumiko:
+                    # Kumiko already sorts panels internally, trust its ordering
+                    pass
+                else:
+                    # Use our custom sorter for other detectors (like DL)
+                    panels = _sort_panels_fill(panels, right_to_left)
             
             # Draw panel boxes and order
             for panel_idx, (x1, y1, x2, y2) in enumerate(panels):
@@ -692,9 +883,8 @@ def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock], show_pan
                 cv2.putText(canvas, str(panel_idx), (x1+5, y1+60), cv2.FONT_HERSHEY_SIMPLEX, 
                            lw/2, (200, 100, 0), max(lw-1, 1), cv2.LINE_AA)
         except Exception as e:
-            from ..utils import get_logger
-            logger = get_logger('textblock')
-            logger.warning(f'Panel visualization failed: {e}')
+            # Panel visualization failed, skip panel drawing
+            logger.error(f"Panel visualization failed: {e}")
     
     for i, blk in enumerate(blk_list):
         bx1, by1, bx2, by2 = blk.xyxy
@@ -710,22 +900,22 @@ def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock], show_pan
         x_text = 'x: %s' % bx1
         y_text = 'y: %s' % by1
         
-        # 添加描边效果，文本居中
+        # Add outline effect, text centered
         def put_text_with_outline(text, center_x, y, font_size=0.8, thickness=2, color=(127,127,255)):
             
             (text_width, text_height), baseline = cv2.getTextSize(
                 text, cv2.FONT_HERSHEY_SIMPLEX, font_size, thickness)
             text_x = center_x - text_width // 2
             
-            # 绘制描边
+            # Draw outline
             for dx, dy in [(-1,-1), (-1,1), (1,-1), (1,1), (-2,0), (2,0), (0,-2), (0,2)]:
                 cv2.putText(canvas, text, (text_x+dx, y+dy), 
                           cv2.FONT_HERSHEY_SIMPLEX, font_size, (35,24,22), thickness)
-            # 绘制原始颜色的主文本
+            # Draw main text in original color
             cv2.putText(canvas, text, (text_x, y), 
                       cv2.FONT_HERSHEY_SIMPLEX, font_size, color, thickness)
         
-        # 在文本框水平中央位置绘制带描边的文本
+        # Draw outlined text at horizontal center of text box
         center_x = center[0]  
         put_text_with_outline(angle_text, center_x, center[1] - 10)
         put_text_with_outline(x_text, center_x, center[1] + 15)

@@ -236,11 +236,19 @@ class MangaTranslatorLocal(MangaTranslator):
 
     async def _translate_file(self, path: str, dest: str, config: Config, ctx: Context) -> bool:
         if path.endswith('.txt'):
-            with open(path, 'r') as f:
-                queries = f.read().split('\n')
-            translated_sentences = \
-                await dispatch_translation(config.translator.translator_gen, queries, self.use_mtpe, ctx,
-                                           'cpu' if self._gpu_limited_memory else self.device)
+            with open(path, 'r', encoding='utf-8-sig') as f:
+                queries = f.read().splitlines()
+            # 注入上下文参数到 ctx
+            ctx.context_size = getattr(self, 'context_size', 0)
+            ctx.all_page_translations = getattr(self, 'all_page_translations', [])
+            translated_sentences = await dispatch_translation(
+                config.translator.translator_gen,
+                queries,
+                config.translator,
+                self.use_mtpe,
+                ctx,
+                device='cpu' if self._gpu_limited_memory else self.device
+            )
             p, ext = os.path.splitext(dest)
             if ext != '.txt':
                 dest = p + '.txt'

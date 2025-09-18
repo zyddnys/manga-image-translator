@@ -36,7 +36,7 @@ class SelectiveOfflineTranslator(OfflineTranslator):
                 return sugoi_translator
         return get_translator('m2m100_big')
 
-    async def translate(self, from_lang: str, to_lang: str, queries: List[str], use_mtpe: bool) -> List[str]:
+    async def translate(self, from_lang: str, to_lang: str, queries: List[str], use_mtpe: bool, ctx=None) -> List[str]:
         if from_lang == 'auto':
             detected_lang = langid.classify(' '.join(queries))[0]
             if detected_lang in ISO_639_1_TO_VALID_LANGUAGES:
@@ -49,7 +49,7 @@ class SelectiveOfflineTranslator(OfflineTranslator):
             await self._real_translator.load(*self._cached_load_params)
             self._cached_load_params = None
 
-        return await self._real_translator.translate(from_lang, to_lang, queries, use_mtpe)
+        return await self._real_translator.translate(from_lang, to_lang, queries, use_mtpe, ctx)
 
     async def load(self, from_lang: str, to_lang: str, device: str):
         self._cached_load_params = [from_lang, to_lang, device]

@@ -3,13 +3,15 @@ import os
 import asyncio
 import time
 import string
-from typing import List, Dict
-from rich.console import Console  
+from typing import List, Dict, Optional
+from contextvars import ContextVar
+from rich.console import Console
 from rich.panel import Panel
 from .. import manga_translator
 from .config_gpt import ConfigGPT
 from .common import CommonTranslator, MissingAPIKeyException, VALID_LANGUAGES
 from .keys import OPENAI_API_KEY, OPENAI_HTTP_PROXY, OPENAI_API_BASE, OPENAI_MODEL, OPENAI_GLOSSARY_PATH
+from ..utils.generic import Context
 
 try:
     import openai
@@ -80,9 +82,25 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         self.prev_context = ""
         # 可选的回退模型（通过环境变量 OPENAI_FALLBACK_MODEL 指定）
         self._fallback_model = os.getenv("OPENAI_FALLBACK_MODEL")
+        # 每个并发任务独立的prev_context，避免实例级状态在并发下相互污染
+        # A per-task storage to avoid shared state across concurrent requests
+        self._task_prev_context: ContextVar[str] = ContextVar("OPENAI_PREV_CONTEXT", default="")
 
     def set_prev_context(self, text: str = ""):
         self.prev_context = text or ""     
+
+    def _set_task_prev_context(self, text: str = ""):
+        try:
+            self._task_prev_context.set(text or "")
+        except Exception:
+            # 在不支持contextvars的环境中静默失败
+            self.prev_context = text or ""
+
+    def _get_task_prev_context(self) -> str:
+        try:
+            return self._task_prev_context.get()
+        except Exception:
+            return self.prev_context
 
     def parse_args(self, args: CommonTranslator):
         """如果你有外部参数要解析，可在此对 self.config 做更新"""
@@ -684,8 +702,10 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             self.logger.info(f"Loaded {len(relevant_terms)} relevant terms from the glossary.")  
         
         # 如果有上文，添加到系统消息中 / If there is a previous context, add it to the system message        
-        if self.prev_context:
-            messages.append({'role': 'system', 'content': self.prev_context})            
+        # 使用每任务隔离的上下文，避免并发相互覆盖
+        local_prev_ctx = self._get_task_prev_context()
+        if local_prev_ctx:
+            messages.append({'role': 'system', 'content': local_prev_ctx})            
         
         # 如果需要先给出示例对话
         # Add chat samples if available
@@ -805,6 +825,109 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 fixed_lines.append(line)
         
         return '\n'.join(fixed_lines)
+
+    def _build_prev_context(self, context_size, all_page_translations, use_original_text=False, current_page_index=None, batch_index=None, batch_original_texts=None, original_page_texts=None):
+        """
+        跳过句子数为0的页面，取最近 context_size 个非空页面，拼成：
+        <|1|>句子
+        <|2|>句子
+        ...
+        的格式；如果没有任何非空页面，返回空串。
+
+        Args:
+            context_size: 上下文页面数量
+            all_page_translations: 所有已完成的页面译文历史
+            use_original_text: 是否使用原文作为上下文
+            current_page_index: 当前页面在全局序列中的索引
+            batch_index: 当前页面在批次中的索引（从0开始）
+            batch_original_texts: 当前批次各页的原文数据列表
+            original_page_texts: 全局各页的原文数据列表
+        """
+        if context_size <= 0:
+            return ""
+
+        available_pages = []
+
+        if use_original_text:
+            base_original_pages = original_page_texts or []
+
+            if current_page_index is not None and current_page_index > 0:
+                available_pages.extend(base_original_pages[:current_page_index])
+
+        else:
+            if current_page_index is not None:
+                available_pages = (all_page_translations[:current_page_index] if all_page_translations else [])
+            else:
+                available_pages = all_page_translations or []
+
+        if not available_pages:
+            return ""
+
+        # 筛选出有句子的页面
+        non_empty_pages = [
+            page for page in available_pages
+            if isinstance(page, dict) and any((str(v).strip() for v in page.values()))
+        ]
+
+        pages_used = min(context_size, len(non_empty_pages))
+        if pages_used == 0:
+            return ""
+
+        tail = non_empty_pages[-pages_used:]
+
+        # 直接展开页中的文本（原文或译文）
+        lines = []
+        for page in tail:
+            for sent in page.values():
+                if sent and str(sent).strip():
+                    lines.append(str(sent).strip())
+
+        numbered = [f"<|{i+1}|>{s}" for i, s in enumerate(lines)]
+        context_type = "original text" if use_original_text else "translation results"
+        return f"Here are the previous {context_type} for reference:\n" + "\n".join(numbered)
+
+    async def translate(self, from_lang: str, to_lang: str, queries: List[str], use_mtpe: bool = False, ctx: Optional[Context] = None) -> List[str]:
+        """
+        Override translate method to handle context management internally
+        """
+        # Handle context management if context_size > 0
+        context_size = getattr(ctx, 'context_size', 0) if ctx is not None else 0
+        all_page_translations = getattr(ctx, 'all_page_translations', None) if ctx is not None else None
+        if context_size > 0:
+            # 检查是否为并发模式
+            use_original_text = getattr(ctx, '_batch_concurrent', False)
+            page_index = getattr(ctx, '_page_index', None)
+            batch_index = getattr(ctx, '_batch_index', None)
+            batch_original_texts = getattr(ctx, '_batch_original_texts', None)
+            original_page_texts = getattr(ctx, '_original_page_texts', None)
+
+
+            # Build context string
+            prev_ctx = self._build_prev_context(
+                context_size=context_size,
+                all_page_translations=all_page_translations or [],
+                use_original_text=use_original_text,
+                current_page_index=page_index,
+                batch_index=batch_index,
+                batch_original_texts=batch_original_texts,
+                original_page_texts=original_page_texts
+            )
+
+            if prev_ctx:
+                # 设置实例级与任务级，双重保险
+                self.set_prev_context(prev_ctx)
+                self._set_task_prev_context(prev_ctx)
+                context_count = prev_ctx.count("<|")
+                context_type = "original text" if use_original_text else "translation results"
+                self.logger.info(f"Context-aware translation enabled with {context_type}, {context_count} sentences as reference")
+            else:
+                # 显式清空实例级与任务级上下文，避免复用遗留
+                self.set_prev_context("")
+                self._set_task_prev_context("")
+                self.logger.info("No context available for this translation (prev_context cleared)")
+
+        # Call parent translate method (父类不使用context参数，避免冗余透传)
+        return await super().translate(from_lang, to_lang, queries, use_mtpe, ctx)
 
     # ==============修改日志输出方法 (Modify Log Output Method)==============
     def print_boxed(self, text, border_color="blue", title="OpenAITranslator Output"):  
