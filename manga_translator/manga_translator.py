@@ -13,6 +13,7 @@ import numpy as np
 from PIL import Image
 from typing import Optional, Any, List
 import py3langid as langid
+from fast_langdetect import detect
 
 from .config import Config, Colorizer, Detector, Translator, Renderer, Inpainter
 from .utils import (
@@ -2644,7 +2645,7 @@ class MangaTranslator:
     async def _check_target_language_ratio(self, text_regions: List, target_lang: str, min_ratio: float = 0.5) -> bool:
         """
         检查翻译结果中目标语言的占比是否达到要求
-        使用py3langid进行语言检测
+        使用py3langid作为主要检测，fast-langdetect作为备用检测
         Check if the target language ratio meets the requirement by detecting the merged translation text
         
         Args:
@@ -2657,6 +2658,12 @@ class MangaTranslator:
         """
         if not text_regions or len(text_regions) <= 10:
             # 如果区域数量不超过10个，跳过此检查
+            return True
+
+        # Special Case for Arabic, Skip Language Check
+        # Because Arabic goes through arabic-reshaper
+        if target_lang.upper() == 'ARA':
+            logger.debug('Skipping language check for Arabic')
             return True
             
         # 合并所有翻译文本
@@ -2673,30 +2680,38 @@ class MangaTranslator:
         # 将所有翻译合并为一个文本进行检测
         merged_text = ''.join(all_translations)
         
-        # logger.info(f'Target language check - Merged text preview (first 200 chars): "{merged_text[:200]}"')
-        # logger.info(f'Target language check - Total merged text length: {len(merged_text)} characters')
-        # logger.info(f'Target language check - Number of regions: {len(all_translations)}')
-        
-        # 使用py3langid进行语言检测
+        detected_language = 'UNKNOWN'
+        confidence = -9999
         try:
             detected_lang, confidence = langid.classify(merged_text)
             detected_language = ISO_639_1_TO_VALID_LANGUAGES.get(detected_lang, 'UNKNOWN')
             if detected_language != 'UNKNOWN':
                 detected_language = detected_language.upper()
-            
-            # logger.info(f'Target language check - py3langid result: "{detected_lang}" -> "{detected_language}" (confidence: {confidence:.3f})')
         except Exception as e:
             logger.debug(f'py3langid failed for merged text: {e}')
-            detected_language = 'UNKNOWN'
-            confidence = -9999
-        
-        # 检查检测出的语言是否为目标语言
+
         is_target_lang = (detected_language == target_lang.upper())
         
-        # logger.info(f'Target language check: Detected language "{detected_language}" using py3langid (confidence: {confidence:.3f})')
-        # logger.info(f'Target language check: Target is "{target_lang.upper()}"')
-        # logger.info(f'Target language check result: {"PASSED" if is_target_lang else "FAILED"}')
-        
+        if not is_target_lang:
+            try:
+                results = detect(merged_text, model='lite', k=1)
+                fast_detected_lang = results[0]['lang']  
+                fast_confidence = results[0]['score']
+                if fast_confidence >= 0.8:
+                    fast_detected_language = ISO_639_1_TO_VALID_LANGUAGES.get(fast_detected_lang, 'UNKNOWN')
+                    if fast_detected_language != 'UNKNOWN':
+                        fast_detected_language = fast_detected_language.upper()
+                        is_target_lang_fast = (fast_detected_language == target_lang.upper())
+                        logger.debug(f'fast-langdetect fallback result: "{fast_detected_lang}" -> "{fast_detected_language}" (confidence: {fast_confidence:.3f})')
+                        
+                        if is_target_lang_fast:
+                            is_target_lang = True
+                            logger.info(f'Language detection disagreement resolved by fast-langdetect: py3langid="{detected_language}" vs fast-langdetect="{fast_detected_language}" -> Using fast-langdetect result')
+                else:
+                    logger.debug(f'fast-langdetect low confidence result: {fast_confidence}, skipping fallback')
+            except Exception as e:
+                logger.debug(f'fast-langdetect fallback failed: {e}')
+
         return is_target_lang
 
     async def _validate_translation(self, original_text: str, translation: str, target_lang: str, config, ctx: Context = None, silent: bool = False, page_lang_check_result: bool = None) -> bool:

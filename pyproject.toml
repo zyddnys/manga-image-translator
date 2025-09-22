@@ -67,6 +67,7 @@ dependencies = [
     "google-genai",
     "rich",
     "regex",
+    "fast_langdetect",
     #"rusty-manga-image-translator",
     "python-bidi"
 ]
