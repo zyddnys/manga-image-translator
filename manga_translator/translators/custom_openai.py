@@ -183,10 +183,14 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
             new_translations = re.split(r'<\|\d+\|>', 'pre_1\n' + response)[1:]
             # new_translations = re.split(r'<\|\d+\|>', response)
 
+            # When there is only one query LLMs likes to exclude the <|1|>
+            if not new_translations:
+                new_translations = [response]
+
             # Immediately clean leading and trailing whitespace from each translation text
             new_translations = [t.strip() for t in new_translations]
 
-            # When there is only one query LLMs likes to exclude the <|1|>
+            # When there is only one query LLMs likes to exclude the <|1|> # Maybe it can be removed, but it causes no errors
             if not new_translations[0].strip():
                 new_translations = new_translations[1:]
 
