@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mit_renderer*", "mit_renderer.*"]
+
+[project]
+name = "mit-renderer"
+version = "0.1.0"
+description = "My package with custom build step"
+authors = [
+  { name="Frederik", email="your@email.com" }
+]
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.8"
+dependencies = [
+    "Pillow",
+    "numpy",
+    "opencv-python",
+    "langcodes",
+    "pyhyphen",
+    "freetype-py",
+    "shapely",
+    "py3langid",
+    "tqdm"
+]

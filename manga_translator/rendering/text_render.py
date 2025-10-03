@@ -11,7 +11,7 @@ from hyphen import Hyphenator
 from hyphen.dictools import LANGUAGES as HYPHENATOR_LANGUAGES
 from langcodes import standardize_tag
 
-from ..utils import BASE_PATH, is_punctuation, is_whitespace
+from ..utils import BASE_PATH, is_punctuation
 
 try:
     HYPHENATOR_LANGUAGES.remove('fr')
