@@ -1,0 +1,38 @@
+name: Mark stale issues
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Runs once per day at midnight UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+          only-issues: true
+
+          days-before-stale: 90
+
+          days-before-close: 7
+
+          stale-issue-message: >
+            👋 This issue has been automatically marked as stale
+            because it has not had any recent activity.
+            It will be closed in 7 days if no further activity occurs.
+            Thank you for your contributions!
+
+          close-issue-message: >
+            🚫 This issue has been automatically closed due to inactivity.
+            Please reopen if it’s still relevant.
+
+          stale-issue-label: "stale"
+
+          exempt-issue-labels: "enhancement,help wanted"
+          remove-stale-when-updated: true
