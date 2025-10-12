@@ -347,14 +347,14 @@
                 :src="fileUri"
               />
               <div class="flex space-x-2">
-              <button
+                <button
                   type="button"
                   @click="clearFile"
                   class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-500"
                   style="color: white !important; background-color: #4B5563 !important;"
                 >
                   Clear
-              </button>
+                </button>
                 <button
                   type="button"
                   @click="startTranslation"
@@ -376,7 +376,10 @@
                 data-icon="carbon:cloud-upload"
               ></i>
               <div class="text-gray-600">
-                Paste an image, click to select one, or drag and drop here
+                Paste images, click to select multiple, or drag and drop here
+              </div>
+              <div class="text-sm text-gray-500">
+                Supports multiple file selection (Ctrl/Cmd + click)
               </div>
             </div>
             
@@ -387,6 +390,7 @@
               accept="image/png,image/jpeg,image/bmp,image/webp"
               class="hidden"
               @change="onfilechange"
+              multiple
             />
           </label>
         </div>
@@ -426,6 +430,37 @@
           </a>
         </div>
 
+        <!-- Batch Upload Section -->
+        <div class="border-t pt-6 mt-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-800">
+              Batch Upload
+            </h3>
+          </div>
+          
+          <div class="flex flex-col items-center space-y-4 p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 transition-colors">
+            <i class="iconify w-12 h-12 text-gray-400" data-icon="carbon:batch-job"></i>
+            <div class="text-center">
+              <p class="text-gray-600 mb-2">Upload multiple images at once</p>
+              <p class="text-sm text-gray-500">Select multiple files or drag & drop a group of images</p>
+            </div>
+            <div class="flex space-x-3">
+              <button
+                @click="selectMultipleFiles"
+                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                <i class="iconify inline-block mr-2" data-icon="carbon:folder-add"></i>
+                Select Multiple Files
+              </button>
+              <button
+                @click="selectFolder"
+                class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors">
+                <i class="iconify inline-block mr-2" data-icon="carbon:folder"></i>
+                Select Folder
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Image Queue Section -->
         <div class="border-t pt-6 mt-6">
           <div class="flex items-center justify-between mb-4">
@@ -433,15 +468,15 @@
               Translation Queue ({{ queuedImages.length }})
             </h3>
             <div class="flex space-x-2">
-              <button @click="skipCurrentTranslation" 
+              <button @click="skipCurrentTranslation"
                       class="px-3 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
                 Skip Current
               </button>
-              <button @click="clearFinishedItems" 
+              <button @click="clearFinishedItems"
                       class="px-3 py-1 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
                 Clear Finished
               </button>
-      </div>
+            </div>
           </div>
           
           <!-- Queue is empty message -->
@@ -849,32 +884,131 @@
         },
 
         ondrop(e) {
-          const file = e.dataTransfer?.files?.[0];
-          if (file && acceptTypes.includes(file.type)) {
-            this.file = file;
+          const files = Array.from(e.dataTransfer?.files || []);
+          const validFiles = files.filter(file => acceptTypes.includes(file.type));
+          
+          if (validFiles.length === 1 && !this.file) {
+            // Single file and no current file - maintain existing behavior
+            this.file = validFiles[0];
+          } else if (validFiles.length > 0) {
+            // Multiple files or single file when already have one - add to queue
+            this.addMultipleFilesToQueue(validFiles);
           }
         },
         onfilechange(e) {
-          const file = e.target.files?.[0];
-          if (file && acceptTypes.includes(file.type)) {
-            this.file = file;
+          const files = Array.from(e.target.files || []);
+          const validFiles = files.filter(file => acceptTypes.includes(file.type));
+          
+          if (validFiles.length === 1) {
+            // Single file - maintain existing behavior
+            this.file = validFiles[0];
+          } else if (validFiles.length > 1) {
+            // Multiple files - add all to queue
+            this.addMultipleFilesToQueue(validFiles);
+            // Clear the file input
+            e.target.value = '';
           }
         },
         onpaste(e) {
-          const items = (e.clipboardData || e.originalEvent.clipboardData)
-            .items;
+          const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+          const pastedFiles = [];
+          
           for (const item of items) {
             if (item.kind === "file") {
               const file = item.getAsFile();
-              if (!file || !acceptTypes.includes(file.type)) continue;
-              this.file = file;
+              if (file && acceptTypes.includes(file.type)) {
+                pastedFiles.push(file);
+              }
             }
+          }
+          
+          if (pastedFiles.length === 1 && !this.file) {
+            // Single file and no current file - maintain existing behavior
+            this.file = pastedFiles[0];
+          } else if (pastedFiles.length > 0) {
+            // Multiple files or single file when already have one - add to queue
+            this.addMultipleFilesToQueue(pastedFiles);
           }
         },
 
         // Queue management
         clearFile() {
           this.file = null;
+        },
+
+        // Add multiple files to queue
+        addMultipleFilesToQueue(files) {
+          console.log(`Adding ${files.length} files to queue`);
+          
+          // Clear any finished items from queue first
+          this.clearFinishedItems();
+          
+          files.forEach((file, index) => {
+            const queuedImage = {
+              id: Date.now() + Math.random() + index,
+              file: file,
+              addedAt: new Date(),
+              status: 'queued'
+            };
+            this.queuedImages.push(queuedImage);
+          });
+          
+          console.log(`Queue now has ${this.queuedImages.length} items`);
+          
+          // If nothing is currently processing, start the first one
+          const processingSteps = ['upload', 'pending', 'detection', 'ocr', 'mask-generation', 'inpainting', 'upscaling', 'translating', 'rendering'];
+          const isCurrentlyTranslating = this.queuedImages.some(item =>
+            processingSteps.includes(item.status)
+          );
+          
+          if (!isCurrentlyTranslating && this.queuedImages.length > 0) {
+            // Start processing the first queued item
+            const firstQueuedIndex = this.queuedImages.findIndex(item => item.status === 'queued');
+            if (firstQueuedIndex !== -1) {
+              this.queuedImages[firstQueuedIndex].status = 'processing';
+              this.processTranslation(this.queuedImages[firstQueuedIndex]);
+            }
+          }
+        },
+
+        // Batch upload functions
+        selectMultipleFiles() {
+          // Create a temporary file input for multiple file selection
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/png,image/jpeg,image/bmp,image/webp';
+          input.multiple = true;
+          
+          input.onchange = (e) => {
+            const files = Array.from(e.target.files || []);
+            const validFiles = files.filter(file => acceptTypes.includes(file.type));
+            
+            if (validFiles.length > 0) {
+              this.addMultipleFilesToQueue(validFiles);
+            }
+          };
+          
+          input.click();
+        },
+
+        selectFolder() {
+          // Create a temporary file input for folder selection
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/png,image/jpeg,image/bmp,image/webp';
+          input.webkitdirectory = true;
+          input.multiple = true;
+          
+          input.onchange = (e) => {
+            const files = Array.from(e.target.files || []);
+            const validFiles = files.filter(file => acceptTypes.includes(file.type));
+            
+            if (validFiles.length > 0) {
+              this.addMultipleFilesToQueue(validFiles);
+            }
+          };
+          
+          input.click();
         },
 
         removeFromQueue(id) {
