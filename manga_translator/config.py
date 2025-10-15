@@ -240,6 +240,11 @@ class TranslatorConfig(BaseModel):
     """Minimum number of consecutive repetitions to trigger hallucination detection"""
     post_check_target_lang_threshold: float = 0.5  
     """Minimum ratio of target language in translation text for ratio check"""
+
+    refusal_fallback: bool = True
+    """Enable fallback model for chatgpt when refused"""
+    refusal_fallback_model_name: str = "gemini"
+    """Fallback model name for chatgpt when refused"""
     
     _translator_gen = None
     _gpt_config = None

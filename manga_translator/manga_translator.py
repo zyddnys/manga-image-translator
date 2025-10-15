@@ -1016,18 +1016,6 @@ class MangaTranslator:
         # Build the context string
         prev_ctx = self._build_prev_context()
 
-        # Check if the page prefers Gemini for translation
-        if getattr(ctx, '_prefer_gemini_for_page', False):
-            from .translators.gemini import GeminiTranslator
-            translator = GeminiTranslator()
-            # Pass the same translator parameters as ChatGPT (temperature/TopP, etc.)
-            translator.parse_args(config.translator)
-            return await translator._translate(
-                ctx.from_lang,          
-                config.translator.target_lang, 
-                texts
-            )
-
         # 如果是 ChatGPT 或 ChatGPT2Stage 翻译器，则专门处理上下文注入
         # Special handling for ChatGPT and ChatGPT2Stage translators: inject context
         if config.translator.translator in [Translator.chatgpt, Translator.chatgpt_2stage]:
@@ -1055,10 +1043,11 @@ class MangaTranslator:
                 ctx.result_path_callback = self._result_path
                 return await translator._translate(ctx.from_lang, config.translator.target_lang, texts, ctx)
             else:
-                return await translator._translate(ctx.from_lang, config.translator.target_lang, texts)
+                result = await translator._translate(ctx.from_lang, config.translator.target_lang, texts)
+                return await self._fallback_if_refused(result, texts, config, ctx)
 
 
-        return await dispatch_translation(
+        result = await dispatch_translation(
             config.translator.translator_gen,
             texts,
             config.translator,
@@ -1066,6 +1055,29 @@ class MangaTranslator:
             ctx,
             'cpu' if self._gpu_limited_memory else self.device
         )
+        # 对于非 ChatGPT 的通用路径，直接返回结果（不应用拒绝回退）
+        return result
+
+    async def _fallback_if_refused(self, result, texts: List[str], config: Config, ctx: Context) -> List[str]:
+        """
+        If ChatGPT returns (False, ["__REFUSED__"]), fall back to Gemini for the same texts.
+        Otherwise, return the original result normalized to a list.
+        """
+        if isinstance(result, tuple) and result[0] is False:
+            payload = result[1]
+            if isinstance(payload, list) and payload and payload[0] == "__REFUSED__":
+                try:
+                    from .translators.gemini import GeminiTranslator
+                    logger.warning('ChatGPT refused. Falling back to Gemini...')
+                    gemini_translator = GeminiTranslator()
+                    gemini_translator.parse_args(config.translator)
+                    return await gemini_translator._translate(ctx.from_lang, config.translator.target_lang, texts)
+                except Exception as e:
+                    logger.error(f"Gemini fallback failed: {e}")
+                    return texts
+            return payload if isinstance(payload, list) else texts
+
+        return result if isinstance(result, list) else texts
 
     async def _run_text_translation(self, config: Config, ctx: Context):
         # 检查text_regions是否为None或空

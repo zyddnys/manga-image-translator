@@ -213,6 +213,8 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
     def parse_args(self, args: CommonTranslator):
         """如果你有外部参数要解析，可在此对 self.config 做更新"""
         self.config = args.chatgpt_config
+        self.refusal_fallback = args.refusal_fallback
+        self.refusal_fallback_model_name = args.refusal_fallback_model_name
 
     async def _ratelimit_sleep(self):
         """
@@ -281,6 +283,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         translations = [''] * len(queries)
         # 记录当前处理到 queries 列表的哪个位置
         idx_offset = 0
+        refused = False
 
         # 分批处理
         for prompt, batch_size in self._assemble_prompts(from_lang, to_lang, queries):
@@ -292,12 +295,17 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             success, partial_results = await self._translate_batch(
                 from_lang, to_lang, batch_queries, indices, prompt, split_level=0
             )
+            if not success and partial_results and partial_results[0] == '__REFUSED__':
+                refused = True
+            
             # 将结果写入 translations
             for i, r in zip(indices, partial_results):
                 translations[i] = r
 
             idx_offset += batch_size
 
+        if refused:
+            return (False, translations)
         return translations
 
     async def _try_fallback_model(self, to_lang: str, prompt: str, batch_queries: List[str]) -> tuple[bool, List[str]]:
@@ -442,45 +450,12 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
 
                 # Check for refusal messages, this is a global check and needs to be done first  
                 if self._cannot_assist(response_text):  
-                    try:
-                        import inspect
-                        for st in inspect.stack():
-                            ctx_obj = st.frame.f_locals.get("ctx")
-                            if ctx_obj is not None:
-                                setattr(ctx_obj, "_prefer_gemini_for_page", True)
-                                break
-                    except Exception:
-                        pass
-
-                    try:
-                        from ..translators.gemini import GeminiTranslator
-                    except Exception:
-                        from .gemini import GeminiTranslator
-
-                    try:
-                        gtr = GeminiTranslator()
-
-                        # Reverse mapping: convert display name back to language code if needed
-                        fallback_lang = to_lang
-                        if to_lang not in self._LANGUAGE_CODE_MAP.keys():
-                            for code, name in self._LANGUAGE_CODE_MAP.items():
-                                if name == to_lang:
-                                    fallback_lang = code
-                                    break
-                        gemini_results = await gtr.translate('auto', fallback_lang, batch_queries, False)
-                        if gemini_results and len(gemini_results) == len(batch_queries):
-                            for i in range(len(batch_queries)):
-                                partial_results[i] = gemini_results[i]
-                            self.logger.info("Gemini fallback succeeded for refusal case.")
-                            return True, partial_results
-                        else:
-                            self.logger.warning("Gemini fallback returned mismatched count or empty; will retry OpenAI.")
-                    except Exception as fb_e:
-                        self.logger.warning(f"Gemini fallback failed: {fb_e}. Will retry OpenAI.")
-
-                    self.logger.warning(f"Detected refusal message from model. Will retry (attempt {attempt+1}/{max_attempts}).")  
-                    continue  
-
+                    self.logger.warning("ChatGPT refused to translate.")
+                    if self.refusal_fallback and self.refusal_fallback_model_name:
+                        partial_results = ['__REFUSED__']
+                        return False, partial_results
+                    continue
+                    
                 # 解析响应
                 # Parse response
                 new_translations = re.split(r'<\|\d+\|>', response_text)
