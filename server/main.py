@@ -26,6 +26,10 @@ from server.to_json import to_translation, TranslationResponse
 app = FastAPI()
 nonce = None
 
+BASE_DIR = Path(__file__).resolve().parent
+RESULT_ROOT = (BASE_DIR.parent / "result").resolve()
+RESULT_ROOT.mkdir(parents=True, exist_ok=True)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,8 +39,8 @@ app.add_middleware(
 )
 
 # 添加result文件夹静态文件服务
-if os.path.exists("../result"):
-    app.mount("/result", StaticFiles(directory="../result"), name="result")
+if RESULT_ROOT.exists():
+    app.mount("/result", StaticFiles(directory=str(RESULT_ROOT)), name="result")
 
 @app.post("/register", response_description="no response", tags=["internal-api"])
 async def register_instance(instance: ExecutorInstance, req: Request, req_nonce: str = Header(alias="X-Nonce")):
@@ -162,16 +166,16 @@ async def queue_size() -> int:
 @app.api_route("/result/{folder_name}/final.png", methods=["GET", "HEAD"], tags=["api", "file"])
 async def get_result_by_folder(folder_name: str):
     """根据文件夹名称获取翻译结果图片"""
-    result_dir = "../result"
-    if not os.path.exists(result_dir):
+    result_dir = RESULT_ROOT
+    if not result_dir.exists():
         raise HTTPException(404, detail="Result directory not found")
 
-    folder_path = os.path.join(result_dir, folder_name)
-    if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
+    folder_path = result_dir / folder_name
+    if not folder_path.exists() or not folder_path.is_dir():
         raise HTTPException(404, detail=f"Folder {folder_name} not found")
 
-    final_png_path = os.path.join(folder_path, "final.png")
-    if not os.path.exists(final_png_path):
+    final_png_path = folder_path / "final.png"
+    if not final_png_path.exists():
         raise HTTPException(404, detail="final.png not found in folder")
 
     async def file_iterator():
@@ -321,19 +325,18 @@ async def execute_batch_stream(req: Request, data: BatchTranslateRequest):
 @app.get("/results/list", tags=["api"])
 async def list_results():
     """List all result directories"""
-    result_dir = "../result"
-    if not os.path.exists(result_dir):
+    result_dir = RESULT_ROOT
+    if not result_dir.exists():
         return {"directories": []}
     
     try:
         directories = []
-        for item in os.listdir(result_dir):
-            item_path = os.path.join(result_dir, item)
-            if os.path.isdir(item_path):
+        for item_path in result_dir.iterdir():
+            if item_path.is_dir():
                 # Check if final.png exists in this directory
-                final_png_path = os.path.join(item_path, "final.png")
-                if os.path.exists(final_png_path):
-                    directories.append(item)
+                final_png_path = item_path / "final.png"
+                if final_png_path.exists():
+                    directories.append(item_path.name)
         return {"directories": directories}
     except Exception as e:
         raise HTTPException(500, detail=f"Error listing results: {str(e)}")
@@ -341,18 +344,17 @@ async def list_results():
 @app.delete("/results/clear", tags=["api"])
 async def clear_results():
     """Delete all result directories"""
-    result_dir = "../result"
-    if not os.path.exists(result_dir):
+    result_dir = RESULT_ROOT
+    if not result_dir.exists():
         return {"message": "No results directory found"}
     
     try:
         deleted_count = 0
-        for item in os.listdir(result_dir):
-            item_path = os.path.join(result_dir, item)
-            if os.path.isdir(item_path):
+        for item_path in result_dir.iterdir():
+            if item_path.is_dir():
                 # Check if final.png exists in this directory
-                final_png_path = os.path.join(item_path, "final.png")
-                if os.path.exists(final_png_path):
+                final_png_path = item_path / "final.png"
+                if final_png_path.exists():
                     shutil.rmtree(item_path)
                     deleted_count += 1
         
@@ -363,16 +365,16 @@ async def clear_results():
 @app.delete("/results/{folder_name}", tags=["api"])
 async def delete_result(folder_name: str):
     """Delete a specific result directory"""
-    result_dir = "../result"
-    folder_path = os.path.join(result_dir, folder_name)
+    result_dir = RESULT_ROOT
+    folder_path = result_dir / folder_name
     
-    if not os.path.exists(folder_path):
+    if not folder_path.exists():
         raise HTTPException(404, detail="Result directory not found")
     
     try:
         # Check if final.png exists in this directory
-        final_png_path = os.path.join(folder_path, "final.png")
-        if not os.path.exists(final_png_path):
+        final_png_path = folder_path / "final.png"
+        if not final_png_path.exists():
             raise HTTPException(404, detail="Result file not found")
         
         shutil.rmtree(folder_path)
