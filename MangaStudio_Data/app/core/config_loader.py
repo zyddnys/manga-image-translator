@@ -2,6 +2,7 @@ import os
 import json
 import subprocess
 import sys
+import re
 
 
 class ConfigLoader:
@@ -43,7 +44,9 @@ class ConfigLoader:
         try:
             command = [self.python_executable, "-m", "manga_translator", "config-help"]
             result = subprocess.run(command, capture_output=True, text=True, encoding='utf-8', check=True)
-            schema_data = json.loads(result.stdout)
+            schema_data = self._parse_schema_output(result.stdout)
+            if schema_data is None:
+                raise ValueError("Schema command did not return valid JSON.")
             os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
             with open(self.cache_path, 'w', encoding='utf-8') as f:
                 json.dump(schema_data, f, indent=4)
@@ -51,6 +54,25 @@ class ConfigLoader:
         except Exception as e:
             print(f"[ERROR] Could not fetch schema: {e}")
             return None
+    
+    def _parse_schema_output(self, stdout):
+        """Extracts the JSON portion of the schema output."""
+        try:
+            return json.loads(stdout)
+        except json.JSONDecodeError:
+            cleaned_stdout = self._strip_ansi(stdout)
+            json_start = cleaned_stdout.find('{')
+            json_end = cleaned_stdout.rfind('}')
+            if json_start == -1 or json_end == -1 or json_end < json_start:
+                return None
+            try:
+                return json.loads(cleaned_stdout[json_start:json_end + 1])
+            except json.JSONDecodeError:
+                return None
+
+    def _strip_ansi(self, text):
+        ansi_escape = re.compile(r'\x1B\[[0-9;]*[A-Za-z]')
+        return ansi_escape.sub('', text)
 
     def _load_ui_map(self):
         map_path = os.path.join(self.project_base_dir, 'MangaStudio_Data', 'ui_map.json')
