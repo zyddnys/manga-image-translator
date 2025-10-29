@@ -24,6 +24,7 @@ This project is v2 of [Qiú wén zhuǎn yì zhì](https://github.com/PatchyVideo
 
 *   [Showcase](#showcase)
 *   [Online Version](#online-version)
+*   [Rust Version](#rust-version)
 *   [Installation](#installation)
     *   [Local Setup](#local-setup)
         *   [Using Pip/venv (Recommended)](#using-pipvenv-recommended)
@@ -160,6 +161,12 @@ Browser script (maintained by QiroNT): <https://greasyfork.org/scripts/437569>
 
 - Note: If the online version is inaccessible, it might be due to Google GCP restarting the server. Please wait a moment for the service to restart.
 - The online version uses the latest version from the main branch.
+
+## Rust Version
+
+[Manga Image Translator Rust](https://github.com/frederik-uni/manga-image-translator-rust) may be easier to setup as its a compiled binary
+
+- Note: stable diffusion is not rewritten yet & only a cli version is available
 
 ## Installation
 
