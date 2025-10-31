@@ -1,4 +1,3 @@
-import re
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
@@ -6,7 +5,7 @@ from typing import List
 
 from .ballon_extractor import extract_ballon_region
 from ..utils import TextBlock
-from .text_render_eng import PUNSET_RIGHT_ENG, seg_eng
+from .text_render_eng import seg_eng
 
 def merge_seg_eng(text: str, font, bbox_width, size_ratio=1.2) -> List[str]:
     """Segments text into words that fit within bbox_width"""
