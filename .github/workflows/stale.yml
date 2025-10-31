@@ -16,7 +16,7 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-          only-issues: true
+          operations-per-run: 200
 
           days-before-stale: 90
 
