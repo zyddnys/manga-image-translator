@@ -7,6 +7,7 @@ on:
 
 permissions:
   issues: write
+  actions: write         # allows writing/deleting cache state if needed
 
 jobs:
   stale:
