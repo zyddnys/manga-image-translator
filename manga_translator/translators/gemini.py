@@ -99,45 +99,52 @@ class GeminiTranslator(CommonGPTTranslator):
         self._canUseCache = False
         self.cached_content = None
         self.templateCache = None
-
+        # Initialize initialization failure tracking
+        self._initialization_failed = False
+        self._initialization_error = None
         # Dict for storing values to print to logger
         self.cachedVals={None}
-
         if not GEMINI_API_KEY:
-            raise MissingAPIKeyException(
-                        'Please set the GEMINI_API_KEY environment variable '
-                        'before using the Gemini translator.'
-                    )
-
+            self.logger.error(
+                'Please set the GEMINI_API_KEY environment variable '
+                'before using the Gemini translator.'
+            )
+            self._initialization_failed = True
+            self._initialization_error = "GEMINI_API_KEY is not set"
+            return
         self.client = genai.Client(api_key=GEMINI_API_KEY)
-
         try:
             model_list=list(self.client.models.list())
         except genai.errors.APIError as genai_err:
-            raise InvalidServerResponse(
+            self.logger.error(
                         'GEMINI_API_KEY was found, but the API failed to connect.\n.' +
                         f'The following error was caught:\n{genai_err}'
                     )
+            self._initialization_failed = True
+            self._initialization_error = "API failed to connect"
+            return
         except Exception as e:
             self.logger.error(
                         'GEMINI_API_KEY was found, but an unknown error was encountered during initial setup.\n.' +
                         f'The following error was caught:\n{e}'
                     )
-            raise e
-
+            self._initialization_failed = True
+            self._initialization_error = "Unknown error during initial setup"
+            return
         '''
         Start Section:
             Validate `GEMINI_MODEL` specification and determine supported capabilities.
         '''
         model_names = [aModel.name.lstrip('models/') for aModel in model_list]
-        if  f"{GEMINI_MODEL}" not in model_names:
+        if f"{GEMINI_MODEL}" not in model_names:
             self.logger.error(f"Model: '{GEMINI_MODEL}' was not found in the model list.\n" +
                                 "Please ensure you set the key: GEMINI_MODEL to one of the following values:"
                             )
             self.logger.error('\n'.join(mName for mName in model_names))
-
-            raise
-        
+            self._initialization_failed = True
+            self._initialization_error = "Model not found in model list"
+            return
+       
         # Use index of model name to get full model info
         model_info = model_list[model_names.index(GEMINI_MODEL)]
         
@@ -153,7 +160,7 @@ class GeminiTranslator(CommonGPTTranslator):
                             for m in model_list
                                 if 'createCachedContent' in m.supported_actions
                         ]
-            
+           
             # If the model supports Context Caching: Enable
             # Else: Inform the user, list supported models
             if 'createCachedContent' in model_info.supported_actions:
@@ -265,6 +272,8 @@ class GeminiTranslator(CommonGPTTranslator):
 
 
     def count_tokens(self, text: str) -> int:
+        if self._initialization_failed:
+            return 0
         # Uses the synchronous call (`client`) instead of asynchronous (`client.aio`)
         #   for compatibility with `common_gpt` 's `assemble_prompt`
         return self.client.models.count_tokens(model=GEMINI_MODEL, contents=text).total_tokens
@@ -312,16 +321,21 @@ class GeminiTranslator(CommonGPTTranslator):
         
         # If cache expire_time is less than 5 minutes (300 seconds) in the future: return True
         return delta < self._CACHE_TTL_BUFFER
-
-    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:  
+    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+        # Check if initialization failed
+        if self._initialization_failed:
+            self.logger.error(f'Gemini translator is in failed state: {self._initialization_error}')
+            self.logger.error('Marking all translations as failed')
+            return [f'__FAILED_TO_TRANSLATE__: {query}' for query in queries]
+       
         self.to_lang=to_lang # Export `to_lang`
         translations = [''] * len(queries)  
         self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')  
         MAX_SPLIT_ATTEMPTS = 5  # Default max split attempts  
         RETRY_ATTEMPTS = self._RETRY_ATTEMPTS  
-
-        async def translate_batch(prompt_queries, prompt_query_indices, split_level=0):  
-            nonlocal MAX_SPLIT_ATTEMPTS
+        server_error_attempt = 0  # Initialize server error counter
+        async def translate_batch(prompt_queries, prompt_query_indices, split_level=0):
+            nonlocal MAX_SPLIT_ATTEMPTS, server_error_attempt
             split_prefix = ' (split)' if split_level > 0 else ''  
 
             # Assemble prompt for the current batch  
@@ -365,24 +379,29 @@ class GeminiTranslator(CommonGPTTranslator):
                     # Store the translations in the correct indices  
                     for idx, translation in zip(prompt_query_indices, new_translations):  
                         translations[idx] = translation  
-
+                        self.logger.debug(f'Stored successful translation[{idx}]: {translation[:50]}...' if len(translation) > 50 else f'Stored successful translation[{idx}]: {translation}')
                     # Log progress  
-                    self.logger.info(f'Batch translated: {len([t for t in translations if t])}/{len(queries)} completed.')  
-                    self.logger.debug(f'Completed translations: {[t if t else queries[i] for i, t in enumerate(translations)]}')        
-                    return True  # Successfully translated this batch  
+                    completed_count = len([t for t in translations if t and not t.startswith("__FAILED_TO_TRANSLATE__:")])
+                    self.logger.info(f'Batch translated: {completed_count}/{len(queries)} completed.')
+                    self.logger.debug(f'Completed translations: {[t if t else queries[i] for i, t in enumerate(translations)]}')
+                    return True # Successfully translated this batch
                     
-                except genai.errors.APIError:  
+                except genai.errors.APIError as api_err:
                     server_error_attempt += 1
                     if server_error_attempt >= self._RETRY_ATTEMPTS:
                         self.logger.error(
                             'Gemini encountered a server error, possibly due to high server load. Use a different translator or try again later.')
-                        raise
+                     
                     self.logger.warning(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
                     await asyncio.sleep(1)
                 except Exception as e:  
                     self.logger.error(f'Error during translation attempt: {e}')  
                     if attempt == RETRY_ATTEMPTS - 1:  
-                        raise  
+                        self.logger.error('Maximum retry attempts reached. Marking batch as failed.')
+                        # Mark all queries in this batch as failed
+                        for idx in prompt_query_indices:
+                            translations[idx] = f'__FAILED_TO_TRANSLATE__: {queries[idx]}'
+                        return True # Return True to prevent further splitting
                     await asyncio.sleep(1)  
 
             # If retries exhausted and still not successful, proceed to split if allowed  
@@ -404,10 +423,18 @@ class GeminiTranslator(CommonGPTTranslator):
                 return all(results)  
             else:  
                 self.logger.error('Maximum split attempts reached. Unable to translate the following queries:')  
-                for idx in prompt_query_indices:  
-                    self.logger.error(f'Query: {queries[idx]}')  
-                return False  # Indicate failure for this batch   
-
+                failed_indices = []
+                for idx in prompt_query_indices:
+                    # Mark failed translations with original text
+                    original_query = queries[idx]
+                    failure_marker = f'__FAILED_TO_TRANSLATE__: {original_query}'
+                    self.logger.error(f'Query[{idx}]: {original_query}')
+                    self.logger.debug(f'Marking translation[{idx}] as failed with marker: {failure_marker}')
+                    translations[idx] = failure_marker
+                    failed_indices.append(idx)
+                self.logger.warning(f'Marked {len(failed_indices)} translations as failed (indices: {failed_indices})')
+                self.logger.debug(f'Current translations state: {translations}')
+                return True # Return True to indicate function completed (failures are marked in translations list)
         # Begin translation process  
         prompt_queries = queries  
         prompt_query_indices = list(range(len(queries)))  

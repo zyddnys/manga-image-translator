@@ -26,7 +26,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
     # ---- 关键参数 ----
     _MAX_REQUESTS_PER_MINUTE = 0
     _TIMEOUT = 30                # 每次请求的超时时间
-    _RETRY_ATTEMPTS = 2          # 对同一个批次的最大整体重试次数
+    _RETRY_ATTEMPTS = 1          # 对同一个批次的最大整体重试次数
     _TIMEOUT_RETRY_ATTEMPTS = 3  # 请求因超时被取消后，最大尝试次数
     _RATELIMIT_RETRY_ATTEMPTS = 3# 遇到 429 等限流时的最大尝试次数
     _MAX_SPLIT_ATTEMPTS = 3      # 递归拆分批次的最大层数
@@ -728,14 +728,14 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 self.logger.error(  
                     f"Single query translation failed after max retries due to missing prefix. size={len(batch_queries)}"  
                 )  
-            else:  
-                self.logger.error(  
-                    f"Translation failed after max retries and splits. Returning original queries. size={len(batch_queries)}"  
-                )  
-            # 失败的query全部保留原文  
-            # Keep all failed queries as original text  
-            for i in range(len(batch_queries)):   
-                partial_results[i] = batch_queries[i]     
+            else:
+                self.logger.error(
+                    f"Translation failed after max retries and splits. Returning original queries. size={len(batch_queries)}"
+                )
+            # 失败的query全部标记为翻译失败，同时保留原文
+            # Mark all failed queries as translation failed, while preserving original text
+            for i in range(len(batch_queries)):
+                partial_results[i] = f'__FAILED_TO_TRANSLATE__: {batch_queries[i]}'
                 
             return False, partial_results  
 
