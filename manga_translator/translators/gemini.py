@@ -85,6 +85,11 @@ class GeminiTranslator(CommonGPTTranslator):
     _CACHE_TTL = 3600 # Set the Context Cache lifespan (seconds)
     _CACHE_TTL_BUFFER = 300 # Refresh the Context Cache once current time is within this many seconds of expiring
 
+    @property
+    def temperature(self) -> float:
+        # Override temperature for Gemini to use lower value for more consistent translations
+        return self._config_get('temperature', default=0.1)
+
     def __init__(self):
         # ConfigGPT 的初始化
         # ConfigGPT initialization 
@@ -230,21 +235,26 @@ class GeminiTranslator(CommonGPTTranslator):
                   False otherwise.
         """
 
-        if self._canUseCache:
-            try:
-                if self._needRecache:
-                    self._createContext(to_lang=self.to_lang)
-                
-                return True
-            
-            except Exception as e:
-                self.logger.warning(
-                    f"\nContext Cache is supported on this model, but the cache could not be created.\n"
-                    f"The following error was encountered when attempting to create Context Cache:\n{e}\n\n"
-                    f"The most likely cause is that context contents (`System Prompt` + `Chat Samples`) does not the meet the minimum token length for the model.\n"
-                    "Context Caching will be disabled. If you wish to use caching: Try using Gemini 1.5 or increase `System Prompt` and/or `Chat Sample` size."
-                )
-                self._canUseCache = False
+        # DISABLED: Context caching disabled due to frequent language switching in manga translation
+        # The cache needs to be recreated for each target language, which defeats the purpose
+        # when processing multilingual content.
+
+        # Original caching logic kept for reference:
+        # if self._canUseCache:
+        #     try:
+        #         if self._needRecache:
+        #             self._createContext(to_lang=self.to_lang)
+        #
+        #         return True
+        #
+        #     except Exception as e:
+        #         self.logger.warning(
+        #             f"\nContext Cache is supported on this model, but the cache could not be created.\n"
+        #             f"The following error was encountered when attempting to create Context Cache:\n{e}\n\n"
+        #             f"The most likely cause is that context contents (`System Prompt` + `Chat Samples`) does not the meet the minimum token length for the model.\n"
+        #             "Context Caching will be disabled. If you wish to use caching: Try using Gemini 1.5 or increase `System Prompt` and/or `Chat Sample` size."
+        #         )
+        #         self._canUseCache = False
 
         return False
 

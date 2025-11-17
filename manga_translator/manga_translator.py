@@ -1065,7 +1065,6 @@ class MangaTranslator:
         )
         # 对于非 ChatGPT 的通用路径，也应用翻译失败回退逻辑
         return await self._fallback_if_translator_failed(result, texts, config, ctx)
-
     async def _fallback_if_translator_failed(self, result, texts: List[str], config: Config, ctx: Context) -> List[str]:
         """"
         Fallback logic for failed translations:
@@ -1082,15 +1081,8 @@ class MangaTranslator:
 
         Translators return "__FAILED_TO_TRANSLATE__: {original_text}" for failed translations.
         """
-        print("--------------------------------")
-        print("fallback_if_translator_failed method called")
-        print(f"result: {result}")
-        print(f"texts: {texts}")
         # Check if result contains failed translations
         if not isinstance(result, list) or not result:
-            print("--------------------------------")
-            print("result is not a list or empty")
-            print("returning result")
             return result
 
         # Check if any translations failed (look for the failure marker)
@@ -1098,25 +1090,13 @@ class MangaTranslator:
             isinstance(translation, str) and translation.startswith("__FAILED_TO_TRANSLATE__:")
             for translation in result
         )
-        print(f"has_failed_translations: {has_failed_translations}")
         # Early return if no failed translations
         if not has_failed_translations:
-            print("--------------------------------")
-            print("no failed translations")
-            print("returning result")
             return result
-
-        print("--------------------------------")
-        print("has failed translations")
-        print("continuing with fallback logic")
 
         from_lang = ctx.source_lang
         to_lang = config.translator.target_lang
         original_translator = config.translator.translator
-        print(f"from_lang: {from_lang}")
-        print(f"to_lang: {to_lang}")
-        print(f"original_translator: {original_translator}")
-
         # Prevent infinite loops by checking if we're already in a fallback
         if hasattr(ctx, '_fallback_attempted') and ctx._fallback_attempted:
             logger.warning("Fallback already attempted, returning original texts")
@@ -1447,7 +1427,40 @@ class MangaTranslator:
                             else:
                                 original_texts.append("")
                         
-                        if original_texts:
+                        if batch_retry_count == 2:
+                            # Third attempt: Try different translator as last resort
+                            logger.warning("Batch retry count reached 2, trying a different translator")
+                            fallback_result = await self._fallback_if_translator_failed(
+                                result=["__FAILED_TO_TRANSLATE__: " + text for text in original_texts],
+                                texts=original_texts,
+                                config=config,
+                                ctx=ctx
+                            )
+                            if fallback_result and not any(
+                                isinstance(translation, str) and translation.startswith("__FAILED_TO_TRANSLATE__:")
+                                for translation in fallback_result
+                            ):
+                                logger.info("Fallback translator successful, applying results")
+                                for i, region in enumerate(ctx.text_regions):
+                                    if i < len(fallback_result):
+                                        region.translation = fallback_result[i]
+                                # Re-check language ratio
+                                page_lang_check_result = await self._check_target_language_ratio(
+                                    ctx.text_regions,
+                                    config.translator.target_lang,
+                                    min_ratio=0.5
+                                )
+
+                                if page_lang_check_result:
+                                    logger.info("Page-level target language check passed after fallback")
+                                    break  # Success! Exit retry loop
+                                else:
+                                    logger.warning("Fallback translator also failed language check, giving up")
+                                    break  # Failed, exit retry loop
+                            else:
+                                logger.error("Fallback translator failed, giving up")
+                                break  # Failed, exit retry loop
+                        elif original_texts:
                             try:
                                 # 重新批量翻译
                                 logger.info(f"Retrying translation for {len(original_texts)} regions...")
