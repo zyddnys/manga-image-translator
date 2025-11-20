@@ -57,7 +57,7 @@ class ConfigGPT:
         '- Output each segment with its prefix (<|number|> format exactly) and only provide the translation without raw text.\n'  
         '- Translate content only—no additional interpretation or commentary.\n'  
         '- Do not include any explanations, analysis, or commentary on the original text or the translation.\n'
-        '- CRITICAL: You MUST translate into {to_lang} only. Do not use English unless {to_lang} is English.\n'
+        '- CRITICAL: You MUST translate into {to_lang} only.\n'
         'Translate the following text into {to_lang}:\n'  
     )
   
@@ -174,7 +174,7 @@ class ConfigGPT:
         # This key is used to locate nested configuration entries
         self._CONFIG_KEY = config_key
         self.config = None
-        self.langSamples = None # Cache chat/json_samples[to_lang]
+        self.langSamples = {} # Cache chat/json_samples by language: {lang_code: samples}
         self._json_sample = None
 
     def _config_get(self, key: str, default=None):
@@ -252,12 +252,24 @@ class ConfigGPT:
             list: A list of samples that best match the target language or an 
                     empty list if no sufficient match is found.
         """
-        if self.langSamples is not None:
-            return self.langSamples
+        # Use original to_lang for cache key to ensure language-specific caching
+        original_to_lang = to_lang
+        cache_key = original_to_lang
         
-        self.langSamples = []
+        # Check cache first (language-specific)
+        if cache_key in self.langSamples:
+            cached_samples = self.langSamples[cache_key]
+            # Validate cached samples match the target language
+            if cached_samples:
+                return cached_samples
+            # If cached as empty list, return it (no samples available for this language)
+            return cached_samples
+
+        # Initialize empty list for this language
+        matched_samples = []
 
         try:
+            # Convert language code to language name if needed
             if to_lang in self._LANGUAGE_CODE_MAP:
                 to_lang = self._LANGUAGE_CODE_MAP[to_lang]
 
@@ -269,18 +281,41 @@ class ConfigGPT:
                                 ],
                                 max_distance=max_distance 
                             )
-        except:
-            self.logger.error(f"Requested chat sample of unknown language: {to_lang}")
-            return self.langSamples
+        except Exception as e:
+            self.logger.error(f"Requested chat sample of unknown language: {to_lang}. Error: {e}")
+            # Cache empty result to avoid repeated lookups
+            self.langSamples[cache_key] = []
+            return matched_samples
         
         # If a match is found: find, cache, and return the chat sample:
         if foundLang:
+            # Validate that the found language actually matches the target language
+            target_lang_tag = Language.find(to_lang).to_tag()
+            
             for sampleLang, samples in all_samples.items():
-                if foundLang == Language.find(sampleLang).to_tag():
-                    self.langSamples = samples
-                    return self.langSamples
+                sample_lang_tag = Language.find(sampleLang).to_tag()
+                if foundLang == sample_lang_tag:
+                    # Double-check: ensure the matched language is actually close to target
+                    # This prevents using wrong-language samples (e.g., Chinese samples for Arabic)
+                    if foundLang == target_lang_tag or foundLang.startswith(target_lang_tag.split('-')[0]):
+                        matched_samples = samples
+                        # Cache the matched samples for this specific language
+                        self.langSamples[cache_key] = matched_samples
+                        return matched_samples
+                    else:
+                        # Language mismatch detected - log warning and don't use samples
+                        self.logger.warning(
+                            f"Language mismatch: requested '{to_lang}' ({target_lang_tag}), "
+                            f"but closest match is '{sampleLang}' ({foundLang}). "
+                            f"Skipping samples to prevent wrong-language output."
+                        )
+                        # Cache empty result since we're rejecting the mismatch
+                        self.langSamples[cache_key] = []
+                        return matched_samples
 
-        return self.langSamples
+        # No match found - cache empty result to avoid repeated lookups
+        self.langSamples[cache_key] = []
+        return matched_samples
     
     def get_chat_sample(self, to_lang: str) -> List[str]:
         """

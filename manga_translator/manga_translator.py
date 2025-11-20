@@ -358,7 +358,7 @@ class MangaTranslator:
     def using_gpu(self):
         return self.device.startswith('cuda') or self.device == 'mps'
 
-    async def translate(self, image: Image.Image, config: Config, image_name: str = None, skip_context_save: bool = False, source_lang: str = None) -> Context:
+    async def translate(self, image: Image.Image, config: Config, image_name: str = None, skip_context_save: bool = False) -> Context:
         """
         Translates a single image.
 
@@ -378,14 +378,6 @@ class MangaTranslator:
         ctx.input = image
         ctx.result = None
         ctx.verbose = self.verbose
-        ctx.source_lang = source_lang
-        
-        if source_lang:
-            from .translators.common import ISO_639_1_TO_VALID_LANGUAGES
-            lang_code = source_lang.split('-')[0] if '-' in source_lang else source_lang
-            ctx.from_lang = ISO_639_1_TO_VALID_LANGUAGES.get(lang_code, source_lang.upper())
-        else:
-            ctx.from_lang = 'auto'
 
         # 设置图片上下文以生成调试图片子文件夹
         self._set_image_context(config, image)
@@ -1051,8 +1043,7 @@ class MangaTranslator:
                 ctx.result_path_callback = self._result_path
                 return await translator._translate(ctx.from_lang, config.translator.target_lang, texts, ctx)
             else:
-                result = await translator._translate(ctx.from_lang, config.translator.target_lang, texts)
-                return await self._fallback_if_chatgpt_refused(result, texts, config, ctx)
+                return await translator._translate(ctx.from_lang, config.translator.target_lang, texts)
 
 
         result = await dispatch_translation(
@@ -1064,149 +1055,7 @@ class MangaTranslator:
             'cpu' if self._gpu_limited_memory else self.device
         )
         # 对于非 ChatGPT 的通用路径，也应用翻译失败回退逻辑
-        return await self._fallback_if_translator_failed(result, texts, config, ctx)
-    async def _fallback_if_translator_failed(self, result, texts: List[str], config: Config, ctx: Context) -> List[str]:
-        """"
-        Fallback logic for failed translations:
-
-        Special case for Japanese -> English:
-        - If original translator is NOT Sugoi, try Sugoi first
-        - If original translator IS Sugoi and no fallback attempted, use Gemini as fallback
-
-        For other language pairs:
-        - Gemini -> ChatGPT
-        - ChatGPT -> Gemini
-
-        If fallback already attempted, return original texts.
-
-        Translators return "__FAILED_TO_TRANSLATE__: {original_text}" for failed translations.
-        """
-        # Check if result contains failed translations
-        if not isinstance(result, list) or not result:
-            return result
-
-        # Check if any translations failed (look for the failure marker)
-        has_failed_translations = any(
-            isinstance(translation, str) and translation.startswith("__FAILED_TO_TRANSLATE__:")
-            for translation in result
-        )
-        # Early return if no failed translations
-        if not has_failed_translations:
-            return result
-
-        from_lang = ctx.source_lang
-        to_lang = config.translator.target_lang
-        original_translator = config.translator.translator
-        # Prevent infinite loops by checking if we're already in a fallback
-        if hasattr(ctx, '_fallback_attempted') and ctx._fallback_attempted:
-            logger.warning("Fallback already attempted, returning original texts")
-            # Extract original texts from failed results
-            original_texts = []
-            for translation in result:
-                if isinstance(translation, str) and translation.startswith("__FAILED_TO_TRANSLATE__:"):
-                    # Extract original text after the marker
-                    original_text = translation[len("__FAILED_TO_TRANSLATE__:"):].strip()
-                    original_texts.append(original_text)
-                else:
-                    original_texts.append(translation)
-            return original_texts
-
-        ctx._fallback_attempted = True
-
-        try:
-            # Special case: Japanese -> English
-            if from_lang in ['JPN'] and to_lang == 'ENG':
-                if original_translator != Translator.sugoi:
-                    # Try Sugoi for Japanese -> English
-                    logger.warning(f'Translation failed with {original_translator.value}. Trying Sugoi for JPN->ENG...')
-                    from .translators.sugoi import SugoiTranslator
-                    #Sugoi Needs device to be set, otherwise it will use CPU
-                    fallback_translator = SugoiTranslator()
-                    await fallback_translator.load(from_lang, to_lang, self.device)
-                    fallback_translator.parse_args(config.translator)
-                    # Use public translate method to handle language code conversion properly
-                    fallback_result = await fallback_translator.translate(from_lang, to_lang, texts, self.use_mtpe)
-                    # Unload the translator after use to free memory
-                    await fallback_translator.unload(self.device)
-                    # Sugoi does not have any fallback logic since it does not fail expect for OOM error
-
-            # Other language pairs: Gemini <-> ChatGPT fallback
-            elif original_translator in [Translator.gemini, Translator.gemini_2stage]:
-                # Gemini failed -> fallback to ChatGPT
-                logger.warning('Translation failed with Gemini. Falling back to ChatGPT...')
-                from .translators.chatgpt import OpenAITranslator
-                fallback_translator = OpenAITranslator()
-                fallback_translator.parse_args(config.translator)
-                fallback_result = await fallback_translator._translate(from_lang, to_lang, texts)
-
-            elif original_translator in [Translator.chatgpt, Translator.chatgpt_2stage]:
-                # ChatGPT failed -> fallback to Gemini
-                logger.warning('Translation failed with ChatGPT. Falling back to Gemini...')
-                from .translators.gemini import GeminiTranslator
-                fallback_translator = GeminiTranslator()
-                fallback_translator.parse_args(config.translator)
-                fallback_result = await fallback_translator._translate(from_lang, to_lang, texts)
-
-            else:
-                # For other translators and language pairs, no fallback is available
-                logger.warning(f'Translation failed with {original_translator.value}. No suitable fallback available, returning original texts.')
-                raise Exception("No suitable fallback available")
-
-            # If fallback succeeded, return the fallback results
-            if fallback_result and not any(
-                isinstance(translation, str) and translation.startswith("__FAILED_TO_TRANSLATE__:")
-                for translation in fallback_result
-            ):
-                logger.info("Fallback translation succeeded")
-                return fallback_result
-            else:
-                logger.error("Fallback translation also failed")
-                # Return original texts, not failed results
-                original_texts = []
-                for translation in result:
-                    if isinstance(translation, str) and translation.startswith("__FAILED_TO_TRANSLATE__:"):
-                        # Extract original text after the marker
-                        original_text = translation[len("__FAILED_TO_TRANSLATE__:"):].strip()
-                        original_texts.append(original_text)
-                    else:
-                        original_texts.append(translation)
-                return original_texts
-
-        except Exception as e:
-            logger.error(f"Fallback translation failed with error: {e}")
-            # Return original texts on error
-            original_texts = []
-            for translation in result:
-                if isinstance(translation, str) and translation.startswith("__FAILED_TO_TRANSLATE__:"):
-                    # Extract original text after the marker
-                    original_text = translation[len("__FAILED_TO_TRANSLATE__:"):].strip()
-                    original_texts.append(original_text)
-                else:
-                    original_texts.append(translation)
-            return original_texts
-
-    async def _fallback_if_chatgpt_refused(self, result, texts: List[str], config: Config, ctx: Context) -> List[str]:
-        """
-        If ChatGPT returns (False, ["__REFUSED__"]), fall back to Gemini for the same texts.
-        Otherwise, return the original result normalized to a list.
-        """
-        if isinstance(result, tuple) and result[0] is False:
-            payload = result[1]
-            if isinstance(payload, list) and payload and payload[0] == "__REFUSED__":
-                try:
-                    from .translators.gemini import GeminiTranslator
-                    logger.warning('ChatGPT refused. Falling back to Gemini...')
-                    gemini_translator = GeminiTranslator()
-                    gemini_translator.parse_args(config.translator)
-                    return await gemini_translator._translate(ctx.from_lang, config.translator.target_lang, texts)
-                except Exception as e:
-                    logger.error(f"Gemini fallback failed: {e}")
-                    return texts
-            return payload if isinstance(payload, list) else texts
-
-        # Apply fallback logic
-        result = await self._fallback_if_translator_failed(result, texts, config, ctx)
-        return result if isinstance(result, list) else texts
+        return result
 
     async def _run_text_translation(self, config: Config, ctx: Context):
         # 检查text_regions是否为None或空
@@ -1427,40 +1276,7 @@ class MangaTranslator:
                             else:
                                 original_texts.append("")
                         
-                        if batch_retry_count == 2:
-                            # Third attempt: Try different translator as last resort
-                            logger.warning("Batch retry count reached 2, trying a different translator")
-                            fallback_result = await self._fallback_if_translator_failed(
-                                result=["__FAILED_TO_TRANSLATE__: " + text for text in original_texts],
-                                texts=original_texts,
-                                config=config,
-                                ctx=ctx
-                            )
-                            if fallback_result and not any(
-                                isinstance(translation, str) and translation.startswith("__FAILED_TO_TRANSLATE__:")
-                                for translation in fallback_result
-                            ):
-                                logger.info("Fallback translator successful, applying results")
-                                for i, region in enumerate(ctx.text_regions):
-                                    if i < len(fallback_result):
-                                        region.translation = fallback_result[i]
-                                # Re-check language ratio
-                                page_lang_check_result = await self._check_target_language_ratio(
-                                    ctx.text_regions,
-                                    config.translator.target_lang,
-                                    min_ratio=0.5
-                                )
-
-                                if page_lang_check_result:
-                                    logger.info("Page-level target language check passed after fallback")
-                                    break  # Success! Exit retry loop
-                                else:
-                                    logger.warning("Fallback translator also failed language check, giving up")
-                                    break  # Failed, exit retry loop
-                            else:
-                                logger.error("Fallback translator failed, giving up")
-                                break  # Failed, exit retry loop
-                        elif original_texts:
+                        if original_texts:
                             try:
                                 # 重新批量翻译
                                 logger.info(f"Retrying translation for {len(original_texts)} regions...")
@@ -2844,6 +2660,11 @@ class MangaTranslator:
         all_translations = []
         for region in text_regions:
             translation = getattr(region, 'translation', '')
+            if isinstance(translation, list):
+                translation = ' '.join(str(item) for item in translation if item)
+            elif not isinstance(translation, str):
+                translation = str(translation) if translation else ''
+            
             if translation and translation.strip():
                 all_translations.append(translation.strip())
         
