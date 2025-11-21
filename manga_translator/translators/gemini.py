@@ -183,6 +183,7 @@ class GeminiTranslator(CommonGPTTranslator):
                     "\te.g. 'gemini-1.5-flash-001' rather than 'gemini-1.5-flash'\n"
                 self.logger.warning(MSG)
 
+        # Disable cache; 'to_lang' changes per request, requiring refresh.
         self._canUseCache = False #canCache(model_list, model_info)
 
         
