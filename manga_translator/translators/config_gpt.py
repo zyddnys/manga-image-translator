@@ -230,7 +230,7 @@ class ConfigGPT:
         
         return retDict
 
-    def _closest_sample_match(self, all_samples: Dict, to_lang: str, max_distance=5) -> List:
+    def _closest_sample_match(self, all_samples: Dict, to_lang: str, max_distance=2) -> List:
         """
         Use `langcodes` to find the `all_samples` entry with a key that is sufficiently similar to `to_lang`.
         
@@ -252,24 +252,14 @@ class ConfigGPT:
             list: A list of samples that best match the target language or an 
                     empty list if no sufficient match is found.
         """
-        # Use original to_lang for cache key to ensure language-specific caching
-        original_to_lang = to_lang
-        cache_key = original_to_lang
+        cache_key = to_lang
         
-        # Check cache first (language-specific)
         if cache_key in self.langSamples:
-            cached_samples = self.langSamples[cache_key]
-            # Validate cached samples match the target language
-            if cached_samples:
-                return cached_samples
-            # If cached as empty list, return it (no samples available for this language)
-            return cached_samples
+            return self.langSamples[cache_key]
 
-        # Initialize empty list for this language
         matched_samples = []
 
         try:
-            # Convert language code to language name if needed
             if to_lang in self._LANGUAGE_CODE_MAP:
                 to_lang = self._LANGUAGE_CODE_MAP[to_lang]
 
@@ -281,39 +271,24 @@ class ConfigGPT:
                                 ],
                                 max_distance=max_distance 
                             )
-        except Exception as e:
-            self.logger.error(f"Requested chat sample of unknown language: {to_lang}. Error: {e}")
-            # Cache empty result to avoid repeated lookups
+        except Exception:
             self.langSamples[cache_key] = []
             return matched_samples
         
-        # If a match is found: find, cache, and return the chat sample:
         if foundLang:
-            # Validate that the found language actually matches the target language
             target_lang_tag = Language.find(to_lang).to_tag()
             
             for sampleLang, samples in all_samples.items():
                 sample_lang_tag = Language.find(sampleLang).to_tag()
                 if foundLang == sample_lang_tag:
-                    # Double-check: ensure the matched language is actually close to target
-                    # This prevents using wrong-language samples (e.g., Chinese samples for Arabic)
                     if foundLang == target_lang_tag or foundLang.startswith(target_lang_tag.split('-')[0]):
                         matched_samples = samples
-                        # Cache the matched samples for this specific language
                         self.langSamples[cache_key] = matched_samples
                         return matched_samples
                     else:
-                        # Language mismatch detected - log warning and don't use samples
-                        self.logger.warning(
-                            f"Language mismatch: requested '{to_lang}' ({target_lang_tag}), "
-                            f"but closest match is '{sampleLang}' ({foundLang}). "
-                            f"Skipping samples to prevent wrong-language output."
-                        )
-                        # Cache empty result since we're rejecting the mismatch
                         self.langSamples[cache_key] = []
                         return matched_samples
 
-        # No match found - cache empty result to avoid repeated lookups
         self.langSamples[cache_key] = []
         return matched_samples
     
