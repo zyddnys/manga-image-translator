@@ -489,6 +489,9 @@ class GeminiTranslator(CommonGPTTranslator):
                 self.token_count += response.usage_metadata.prompt_token_count
                 self.token_count_last = response.usage_metadata.total_token_count
             
+            if response.text is None:
+                raise ValueError("Gemini API returned None response text")
+            
             self.logger.debug(f'-- GPT Response --\n' + response.text)
 
             return response.text
@@ -591,6 +594,9 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
             else:
                 self.translator.token_count += response.usage_metadata.prompt_token_count
                 self.translator.token_count_last = response.usage_metadata.total_token_count
+
+            if response.text is None:
+                raise ValueError("Gemini API returned None response text")
 
             self.logger.debug(  '-- GPT Response --\n' + 
                                 self.ppJSON(response.text) + 
