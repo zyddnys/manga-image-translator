@@ -1,4 +1,5 @@
 import re
+import time
 from google import genai
 from google.genai import types
 
@@ -19,7 +20,7 @@ NRML='\033[0m' # Revert to Normal formatting
 class GeminiTranslator(CommonGPTTranslator):
     _INVALID_REPEAT_COUNT = 0  # 现在这个参数没意义了
     _MAX_REQUESTS_PER_MINUTE = 9999  # 无RPM限制
-    _TIMEOUT = 40  # 在重试之前等待服务器响应的时间（秒）
+    _TIMEOUT = 10  # 在重试之前等待服务器响应的时间（秒）
     _RETRY_ATTEMPTS = 3  # 在放弃之前重试错误请求的次数
     _TIMEOUT_RETRY_ATTEMPTS = 3  # 在放弃之前重试超时请求的次数
     _RATELIMIT_RETRY_ATTEMPTS = 3  # 在放弃之前重试速率限制请求的次数
@@ -211,6 +212,7 @@ class GeminiTranslator(CommonGPTTranslator):
         self.token_count = 0
         self.token_count_last = 0 
         self.config = None
+        self._last_request_ts = 0
 
     @property
     def useCache(self) -> bool:
@@ -334,7 +336,7 @@ class GeminiTranslator(CommonGPTTranslator):
             for attempt in range(RETRY_ATTEMPTS):  
                 try:  
                     # Get the response (synchronously)
-                    response = await self._request_translation(to_lang, prompt)  
+                    response = await self._request_with_retry(to_lang, prompt)  
                     try:
                         new_translations = self._parse_response(response, prompt_queries)
                     except Warning as w:
@@ -432,6 +434,86 @@ class GeminiTranslator(CommonGPTTranslator):
         return '\n---\n'.join(f"\n{BOLD}{aKey}{NRML}:\n{aVal}" 
                                 for aKey, aVal in vals.items()
                             )
+
+    async def _ratelimit_sleep(self):
+        """
+        在请求前先做一次简单的节流 (如果 _MAX_REQUESTS_PER_MINUTE > 0)。
+        针对并发请求进行优化。
+        """
+        if self._MAX_REQUESTS_PER_MINUTE > 0:
+            now = time.time()
+            delay = 60.0 / self._MAX_REQUESTS_PER_MINUTE
+            elapsed = now - self._last_request_ts
+            
+            # 为并发请求添加额外的随机延迟，避免同时请求
+            # Add extra random delay for concurrent requests to avoid simultaneous requests
+            import random
+            concurrent_jitter = random.uniform(0.1, 0.5)  # 100-500ms的随机延迟
+            
+            total_delay = delay + concurrent_jitter
+            if elapsed < total_delay:
+                await asyncio.sleep(total_delay - elapsed)
+            self._last_request_ts = time.time()
+
+    async def _request_with_retry(self, to_lang: str, prompt: str) -> str:
+            """
+            Args:
+                to_lang (str): The target language for the translation.
+                prompt (str): The text prompt/content to be translated.
+            Returns:
+                str: The translated text result.
+            """
+            # --- Retry Strategy ---
+            # The function retries the request based on the failure mode:
+            # 1. Timeout Failure: Retries up to self._TIMEOUT_RETRY_ATTEMPTS.
+            # 2. Rate Limit (429) API Error: Retries up to self._RATELIMIT_RETRY_ATTEMPTS, with a sleep delay.
+            # 3. Other API/Server Errors: Retries up to self._RETRY_ATTEMPTS, with a sleep delay.
+            # If all retries for a specific error type fail, the corresponding exception is raised.
+            
+            timeout_attempt = 0
+            api_error_attempt = 0
+            server_error_attempt = 0
+
+            while True:
+                await self._ratelimit_sleep()
+                try:
+                    result = await asyncio.wait_for(
+                        self._request_translation(to_lang, prompt),
+                        timeout=self._TIMEOUT
+                    )
+                    return result
+                except asyncio.TimeoutError:
+                    timeout_attempt += 1
+                    if timeout_attempt > self._TIMEOUT_RETRY_ATTEMPTS:
+                        raise TimeoutError(
+                            f"Gemini request timed out after {self._TIMEOUT_RETRY_ATTEMPTS} attempts."
+                        )
+                    self.logger.warning(f"Request timed out, retrying... (attempt={timeout_attempt})")
+                    # Continue to retry the request from the beginning of the loop
+                    continue
+
+                except genai.errors.APIError as e:
+                    if hasattr(e, 'status_code') and e.status_code == 429:
+                        api_error_attempt += 1
+                        if api_error_attempt > self._RATELIMIT_RETRY_ATTEMPTS:
+                            raise
+                        self.logger.warning(f"Hit RateLimit (429), retrying... (attempt={api_error_attempt})")
+                        await asyncio.sleep(2)
+                        # Continue to retry the request after rate limit delay
+                        continue
+                    else:
+                        server_error_attempt += 1
+                        if server_error_attempt > self._RETRY_ATTEMPTS:
+                            self.logger.error("Server error, giving up after several attempts.")
+                            raise
+                        self.logger.warning(f"Server error: {str(e)}. Retrying... (attempt={server_error_attempt})")
+                        await asyncio.sleep(1)
+                        # Continue to retry the request after server error delay
+                        continue
+
+                except Exception as e:
+                    self.logger.error(f"Unexpected error in _request_with_retry: {str(e)}")
+                    raise
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
         config_kwargs = {
