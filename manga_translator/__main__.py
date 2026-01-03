@@ -20,6 +20,8 @@ from .utils import (
 
 # TODO: Dynamic imports to reduce ram usage in web(-server) mode. Will require dealing with args.py imports.
 
+logger = None
+
 async def dispatch(args: Namespace):
     args_dict = vars(args)
 
@@ -81,8 +83,10 @@ async def dispatch(args: Namespace):
 
 
 def main():
+    global logger
     args = None
     init_logging()
+    logger = get_logger('main')  # Initialize with default logger
     try:
         args, unknown = parser.parse_known_args()
         args = Namespace(**{**vars(args), **vars(reparse(unknown))})
