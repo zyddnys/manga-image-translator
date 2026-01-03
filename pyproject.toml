@@ -42,4 +42,10 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["manga_translator*"]
+include = ["manga_translator*", "fonts"]
+
+[tool.setuptools.package-data]
+fonts = ["*.ttf", "*.ttc"]
+
+[tool.setuptools]
+include-package-data = true
