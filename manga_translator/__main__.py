@@ -80,7 +80,7 @@ async def dispatch(args: Namespace):
 
 
 
-if __name__ == '__main__':
+def main():
     args = None
     init_logging()
     try:
@@ -102,3 +102,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f'{e.__class__.__name__}: {e}',
                      exc_info=e if args and args.verbose else None)
+
+
+if __name__ == '__main__':
+    main()
