@@ -12,8 +12,6 @@ from .common import CommonDetector, OfflineDetector
 from ..config import Detector
 from .switch import SwitchDetector
 
-logger = logging.getLogger('manga_translator')
-
 DETECTORS = {
     Detector.default: DefaultDetector,
     Detector.dbconvnext: DBConvNextDetector,

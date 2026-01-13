@@ -26,7 +26,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
     # ---- 关键参数 ----
     _MAX_REQUESTS_PER_MINUTE = 0
     _TIMEOUT = 30                # 每次请求的超时时间
-    _RETRY_ATTEMPTS = 2          # 对同一个批次的最大整体重试次数
+    _RETRY_ATTEMPTS = 1          # 对同一个批次的最大整体重试次数
     _TIMEOUT_RETRY_ATTEMPTS = 3  # 请求因超时被取消后，最大尝试次数
     _RATELIMIT_RETRY_ATTEMPTS = 3# 遇到 429 等限流时的最大尝试次数
     _MAX_SPLIT_ATTEMPTS = 3      # 递归拆分批次的最大层数
@@ -213,8 +213,6 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
     def parse_args(self, args: CommonTranslator):
         """如果你有外部参数要解析，可在此对 self.config 做更新"""
         self.config = args.chatgpt_config
-        self.refusal_fallback = args.refusal_fallback
-        self.refusal_fallback_model_name = args.refusal_fallback_model_name
 
     async def _ratelimit_sleep(self):
         """
@@ -295,8 +293,6 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
             success, partial_results = await self._translate_batch(
                 from_lang, to_lang, batch_queries, indices, prompt, split_level=0
             )
-            if not success and partial_results and partial_results[0] == '__REFUSED__':
-                refused = True
             
             # 将结果写入 translations
             for i, r in zip(indices, partial_results):
@@ -450,11 +446,11 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
 
                 # Check for refusal messages, this is a global check and needs to be done first  
                 if self._cannot_assist(response_text):  
-                    self.logger.warning("ChatGPT refused to translate.")
-                    if self.refusal_fallback and self.refusal_fallback_model_name:
-                        partial_results = ['__REFUSED__']
-                        return False, partial_results
-                    continue
+                    self.logger.warning("ChatGPT refused to translate. Marking as failed.")
+                    # Mark all queries as failed so fallback logic can handle it
+                    for i, query in enumerate(batch_queries):
+                        partial_results[i] = f'__FAILED_TO_TRANSLATE__: {query}'
+                    return False, partial_results
                     
                 # 解析响应
                 # Parse response
@@ -734,8 +730,8 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 )  
             # 失败的query全部保留原文  
             # Keep all failed queries as original text  
-            for i in range(len(batch_queries)):   
-                partial_results[i] = batch_queries[i]     
+            for i in range(len(batch_queries)):
+                partial_results[i] = f'__FAILED_TO_TRANSLATE__: {batch_queries[i]}'
                 
             return False, partial_results  
 

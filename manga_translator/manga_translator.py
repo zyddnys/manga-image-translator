@@ -1043,8 +1043,7 @@ class MangaTranslator:
                 ctx.result_path_callback = self._result_path
                 return await translator._translate(ctx.from_lang, config.translator.target_lang, texts, ctx)
             else:
-                result = await translator._translate(ctx.from_lang, config.translator.target_lang, texts)
-                return await self._fallback_if_refused(result, texts, config, ctx)
+                return await translator._translate(ctx.from_lang, config.translator.target_lang, texts)
 
 
         result = await dispatch_translation(
@@ -1055,29 +1054,8 @@ class MangaTranslator:
             ctx,
             'cpu' if self._gpu_limited_memory else self.device
         )
-        # 对于非 ChatGPT 的通用路径，直接返回结果（不应用拒绝回退）
+        # 对于非 ChatGPT 的通用路径，也应用翻译失败回退逻辑
         return result
-
-    async def _fallback_if_refused(self, result, texts: List[str], config: Config, ctx: Context) -> List[str]:
-        """
-        If ChatGPT returns (False, ["__REFUSED__"]), fall back to Gemini for the same texts.
-        Otherwise, return the original result normalized to a list.
-        """
-        if isinstance(result, tuple) and result[0] is False:
-            payload = result[1]
-            if isinstance(payload, list) and payload and payload[0] == "__REFUSED__":
-                try:
-                    from .translators.gemini import GeminiTranslator
-                    logger.warning('ChatGPT refused. Falling back to Gemini...')
-                    gemini_translator = GeminiTranslator()
-                    gemini_translator.parse_args(config.translator)
-                    return await gemini_translator._translate(ctx.from_lang, config.translator.target_lang, texts)
-                except Exception as e:
-                    logger.error(f"Gemini fallback failed: {e}")
-                    return texts
-            return payload if isinstance(payload, list) else texts
-
-        return result if isinstance(result, list) else texts
 
     async def _run_text_translation(self, config: Config, ctx: Context):
         # 检查text_regions是否为None或空
@@ -2682,6 +2660,11 @@ class MangaTranslator:
         all_translations = []
         for region in text_regions:
             translation = getattr(region, 'translation', '')
+            if isinstance(translation, list):
+                translation = ' '.join(str(item) for item in translation if item)
+            elif not isinstance(translation, str):
+                translation = str(translation) if translation else ''
+            
             if translation and translation.strip():
                 all_translations.append(translation.strip())
         
