@@ -281,6 +281,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
         translations = [''] * len(queries)
         # 记录当前处理到 queries 列表的哪个位置
         idx_offset = 0
+        refused = False
 
         # 分批处理
         for prompt, batch_size in self._assemble_prompts(from_lang, to_lang, queries):
@@ -299,6 +300,8 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
 
             idx_offset += batch_size
 
+        if refused:
+            return (False, translations)
         return translations
 
     async def _try_fallback_model(self, to_lang: str, prompt: str, batch_queries: List[str]) -> tuple[bool, List[str]]:
