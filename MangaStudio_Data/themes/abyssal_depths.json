@@ -1,0 +1,18 @@
+{
+  "name": "Abyssal Depths",
+  "author": "Gemini",
+  "style": {
+    "colors": {
+      "background_main": "#000020",
+      "background_frame": "#000033",
+      "primary_button": "#005090",
+      "primary_button_hover": "#4080C0",
+      "slider_groove": "#104070",
+      "slider_handle": "#90D0FF",
+      "text_main": "#E0E8FF",
+      "border": "#2060A0",
+      "accent": "#4080C0",
+      "checkbox_indicator": "#E0E8FF"
+    }
+  }
+}

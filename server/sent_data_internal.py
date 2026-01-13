@@ -18,7 +18,7 @@ async def fetch_data_stream(url, image: Image, config: Config, sender: NotifyTyp
             if response.status == 200:
                 await process_stream(response, sender)
             else:
-                raise HTTPException(response.status, detail=response.text())
+                raise HTTPException(response.status, detail=await response.text())
 
 async def fetch_data(url, image: Image, config: Config, headers: Mapping[str, str] = {}):
     attributes = {"image": image, "config": config}
@@ -29,7 +29,7 @@ async def fetch_data(url, image: Image, config: Config, headers: Mapping[str, st
             if response.status == 200:
                 return pickle.loads(await response.read())
             else:
-                raise HTTPException(response.status, detail=response.text())
+                raise HTTPException(response.status, detail=await response.text())
 
 async def process_stream(response, sender: NotifyType):
     buffer = b''

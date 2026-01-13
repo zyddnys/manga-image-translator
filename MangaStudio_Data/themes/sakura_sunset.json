@@ -1,0 +1,18 @@
+{
+  "name": "Sakura Sunset",
+  "author": "Gemini",
+  "style": {
+    "colors": {
+      "background_main": "#FFF0F5",
+      "background_frame": "#FFE4E1",
+      "primary_button": "#DB7093",
+      "primary_button_hover": "#FF85A2",
+      "slider_groove": "#FFE4E1",
+      "slider_handle": "#C71585",
+      "text_main": "#6A5ACD",
+      "border": "#DDA0DD",
+      "accent": "#C71585",
+      "checkbox_indicator": "#6A5ACD"
+    }
+  }
+}

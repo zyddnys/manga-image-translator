@@ -249,6 +249,11 @@ class CommonGPTTranslator(ConfigGPT, CommonTranslator):
     def _parse_response(self, response: str, queries: List):
         # Split response into translations  
         new_translations = re.split(r'<\|\d+\|>', response)  
+        
+        # 立即清理每个翻译文本的前后空格
+        # Immediately clean leading and trailing whitespace from each translation text
+        new_translations = [t.strip() for t in new_translations]
+        
         if not new_translations[0].strip():  
             new_translations = new_translations[1:]  
 

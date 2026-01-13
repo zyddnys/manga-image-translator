@@ -1,0 +1,18 @@
+{
+  "name": "Minty Fresh",
+  "author": "Gemini",
+  "style": {
+    "colors": {
+      "background_main": "#E8F5E9",
+      "background_frame": "#C8E6C9",
+      "primary_button": "#4CAF50",
+      "primary_button_hover": "#66BB6A",
+      "slider_groove": "#A5D6A7",
+      "slider_handle": "#2E7D32",
+      "text_main": "#212121",
+      "border": "#A5D6A7",
+      "accent": "#4CAF50",
+      "checkbox_indicator": "#212121"
+    }
+  }
+}

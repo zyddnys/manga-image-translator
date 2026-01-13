@@ -1,0 +1,18 @@
+{
+  "name": "Default Dark",
+  "author": "MangaStudio",
+  "style": {
+    "colors": {
+      "background_main": "#242424",
+      "background_frame": "#323232",
+      "primary_button": "#3a7ebf",
+      "primary_button_hover": "#56a9e8",
+      "slider_groove": "#242424",
+      "slider_handle": "#3a7ebf",
+      "text_main": "#dce4ee",
+      "border": "#555555",
+      "accent": "#4a9fcf",
+      "checkbox_indicator": "#dce4ee"
+    }
+  }
+}

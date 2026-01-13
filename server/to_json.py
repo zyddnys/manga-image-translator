@@ -78,6 +78,7 @@ class Translation(BaseModel):
 
 class TranslationResponse(BaseModel):
     translations: List[Translation]
+    debug_folder: str = None  # 添加debug_folder字段
 
     def to_bytes(self):
         items= [v.to_bytes() for v in self.translations]
@@ -107,4 +108,8 @@ def to_translation(ctx: Context) -> TranslationResponse:
                     angle=text_region.angle
         ))
         #todo: background angle
-    return TranslationResponse(translations=results)
+
+    # 获取debug_folder信息
+    debug_folder = getattr(ctx, 'debug_folder', None)
+
+    return TranslationResponse(translations=results, debug_folder=debug_folder)

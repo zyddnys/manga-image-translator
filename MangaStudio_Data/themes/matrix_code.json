@@ -1,0 +1,18 @@
+{
+  "name": "Matrix Code",
+  "author": "Gemini",
+  "style": {
+    "colors": {
+      "background_main": "#0D0208",
+      "background_frame": "#000000",
+      "primary_button": "#00A800",
+      "primary_button_hover": "#39FF14",
+      "slider_groove": "#003B00",
+      "slider_handle": "#39FF14",
+      "text_main": "#00FF00",
+      "border": "#004F00",
+      "accent": "#00FF00",
+      "checkbox_indicator": "#00FF00"
+    }
+  }
+}

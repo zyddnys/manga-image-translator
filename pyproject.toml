@@ -35,7 +35,7 @@ dependencies = [
     "tensorboardX",
     "websockets",
     "protobuf<6.0.0,>=3.20.2",
-    "ctranslate2==4.6.0",
+    "ctranslate2<=3.24.0",
     "colorama",
     "openai==1.63.0",
     "tiktoken",
@@ -58,7 +58,7 @@ dependencies = [
     "manga-ocr",
     "langdetect",
     "pydensecrf@https://github.com/lucasb-eyer/pydensecrf/archive/refs/heads/master.zip",
-    "accelerate",
+    "accelerate==0.20.3", # compatible with pytorch 2.0.1
     "bitsandbytes",
     "uvicorn",
     "fastapi",
@@ -67,10 +67,13 @@ dependencies = [
     "google-genai",
     "rich",
     "regex",
-    "paddleocr",
-    "paddlepaddle",
-    "paddlepaddle-gpu; sys_platform != 'darwin'"
+    "fast_langdetect",
+    #"rusty-manga-image-translator",
+    "python-bidi"
 ]
+
+#[tool.uv.pip]
+#extra-index-url = "https://frederik-uni.github.io/manga-image-translator-rust/python/wheels/simple/"
 
 [tool.isort]
 profile = 'black'

@@ -1,0 +1,667 @@
+{
+  "__tab_order__": [
+    "General & Translator",
+    "Detector & OCR",
+    "Image & Inpainter",
+    "Render & Output",
+    "Extra Settings"
+  ],
+  "processing_device": {
+    "widget": "segmented_button",
+    "group": "General & Translator",
+    "order": 120,
+    "label": "Processing Device:",
+    "default": "CPU",
+    "values": [
+      "CPU",
+      "NVIDIA GPU"
+    ],
+    "tooltip": "Use CPU for universal compatibility or NVIDIA GPU for significantly faster processing (requires a compatible card and setup)."
+  },
+  "target_lang": {
+    "widget": "optionmenu_languages",
+    "group": "General & Translator",
+    "order": 140,
+    "label": "Target Language:",
+    "default": "ENG",
+    "tooltip": "The language to translate the text into."
+  },
+  "translator": {
+    "widget": "optionmenu_separators",
+    "group": "General & Translator",
+    "order": 150,
+    "label": "Translator Model:",
+    "default": "sugoi",
+    "tooltip": "The translation engine to use. Some are offline, others may require an API key."
+  },
+  "enable_translator_chain": {
+    "widget": "checkbox",
+    "group": "General & Translator",
+    "order": 155,
+    "label": "Enable Translator Chain:",
+    "default": false,
+    "tooltip": "Enable this to use multiple translators in a sequence. This will disable the main translator selection above."
+  },
+  "translator_chain": {
+    "widget": "translator_chain_builder",
+    "group": "General & Translator",
+    "order": 160,
+    "label": "Translation Steps:",
+    "default": "",
+    "tooltip": "Add translation steps in order. The output of one step becomes the input for the next."
+  },
+  "no_text_lang_skip": {
+    "widget": "checkbox",
+    "group": "General & Translator",
+    "order": 170,
+    "label": "Translate Same Language",
+    "default": false,
+    "section": "advanced",
+    "tooltip": "If checked, the translator will still run even if the source and target languages are the same."
+  },
+  "skip_lang": {
+    "widget": "language_checkbox_grid",
+    "group": "General & Translator",
+    "order": 190,
+    "label": "Skip Translating from these Languages:",
+    "default": null,
+    "section": "advanced",
+    "tooltip": "Selected languages will NOT be translated, even if they are the source language. Useful for ignoring certain text."
+  },
+  "gpt_config": {
+    "widget": "entry_with_button",
+    "group": "General & Translator",
+    "order": 180,
+    "label": "GPT Config File:",
+    "default": "",
+    "button_text": "...",
+    "section": "advanced",
+    "placeholder": "e.g., my_cool_prompt.yaml",
+    "tooltip": "Specifies a .yaml file to customize AI translator behavior.\nPlace your config files in the 'MangaStudio_Data/gpt_configs' folder."
+  },
+  "pre_dict_path": {
+    "widget": "entry_with_button",
+    "group": "General & Translator",
+    "order": 181,
+    "label": "Pre-Translation Dictionary:",
+    "default": "",
+    "button_text": "...",
+    "section": "advanced",
+    "placeholder": "e.g., dicts/my_pre_dict.txt",
+    "tooltip": "Path to a .txt file for correcting OCR errors BEFORE translation."
+  },
+  "post_dict_path": {
+    "widget": "entry_with_button",
+    "group": "General & Translator",
+    "order": 182,
+    "label": "Post-Translation Dictionary:",
+    "default": "",
+    "button_text": "...",
+    "section": "advanced",
+    "placeholder": "e.g., dicts/my_post_dict.txt",
+    "tooltip": "Path to a .txt file for correcting translation results AFTER translation."
+  },
+  "detector": {
+    "widget": "optionmenu",
+    "group": "Detector & OCR",
+    "order": 220,
+    "label": "Detector Model:",
+    "default": "default",
+    "tooltip": "The AI model used to find text bubbles on the page. 'default' is recommended for most comics."
+  },
+  "detection_size": {
+    "widget": "slider",
+    "group": "Detector & OCR",
+    "order": 230,
+    "label": "Detection Size:",
+    "default": 2048,
+    "options": {
+      "from_": 512,
+      "to": 4096,
+      "number_of_steps": 56
+    },
+    "value_format": "{:.0f}",
+    "tooltip": "The resolution the image is resized to for text detection. Higher values find smaller text but are slower."
+  },
+  "ocr": {
+    "widget": "optionmenu",
+    "group": "Detector & OCR",
+    "order": 240,
+    "label": "OCR Model:",
+    "default": "48px",
+    "tooltip": "The AI model used to read/recognize the characters inside the text bubbles."
+  },
+  "ignore_bubble": {
+    "widget": "slider",
+    "group": "Detector & OCR",
+    "order": 250,
+    "label": "Ignore Small Bubbles:",
+    "default": 0,
+    "options": {
+      "from_": 0,
+      "to": 500,
+      "number_of_steps": 50
+    },
+    "value_format": "{:.0f}",
+    "tooltip": "Ignores any detected text bubbles smaller than this pixel area. Useful for filtering out noise or tiny sound effects."
+  },
+  "use_mocr_merge": {
+    "widget": "checkbox",
+    "group": "Detector & OCR",
+    "order": 260,
+    "label": "Use mOCR Merge",
+    "default": false,
+    "tooltip": "A special mode for the 'mocr' model that can improve accuracy on difficult fonts, but is slightly slower."
+  },
+  "text_threshold": {
+    "widget": "slider",
+    "group": "Detector & OCR",
+    "order": 280,
+    "label": "Text Threshold:",
+    "default": 0.5,
+    "options": {
+      "from_": 10,
+      "to": 90
+    },
+    "value_multiplier": 0.01,
+    "value_format": "{:.2f}",
+    "section": "advanced",
+    "tooltip": "How confident the detector must be to mark an area as 'text'. Lower values find more text but may include noise."
+  },
+  "box_threshold": {
+    "widget": "slider",
+    "group": "Detector & OCR",
+    "order": 290,
+    "label": "Box Threshold:",
+    "default": 0.7,
+    "options": {
+      "from_": 10,
+      "to": 90
+    },
+    "value_multiplier": 0.01,
+    "value_format": "{:.2f}",
+    "section": "advanced",
+    "tooltip": "How confident the detector must be to finalize the bounding box around the text. Higher values create tighter, more precise boxes."
+  },
+  "unclip_ratio": {
+    "widget": "slider",
+    "group": "Detector & OCR",
+    "order": 291,
+    "label": "Unclip Ratio:",
+    "default": 2.3,
+    "options": {
+      "from_": 10,
+      "to": 50
+    },
+    "value_multiplier": 0.1,
+    "value_format": "{:.1f}",
+    "section": "advanced",
+    "tooltip": "How much to expand the detected text box to capture outlines or parts of speech bubbles. Too high can cause boxes to merge."
+  },
+  "det_rotate": {
+    "widget": "checkbox",
+    "group": "Detector & OCR",
+    "order": 292,
+    "label": "Detect Rotated Text",
+    "default": false,
+    "section": "advanced",
+    "tooltip": "Enables detection of vertically or rotated text within a bubble."
+  },
+  "det_auto_rotate": {
+    "widget": "checkbox",
+    "group": "Detector & OCR",
+    "order": 293,
+    "label": "Auto-Rotate Image",
+    "default": false,
+    "section": "advanced",
+    "tooltip": "Automatically rotates the entire image if it's detected to be sideways before processing."
+  },
+  "det_invert": {
+    "widget": "checkbox",
+    "group": "Detector & OCR",
+    "order": 294,
+    "label": "Invert Image Colors",
+    "default": false,
+    "section": "advanced",
+    "tooltip": "Inverts the image colors (black to white and vice-versa) before detection. Useful for white text on black backgrounds."
+  },
+  "det_gamma_correct": {
+    "widget": "checkbox",
+    "group": "Detector & OCR",
+    "order": 294.5,
+    "label": "Gamma Correction",
+    "default": false,
+    "section": "advanced",
+    "tooltip": "Applies gamma correction before detection. Can improve detection on certain image types."
+  },
+  "min_text_length": {
+    "widget": "slider",
+    "group": "Detector & OCR",
+    "order": 295,
+    "label": "Min. Text Length:",
+    "default": 0,
+    "section": "advanced",
+    "options": {
+      "from_": 0,
+      "to": 10,
+      "number_of_steps": 10
+    },
+    "value_format": "{:.0f}",
+    "tooltip": "Ignores any recognized text shorter than this length.\nUseful for filtering out noise or single characters."
+  },
+  "prob": {
+    "widget": "entry",
+    "group": "Detector & OCR",
+    "order": 296,
+    "label": "OCR Prob. Threshold:",
+    "default": null,
+    "section": "advanced",
+    "placeholder": "e.g., 0.85 (default: auto)",
+    "tooltip": "Minimum confidence for an OCR result to be accepted.\nLeave blank for automatic backend default."
+  },
+  "inpainter": {
+    "widget": "optionmenu",
+    "group": "Image & Inpainter",
+    "order": 320,
+    "label": "Inpainter Model:",
+    "default": "lama_large",
+    "tooltip": "The AI model used to remove the original text and reconstruct the background."
+  },
+  "inpainting_precision": {
+    "widget": "segmented_button",
+    "group": "Image & Inpainter",
+    "order": 330,
+    "label": "Inpainting Precision:",
+    "default": "bf16",
+    "values": [
+      "fp32",
+      "fp16",
+      "bf16"
+    ],
+    "tooltip": "Calculation precision for inpainting. 'fp32' is most compatible. 'fp16' or 'bf16' are faster on modern GPUs."
+  },
+  "inpainting_size": {
+    "widget": "slider",
+    "group": "Image & Inpainter",
+    "order": 340,
+    "label": "Inpainting Size:",
+    "default": 2048,
+    "options": {
+      "from_": 512,
+      "to": 4096,
+      "number_of_steps": 56
+    },
+    "value_format": "{:.0f}",
+    "tooltip": "Resolution for the text removal process.\nHigher values improve quality but are MUCH slower and use more VRAM.\n(Recommended: 1024, Default for Backend: 2048)"
+  },
+  "upscaler": {
+    "widget": "optionmenu",
+    "group": "Image & Inpainter",
+    "order": 370,
+    "label": "Upscaler Model:",
+    "default": "esrgan",
+    "tooltip": "The AI model used to increase the image resolution (upscale)."
+  },
+  "upscale_ratio": {
+    "widget": "segmented_button",
+    "group": "Image & Inpainter",
+    "order": 380,
+    "label": "Upscale Ratio:",
+    "default": null,
+    "values": [
+      "Disabled",
+      "2x",
+      "3x",
+      "4x"
+    ],
+    "tooltip": "How many times to multiply the image resolution. 'Disabled' will not perform upscaling."
+  },
+  "revert_upscaling": {
+    "widget": "checkbox",
+    "group": "Image & Inpainter",
+    "order": 390,
+    "label": "Revert Upscaling After",
+    "default": false,
+    "tooltip": "If checked, the image is upscaled for better processing, then scaled back down to its original size for the final output. "
+  },
+  "colorizer": {
+    "widget": "optionmenu",
+    "group": "Image & Inpainter",
+    "order": 393,
+    "label": "Colorizer Model:",
+    "default": "none",
+    "tooltip": "The AI model to colorize black and white manga pages."
+  },
+  "colorization_size": {
+    "widget": "slider",
+    "group": "Image & Inpainter",
+    "order": 394,
+    "label": "Colorization Size:",
+    "default": 576,
+    "options": {
+      "from_": 256,
+      "to": 2048,
+      "number_of_steps": 64
+    },
+    "value_format": "{:.0f}",
+    "tooltip": "The base resolution for the colorization process. Higher values can improve detail but are slower."
+  },
+  "denoise_sigma": {
+    "widget": "slider",
+    "group": "Image & Inpainter",
+    "order": 395,
+    "label": "Denoise Sigma:",
+    "default": 30,
+    "options": {
+      "from_": 0,
+      "to": 100
+    },
+    "value_format": "{:.0f}",
+    "tooltip": "Strength of the denoising filter applied during colorization. Higher values remove more noise but can soften details."
+  },
+  "restore_size_after_colorize": {
+    "widget": "checkbox",
+    "label": "Restore Original Size After Colorize",
+    "default": false,
+    "tooltip": "EXPERIMENTAL: After colorizing, automatically calculate the required upscale ratio to restore the image to its original dimensions."
+  },
+  "task_upscale_grid": {
+    "widget": "grid_segmented_button",
+    "label": "Upscale Ratio:",
+    "default": "2x",
+    "options": {
+      "columns": 4
+    },
+    "values": [
+      "2x",
+      "3x",
+      "4x",
+      "5x",
+      "6x",
+      "7x",
+      "8x",
+      "9x",
+      "10x"
+    ]
+  },
+  "renderer": {
+    "widget": "optionmenu",
+    "group": "Render & Output",
+    "order": 420,
+    "label": "Render Engine:",
+    "default": "default",
+    "tooltip": "The engine used to draw the translated text onto the cleaned image."
+  },
+  "font_family": {
+    "widget": "combobox_fonts",
+    "group": "Render & Output",
+    "order": 430,
+    "label": "Font:",
+    "default": "Sans-serif",
+    "tooltip": "The font family to use for the translated text. You can use system fonts or place fonts in the 'fonts' folder."
+  },
+  "font_color": {
+    "widget": "entry_with_button",
+    "group": "Render & Output",
+    "order": 440,
+    "label": "Font Color:",
+    "default": "000000",
+    "button_text": "...",
+    "tooltip": "The color of the translated text in Hex format (e.g., 000000 for black)."
+  },
+  "alignment": {
+    "widget": "segmented_button",
+    "group": "Render & Output",
+    "order": 450,
+    "label": "Text Alignment:",
+    "default": "auto",
+    "values": [
+      "auto",
+      "left",
+      "center",
+      "right"
+    ],
+    "tooltip": "How to align the text within the speech bubble (left, center, right). 'auto' lets the renderer decide."
+  },
+  "font_size_offset": {
+    "widget": "slider",
+    "group": "Render & Output",
+    "order": 460,
+    "label": "Font Size Offset:",
+    "default": 0,
+    "options": {
+      "from_": -20,
+      "to": 20
+    },
+    "value_format": "{:.0f}",
+    "tooltip": "Fine-tune the automatically calculated font size. Positive values make text bigger, negative values make it smaller."
+  },
+  "auto_rename": {
+    "widget": "checkbox",
+    "group": "Render & Output",
+    "order": 480,
+    "label": "Auto-rename output folder",
+    "default": true,
+    "tooltip": "Automatically renames the output folder with a language suffix (e.g., 'manga-ENG')."
+  },
+  "output_format": {
+    "widget": "grid_segmented_button",
+    "group": "Render & Output",
+    "order": 470,
+    "label": "Output Format:",
+    "default": "png",
+    "options": {
+      "columns": 4
+    },
+    "values": [
+      "png",
+      "jpg",
+      "webp",
+      "pdf",
+      "psd",
+      "xcf"
+    ],
+    "tooltip": "Select the final image format. PNG is recommended for quality."
+  },
+  "overwrite_output": {
+    "widget": "checkbox",
+    "group": "Render & Output",
+    "order": 490,
+    "label": "Overwrite existing output folder",
+    "default": false,
+    "tooltip": "If checked, any existing output folder with the same name will be deleted before processing."
+  },
+  "avoid_conflicts": {
+    "widget": "checkbox",
+    "group": "Render & Output",
+    "order": 490.5,
+    "label": "Avoid Overwriting \n(Create New Folder for each Run)",
+    "default": true,
+    "tooltip": "RECOMMENDED.\nIf checked, the app will create a new numbered folder (e.g., 'Manga-ENG (1)') if an output folder with the same name already exists.\nThis prevents accidentally skipping a job or overwriting previous results.\n\nUncheck this only if you specifically want to re-run a job and overwrite its previous output."
+  },
+  "backup_original": {
+    "widget": "checkbox",
+    "group": "Render & Output",
+    "order": 491,
+    "label": "Create backup of original folder",
+    "default": false,
+    "tooltip": "Saves a copy of the original, untouched folder with a timestamp before processing."
+  },
+  "filter_text": {
+    "widget": "entry",
+    "group": "Render & Output",
+    "order": 492,
+    "label": "Filter Text (comma-sep):",
+    "default": null,
+    "placeholder": "e.g., (SFX),[NOISE]",
+    "tooltip": "Enter patterns (comma-separated) for text you want the OCR to ignore.\nThis is useful for filtering out unwanted elements like sound effects (SFX),\n watermarks or consistent background text that you don't want translated.\n\nExample: SFX, (NOISE), TO BE CONTINUED\n\nAny text matching these patterns will be completely ignored during the translation process."
+  },
+  "font_size": {
+    "widget": "slider",
+    "group": "Render & Output",
+    "order": 510,
+    "label": "Font Size (Override):",
+    "default": null,
+    "options": {
+      "from_": 0,
+      "to": 150
+    },
+    "value_format": "{:.0f}",
+    "section": "advanced",
+    "tooltip": "Manually set a fixed font size for all text. '0' or leaving it blank means automatic sizing."
+  },
+  "line_spacing": {
+    "widget": "slider",
+    "group": "Render & Output",
+    "order": 520,
+    "label": "Line Spacing:",
+    "default": null,
+    "options": {
+      "from_": 0,
+      "to": 30
+    },
+    "value_format": "{:.0f}",
+    "section": "advanced",
+    "tooltip": "Manually set the space between lines of text. '0' or leaving it blank means automatic."
+  },
+  "direction": {
+    "widget": "segmented_button",
+    "group": "Render & Output",
+    "order": 530,
+    "label": "Text Direction:",
+    "default": "auto",
+    "values": [
+      "auto",
+      "horizontal",
+      "vertical"
+    ],
+    "section": "advanced",
+    "tooltip": "Set the text direction. 'auto' tries to guess from the text, but you can force horizontal/vertical."
+  },
+  "mask_dilation_offset": {
+    "widget": "slider",
+    "group": "Render & Output",
+    "order": 540,
+    "label": "Mask Dilation Offset:",
+    "default": 0,
+    "section": "advanced",
+    "options": {
+      "from_": -30,
+      "to": 60
+    },
+    "value_format": "{:.0f}",
+    "tooltip": "Advanced: Expands (+) or shrinks (-) the mask around the text before inpainting. Can help clean text outlines.\nRecommended: 10 to 30 to remove stubborn text ghosts."
+  },
+  "kernel_size": {
+    "widget": "entry",
+    "group": "Render & Output",
+    "order": 550,
+    "label": "Mask Kernel Size:",
+    "default": 3,
+    "section": "advanced",
+    "tooltip": "Advanced: Size of the kernel used in mask processing. Must be an odd number. Affects how the mask is blurred."
+  },
+  "disable_font_border": {
+    "widget": "checkbox",
+    "group": "Render & Output",
+    "order": 560,
+    "label": "Disable Font Border",
+    "default": false,
+    "section": "advanced",
+    "tooltip": "Removes the automatic black border/outline around the font."
+  },
+  "uppercase": {
+    "widget": "checkbox",
+    "group": "Render & Output",
+    "order": 570,
+    "label": "Force Uppercase",
+    "default": false,
+    "section": "advanced",
+    "tooltip": "Forces all translated text to be UPPERCASE."
+  },
+  "lowercase": {
+    "widget": "checkbox",
+    "group": "Render & Output",
+    "order": 580,
+    "label": "Force Lowercase",
+    "default": false,
+    "section": "advanced",
+    "tooltip": "Forces all translated text to be lowercase."
+  },
+  "no_hyphenation": {
+    "widget": "checkbox",
+    "group": "Render & Output",
+    "order": 590,
+    "label": "No Hyphenation",
+    "default": false,
+    "section": "advanced",
+    "tooltip": "Prevents the renderer from automatically splitting words with a hyphen (-)."
+  },
+  "rtl": {
+    "widget": "checkbox",
+    "group": "Render & Output",
+    "order": 591,
+    "label": "Right-to-Left Reading Order",
+    "default": true,
+    "section": "advanced",
+    "tooltip": "Enable for content that is read right-to-left, like manga.\nThis ensures speech bubbles are processed in the correct order."
+  },
+  "font_size_minimum": {
+    "widget": "slider",
+    "group": "Render & Output",
+    "order": 592,
+    "label": "Min. Font Size:",
+    "default": -1,
+    "options": {
+      "from_": -1,
+      "to": 40,
+      "number_of_steps": 41
+    },
+    "value_format": "{:.0f}",
+    "section": "advanced",
+    "tooltip": "Prevents font size from falling below this value.\n-1 disables this feature."
+  },
+  "processing_mode": {
+    "widget": "segmented_button",
+    "group": "Extra Settings",
+    "order": 710,
+    "label": "Processing Mode:",
+    "default": "Automatic",
+    "values": [
+      "Automatic",
+      "High VRAM",
+      "Low VRAM"
+    ],
+    "tooltip": "Automatic: Chooses the best mode based on your GPU's VRAM.\nHigh VRAM: Processes all images at once. Fastest, for GPUs with >6GB VRAM.\nLow VRAM: Processes images in small groups to prevent errors on GPUs with <=6GB VRAM."
+  },
+  "batch_size": {
+    "widget": "entry",
+    "group": "Extra Settings",
+    "order": 720,
+    "label": "Batch Size (Low VRAM Only):",
+    "default": "5",
+    "tooltip": "How many images to process at a time in Low VRAM mode.\nSmaller numbers use less VRAM but are slower."
+  },
+  "preset_manager": {
+    "widget": "preset_manager",
+    "group": "Extra Settings",
+    "order": 730,
+    "label": "Preset Manager"
+  },
+  "api_key_manager": {
+    "widget": "api_key_manager",
+    "group": "Extra Settings",
+    "order": 740,
+    "label": "Manage API Keys",
+    "tooltip": "Opens the .env file where you can securely store your API keys."
+  },
+  "enable_verbose_output": {
+    "widget": "checkbox",
+    "group": "Extra Settings",
+    "order": 750,
+    "label": "Enable Verbose Output ⚠",
+    "default": false,
+    "tooltip": "WARNING:\nThis enables the backend's verbose mode (-v).\nIt saves all intermediate processing steps (masks, OCR boxes, etc.) into a 'debug_output' subfolder for each job.\nThis will consume a VERY LARGE amount of disk space and will significantly slow down the entire process.\n\nIt is STRONGLY recommended to keep this OFF for normal use.",
+    "tooltip_color": "red"
+  }
+}

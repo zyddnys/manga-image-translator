@@ -54,12 +54,13 @@ class ConfigGPT:
         '## Translation Rules\n'  
         '- Translate line by line, maintaining accuracy and the authentic; Faithfully reproducing the original text and emotional intent.\n'          
         '- Preserve original gibberish or sound effects without translation.\n'            
-        '- Output each segment with its prefix (<|number|> format exactly).\n'  
+        '- Output each segment with its prefix (<|number|> format exactly) and only provide the translation without raw text.\n'  
         '- Translate content only—no additional interpretation or commentary.\n'  
         '- Do not include any explanations, analysis, or commentary on the original text or the translation.\n'
         
         'Translate the following text into {to_lang}:\n'  
     )
+  
   
     _CHAT_SAMPLE = {
         'Chinese (Simplified)': [

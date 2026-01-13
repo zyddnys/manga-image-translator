@@ -5,11 +5,12 @@ from .default import DefaultDetector
 from .dbnet_convnext import DBConvNextDetector
 from .ctd import ComicTextDetector
 from .craft import CRAFTDetector
-from .paddle import PaddleDetector
+#from .paddle_rust import PaddleDetector
 from .none import NoneDetector
 from .switch import SwitchDetector
 from .common import CommonDetector, OfflineDetector
 from ..config import Detector
+from .switch import SwitchDetector
 
 logger = logging.getLogger('manga_translator')
 
@@ -18,7 +19,7 @@ DETECTORS = {
     Detector.dbconvnext: DBConvNextDetector,
     Detector.ctd: ComicTextDetector,
     Detector.craft: CRAFTDetector,
-    Detector.paddle: PaddleDetector,
+    #Detector.paddle: PaddleDetector,
     Detector.none: NoneDetector,
     Detector.switch: SwitchDetector,
 }
@@ -46,13 +47,10 @@ async def dispatch(detector_key: Detector, image: np.ndarray, detect_size: int, 
         detector = get_detector(detector_key)
         if isinstance(detector, (OfflineDetector, SwitchDetector)):
             if not hasattr(detector, 'model') or detector.model is None or isinstance(detector, SwitchDetector):
-                logger.info(f"Loading {detector_key} model...")
                 await detector.load(device)
                 
-        logger.info(f"Running detection with {detector_key}")
         return await detector.detect(image, detect_size, text_threshold, box_threshold, unclip_ratio, invert, gamma_correct, rotate, auto_rotate, verbose)
     except Exception as e:
-        logger.error(f"Error in dispatch for {detector_key}: {str(e)}", exc_info=True)
         raise
 
 async def unload(detector_key: Detector):
