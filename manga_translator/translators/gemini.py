@@ -20,10 +20,10 @@ NRML='\033[0m' # Revert to Normal formatting
 class GeminiTranslator(CommonGPTTranslator):
     _INVALID_REPEAT_COUNT = 0  # 现在这个参数没意义了
     _MAX_REQUESTS_PER_MINUTE = 9999  # 无RPM限制
-    _TIMEOUT = 8  # 在重试之前等待服务器响应的时间（秒）
-    _RETRY_ATTEMPTS = 2  # 在放弃之前重试错误请求的次数
-    _TIMEOUT_RETRY_ATTEMPTS = 1  # 在放弃之前重试超时请求的次数
-    _RATELIMIT_RETRY_ATTEMPTS = 2  # 在放弃之前重试速率限制请求的次数
+    _TIMEOUT = 10  # 在重试之前等待服务器响应的时间（秒）
+    _RETRY_ATTEMPTS = 3  # 在放弃之前重试错误请求的次数
+    _TIMEOUT_RETRY_ATTEMPTS = 3  # 在放弃之前重试超时请求的次数
+    _RATELIMIT_RETRY_ATTEMPTS = 3  # 在放弃之前重试速率限制请求的次数
 
     # 最大令牌数量，用于控制处理的文本长度
     # Maximum token count for controlling the length of text processed

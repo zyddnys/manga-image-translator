@@ -2666,9 +2666,6 @@ class MangaTranslator:
                 translation = str(translation) if translation else ''
             
             if translation and translation.strip():
-                if '__FAILED_TO_TRANSLATE__' in translation:
-                    logger.debug('Skipping page-level language check due to translation failed flag')
-                    return True
                 all_translations.append(translation.strip())
         
         if not all_translations:
