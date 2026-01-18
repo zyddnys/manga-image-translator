@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 
 from .default import DefaultDetector
 from .dbnet_convnext import DBConvNextDetector
@@ -6,6 +7,7 @@ from .ctd import ComicTextDetector
 from .craft import CRAFTDetector
 #from .paddle_rust import PaddleDetector
 from .none import NoneDetector
+from .switch import SwitchDetector
 from .common import CommonDetector, OfflineDetector
 from ..config import Detector
 from .switch import SwitchDetector
@@ -33,6 +35,9 @@ async def prepare(detector_key: Detector):
     detector = get_detector(detector_key)
     if isinstance(detector, OfflineDetector):
         await detector.download()
+    elif isinstance(detector, SwitchDetector):
+        await detector.default_detector.download()
+        await detector.ctd_detector.download()
 
 async def dispatch(detector_key: Detector, image: np.ndarray, detect_size: int, text_threshold: float, box_threshold: float, unclip_ratio: float,
                    invert: bool, gamma_correct: bool, rotate: bool, auto_rotate: bool = False, device: str = 'cpu', verbose: bool = False):
