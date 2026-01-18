@@ -386,9 +386,9 @@ class GeminiTranslator(CommonGPTTranslator):
                     self.logger.warning(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
                     await asyncio.sleep(1)
                 except Exception as e:  
-                    self.logger.error(f'Error during translation attempt: {e}')  
+                    self.logger.warning(f'Error during translation attempt: {e}')  
                     if attempt == RETRY_ATTEMPTS - 1:  
-                        self.logger.error('Maximum retry attempts reached. Marking batch as failed.')
+                        self.logger.warning('Maximum retry attempts reached. Marking batch as failed.')
                         for idx in prompt_query_indices:
                             translations[idx] = f'__FAILED_TO_TRANSLATE__: {queries[idx]}'
                         return True # Return True to prevent further splitting
@@ -512,7 +512,7 @@ class GeminiTranslator(CommonGPTTranslator):
                         continue
 
                 except Exception as e:
-                    self.logger.error(f"Unexpected error in _request_with_retry: {str(e)}")
+                    self.logger.warning(f"Unexpected error in _request_with_retry: {str(e)}")
                     raise
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
@@ -578,7 +578,7 @@ class GeminiTranslator(CommonGPTTranslator):
 
             return response.text
         except Exception as ex:
-            self.logger.error(f"Error in _request_translation: {str(ex)}")
+            self.logger.warning(f"Error in _request_translation: {str(ex)}")
             raise ex
 
 
