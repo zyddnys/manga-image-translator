@@ -344,8 +344,8 @@ class GeminiTranslator(CommonGPTTranslator):
                         self.logger.warning(f"Retrying...(Attempt {attempt + 1})")
                         continue
                     except Exception as e:
-                        self.logger.error(e)
-                        self.logger.error(f"Retrying...(Attempt {attempt + 1})")
+                        self.logger.warning(e)
+                        self.logger.warning(f"Retrying...(Attempt {attempt + 1})")
                         continue
 
                     if len(new_translations) < query_size:  
@@ -388,7 +388,7 @@ class GeminiTranslator(CommonGPTTranslator):
                 except Exception as e:  
                     self.logger.warning(f'Error during translation attempt: {e}')  
                     if attempt == RETRY_ATTEMPTS - 1:  
-                        self.logger.warning('Maximum retry attempts reached. Marking batch as failed.')
+                        self.logger.error('Maximum retry attempts reached. Marking batch as failed.')
                         for idx in prompt_query_indices:
                             translations[idx] = f'__FAILED_TO_TRANSLATE__: {queries[idx]}'
                         return True # Return True to prevent further splitting
@@ -687,5 +687,5 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
 
             return response.text
         except Exception as ex:
-            self.logger.error(f"Error in _request_translation: {str(ex)}")
+            self.logger.warning(f"Error in _request_translation: {str(ex)}")
             raise ex
