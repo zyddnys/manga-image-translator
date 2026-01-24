@@ -182,6 +182,17 @@ class Gemini2StageTranslator(CommonTranslator):
         ).choices[0].message.parsed
 
         refine_sentences = self.process_refine_output([r.corrected_text.replace("\n", " ") for r in response.bboxes])
+
+        # Ensure refine_sentences matches the length of query_regions
+        if len(refine_sentences) != len(query_regions):
+            self.logger.warn(f'Refine output length mismatch: expected {len(query_regions)}, got {len(refine_sentences)}')
+            # Pad with original text or truncate
+            if len(refine_sentences) < len(query_regions):
+                for i in range(len(refine_sentences), len(query_regions)):
+                    refine_sentences.append(query_regions[i].text)
+            else:
+                refine_sentences = refine_sentences[:len(query_regions)]
+
         translate_prompt = self.get_prompt(query_regions, w, h, nw, nh, only_text=True, texts=refine_sentences)
 
         response = self.client2.beta.chat.completions.parse(
@@ -195,7 +206,19 @@ class Gemini2StageTranslator(CommonTranslator):
             response_format=self.translate_response_schema,
             reasoning_effort='none',
         ).choices[0].message.parsed
-        return [r.translated_text.replace("\n", " ") for r in response.translated_texts]
+
+        translations = [r.translated_text.replace("\n", " ") for r in response.translated_texts]
+
+        # Ensure translations matches the length of query_regions
+        if len(translations) != len(query_regions):
+            self.logger.warn(f'Translation output length mismatch: expected {len(query_regions)}, got {len(translations)}')
+            if len(translations) < len(query_regions):
+                for i in range(len(translations), len(query_regions)):
+                    translations.append(refine_sentences[i])
+            else:
+                translations = translations[:len(query_regions)]
+
+        return translations
 
     def process_refine_output(self, refine_output: List[str]) -> List[str]:
         all_symbols = self._LEFT_SYMBOLS + self._RIGHT_SYMBOLS
