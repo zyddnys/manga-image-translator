@@ -24,7 +24,10 @@ RUN export TZ=Etc/UTC \
 COPY . /app
 
 # Prepare models
-RUN python -u docker_prepare.py --continue-on-error
+RUN --mount=type=cache,target=/.cache/models \
+    cp -rn /.cache/models/. /app/models/ || true && \
+    python -u docker_prepare.py --continue-on-error && \
+    cp -rn /app/models/. /.cache/models/ || true
 
 RUN rm -rf /tmp && mkdir /tmp && chmod 1777 /tmp
 
