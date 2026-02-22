@@ -192,11 +192,24 @@ $ source venv/bin/activate
 # If you want to use the --use-gpu option, please visit https://pytorch.org/get-started/locally/ to install PyTorch, which needs to correspond to your CUDA version.
 # If you did not use venv to create a virtual environment, you need to add --upgrade --force-reinstall to the pip command to overwrite the currently installed PyTorch version.
 
-# Install dependencies
-$ pip install -r requirements.txt
+# Install dependencies (note: extra index URL required for rusty-manga-image-translator)
+$ pip install -r requirements.txt --extra-index-url https://frederik-uni.github.io/manga-image-translator-rust/python/wheels/simple/
 ```
 
 Models will be automatically downloaded to the `./models` directory at runtime.
+
+#### Using pipx (System-wide Installation)
+
+If you prefer a system-wide installation without managing virtual environments manually:
+
+```bash
+# Requires Python 3.10 or 3.11
+$ pipx install /path/to/manga-image-translator --pip-args="--extra-index-url https://frederik-uni.github.io/manga-image-translator-rust/python/wheels/simple/" --python python3.11
+
+# Now available globally as:
+$ manga-translator --help
+$ mit --help  # short alias
+```
 
 #### Notes for Windows Users:
 
