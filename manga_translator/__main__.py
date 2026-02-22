@@ -70,9 +70,7 @@ async def dispatch(args: Namespace):
         await translator.listen(args_dict)
 
     elif args.mode == 'shared':
-        from manga_translator.mode.share import MangaShare
-        translator = MangaShare(args_dict)
-        await translator.listen(args_dict)
+        raise Exception('Shared mode is currently not supported. Please use web mode instead.')
     elif args.mode == 'config-help':
         import json
         config = Config.schema()
