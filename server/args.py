@@ -42,7 +42,7 @@ def parse_arguments():
     parser.add_argument('--start-instance', action='store_true',
                         help='If a translator should be launched automatically')
     parser.add_argument('--ignore-errors', action='store_true', help='Skip image on encountered error.')
-    parser.add_argument('--nonce', default=os.getenv('MT_WEB_NONCE', ''), type=str, help='Nonce for securing internal web server communication')
+    parser.add_argument('--nonce', default=os.getenv('MT_WEB_NONCE') or None, type=str, help='Nonce for securing internal web server communication, set to "None" to disable')
     parser.add_argument('--models-ttl', default='0', type=int, help='models TTL in memory in seconds')
     parser.add_argument('--pre-dict', default=None, type=file_path, help='Path to the pre-translation dictionary file')
     parser.add_argument('--post-dict', default=None, type=file_path, help='Path to the post-translation dictionary file')    
