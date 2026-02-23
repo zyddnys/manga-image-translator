@@ -109,9 +109,10 @@ class MangaShare:
 
 
     def check_nonce(self, request: Request):
-        nonce = request.headers.get('X-Nonce')
-        if nonce != self.nonce:
-            raise HTTPException(401, detail="Nonce does not match")
+        if self.nonce:
+            nonce = request.headers.get('X-Nonce')
+            if nonce != self.nonce:
+                raise HTTPException(401, detail="Nonce does not match")
 
     def check_lock(self):
         if not self.lock.acquire(blocking=False):
@@ -139,7 +140,10 @@ class MangaShare:
             self.check_nonce(request)
             self.check_lock()
             method = self.get_fn(method_name)
-            attr = restricted_loads(await request.body())
+            if self.nonce is None:
+                 attr = pickle.loads(await request.body())
+            else:
+                attr = restricted_loads(await request.body())
             try:
                 if asyncio.iscoroutinefunction(method):
                     result = await method(**attr)
