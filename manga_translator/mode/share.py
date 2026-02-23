@@ -52,6 +52,8 @@ class MangaShare:
         nonce = params.get('nonce', None)
         if not nonce:
             nonce = secrets.token_hex(16)
+        if nonce == "None":
+            nonce = None
         self.nonce = nonce
 
         # each chunk has a structure like this status_code(int/1byte),len(int/4bytes),bytechunk
