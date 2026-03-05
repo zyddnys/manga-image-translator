@@ -21,9 +21,9 @@ class GeminiTranslator(CommonGPTTranslator):
     _INVALID_REPEAT_COUNT = 0  # 现在这个参数没意义了
     _MAX_REQUESTS_PER_MINUTE = 9999  # 无RPM限制
     _TIMEOUT = 10  # 在重试之前等待服务器响应的时间（秒）
-    _RETRY_ATTEMPTS = 3  # 在放弃之前重试错误请求的次数
-    _TIMEOUT_RETRY_ATTEMPTS = 3  # 在放弃之前重试超时请求的次数
-    _RATELIMIT_RETRY_ATTEMPTS = 3  # 在放弃之前重试速率限制请求的次数
+    _RETRY_ATTEMPTS = 2  # 在放弃之前重试错误请求的次数
+    _TIMEOUT_RETRY_ATTEMPTS = 2  # 在放弃之前重试超时请求的次数
+    _RATELIMIT_RETRY_ATTEMPTS = 2  # 在放弃之前重试速率限制请求的次数
 
     # 最大令牌数量，用于控制处理的文本长度
     # Maximum token count for controlling the length of text processed
@@ -344,8 +344,8 @@ class GeminiTranslator(CommonGPTTranslator):
                         self.logger.warning(f"Retrying...(Attempt {attempt + 1})")
                         continue
                     except Exception as e:
-                        self.logger.error(e)
-                        self.logger.error(f"Retrying...(Attempt {attempt + 1})")
+                        self.logger.warning(e)
+                        self.logger.warning(f"Retrying...(Attempt {attempt + 1})")
                         continue
 
                     if len(new_translations) < query_size:  
@@ -386,7 +386,7 @@ class GeminiTranslator(CommonGPTTranslator):
                     self.logger.warning(f'Restarting request due to a server error. Attempt: {server_error_attempt}')
                     await asyncio.sleep(1)
                 except Exception as e:  
-                    self.logger.error(f'Error during translation attempt: {e}')  
+                    self.logger.warning(f'Error during translation attempt: {e}')  
                     if attempt == RETRY_ATTEMPTS - 1:  
                         self.logger.error('Maximum retry attempts reached. Marking batch as failed.')
                         for idx in prompt_query_indices:
@@ -512,7 +512,7 @@ class GeminiTranslator(CommonGPTTranslator):
                         continue
 
                 except Exception as e:
-                    self.logger.error(f"Unexpected error in _request_with_retry: {str(e)}")
+                    self.logger.warning(f"Unexpected error in _request_with_retry: {str(e)}")
                     raise
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
@@ -578,7 +578,7 @@ class GeminiTranslator(CommonGPTTranslator):
 
             return response.text
         except Exception as ex:
-            self.logger.error(f"Error in _request_translation: {str(ex)}")
+            self.logger.warning(f"Error in _request_translation: {str(ex)}")
             raise ex
 
 
@@ -687,5 +687,5 @@ class _GeminiTranslator_json (_CommonGPTTranslator_JSON):
 
             return response.text
         except Exception as ex:
-            self.logger.error(f"Error in _request_translation: {str(ex)}")
+            self.logger.warning(f"Error in _request_translation: {str(ex)}")
             raise ex
