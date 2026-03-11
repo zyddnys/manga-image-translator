@@ -441,7 +441,7 @@ ws                  run in WebSocket mode
 shared              run in API mode
 --host HOST         Host of the API service (default: 127.0.0.1)
 --port PORT         Port of the API service (default: 5003)
---nonce NONCE       Nonce used to secure internal API server communication
+--nonce NONCE       Nonce used to secure internal API server communication, set to "None" to disable
 --report REPORT     Report to server to register instance (default: None)
 --models-ttl MODELS_TTL  TTL of models in memory in seconds (0 means forever)
 ```
@@ -452,7 +452,7 @@ shared              run in API mode
 --host HOST           Host address (default: 127.0.0.1)
 --port PORT           Port number (default: 8000)
 --start-instance      Whether an instance of the translator should be started automatically
---nonce NONCE         Nonce used to secure internal Web Server communication
+--nonce NONCE         Nonce used to secure internal Web Server communication, set to "None" to disable
 --models-ttl MODELS_TTL  Time in seconds to keep models in memory after last use (0 means forever)
 ```
 
