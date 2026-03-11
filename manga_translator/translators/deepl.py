@@ -49,4 +49,9 @@ class DeeplTranslator(CommonTranslator):
         self.translator = deepl.Translator(DEEPL_AUTH_KEY)
 
     async def _translate(self, from_lang, to_lang, queries):
-        return self.translator.translate_text('\n'.join(queries), target_lang = to_lang).text.split('\n')
+        translations = []
+        for query in queries:
+            translated = self.translator.translate_text(query, target_lang=to_lang).text
+            translations.append(translated)
+        return translations
+
