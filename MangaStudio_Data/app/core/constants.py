@@ -34,7 +34,8 @@ LANGUAGES = {
     "Croatian": "HRV",
     "Thai": "THA",
     "Indonesian": "IND",
-    "Filipino (Tagalog)": "FIL"
+    "Filipino (Tagalog)": "FIL",
+    "Mongolian": "MON"  # Add this line
 }
 
 # A dictionary to group translators in the dropdown menu for better readability.

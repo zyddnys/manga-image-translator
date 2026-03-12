@@ -24,7 +24,8 @@ export const languageOptions = [
   { value: "HRV", label: "hrvatski jezik" },  
   { value: "THA", label: "ภาษาไทย" },  
   { value: "IND", label: "Indonesia" },  
-  { value: "FIL", label: "Wikang Filipino" }  
+  { value: "FIL", label: "Wikang Filipino" },
+  { value: "MON", label: "Монгол хэл" }  // Add this line
 ];  
 
 export const detectionResolutions = [1024, 1536, 2048, 2560];

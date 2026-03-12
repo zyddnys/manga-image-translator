@@ -7,7 +7,7 @@ from .ballon_extractor import extract_ballon_region
 from ..utils import TextBlock
 from .text_render_eng import seg_eng
 
-def merge_seg_eng(text: str, font, bbox_width, size_ratio=1.2) -> List[str]:
+def merge_seg_eng(text: str, font, bbox_width, size_ratio=0.95) -> List[str]:
     """Segments text into words that fit within bbox_width"""
     grouped = seg_eng(text)
     lines = []
@@ -140,6 +140,7 @@ def render_textblock_list_eng(
             region.enlarged_xyxy[[1,3]] += [-h_diff, h_diff]
 
     bboxes, rotated_text_layers, sws = [], [], []
+    region_font_colors, region_stroke_colors = [], []
     x, y = img.shape[1], img.shape[0]
 
     for region in text_regions:
@@ -148,6 +149,10 @@ def render_textblock_list_eng(
         if isinstance(xyxy, tuple):
             xyxy = list(xyxy)
         font = ImageFont.truetype(font_path, font_size)
+
+        fg_clr, bg_clr = region.get_font_colors()
+        r_font_color = tuple(int(c) for c in fg_clr)
+        r_stroke_color = tuple(int(c) for c in bg_clr)
         words = merge_seg_eng(region.translation, font, region.xywh[2])
         if not words:
             continue
@@ -215,7 +220,7 @@ def render_textblock_list_eng(
         draw_text = ImageDraw.Draw(text_layer)
         draw_text.multiline_text(
             (text_width // 2, text_height // 2), words_text, font=font,
-            fill=font_color, align="center", spacing=line_spacing_px, anchor="mm"
+            fill=r_font_color, align="center", spacing=line_spacing_px, anchor="mm"
         )
 
         tx1, ty1, tx2, ty2 = draw_text.textbbox(
@@ -241,6 +246,8 @@ def render_textblock_list_eng(
         ])
         rotated_text_layers.append(rotated_text_layer)
         sws.append(sw)
+        region_font_colors.append(r_font_color)
+        region_stroke_colors.append(r_stroke_color)
 
     # Resolve collisions
     new_bboxes = solve_collisions_spiral_xyxy((x, y), [b[1] for b in bboxes])
@@ -253,7 +260,7 @@ def render_textblock_list_eng(
     img_pil = img_pil.convert("RGB")
     img_array = np.array(img_pil)
 
-    for rotated_layer, bbox, sw in zip(rotated_text_layers, bboxes, sws):
+    for rotated_layer, bbox, sw, r_stroke in zip(rotated_text_layers, bboxes, sws, region_stroke_colors):
         paste_x, paste_y = bbox[0][:2]
 
         # Create stroke mask
@@ -271,7 +278,7 @@ def render_textblock_list_eng(
             mask_x1 = max(0, -paste_x)
             mask_x2 = mask_x1 + (x2 - x1)
 
-            img_array[y1:y2, x1:x2][text_mask[mask_y1:mask_y2, mask_x1:mask_x2], :3] = stroke_color
+            img_array[y1:y2, x1:x2][text_mask[mask_y1:mask_y2, mask_x1:mask_x2], :3] = r_stroke
 
     img_pil = Image.fromarray(img_array)
     for layer, bbox in zip(rotated_text_layers, bboxes):

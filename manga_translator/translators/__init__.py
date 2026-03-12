@@ -187,7 +187,8 @@ LANGDETECT_MAP = {
     'hr': 'HRV',
     'th': 'THA',
     'id': 'IND',
-    'tl': 'FIL'
+    'tl': 'FIL',
+    'mn': 'MON'
 }
 
 async def unload(key: Translator):

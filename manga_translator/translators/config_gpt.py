@@ -255,28 +255,66 @@ class ConfigGPT:
         
         self.langSamples = []
 
-        try:
-            if to_lang in self._LANGUAGE_CODE_MAP:
-                to_lang = self._LANGUAGE_CODE_MAP[to_lang]
+        # First, try direct key matching (case-insensitive)
+        original_to_lang = to_lang
+        if to_lang in self._LANGUAGE_CODE_MAP:
+            to_lang = self._LANGUAGE_CODE_MAP[to_lang]
+        
+        # Check for direct key match first (handles cases like "Mongolian" key)
+        if to_lang in all_samples:
+            self.langSamples = all_samples[to_lang]
+            return self.langSamples
+        
+        # Try case-insensitive direct match
+        for key in all_samples.keys():
+            if key.lower() == to_lang.lower():
+                self.langSamples = all_samples[key]
+                return self.langSamples
 
+        # Try to get ISO code for langcodes matching
+        iso_code = None
+        try:
+            # Try to find ISO code from VALID_LANGUAGES reverse mapping
+            from .common import ISO_639_1_TO_VALID_LANGUAGES
+            # Find the ISO code that maps to our language code
+            for iso, lang_code in ISO_639_1_TO_VALID_LANGUAGES.items():
+                if lang_code == original_to_lang:
+                    iso_code = iso
+                    break
+        except:
+            pass
+
+        # Try langcodes matching with ISO code if available
+        try:
+            # Use ISO code if available, otherwise use the language name
+            lang_for_matching = iso_code if iso_code else to_lang
+            
             foundLang = closest_supported_match(
-                                Language.find(to_lang), 
+                                Language.find(lang_for_matching), 
                                 [
                                     Language.find(sampleLang).to_tag() 
                                     for sampleLang in list(all_samples.keys())
                                 ],
                                 max_distance=max_distance 
                             )
-        except:
-            self.logger.error(f"Requested chat sample of unknown language: {to_lang}")
-            return self.langSamples
-        
-        # If a match is found: find, cache, and return the chat sample:
-        if foundLang:
-            for sampleLang, samples in all_samples.items():
-                if foundLang == Language.find(sampleLang).to_tag():
-                    self.langSamples = samples
-                    return self.langSamples
+            
+            # If a match is found: find, cache, and return the chat sample:
+            if foundLang:
+                for sampleLang, samples in all_samples.items():
+                    try:
+                        if foundLang == Language.find(sampleLang).to_tag():
+                            self.langSamples = samples
+                            return self.langSamples
+                    except:
+                        continue
+        except Exception as e:
+            # If langcodes fails, try ISO code as direct key
+            if iso_code and iso_code in all_samples:
+                self.langSamples = all_samples[iso_code]
+                return self.langSamples
+            # Log only if we haven't found a match yet
+            if not self.langSamples:
+                self.logger.debug(f"Could not find chat sample for language '{to_lang}' using langcodes: {e}")
 
         return self.langSamples
     

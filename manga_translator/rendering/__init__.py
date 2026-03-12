@@ -168,30 +168,35 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
             length_ratio = 1.0
 
             if char_count_orig > 0 and char_count_trans > char_count_orig:  
+                # Translation is LONGER than original - DECREASE font size
                 increase_percentage = (char_count_trans - char_count_orig) / char_count_orig
-                font_increase_ratio = 1 + (increase_percentage * 0.3)
-                font_increase_ratio = min(1.5, max(1.0, font_increase_ratio))
-                # logger.debug(f"Translation is {increase_percentage:.2%} longer, font increase ratio: {font_increase_ratio:.2f}")
+                # For longer translations (like Japanese to Mongolian), DECREASE font size instead of increasing
+                # This prevents text from becoming too large when translated to longer languages
+                font_decrease_ratio = 1 - (increase_percentage * 0.4)  # Reduce font by up to 40% of the length increase
+                font_decrease_ratio = max(0.5, min(1.0, font_decrease_ratio))  # Limit between 0.5x and 1.0x
+                # logger.debug(f"Translation is {increase_percentage:.2%} longer, font decrease ratio: {font_decrease_ratio:.2f}")
+                target_font_size = int(target_font_size * font_decrease_ratio)
+                # logger.debug(f"Adjusted target font size: {target_font_size}")
+                # Still need bounding box scaling to accommodate longer text, but with smaller font
+                target_scale = max(1, min(1 + increase_percentage * 0.2, 2))  # Reduced scaling since font is smaller
+                # logger.debug(f"Translation is longer than original, font decreased to fit. Target scale factor: {target_scale:.2f}")
+            elif char_count_orig > 0 and char_count_trans < char_count_orig:
+                # Translation is SHORTER than original - INCREASE font size
+                decrease_percentage = (char_count_orig - char_count_trans) / char_count_orig
+                # Font increase ratio based on how much shorter the translation is
+                # More aggressive increase for significantly shorter text
+                font_increase_ratio = 1 + (decrease_percentage * 0.5)  # Increase font by up to 50% of the length decrease
+                # Limit font increase ratio to reasonable range, between 1.0 and 1.8x
+                font_increase_ratio = min(1.8, max(1.0, font_increase_ratio))
+                # logger.debug(f"Translation is {decrease_percentage:.2%} shorter than original, font increase ratio: {font_increase_ratio:.2f}")
+                # Update target font size
                 target_font_size = int(target_font_size * font_increase_ratio)
                 # logger.debug(f"Adjusted target font size: {target_font_size}")
-                # Need greater bounding box scaling to accommodate larger font size and longer text
-                target_scale = max(1, min(1 + increase_percentage * 0.3, 2))  # Possibly max(1, min(1 + (font_increase_ratio-1), 2))
-                # logger.debug(f"Translation is longer than original and font increased, need larger bounding box scaling. Target scale factor: {target_scale:.2f}")
-            # Short text box expansion is quite aggressive, in many cases short text boxes don't need expansion
-            # elif char_count_orig > 0 and char_count_trans < char_count_orig:
-            #     # Translation is shorter, increase font proportionally
-            #     decrease_percentage = (char_count_orig - char_count_trans) / char_count_orig
-            #     # Font increase ratio equals text reduction ratio
-            #     font_increase_ratio = 1 + decrease_percentage
-            #     # Limit font increase ratio to reasonable range, e.g., between 1.0 and 1.5
-            #     font_increase_ratio = min(1.5, max(1.0, font_increase_ratio))
-            #     logger.debug(f"Translation is {decrease_percentage:.2%} shorter than original, font increase ratio: {font_increase_ratio:.2f}")
-            #     # Update target font size
-            #     target_font_size = int(target_font_size * font_increase_ratio)
-            #     logger.debug(f"Adjusted target font size: {target_font_size}")
-            #     target_scale = 1.0  # No additional bounding box scaling needed
-            #     logger.debug(f"Translation is shorter than original, no bounding box scaling applied, only font increase. Target scale factor: {target_scale:.2f}")            
+                # No additional bounding box scaling needed since text is shorter
+                target_scale = 1.0
+                # logger.debug(f"Translation is shorter than original, font increased. Target scale factor: {target_scale:.2f}")            
             else:  
+                # Translation length is similar to original - no adjustment needed
                 target_scale = 1              
                 # logger.debug(f"No length ratio scaling applied. Target scale factor: {target_scale:.2f}")   
 
@@ -427,4 +432,4 @@ async def dispatch_eng_render_pillow(img_canvas: np.ndarray, original_img: np.nd
         font_path = os.path.join(BASE_PATH, 'fonts/NotoSansMonoCJK-VF.ttf.ttc')
     text_render.set_font(font_path)
 
-    return render_textblock_list_eng_pillow(font_path, img_canvas, text_regions, original_img=original_img, downscale_constraint=0.95)
+    return render_textblock_list_eng_pillow(font_path, img_canvas, text_regions, original_img=original_img, downscale_constraint=0.8)

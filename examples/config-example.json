@@ -1,10 +1,10 @@
 {
   "filter_text": null,
   "render": {
-    "renderer": "default",
+    "renderer": "manga2eng_pillow",
     "alignment": "auto",
     "disable_font_border": false,
-    "font_size_offset": 0,
+    "font_size_offset": -3,
     "font_size_minimum": -1,
     "direction": "auto",
     "uppercase": false,
@@ -14,7 +14,7 @@
     "font_color": null,
     "line_spacing": null,
     "font_size": null,
-    "rtl": true
+    "rtl": false
   },
   "upscale": {
     "upscaler": "esrgan",
@@ -23,23 +23,23 @@
   },
   "translator": {
     "translator": "openai",
-    "target_lang": "ENG",
+    "target_lang": "MON",
     "no_text_lang_skip": false,
     "skip_lang": null,
-    "gpt_config": null,
+    "gpt_config": "examples/gpt_config-example.yaml",
     "translator_chain": null,
     "selective_translation": null
   },
   "detector": {
     "detector": "default",
     "detection_size": 2048,
-    "text_threshold": 0.5,
+    "text_threshold": 0.3,
     "det_rotate": false,
-    "det_auto_rotate": false,
+    "det_auto_rotate": true,
     "det_invert": false,
-    "det_gamma_correct": false,
-    "box_threshold": 0.7,
-    "unclip_ratio": 2.3
+    "det_gamma_correct": true,
+    "box_threshold": 0.5,
+    "unclip_ratio": 2.5
   },
   "colorizer": {
     "colorization_size": 576,
@@ -47,7 +47,7 @@
     "colorizer": "none"
   },
   "inpainter": {
-    "inpainter": "lama_large" ,
+    "inpainter": "lama_large",
     "inpainting_size": 2048,
     "inpainting_precision": "bf16"
   },

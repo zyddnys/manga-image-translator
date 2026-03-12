@@ -32,7 +32,13 @@ LANGUAGE_ORIENTATION_PRESETS = {
     'UKR': 'h',
     'VIN': 'h',
     'ARA': 'hr',  # horizontal reversed (right to left)
-    'FIL': 'h'
+    'FIL': 'h',
+    'MON': 'h',  # Mongolian - horizontal left to right (Cyrillic script)
+    'SRP': 'h',
+    'HRV': 'h',
+    'THA': 'h',
+    'IND': 'h',
+    'CNR': 'h',
 }
 
 

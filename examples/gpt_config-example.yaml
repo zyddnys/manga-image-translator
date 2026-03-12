@@ -31,7 +31,7 @@ temperature: 0.5
 # An alternative to sampling with temperature, called nucleus sampling,
 # where the model considers the results of the tokens with top_p probability mass.
 # So 0.1 means only the tokens comprising the top 10% probability mass are considered.
-top_p: 1
+top_p: 0.9
 
 #Whether to hide _CHAT_SYSTEM_TEMPLATE and _CHAT_SAMPLE in the command line output
 verbose_logging: False
@@ -139,13 +139,49 @@ chatgpt:
   include_template: True
   # Override default configs for a specific models:
   gpt-4o-mini:
-    temperature: 0.4
+    temperature: 0.2
   gpt-3.5-turbo:
     temperature: 0.3
+  # Mongolian (Монгол хэл) optimized settings for better accuracy:
+  # Lower temperature for more consistent, accurate translations
+  # Use gpt-4 or gpt-4o for best results (better language understanding)
+  gpt-4o:
+  temperature: 0.2  # Lower = more accurate, less creative
+  #   chat_system_template: &mongolian-template >
+  #     You are an expert translator specializing in Japanese-to-Mongolian manga translation.
+  #     
+  #     ## Critical Accuracy Requirements:
+  #     - Use proper Cyrillic Mongolian script (Монгол кирилл)
+  #     - Follow Mongolian vowel harmony rules strictly
+  #     - Maintain natural Mongolian word order (SOV structure)
+  #     - Use correct case endings based on grammatical context
+  #     - Preserve Japanese honorifics in romanized form: "-san", "-chan", "-kun"
+  #     
+  #     ## Translation Process:
+  #     1. Understand the Japanese meaning accurately
+  #     2. Convert to natural Mongolian while preserving:
+  #        - Emotional tone and intensity
+  #        - Character voice and personality
+  #        - Cultural context (adapt appropriately)
+  #     3. Verify: Does it sound natural to a native Mongolian speaker?
+  #     
+  #     ## Common Accuracy Issues to Avoid:
+  #     - Incorrect vowel harmony (e.g., mixing front/back vowels)
+  #     - Wrong case endings (nominative, accusative, dative, etc.)
+  #     - Literal word-for-word translations (sounds unnatural)
+  #     - Missing or incorrect particles
+  #     - Over-formalizing casual speech
+  #     
+  #     Translate to {to_lang} with maximum accuracy:
 
 # The text to prepend to `User` messages to GPT before the text to translate.
 # Use {to_lang} to indicate where the target language name should be inserted.
-prompt_template: 'Please help me to translate the following text from a manga to {to_lang}:'
+prompt_template: >
+  The following text is extracted from a manga using OCR and may contain errors such as
+  merged words, missing spaces, or garbled characters (e.g. "ANEXTLIFE" instead of "A NEXT LIFE").
+  Silently fix any obvious OCR errors, then translate into {to_lang}.
+  IMPORTANT: Keep all line ID prefixes (e.g. <|1|>, <|2|>) exactly as-is in your output.
+  Please help me to translate the following text from a manga to {to_lang}:
 
 
 # Samples fed into ChatGPT to show an example conversation.
@@ -155,6 +191,54 @@ prompt_template: 'Please help me to translate the following text from a manga to
 # some names of characters it's likely to encounter.
 #
 # If you'd like to disable this feature, just set this to an empty list.
+#
+# ============================================================
+# TIPS FOR BETTER PROMPTS - MONGOLIAN (Монгол хэл)
+# ============================================================
+# 
+# 1. Script & Encoding:
+#    - Mongolian uses Cyrillic script (Монгол кирилл)
+#    - Ensure UTF-8 encoding is properly handled
+#    - Some traditional Mongolian may use vertical script, but Cyrillic is standard
+#
+# 2. Language Structure:
+#    - Mongolian has vowel harmony - ensure translations follow harmony rules
+#    - Word order: Subject-Object-Verb (SOV), similar to Japanese
+#    - Use appropriate case endings based on context
+#
+# 3. Formality & Politeness:
+#    - Mongolian has formal/informal distinctions
+#    - Use "та" (formal you) vs "чи" (informal you) appropriately
+#    - Consider character relationships when choosing formality level
+#
+# 4. Cultural Adaptation:
+#    - Adapt Japanese cultural concepts to Mongolian context
+#    - Preserve emotional tone and intensity
+#    - Maintain character voice consistency
+#
+# 5. Honorifics & Names:
+#    - Preserve Japanese honorifics in romanized form: "-san", "-chan", "-kun"
+#    - Keep honorifics attached to names: "Tanaka-san" not "Mr. Tanaka"
+#    - Don't translate honorifics to Mongolian equivalents
+#
+# 6. Manga-Specific Terms:
+#    - Sound effects: Keep untranslated or use appropriate Mongolian equivalents
+#    - Onomatopoeia: Adapt naturally to Mongolian sound patterns
+#    - Technical terms: Use commonly understood Mongolian terms
+#
+# 7. Translation Quality:
+#    - Maintain natural Mongolian sentence flow
+#    - Avoid literal word-for-word translations
+#    - Ensure translations sound native to Mongolian speakers
+#    - Preserve dialogue rhythm and pacing
+#
+# 8. Common Issues to Avoid:
+#    - Don't add pronouns that don't exist in original Japanese
+#    - Don't combine or split text lines (maintain 1:1 correspondence)
+#    - Don't over-formalize casual dialogue
+#    - Don't lose emotional nuance in translation
+#
+# ============================================================
 chat_sample:
   Chinese (Simplified): # Tokens used in this example: 88 + 84
     - <|1|>恥ずかしい… 目立ちたくない… 私が消えたい…
@@ -177,6 +261,34 @@ chat_sample:
     - <|1|>부끄러워... 눈에 띄고 싶지 않아... 나 숨고 싶어...
       <|2|>괜찮아?!
       <|3|>이 녀석, 뭐야? 분위기 못 읽는 거야...?
+  # Mongolian (Монгол хэл) - Tips for better prompts:
+  # 1. Mongolian uses Cyrillic script - ensure proper character encoding
+  # 2. Pay attention to vowel harmony rules in translations
+  # 3. Use formal/informal forms appropriately based on context
+  # 4. Preserve Japanese honorifics in romanized form (e.g., "-san", "-chan")
+  # 5. Mongolian sentence structure differs from Japanese - adapt naturally
+  # 6. Consider cultural context when translating manga-specific expressions
+  # 7. Add diverse examples covering different speech patterns and contexts
+  # Note: Use both 'Mongolian' (for direct match) and 'mn' (ISO 639-1 for langcodes)
+  Mongolian: &mongolian-chat-sample  # Direct match fallback
+    # Example 1: Emotional/casual dialogue
+    - <|1|>恥ずかしい… 目立ちたくない… 私が消えたい…
+      <|2|>きみ… 大丈夫⁉
+      <|3|>なんだこいつ 空気読めて ないのか…？
+    - <|1|>Ичихээс... Би харагдахыг хүсэхгүй байна... Би алга болмоор байна...
+      <|2|>Чи... Зүгээр үү⁉
+      <|3|>Энэ хүн юу вэ? Нөхцөл байдлыг уншиж чадахгүй байна уу...?
+    # Example 2: Formal dialogue with honorifics
+    - <|1|>田中さん、おはようございます
+      <|2|>はい、元気です。ありがとうございます
+    - <|1|>Танака-сан, өглөөний мэнд
+      <|2|>Тийм ээ, би сайн байна. Баярлалаа
+    # Example 3: Action/exclamation
+    - <|1|>危ない！
+      <|2|>早く逃げろ！
+    - <|1|>Аюултай!
+      <|2|>Хурдан зугт!
+  mn: *mongolian-chat-sample  # ISO 639-1 code for langcodes matching
 
 
 # Use JSON mode for translators that support it.
@@ -192,6 +304,12 @@ json_mode: false
 # 
 # NOTE: If no JSON sample for the target language is provided, 
 #       it will look for a sample from the `chat_sample` section and convert it to JSON if found.
+#
+# MONGOLIAN (Монгол хэл) JSON Mode Tips:
+# - Ensure JSON structure matches exactly: TextList with ID and text fields
+# - Maintain proper Cyrillic encoding in JSON text values
+# - Keep line IDs consistent between input and output
+# - Use proper JSON escaping for special characters if needed
 json_sample:
   Simplified Chinese:
     - TextList:  &JSON-Sample-In
@@ -226,3 +344,33 @@ json_sample:
           text: "괜찮아?!"
         - ID: 3
           text: "이 녀석, 뭐야? 분위기 못 읽는 거야...?"
+  # Mongolian (Монгол хэл) JSON samples
+  # Tips for Mongolian translation:
+  # - Use proper Cyrillic encoding (UTF-8)
+  # - Maintain natural Mongolian word order
+  # - Adapt Japanese expressions to Mongolian cultural context
+  # - Preserve emotional tone and character voice
+  # - Use appropriate formality levels
+  # - Include diverse examples for better accuracy
+  # Note: Use both 'Mongolian' (for direct match) and 'mn' (ISO 639-1 for langcodes)
+  Mongolian: &mongolian-json-sample  # Direct match fallback
+    - TextList: *JSON-Sample-In
+    - TextList:
+        - ID: 1
+          text: "Ичихээс... Би харагдахыг хүсэхгүй байна... Би алга болмоор байна..."
+        - ID: 2
+          text: "Чи... Зүгээр үү?!"
+        - ID: 3
+          text: "Энэ хүн юу вэ? Нөхцөл байдлыг уншиж чадахгүй байна уу...?"
+    # Additional examples for better accuracy:
+    - TextList:
+        - ID: 1
+          text: "田中さん、おはようございます"
+        - ID: 2
+          text: "はい、元気です。ありがとうございます"
+    - TextList:
+        - ID: 1
+          text: "Танака-сан, өглөөний мэнд"
+        - ID: 2
+          text: "Тийм ээ, би сайн байна. Баярлалаа"
+  mn: *mongolian-json-sample  # ISO 639-1 code for langcodes matching

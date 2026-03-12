@@ -51,3 +51,8 @@ MANIFEST
 # SSL Used for running server locally
 cert.pem
 key.pem
+
+
+/data
+
+/server/venv

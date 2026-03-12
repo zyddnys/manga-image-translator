@@ -37,7 +37,8 @@ VALID_LANGUAGES = {
     'HRV': 'Croatian',
     'THA': 'Thai',
     'IND': 'Indonesian',
-    'FIL': 'Filipino (Tagalog)'
+    'FIL': 'Filipino (Tagalog)',
+    'MON': 'Mongolian'
 }
 
 ISO_639_1_TO_VALID_LANGUAGES = {
@@ -66,7 +67,8 @@ ISO_639_1_TO_VALID_LANGUAGES = {
     'hr': 'HRV',
     'th': 'THA',
     'id': 'IND',
-    'tl': 'FIL'
+    'tl': 'FIL',
+    'mn': 'MON'
 }
 
 class InvalidServerResponse(Exception):
