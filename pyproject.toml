@@ -1,11 +1,19 @@
 [project]
 name = "manga-image-translator"
 version = "0.1.0"
-description = ""
+description = "One-click translation of text in manga/images"
 authors = []
 readme = "README.md"
 requires-python = ">=3.10, <3.12"
 license = "GPL-3.0-only"
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[project.scripts]
+manga-translator = "manga_translator.__main__:main"
+mit = "manga_translator.__main__:main"
 
 [tool.isort]
 profile = 'black'
@@ -27,3 +35,17 @@ generated-members = ["torch.*", "cv2.*"]
 addopts = "-ra -v -p no:faulthandler"
 minversion = "6.0"
 testpaths = ["test"]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["manga_translator*", "fonts"]
+
+[tool.setuptools.package-data]
+fonts = ["*.ttf", "*.ttc"]
+
+[tool.setuptools]
+include-package-data = true
