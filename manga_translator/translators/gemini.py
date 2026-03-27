@@ -388,7 +388,7 @@ class GeminiTranslator(CommonGPTTranslator):
                 except Exception as e:  
                     self.logger.warning(f'Error during translation attempt: {e}')  
                     if attempt == RETRY_ATTEMPTS - 1:  
-                        self.logger.error('Maximum retry attempts reached. Marking batch as failed.')
+                        self.logger.warning('Maximum retry attempts reached. Marking batch as failed.')
                         for idx in prompt_query_indices:
                             translations[idx] = f'__FAILED_TO_TRANSLATE__: {queries[idx]}'
                         return True # Return True to prevent further splitting
