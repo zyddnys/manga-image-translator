@@ -2650,12 +2650,12 @@ class MangaTranslator:
             # 如果区域数量不超过10个，跳过此检查
             return True
 
-        # Special Case for Arabic, Skip Language Check
-        # Because Arabic goes through arabic-reshaper
-        if target_lang.upper() == 'ARA':
-            logger.debug('Skipping language check for Arabic')
+        if any(
+            translation.startswith('__FAILED_TO_TRANSLATE__')
+            for translation in [region.translation for region in text_regions if region.translation]
+        ):
             return True
-            
+
         # 合并所有翻译文本
         all_translations = []
         for region in text_regions:

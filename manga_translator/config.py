@@ -234,7 +234,7 @@ class TranslatorConfig(BaseModel):
     # 译后检查配置项
     enable_post_translation_check: bool = True
     """Enable post-translation validation check"""
-    post_check_max_retry_attempts: int = 3
+    post_check_max_retry_attempts: int = 2
     """Maximum retry attempts for failed translation validation"""
     post_check_repetition_threshold: int = 20
     """Minimum number of consecutive repetitions to trigger hallucination detection"""
