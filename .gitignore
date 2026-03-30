@@ -1,6 +1,7 @@
 result
 *.ckpt
 *.pt
+!manga_translator/detection/yolo_models/*
 .vscode
 *.onnx
 __pycache__
