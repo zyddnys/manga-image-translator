@@ -28,7 +28,7 @@ class YoloDetector(OfflineDetector):
     async def _load(self, device: str) -> None:
         self.device = device
         self.model = YOLO(
-            os.path.join(os.path.dirname(__file__), "yolo_models", "yolo12l_animetext_finetuned_768_v2.1.pt")
+            os.path.join(os.path.dirname(__file__),"..","..","..","..","yolo_models", "yolo12l_animetext_finetuned_768_v2.1.pt")
         )
         self.model.to(self.device)
 
