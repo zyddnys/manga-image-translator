@@ -89,6 +89,7 @@ class Detector(str, Enum):
     #paddle = "paddle"
     none = "none"
     switch = "switch"
+    yolo = "yolo"
 
 class Inpainter(str, Enum):
     default = "default"
