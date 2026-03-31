@@ -11,6 +11,7 @@ from .switch import SwitchDetector
 from .common import CommonDetector, OfflineDetector
 from ..config import Detector
 from .switch import SwitchDetector
+from .yolo import YoloDetector
 
 DETECTORS = {
     Detector.default: DefaultDetector,
@@ -20,6 +21,7 @@ DETECTORS = {
     #Detector.paddle: PaddleDetector,
     Detector.none: NoneDetector,
     Detector.switch: SwitchDetector,
+    Detector.yolo: YoloDetector,
 }
 detector_cache = {}
 
