@@ -1,4 +1,4 @@
-import pickle
+import json
 from typing import Mapping, Optional, Callable
 
 import aiohttp
@@ -27,7 +27,7 @@ async def fetch_data(url, image: Image, config: Config, headers: Mapping[str, st
     async with aiohttp.ClientSession() as session:
         async with session.post(url, data=data, headers=headers) as response:
             if response.status == 200:
-                return pickle.loads(await response.read())
+                return json.loads((await response.read()).decode('utf-8'))
             else:
                 raise HTTPException(response.status, detail=await response.text())
 
