@@ -120,6 +120,11 @@ class CommonTranslator(InfererModule):
         self.mtpe_adapter = MTPEAdapter()
         self._last_request_ts = 0
 
+
+    async def unload(self, device: str = None):
+        """No-op for API-based translators. Overridden by OfflineTranslator."""
+        pass
+
     def supports_languages(self, from_lang: str, to_lang: str, fatal: bool = False) -> bool:
         supported_src_languages = ['auto'] + list(self._LANGUAGE_CODE_MAP)
         supported_tgt_languages = list(self._LANGUAGE_CODE_MAP)
