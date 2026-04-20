@@ -1,4 +1,5 @@
 import pickle
+import os
 from typing import Mapping, Optional, Callable
 
 import aiohttp
@@ -9,12 +10,22 @@ from manga_translator import Config
 
 NotifyType = Optional[Callable[[int, Optional[bytes]], None]]
 
+
+def _with_default_nonce(headers: Mapping[str, str]) -> Mapping[str, str]:
+    """Attach X-Nonce for internal calls when available."""
+    merged_headers = dict(headers or {})
+    nonce = os.getenv('MT_WEB_NONCE')
+    if nonce and 'X-Nonce' not in merged_headers:
+        merged_headers['X-Nonce'] = nonce
+    return merged_headers
+
 async def fetch_data_stream(url, image: Image, config: Config, sender: NotifyType, headers: Mapping[str, str] = {}):
     attributes = {"image": image, "config": config}
     data = pickle.dumps(attributes)
+    request_headers = _with_default_nonce(headers)
 
     async with aiohttp.ClientSession() as session:
-        async with session.post(url, data=data, headers=headers) as response:
+        async with session.post(url, data=data, headers=request_headers) as response:
             if response.status == 200:
                 await process_stream(response, sender)
             else:
@@ -23,9 +34,10 @@ async def fetch_data_stream(url, image: Image, config: Config, sender: NotifyTyp
 async def fetch_data(url, image: Image, config: Config, headers: Mapping[str, str] = {}):
     attributes = {"image": image, "config": config}
     data = pickle.dumps(attributes)
+    request_headers = _with_default_nonce(headers)
 
     async with aiohttp.ClientSession() as session:
-        async with session.post(url, data=data, headers=headers) as response:
+        async with session.post(url, data=data, headers=request_headers) as response:
             if response.status == 200:
                 return pickle.loads(await response.read())
             else:

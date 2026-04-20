@@ -284,6 +284,9 @@ def prepare(args):
         nonce = os.getenv('MT_WEB_NONCE', generate_nonce())
     else:
         nonce = args.nonce
+    # Ensure child process and internal HTTP callers share the same nonce.
+    if nonce is not None:
+        os.environ['MT_WEB_NONCE'] = nonce
     if args.start_instance:
         return start_translator_client_proc(args.host, args.port + 1, nonce, args)
     folder_name= "upload-cache"
