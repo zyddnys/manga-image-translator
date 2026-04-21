@@ -51,3 +51,11 @@ MANIFEST
 # SSL Used for running server locally
 cert.pem
 key.pem
+
+.cursor/
+.cog/
+
+# Modal deployment
+.modal_cache/
+deploy/__pycache__/
+*.pyc
