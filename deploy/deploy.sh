@@ -124,12 +124,16 @@ download_models() {
 }
 
 # Run smoke tests
+# Args:
+#   $1 - test case name (optional): health, queue, translate, stream, results, or all
 run_tests() {
+    local test_case="${1:-all}"
+
     print_header "Running Smoke Tests"
 
     # Get Modal URL
     print_info "Fetching your Modal app URL..."
-    MODAL_USERNAME=$(modal profile current | grep Username | awk '{print $2}')
+    MODAL_USERNAME=$(modal profile current)
 
     if [ -z "$MODAL_USERNAME" ]; then
         print_error "Could not determine Modal username"
@@ -147,7 +151,14 @@ run_tests() {
         pip install requests Pillow
     fi
 
-    python deploy/smoke_test.py --url "$MODAL_URL" --verbose
+    # Build test command based on test case
+    if [ "$test_case" = "all" ]; then
+        print_info "Running all tests..."
+        python deploy/smoke_test.py --url "$MODAL_URL" --verbose
+    else
+        print_info "Running $test_case test..."
+        python deploy/smoke_test.py --url "$MODAL_URL" --verbose --test "$test_case"
+    fi
 
     print_success "Tests completed!"
 }
@@ -185,7 +196,14 @@ Commands:
   setup     Initial setup (create secrets from .env file)
   deploy    Deploy the application to Modal
   models    Download models to persistent volume
-  test      Run smoke tests against deployed app
+  test [case]  Run smoke tests against deployed app
+            Available test cases:
+              all       - Run all tests (default)
+              health    - Test /health endpoint
+              queue     - Test /queue-size endpoint
+              translate - Test /translate/json endpoint
+              stream    - Test streaming endpoint
+              results   - Test /results/list endpoint
   logs      View application logs
   cleanup   Clean up old result files
   help      Show this help message
@@ -197,6 +215,11 @@ Quick Start:
   4. ./deploy/deploy.sh deploy
   5. ./deploy/deploy.sh models
   6. ./deploy/deploy.sh test
+
+Examples:
+  ./deploy/deploy.sh test            # Run all tests
+  ./deploy/deploy.sh test health     # Run only health check
+  ./deploy/deploy.sh test translate  # Run only translation test
 
 For more information, see deploy/README_modal.md
 
@@ -216,7 +239,7 @@ main() {
             download_models
             ;;
         test)
-            run_tests
+            run_tests "${2:-all}"
             ;;
         logs)
             view_logs

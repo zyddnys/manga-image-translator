@@ -159,22 +159,45 @@ def web():
     worker_process = subprocess.Popen(
         worker_cmd,
         cwd="/app",
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
+        stdout=None,  # Inherit parent's stdout (shows in Modal logs)
+        stderr=None,  # Inherit parent's stderr (shows in Modal logs)
     )
 
-    # Give worker time to start
-    print("Waiting for worker to start...")
-    time.sleep(5)
+    # Wait for worker HTTP server to be ready (with retry)
+    print("Waiting for worker HTTP server to start...")
+    worker_ready = False
+    max_wait_time = 120  # 2 minutes max wait
+    check_interval = 5   # Check every 5 seconds
+    elapsed = 0
 
-    # Check if worker is still running
-    if worker_process.poll() is not None:
-        stdout, stderr = worker_process.communicate()
-        print(f"Worker failed to start!")
-        print(f"STDOUT: {stdout}")
-        print(f"STDERR: {stderr}")
-        raise RuntimeError("Worker subprocess failed to start")
+    while elapsed < max_wait_time:
+        # Check if worker process is still alive
+        if worker_process.poll() is not None:
+            print(f"Worker process died during startup! Exit code: {worker_process.returncode}")
+            print(f"Check logs above for worker error messages")
+            raise RuntimeError("Worker subprocess failed to start")
+
+        # Try to connect to worker HTTP server
+        try:
+            import httpx
+            response = httpx.get(
+                f"http://{worker_host}:{worker_port}/is_locked",
+                timeout=3.0
+            )
+            if response.status_code == 200:
+                worker_ready = True
+                print(f"Worker HTTP server is ready! (took {elapsed}s)")
+                break
+        except Exception as e:
+            print(f"Worker not ready yet (waited {elapsed}s): {e}")
+
+        time.sleep(check_interval)
+        elapsed += check_interval
+
+    if not worker_ready:
+        print(f"Worker HTTP server failed to start within {max_wait_time}s")
+        worker_process.terminate()
+        raise RuntimeError("Worker HTTP server failed to start in time")
 
     print(f"Worker subprocess started with PID: {worker_process.pid}")
 
@@ -432,6 +455,18 @@ def list_volumes():
     print("=" * 60)
     print("MODEL VOLUME CONTENTS:")
     print("=" * 60)
+
+    # List top-level directories
+    print("\nTop-level structure:")
+    result = subprocess.run(
+        ["ls", "-lah", MODEL_MOUNT_PATH],
+        capture_output=True,
+        text=True,
+    )
+    print(result.stdout)
+
+    # Show directory sizes
+    print("\nDirectory sizes:")
     result = subprocess.run(
         ["du", "-h", "-d", "2", MODEL_MOUNT_PATH],
         capture_output=True,
@@ -439,11 +474,34 @@ def list_volumes():
     )
     print(result.stdout)
 
+    # Count files by type
+    print("\nFile count by type:")
+    for ext in [".onnx", ".pt", ".pth", ".bin", ".safetensors"]:
+        result = subprocess.run(
+            ["find", MODEL_MOUNT_PATH, "-name", f"*{ext}", "-type", "f"],
+            capture_output=True,
+            text=True,
+        )
+        count = len([l for l in result.stdout.strip().split("\n") if l])
+        print(f"  {ext}: {count} files")
+
+    # List some example files
+    print("\nExample model files (first 20):")
+    result = subprocess.run(
+        ["find", MODEL_MOUNT_PATH, "-type", "f", "-name", "*.onnx", "-o", "-name", "*.pt", "-o", "-name", "*.pth"],
+        capture_output=True,
+        text=True,
+    )
+    lines = result.stdout.strip().split("\n")[:20]
+    for line in lines:
+        if line:
+            print(f"  {line}")
+
     print("\n" + "=" * 60)
     print("RESULT VOLUME CONTENTS:")
     print("=" * 60)
     result = subprocess.run(
-        ["ls", "-lh", RESULT_MOUNT_PATH],
+        ["ls", "-lah", RESULT_MOUNT_PATH],
         capture_output=True,
         text=True,
     )
