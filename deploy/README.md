@@ -279,11 +279,19 @@ response = requests.post(
     json={
         "image": image_b64,
         "config": {
-            "translator": "gpt3.5",  # 或 "none" 用于离线OCR
-            "target_lang": "ENG",    # 目标语言
-            "detector": "default",   # 文本检测器
-            "ocr": "48px",          # OCR 模型
-            "inpainter": "aot",     # 修复器
+            "translator": {
+                "translator": "gpt3.5",  # 或 "none" 用于离线OCR
+                "target_lang": "ENG",    # 目标语言
+            },
+            "detector": {
+                "detector": "default",   # 文本检测器
+            },
+            "ocr": {
+                "ocr": "48px",          # OCR 模型
+            },
+            "inpainter": {
+                "inpainter": "aot",     # 修复器
+            }
         }
     },
     timeout=120
@@ -305,8 +313,10 @@ curl -X POST https://YOUR-URL/translate/json \
   -d '{
     "image": "'$(base64 -i manga_page.png)'",
     "config": {
-      "translator": "none",
-      "target_lang": "ENG"
+      "translator": {
+        "translator": "none",
+        "target_lang": "ENG"
+      }
     }
   }'
 ```
@@ -317,7 +327,12 @@ curl -X POST https://YOUR-URL/translate/batch/json \
   -H "Content-Type: application/json" \
   -d '{
     "images": ["'$(base64 -i page1.png)'", "'$(base64 -i page2.png)'"],
-    "config": {"translator": "gpt3.5", "target_lang": "ENG"},
+    "config": {
+      "translator": {
+        "translator": "gpt3.5",
+        "target_lang": "ENG"
+      }
+    },
     "batch_size": 2
   }'
 ```

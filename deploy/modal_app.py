@@ -77,6 +77,7 @@ image = (
     # Copy application code (will be mounted on container startup for fast iteration)
     .add_local_dir(str(PROJECT_ROOT / "manga_translator"), "/app/manga_translator")
     .add_local_dir(str(PROJECT_ROOT / "server"), "/app/server")
+    .add_local_dir(str(PROJECT_ROOT / "fonts"), "/app/fonts")
     .add_local_file(str(PROJECT_ROOT / "docker_prepare.py"), "/app/docker_prepare.py")
 )
 

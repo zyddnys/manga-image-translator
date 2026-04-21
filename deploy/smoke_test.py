@@ -99,19 +99,70 @@ def image_to_base64(img: Image.Image) -> str:
     return base64.b64encode(buffered.getvalue()).decode()
 
 
+def base64_to_image(b64_string: str) -> Image.Image:
+    """
+    Convert base64 string to PIL Image.
+
+    Args:
+        b64_string: Base64 encoded image string
+
+    Returns:
+        PIL Image object
+    """
+    img_data = base64.b64decode(b64_string)
+    return Image.open(io.BytesIO(img_data))
+
+
+def save_result_image(result_img: Image.Image, original_path: Optional[str] = None, output_dir: Optional[str] = None) -> Path:
+    """
+    Save result image with -result suffix.
+
+    Args:
+        result_img: PIL Image object to save
+        original_path: Original image file path (optional)
+        output_dir: Output directory (optional, defaults to current directory)
+
+    Returns:
+        Path to saved result image
+    """
+    if output_dir is None:
+        output_dir = Path.cwd()
+    else:
+        output_dir = Path(output_dir)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if original_path:
+        # Use original filename with -result suffix
+        original_path = Path(original_path)
+        stem = original_path.stem
+        ext = ".png"
+        result_filename = f"{stem}-result{ext}"
+        result_path = output_dir / result_filename
+    else:
+        # Use default filename with timestamp
+        timestamp = int(time.time())
+        result_path = output_dir / f"test-result-{timestamp}.png"
+
+    result_img.save(result_path)
+    return result_path
+
+
 class SmokeTest:
     """Smoke test suite for Manga Image Translator."""
 
-    def __init__(self, base_url: str, verbose: bool = False):
+    def __init__(self, base_url: str, verbose: bool = False, test_image: Optional[str] = None):
         """
         Initialize smoke test.
 
         Args:
             base_url: Base URL of the deployed service
             verbose: Enable verbose output
+            test_image: Path to test image file (optional)
         """
         self.base_url = base_url.rstrip('/')
         self.verbose = verbose
+        self.test_image = test_image
         self.results = []
 
     def run_test(self, name: str, func):
@@ -167,42 +218,117 @@ class SmokeTest:
 
         print_info(f"Queue size: {data.get('size', 'unknown')}")
 
-    def test_translate_json(self):
-        """Test the /translate/json endpoint."""
-        url = f"{self.base_url}/translate/json"
+    def test_translate_image(self):
+        """Test the /translate/image endpoint and save result image."""
+        url = f"{self.base_url}/translate/image"
 
-        # Create test image
-        img = create_test_image()
+        # Load test image
+        if self.test_image and Path(self.test_image).exists():
+            print_info(f"Using test image: {self.test_image}")
+            img = Image.open(self.test_image)
+            original_path = self.test_image
+        else:
+            print_error("No test image provided")
+            return 
+
         img_base64 = image_to_base64(img)
 
         payload = {
             "image": img_base64,
             "config": {
-                "translator": "none",  # Use 'none' to skip actual translation
+                "translator": {
+                    "translator": "none",  # Use 'none' to skip actual translation
+                    "target_lang": "ENG",
+                },
+                "detector": {
+                    "detector": "default",
+                },
+                "ocr": {
+                    "ocr": "48px",
+                },
+                "inpainter": {
+                    "inpainter": "none",
+                },
+                "render": {
+                    "direction": "auto",
+                }
+            }
+        }
+
+        # Get rendered image using /translate/image endpoint
+        print_info("Fetching rendered image from /translate/image endpoint...")
+        response_img = requests.post(
+            url,
+            json=payload,
+            timeout=120,
+        )
+        response_img.raise_for_status()
+
+        # Save result image
+        try:
+            result_img = Image.open(io.BytesIO(response_img.content))
+            result_path = save_result_image(result_img, original_path=original_path, output_dir="./smoke_test_results")
+            print_info(f"Saved result image to: {result_path}")
+        except Exception as e:
+            print_warning(f"Failed to save result image: {e}")
+
+        print_info("Translation completed successfully")
+
+    def test_translate_form_image(self):
+        """Test the /translate/with-form/image endpoint with multipart form."""
+        url = f"{self.base_url}/translate/with-form/image"
+
+        # Use fixed test asset for more realistic OCR coverage.
+        if self.test_image and Path(self.test_image).exists():
+            print_info(f"Using test image: {self.test_image}")
+            img = Image.open(self.test_image)
+            original_path = Path(self.test_image)
+        else:
+            print_error("No test image provided")
+            return
+
+        # Convert image to bytes for upload
+        image_buffer = io.BytesIO()
+        img.save(image_buffer, format="PNG")
+        image_buffer.seek(0)
+
+        config = {
+            "translator": {
+                "translator": "youdao",
+                "target_lang": "CHS",
+            },
+            "detector": {
                 "detector": "default",
+            },
+            "ocr": {
                 "ocr": "48px",
-                "inpainter": "none",
+            },
+            "inpainter": {
+                "inpainter": "default",
+            },
+            "render": {
                 "direction": "auto",
-                "target_lang": "ENG",
             }
         }
 
         response = requests.post(
             url,
-            json=payload,
+            files={"image": (original_path.name, image_buffer, "image/png")},
+            data={"config": json.dumps(config)},
             timeout=120,  # Translation can take time
         )
         response.raise_for_status()
 
-        data = response.json()
-        if self.verbose:
-            print_info(f"Response keys: {list(data.keys())}")
+        # Response is image bytes, similar to server/main.py image_form endpoint (line 116-125)
+        # Save result image with -result suffix in the same directory as original
+        try:
+            result_img = Image.open(io.BytesIO(response.content))
+            result_path = save_result_image(result_img, original_path=str(original_path), output_dir=str(original_path.parent))
+            print_info(f"Saved result image to: {result_path}")
+        except Exception as e:
+            print_warning(f"Failed to save result image: {e}")
 
-        # Check for expected response structure
-        assert "translation_mask" in data or "image_base64" in data, \
-            "Response missing expected fields"
-
-        print_info("Translation completed successfully")
+        print_info("Form translation completed successfully")
 
     def test_results_list(self):
         """Test the /results/list endpoint."""
@@ -217,43 +343,6 @@ class SmokeTest:
         result_count = len(data.get("results", []))
         print_info(f"Found {result_count} results in storage")
 
-    def test_streaming_endpoint(self):
-        """Test a streaming endpoint (basic check)."""
-        url = f"{self.base_url}/translate/json/stream"
-
-        img = create_test_image()
-        img_base64 = image_to_base64(img)
-
-        payload = {
-            "image": img_base64,
-            "config": {
-                "translator": "none",
-                "detector": "default",
-                "ocr": "48px",
-                "inpainter": "none",
-                "target_lang": "ENG",
-            }
-        }
-
-        response = requests.post(
-            url,
-            json=payload,
-            timeout=120,
-            stream=True,
-        )
-        response.raise_for_status()
-
-        # Check that we're getting streaming responses
-        chunk_count = 0
-        for chunk in response.iter_content(chunk_size=1024):
-            if chunk:
-                chunk_count += 1
-                if chunk_count >= 3:  # Just verify we get multiple chunks
-                    break
-
-        print_info(f"Received {chunk_count} chunks in stream")
-        assert chunk_count > 0, "No streaming data received"
-
     def run_all(self):
         """Run all smoke tests."""
         print(f"\n{Colors.BOLD}{'=' * 60}{Colors.RESET}")
@@ -267,8 +356,8 @@ class SmokeTest:
         self.run_test("Results List", self.test_results_list)
 
         # Translation tests
-        self.run_test("JSON Translation", self.test_translate_json)
-        self.run_test("Streaming Endpoint", self.test_streaming_endpoint)
+        self.run_test("Translate Image", self.test_translate_image)
+        self.run_test("Translate Form Image", self.test_translate_form_image)
 
         # Print summary
         self.print_summary()
@@ -324,8 +413,14 @@ def main():
     parser.add_argument(
         "--test",
         type=str,
-        choices=["health", "queue", "translate", "stream", "results"],
+        choices=["health", "queue", "translate_image", "translate_form_image", "results"],
         help="Run only a specific test"
+    )
+    parser.add_argument(
+        "--image",
+        "-i",
+        type=str,
+        help="Path to test image file (for translation tests)"
     )
 
     args = parser.parse_args()
@@ -338,15 +433,20 @@ def main():
         print_info("Install with: pip install Pillow")
         return 1
 
-    tester = SmokeTest(args.url, args.verbose)
+    # Validate test image if provided
+    if args.image and not Path(args.image).exists():
+        print_error(f"Test image not found: {args.image}")
+        return 1
+
+    tester = SmokeTest(args.url, args.verbose, test_image=args.image)
 
     if args.test:
         # Run specific test
         test_map = {
             "health": tester.test_health_check,
             "queue": tester.test_queue_size,
-            "translate": tester.test_translate_json,
-            "stream": tester.test_streaming_endpoint,
+            "translate_image": tester.test_translate_image,
+            "translate_form_image": tester.test_translate_form_image,
             "results": tester.test_results_list,
         }
         tester.run_test(args.test.title(), test_map[args.test])

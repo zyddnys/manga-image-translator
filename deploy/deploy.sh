@@ -125,9 +125,11 @@ download_models() {
 
 # Run smoke tests
 # Args:
-#   $1 - test case name (optional): health, queue, translate, stream, results, or all
+#   $1 - test case name (optional): health, queue, translate_image, translate_form_image, results, or all
+#   $2 - test image path (optional)
 run_tests() {
     local test_case="${1:-all}"
+    local test_image="${2:-}"
 
     print_header "Running Smoke Tests"
 
@@ -151,14 +153,26 @@ run_tests() {
         pip install requests Pillow
     fi
 
-    # Build test command based on test case
+    # Build test command with optional image parameter
+    local test_cmd="python deploy/smoke_test.py --url \"$MODAL_URL\" --verbose"
+
+    if [ "$test_case" != "all" ]; then
+        test_cmd="$test_cmd --test \"$test_case\""
+    fi
+
+    if [ -f "$test_image" ]; then
+        print_info "Using test image: $test_image"
+        test_cmd="$test_cmd --image \"$test_image\""
+    fi
+    
+    # Run the test
     if [ "$test_case" = "all" ]; then
         print_info "Running all tests..."
-        python deploy/smoke_test.py --url "$MODAL_URL" --verbose
     else
         print_info "Running $test_case test..."
-        python deploy/smoke_test.py --url "$MODAL_URL" --verbose --test "$test_case"
     fi
+
+    eval $test_cmd
 
     print_success "Tests completed!"
 }
@@ -196,14 +210,16 @@ Commands:
   setup     Initial setup (create secrets from .env file)
   deploy    Deploy the application to Modal
   models    Download models to persistent volume
-  test [case]  Run smoke tests against deployed app
+  test [case] [image]  Run smoke tests against deployed app
             Available test cases:
               all       - Run all tests (default)
               health    - Test /health endpoint
               queue     - Test /queue-size endpoint
-              translate - Test /translate/json endpoint
-              stream    - Test streaming endpoint
+              translate_image - Test /translate/image endpoint
+              translate_form_image - Test /translate/with-form/image endpoint
               results   - Test /results/list endpoint
+            Optional image parameter:
+              Provide path to test image file for translation tests
   logs      View application logs
   cleanup   Clean up old result files
   help      Show this help message
@@ -217,9 +233,9 @@ Quick Start:
   6. ./deploy/deploy.sh test
 
 Examples:
-  ./deploy/deploy.sh test            # Run all tests
-  ./deploy/deploy.sh test health     # Run only health check
-  ./deploy/deploy.sh test translate  # Run only translation test
+  ./deploy/deploy.sh test                          # Run all tests with default image
+  ./deploy/deploy.sh test health                   # Run only health check
+  ./deploy/deploy.sh test translate_image my_manga.jpg   # Run translation test with custom image
 
 For more information, see deploy/README_modal.md
 
@@ -239,7 +255,7 @@ main() {
             download_models
             ;;
         test)
-            run_tests "${2:-all}"
+            run_tests "${2:-all}" "${3:-}"
             ;;
         logs)
             view_logs
