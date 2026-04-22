@@ -226,28 +226,29 @@ class SmokeTest:
         if self.test_image and Path(self.test_image).exists():
             print_info(f"Using test image: {self.test_image}")
             img = Image.open(self.test_image)
-            original_path = self.test_image
+            original_path = Path(self.test_image)
         else:
             print_error("No test image provided")
             return 
 
         img_base64 = image_to_base64(img)
+        img_data_url = f"data:image/png;base64,{img_base64}"
 
         payload = {
-            "image": img_base64,
+            "image": img_data_url,
             "config": {
                 "translator": {
-                    "translator": "none",  # Use 'none' to skip actual translation
-                    "target_lang": "ENG",
+                    "translator": "youdao",  # Use 'none' to skip actual translation
+                    "target_lang": "CHS",
                 },
                 "detector": {
-                    "detector": "default",
+                    "detector": "ctd",
                 },
                 "ocr": {
                     "ocr": "48px",
                 },
                 "inpainter": {
-                    "inpainter": "none",
+                    "inpainter": "default",
                 },
                 "render": {
                     "direction": "auto",
@@ -267,7 +268,7 @@ class SmokeTest:
         # Save result image
         try:
             result_img = Image.open(io.BytesIO(response_img.content))
-            result_path = save_result_image(result_img, original_path=original_path, output_dir="./smoke_test_results")
+            result_path = save_result_image(result_img, original_path=str(original_path), output_dir=str(original_path.parent))
             print_info(f"Saved result image to: {result_path}")
         except Exception as e:
             print_warning(f"Failed to save result image: {e}")
@@ -298,7 +299,7 @@ class SmokeTest:
                 "target_lang": "CHS",
             },
             "detector": {
-                "detector": "default",
+                "detector": "ctd",
             },
             "ocr": {
                 "ocr": "48px",
