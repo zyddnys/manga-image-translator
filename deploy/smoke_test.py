@@ -22,7 +22,7 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import requests
 from PIL import Image
@@ -151,18 +151,18 @@ def save_result_image(result_img: Image.Image, original_path: Optional[str] = No
 class SmokeTest:
     """Smoke test suite for Manga Image Translator."""
 
-    def __init__(self, base_url: str, verbose: bool = False, test_image: Optional[str] = None):
+    def __init__(self, base_url: str, verbose: bool = False, test_images: Optional[List[str]] = None):
         """
         Initialize smoke test.
 
         Args:
             base_url: Base URL of the deployed service
             verbose: Enable verbose output
-            test_image: Path to test image file (optional)
+            test_images: Paths to test image files (optional)
         """
         self.base_url = base_url.rstrip('/')
         self.verbose = verbose
-        self.test_image = test_image
+        self.test_images = test_images or []
         self.results = []
 
     def run_test(self, name: str, func):
@@ -222,11 +222,12 @@ class SmokeTest:
         """Test the /translate/image endpoint and save result image."""
         url = f"{self.base_url}/translate/image"
 
-        # Load test image
-        if self.test_image and Path(self.test_image).exists():
-            print_info(f"Using test image: {self.test_image}")
-            img = Image.open(self.test_image)
-            original_path = Path(self.test_image)
+        # Load the first test image for single-image endpoint tests.
+        if self.test_images:
+            primary_image = self.test_images[0]
+            print_info(f"Using test image: {primary_image}")
+            img = Image.open(primary_image)
+            original_path = Path(primary_image)
         else:
             print_error("No test image provided")
             return 
@@ -280,10 +281,11 @@ class SmokeTest:
         url = f"{self.base_url}/translate/with-form/image"
 
         # Use fixed test asset for more realistic OCR coverage.
-        if self.test_image and Path(self.test_image).exists():
-            print_info(f"Using test image: {self.test_image}")
-            img = Image.open(self.test_image)
-            original_path = Path(self.test_image)
+        if self.test_images:
+            primary_image = self.test_images[0]
+            print_info(f"Using test image: {primary_image}")
+            img = Image.open(primary_image)
+            original_path = Path(primary_image)
         else:
             print_error("No test image provided")
             return
@@ -331,6 +333,84 @@ class SmokeTest:
 
         print_info("Form translation completed successfully")
 
+    def test_translate_batch_json(self):
+        """Test the /translate/batch/json endpoint."""
+        url = f"{self.base_url}/translate/batch/json"
+
+        if not self.test_images:
+            print_error("No test image provided")
+            return
+        print_info(f"Using {len(self.test_images)} test image(s) for batch translation")
+        image_data_urls = []
+        for image_path in self.test_images:
+            img = Image.open(image_path)
+            img_base64 = image_to_base64(img)
+            image_data_urls.append(f"data:image/png;base64,{img_base64}")
+
+        payload = {
+            "images": image_data_urls,
+            "config": {
+                "translator": {
+                    # Keep smoke test fast and stable by avoiding network translators.
+                    "translator": "youdao",
+                    "target_lang": "CHS",
+                },
+                "detector": {
+                    "detector": "ctd",
+                },
+                "ocr": {
+                    "ocr": "48px",
+                },
+                "inpainter": {
+                    "inpainter": "default",
+                },
+                "render": {
+                    "direction": "auto",
+                },
+            },
+            "batch_size": max(1, len(image_data_urls)),
+        }
+
+        response = requests.post(url, json=payload, timeout=180)
+        response.raise_for_status()
+        data = response.json()
+
+        if self.verbose:
+            print_info(f"Response: {json.dumps(data, indent=2)}")
+
+        assert isinstance(data, list), f"Expected list response, got: {type(data)}"
+        assert len(data) == len(payload["images"]), (
+            f"Expected {len(payload['images'])} results, got {len(data)}"
+        )
+
+        for idx, item in enumerate(data):
+            assert isinstance(item, dict), f"Result {idx} is not object: {type(item)}"
+            assert "translations" in item, f"Result {idx} missing 'translations'"
+            assert isinstance(item["translations"], list), (
+                f"Result {idx} has invalid translations type: {type(item['translations'])}"
+            )
+            if idx < len(self.test_images):
+                original_path = Path(self.test_images[idx])
+                debug_folder = item.get("debug_folder")
+                if debug_folder:
+                    try:
+                        result_url = f"{self.base_url}/result/{debug_folder}/final.png"
+                        result_response = requests.get(result_url, timeout=60)
+                        result_response.raise_for_status()
+                        result_img = Image.open(io.BytesIO(result_response.content))
+                        result_path = save_result_image(
+                            result_img,
+                            original_path=str(original_path),
+                            output_dir=str(original_path.parent),
+                        )
+                        print_info(f"Saved batch result image {idx + 1} to: {result_path}")
+                    except Exception as e:
+                        print_warning(f"Failed to save batch result image {idx + 1}: {e}")
+                else:
+                    print_warning(f"Batch result {idx + 1} missing 'debug_folder', skip image save")
+
+        print_info(f"Batch translation completed with {len(data)} result(s)")
+
     def test_results_list(self):
         """Test the /results/list endpoint."""
         url = f"{self.base_url}/results/list"
@@ -359,6 +439,7 @@ class SmokeTest:
         # Translation tests
         self.run_test("Translate Image", self.test_translate_image)
         self.run_test("Translate Form Image", self.test_translate_form_image)
+        self.run_test("Translate Batch JSON", self.test_translate_batch_json)
 
         # Print summary
         self.print_summary()
@@ -414,14 +495,15 @@ def main():
     parser.add_argument(
         "--test",
         type=str,
-        choices=["health", "queue", "translate_image", "translate_form_image", "results"],
+        choices=["health", "queue", "translate_image", "translate_form_image", "translate_batch_json", "results"],
         help="Run only a specific test"
     )
     parser.add_argument(
         "--image",
         "-i",
         type=str,
-        help="Path to test image file (for translation tests)"
+        action="append",
+        help="Path to test image file (repeat to pass multiple images)"
     )
 
     args = parser.parse_args()
@@ -435,11 +517,13 @@ def main():
         return 1
 
     # Validate test image if provided
-    if args.image and not Path(args.image).exists():
-        print_error(f"Test image not found: {args.image}")
-        return 1
+    if args.image:
+        for image_path in args.image:
+            if not Path(image_path).exists():
+                print_error(f"Test image not found: {image_path}")
+                return 1
 
-    tester = SmokeTest(args.url, args.verbose, test_image=args.image)
+    tester = SmokeTest(args.url, args.verbose, test_images=args.image)
 
     if args.test:
         # Run specific test
@@ -448,6 +532,7 @@ def main():
             "queue": tester.test_queue_size,
             "translate_image": tester.test_translate_image,
             "translate_form_image": tester.test_translate_form_image,
+            "translate_batch_json": tester.test_translate_batch_json,
             "results": tester.test_results_list,
         }
         tester.run_test(args.test.title(), test_map[args.test])

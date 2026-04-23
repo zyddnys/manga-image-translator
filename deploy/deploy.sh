@@ -125,11 +125,38 @@ download_models() {
 
 # Run smoke tests
 # Args:
-#   $1 - test case name (optional): health, queue, translate_image, translate_form_image, results, or all
-#   $2 - test image path (optional)
+#   $1 - test case name (optional): health, queue, translate_image, translate_form_image, translate_batch_json, results, or all
+#   $2... - image args (optional): repeated -i/--image <path> or legacy single image path
 run_tests() {
-    local test_case="${1:-all}"
-    local test_image="${2:-}"
+    local test_case="all"
+    local image_args=()
+
+    if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
+        test_case="$1"
+        shift
+    fi
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -i|--image)
+                if [ -n "${2:-}" ]; then
+                    image_args+=("$1" "$2")
+                    shift 2
+                else
+                    print_error "$1 requires an image path"
+                    exit 1
+                fi
+                ;;
+            *)
+                if [ -f "$1" ]; then
+                    image_args+=("--image" "$1")
+                else
+                    print_warning "Ignoring unknown test argument: $1"
+                fi
+                shift
+                ;;
+        esac
+    done
 
     print_header "Running Smoke Tests"
 
@@ -153,16 +180,16 @@ run_tests() {
         pip install requests Pillow
     fi
 
-    # Build test command with optional image parameter
-    local test_cmd="python deploy/smoke_test.py --url \"$MODAL_URL\" --verbose"
+    # Build test command with optional image parameters
+    local test_cmd=(python deploy/smoke_test.py --url "$MODAL_URL" --verbose)
 
     if [ "$test_case" != "all" ]; then
-        test_cmd="$test_cmd --test \"$test_case\""
+        test_cmd+=(--test "$test_case")
     fi
 
-    if [ -f "$test_image" ]; then
-        print_info "Using test image: $test_image"
-        test_cmd="$test_cmd --image \"$test_image\""
+    if [ ${#image_args[@]} -gt 0 ]; then
+        print_info "Using image args: ${image_args[*]}"
+        test_cmd+=("${image_args[@]}")
     fi
     
     # Run the test
@@ -172,7 +199,7 @@ run_tests() {
         print_info "Running $test_case test..."
     fi
 
-    eval $test_cmd
+    "${test_cmd[@]}"
 
     print_success "Tests completed!"
 }
@@ -210,16 +237,17 @@ Commands:
   setup     Initial setup (create secrets from .env file)
   deploy    Deploy the application to Modal
   models    Download models to persistent volume
-  test [case] [image]  Run smoke tests against deployed app
+  test [case] [-i image ...]  Run smoke tests against deployed app
             Available test cases:
               all       - Run all tests (default)
               health    - Test /health endpoint
               queue     - Test /queue-size endpoint
               translate_image - Test /translate/image endpoint
               translate_form_image - Test /translate/with-form/image endpoint
+              translate_batch_json - Test /translate/batch/json endpoint
               results   - Test /results/list endpoint
-            Optional image parameter:
-              Provide path to test image file for translation tests
+            Optional image parameters:
+              -i/--image <path> can be repeated for multiple images
   logs      View application logs
   cleanup   Clean up old result files
   help      Show this help message
@@ -235,7 +263,8 @@ Quick Start:
 Examples:
   ./deploy/deploy.sh test                          # Run all tests with default image
   ./deploy/deploy.sh test health                   # Run only health check
-  ./deploy/deploy.sh test translate_image my_manga.jpg   # Run translation test with custom image
+  ./deploy/deploy.sh test translate_image -i my_manga.jpg
+  ./deploy/deploy.sh test translate_batch_json -i img1.jpg -i img2.jpg
 
 For more information, see deploy/README_modal.md
 
@@ -255,7 +284,8 @@ main() {
             download_models
             ;;
         test)
-            run_tests "${2:-all}" "${3:-}"
+            shift
+            run_tests "$@"
             ;;
         logs)
             view_logs

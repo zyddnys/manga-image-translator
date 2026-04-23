@@ -1,3 +1,4 @@
+from typing import List
 import pickle
 import os
 from typing import Mapping, Optional, Callable
@@ -36,6 +37,18 @@ async def fetch_data(url, image: Image, config: Config, headers: Mapping[str, st
     data = pickle.dumps(attributes)
     request_headers = _with_default_nonce(headers)
 
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, data=data, headers=request_headers) as response:
+            if response.status == 200:
+                return pickle.loads(await response.read())
+            else:
+                raise HTTPException(response.status, detail=await response.text())
+
+# 原来executorInstance.sent_batch 调fetch接口存在参数不兼容问题，单独实现一个新方法
+async def fetch_batch_data(url, images: List[Image], config: Config, batch_size: int, headers: Mapping[str, str] = {}):
+    images_with_configs = [(img, config) for img in images]
+    data = pickle.dumps({"images_with_configs": images_with_configs, "batch_size": batch_size})
+    request_headers = _with_default_nonce(headers)
     async with aiohttp.ClientSession() as session:
         async with session.post(url, data=data, headers=request_headers) as response:
             if response.status == 200:
