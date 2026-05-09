@@ -140,10 +140,7 @@ class MangaShare:
             self.check_nonce(request)
             self.check_lock()
             method = self.get_fn(method_name)
-            if self.nonce is None:
-                 attr = pickle.loads(await request.body())
-            else:
-                attr = restricted_loads(await request.body())
+            attr = restricted_loads(await request.body())
             try:
                 if asyncio.iscoroutinefunction(method):
                     result = await method(**attr)
@@ -161,7 +158,7 @@ class MangaShare:
             self.check_nonce(request)
             self.check_lock()
             method = self.get_fn(method_name)
-            attr = pickle.loads(await request.body())
+            attr = restricted_loads(await request.body())
 
             # 根据端点类型决定是否使用占位符优化
             config = attr.get('config')
