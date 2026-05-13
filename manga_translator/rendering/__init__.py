@@ -66,8 +66,15 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
     # logger.debug(f'font_size_minimum {font_size_minimum}')  
     font_size_minimum = max(1, font_size_minimum)  
 
+    import tempfile as _tmpfile2, os as _os2, datetime as _dt2
+    _dbg_log2 = _os2.path.join(_tmpfile2.gettempdir(), 'mit_render_debug.txt')
+    def _dbg2(msg):
+        with open(_dbg_log2, 'a', encoding='utf-8') as _f:
+            _f.write(f'[{_dt2.datetime.now().strftime("%H:%M:%S.%f")}] RESIZE: {msg}\n')
+
     dst_points_list = []  
-    for region in text_regions: 
+    for _ri, region in enumerate(text_regions): 
+        _dbg2(f'region {_ri}/{len(text_regions)} fs={region.font_size} tr={repr(region.translation[:40])} horiz={region.horizontal}')
     
         # Store and validate original font size
         original_region_font_size = region.font_size  
@@ -92,24 +99,33 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
         
         if region.horizontal: 
             used_rows = len(region.texts)
-            # logger.debug(f"Horizontal text - used rows: {used_rows}")
+            _sz = region.unrotated_size
+            _dbg2(f'  calc_horizontal fs={target_font_size} mw={_sz[0]:.1f} mh={_sz[1]:.1f}')
             
             line_text_list, _ = text_render.calc_horizontal(
-                region.font_size,
+                target_font_size,
                 region.translation,
                 max_width=region.unrotated_size[0],
                 max_height=region.unrotated_size[1],
                 language=getattr(region, "target_lang", "en_US")
             )
             needed_rows = len(line_text_list)
-            # logger.debug(f"Needed rows: {needed_rows}")                
+            _dbg2(f'  calc_horizontal DONE rows={needed_rows}')                
 
             if needed_rows > used_rows:
-                scale_x = ((needed_rows - used_rows) / used_rows) * 1 + 1
                 try:  
                     poly = Polygon(region.unrotated_min_rect[0])
                     minx, miny, maxx, maxy = poly.bounds
-                    poly = affinity.scale(poly, xfact=scale_x, yfact=1.0, origin=(minx, miny))        
+                    region_width = maxx - minx
+                    img_width = img.shape[1]
+                    if region_width > img_width * 0.5:
+                        # Wide region (CG/subtitle): expand HEIGHT upward so bbox stays at bottom
+                        scale_y = needed_rows / used_rows
+                        poly = affinity.scale(poly, xfact=1.0, yfact=scale_y, origin=(minx, maxy))
+                    else:
+                        # Narrow region (manga bubble): expand WIDTH (original behaviour)
+                        scale_x = ((needed_rows - used_rows) / used_rows) * 1 + 1
+                        poly = affinity.scale(poly, xfact=scale_x, yfact=1.0, origin=(minx, miny))
                 
                     pts = np.array(poly.exterior.coords[:4])  
                     dst_points = rotate_polygons(  
@@ -120,6 +136,9 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
                     # dst_points[..., 0] = dst_points[..., 0].clip(0, img.shape[1] - 1)  
                     # dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0] - 1)  
                     dst_points = dst_points.astype(np.int64)
+                    # Clip to image bounds — prevent text from overflowing right/bottom edge
+                    dst_points[..., 0] = dst_points[..., 0].clip(0, img.shape[1] - 1)
+                    dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0] - 1)
                     single_axis_expanded = True
                     # logger.debug(f"Successfully expanded horizontal text width: xfact={scale_x:.2f}")  
                 except Exception as e:  
@@ -153,6 +172,9 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
                     # dst_points[..., 0] = dst_points[..., 0].clip(0, img.shape[1] - 1)  
                     # dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0] - 1)  
                     dst_points = dst_points.astype(np.int64)
+                    # Clip to image bounds — prevent text from overflowing right/bottom edge
+                    dst_points[..., 0] = dst_points[..., 0].clip(0, img.shape[1] - 1)
+                    dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0] - 1)
                     single_axis_expanded = True
                     # logger.debug(f"Successfully expanded vertical text width: xfact={scale_x:.2f}")  
                 except Exception as e:  
@@ -218,6 +240,9 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
                     # dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0] - 1)  
                     dst_points = dst_points.astype(np.int64)  
                     dst_points = dst_points.reshape((-1, 4, 2))  
+                    # Clip to image bounds — prevent text from overflowing right/bottom edge
+                    dst_points[..., 0] = dst_points[..., 0].clip(0, img.shape[1] - 1)
+                    dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0] - 1)
                     # logger.debug(f"Finished calculating scaled dst_points.")  
 
                 except Exception as e:  
@@ -245,20 +270,33 @@ async def dispatch(
     disable_font_border: bool = False
     ) -> np.ndarray:
 
+    import tempfile as _tmpfile, os as _os
+    _dbg_log = _os.path.join(_tmpfile.gettempdir(), 'mit_render_debug.txt')
+    def _dbg(msg):
+        with open(_dbg_log, 'a', encoding='utf-8') as _f:
+            import datetime as _dt
+            _f.write(f'[{_dt.datetime.now().strftime("%H:%M:%S.%f")}] {msg}\n')
+    _dbg(f'dispatch START font={font_path}')
     text_render.set_font(font_path)
+    _dbg('set_font DONE')
     text_regions = list(filter(lambda region: region.translation, text_regions))
+    _dbg(f'resize_regions START: {len(text_regions)} regions')
 
     # Resize regions that are too small
     dst_points_list = resize_regions_to_font_size(img, text_regions, font_size_fixed, font_size_offset, font_size_minimum)
+    _dbg('resize_regions DONE')
 
     # TODO: Maybe remove intersections
 
     # Render text
-    for region, dst_points in tqdm(zip(text_regions, dst_points_list), '[render]', total=len(text_regions)):
+    for _ri2, (region, dst_points) in enumerate(tqdm(zip(text_regions, dst_points_list), '[render]', total=len(text_regions))):
+        _dbg(f'render region {_ri2}: {repr(region.translation[:40])}')
         if render_mask is not None:
             # set render_mask to 1 for the region that is inside dst_points
             cv2.fillConvexPoly(render_mask, dst_points.astype(np.int32), 1)
         img = render(img, region, dst_points, hyphenate, line_spacing, disable_font_border)
+        _dbg(f'render region {_ri2} DONE')
+    _dbg('dispatch ALL DONE')
     return img
 
 def render(
@@ -318,6 +356,8 @@ def render(
             bg,
             line_spacing,
         )
+    if temp_box is None:
+        return img
     h, w, _ = temp_box.shape
     r_temp = w / h
 
@@ -330,70 +370,43 @@ def render(
     #print(f"Target language: {region.target_lang}")      
     #print(f"Region horizontal: {region.horizontal}")  
     #print(f"Starting image adjustment: r_temp={r_temp}, r_orig={r_orig}, h={h}, w={w}")  
+    # Cap h_ext/w_ext to prevent enormous numpy array allocation when r_orig is
+    # near-zero (very narrow region) or very large (very wide region).
+    _MAX_BOX_SIDE = 4096
+
     if region.horizontal:  
-        #print("Processing HORIZONTAL region")  
-        
         if r_temp > r_orig:   
-            #print(f"Case: r_temp({r_temp}) > r_orig({r_orig}) - Need vertical padding")  
-            h_ext = int((w / r_orig - h) // 2) if r_orig > 0 else 0  
-            #print(f"Calculated h_ext = {h_ext}")  
-            
+            h_ext = int((w / r_orig - h) // 2) if r_orig > 0 else 0
+            h_ext = min(h_ext, max((_MAX_BOX_SIDE - h) // 2, 0))  # guard
             if h_ext >= 0:  
-                #print(f"Creating new box with dimensions: {h + h_ext * 2}x{w}")  
                 box = np.zeros((h + h_ext * 2, w, 4), dtype=np.uint8)  
-                #print(f"Placing temp_box at position [h_ext:h_ext+h, :w] = [{h_ext}:{h_ext+h}, 0:{w}]")  
-                # Columns fully filled, rows centered
                 box[h_ext:h_ext+h, 0:w] = temp_box  
             else:  
-                #print("h_ext < 0, using original temp_box")  
                 box = temp_box.copy()  
         else:   
-            #print(f"Case: r_temp({r_temp}) <= r_orig({r_orig}) - Need horizontal padding")  
-            w_ext = int((h * r_orig - w) // 2)  
-            #print(f"Calculated w_ext = {w_ext}")  
-            
+            w_ext = int((h * r_orig - w) // 2)
+            w_ext = min(w_ext, max((_MAX_BOX_SIDE - w) // 2, 0))  # guard
             if w_ext >= 0:  
-                #print(f"Creating new box with dimensions: {h}x{w + w_ext * 2}")  
                 box = np.zeros((h, w + w_ext * 2, 4), dtype=np.uint8)  
-                #print(f"Placing temp_box at position [:, :w] = [0:{h}, 0:{w}]")  
-         
-                # The line is full, and there should be no empty columns on the left side of the text. Otherwise, when multiple text boxes are aligned on the left, the translated text cannot be aligned. Common scenarios: borderless comics, comic postscript.  
-                # When there are bubbles on the current page, it can be changed to center: box[0:h, w_ext:w_ext+w] = temp_box, requiring more accurate bubble detection. But not changing it doesn't have much impact.
                 box[0:h, 0:w] = temp_box  
             else:  
-                #print("w_ext < 0, using original temp_box")  
                 box = temp_box.copy()  
     else:  
-        #print("Processing VERTICAL region")  
-        
         if r_temp > r_orig:   
-            #print(f"Case: r_temp({r_temp}) > r_orig({r_orig}) - Need vertical padding")  
-            h_ext = int(w / (2 * r_orig) - h / 2) if r_orig > 0 else 0   
-            #print(f"Calculated h_ext = {h_ext}")  
-            
+            h_ext = int(w / (2 * r_orig) - h / 2) if r_orig > 0 else 0
+            h_ext = min(h_ext, max((_MAX_BOX_SIDE - h) // 2, 0))  # guard
             if h_ext >= 0:   
-                #print(f"Creating new box with dimensions: {h + h_ext * 2}x{w}")  
                 box = np.zeros((h + h_ext * 2, w, 4), dtype=np.uint8)  
-                #print(f"Placing temp_box at position [0:h, 0:w] = [0:{h}, 0:{w}]")  
-                # The rows are full, and there should be no empty lines above the text; otherwise, when multiple text boxes have their top edges aligned, the text cannot be aligned. Common scenario: borderless comics, CG. 
-                # When there are bubbles on the current page, it can be changed to center: box[h_ext:h_ext+h, 0:w] = temp_box, requiring more accurate bubble detection.
                 box[0:h, 0:w] = temp_box  
             else:   
-                #print("h_ext < 0, using original temp_box")  
                 box = temp_box.copy()   
         else:   
-            #print(f"Case: r_temp({r_temp}) <= r_orig({r_orig}) - Need horizontal padding")  
-            w_ext = int((h * r_orig - w) / 2)  
-            #print(f"Calculated w_ext = {w_ext}")  
-            
+            w_ext = int((h * r_orig - w) / 2)
+            w_ext = min(w_ext, max((_MAX_BOX_SIDE - w) // 2, 0))  # guard
             if w_ext >= 0:  
-                #print(f"Creating new box with dimensions: {h}x{w + w_ext * 2}")  
                 box = np.zeros((h, w + w_ext * 2, 4), dtype=np.uint8)  
-                #print(f"Placing temp_box at position [0:h, w_ext:w_ext+w] = [0:{h}, {w_ext}:{w_ext+w}]") 
-                # Rows are fully filled, columns are centered
                 box[0:h, w_ext:w_ext+w] = temp_box  
             else:   
-                #print("w_ext < 0, using original temp_box")  
                 box = temp_box.copy()   
     #print(f"Final box dimensions: {box.shape if box is not None else 'None'}")  
 

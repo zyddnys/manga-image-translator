@@ -614,19 +614,40 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
     Splits up a string of text into lines. Returns list of lines and their widths.
     Will go over max_height if too much text is present.
     """
+    import tempfile as _tmpfile, os as _os, datetime as _dt
+    _dbg_log = _os.path.join(_tmpfile.gettempdir(), 'mit_render_debug.txt')
+    def _dbg(msg):
+        with open(_dbg_log, 'a', encoding='utf-8') as _f:
+            _f.write(f'[{_dt.datetime.now().strftime("%H:%M:%S.%f")}] CALC_H: {msg}\n')
+    _dbg(f'fs={font_size} mw={max_width} mh={max_height} text={repr(text[:50])}')
+
     max_width = max(max_width, 2 * font_size)
 
+    _dbg('max_width adjusted, calling get_char_offset_x space')
     whitespace_offset_x = get_char_offset_x(font_size, ' ')
+    _dbg(f'whitespace_offset_x={whitespace_offset_x}')
     hyphen_offset_x = get_char_offset_x(font_size, '-')
+    _dbg(f'hyphen_offset_x={hyphen_offset_x}')
 
     # Split text into words and precalculate each word width
     words = re.split(r'\s+', text)
+    _dbg(f'words={len(words)} calculating widths...')
     word_widths = []
     for i, word in enumerate(words):
+        _dbg(f'  word[{i}]={repr(word[:20])}')
         word_widths.append(get_string_width(font_size, word))
+        _dbg(f'  word[{i}] width done')
+    _dbg(f'word_widths done, entering while loop')
 
     # Try to increase width usage if a height overflow is unavoidable
+    _dbg_iter = 0
     while True:
+        _dbg_iter += 1
+        if _dbg_iter > 5000:
+            _dbg(f'LOOP EXCEEDED 5000 iters! mw={max_width:.1f} mh={max_height:.1f}')
+            break
+        if _dbg_iter in (1, 2, 10, 100, 500, 1000):
+            _dbg(f'  loop iter={_dbg_iter} mw={max_width:.1f} mh={max_height:.6f}')
         max_lines = max_height // font_size + 1
         expected_size = sum(word_widths) + max((len(word_widths) - 1) * whitespace_offset_x - (max_lines - 1) * hyphen_offset_x, 0)
         max_size = max_width * max_lines
@@ -637,9 +658,13 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
         else:
             break
 
+    _dbg(f'while loop DONE after {_dbg_iter} iters, mw={max_width:.1f} mh={max_height:.1f}')
+
     # Split words into syllables
     syllables = []
+    _dbg(f'calling select_hyphenator lang={language}')
     hyphenator = select_hyphenator(language)
+    _dbg(f'hyphenator={hyphenator}')
     for i, word in enumerate(words):
         new_syls = []
         if hyphenator and len(word) <= 100:
@@ -648,7 +673,11 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
             except Exception:
                 new_syls = []
         if len(new_syls) == 0:
-            if len(word) <= 3:
+            # For Latin/Vietnamese text never split at character level — the whole word
+            # is the minimum unit.  CJK "words" (no spaces) can fall back to per-char.
+            if re.search(r'[a-zA-Z\u00C0-\u024F\u1E00-\u1EFF]', word):
+                new_syls = [word]
+            elif len(word) <= 3:
                 new_syls = [word]
             else:
                 new_syls = list(word)
@@ -659,12 +688,17 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
         #     if w > max_width:
         #         max_width = w
 
-        # Split up syllables that are too large
+        # Split up syllables that are too large.
+        # For Latin/Vietnamese syllables keep the unit whole (accept overflow) rather
+        # than breaking individual letters apart.
         normalized_syls = []
         for syl in new_syls:
             syl_width = get_string_width(font_size, syl)
             if syl_width > max_width:
-                normalized_syls.extend(list(syl))
+                if re.search(r'[a-zA-Z\u00C0-\u024F\u1E00-\u1EFF]', syl):
+                    normalized_syls.append(syl)   # keep Latin/VI word whole
+                else:
+                    normalized_syls.extend(list(syl))
             else:
                 normalized_syls.append(syl)
         syllables.append(normalized_syls)
@@ -720,7 +754,8 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
             line_width += current_width + word_widths[i]
             i += 1
         elif word_widths[i] > max_width:
-            # We know no syllable can be larger than max_width
+            # Split word by syllables; for Latin/VI whole words kept as single syllable,
+            # force-place them on a new line (accept overflow) rather than looping forever.
             j = 0
             hyphenation_idx = 0
             while j < len(syllables[i]):
@@ -734,8 +769,16 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
                     if hyphenation_idx > 0:
                         line_words.append(i)
                         line_width += current_width
-                    current_width = 0
-                    break_line()
+                        current_width = 0
+                        break_line()
+                    elif line_width > 0:
+                        # Current line has content — flush it first, then retry same syllable
+                        break_line()
+                    else:
+                        # Empty line and syllable still too wide — force-place and advance
+                        current_width += syl_width
+                        j += 1
+                        hyphenation_idx = j
             line_words.append(i)
             line_width += current_width
             i += 1
@@ -1110,6 +1153,10 @@ def put_text_horizontal(font_size: int, text: str, width: int, height: int, alig
     # print(width)
     line_text_list, line_width_list = calc_horizontal(font_size, text, width, height, lang, hyphenate)
     # print(line_text_list, line_width_list)
+
+    # Guard: if text has no renderable glyphs (e.g. ZWJ U+200D), skip rendering
+    if not line_width_list:
+        return
 
     # make large canvas
     canvas_w = max(line_width_list) + (font_size + bg_size) * 2

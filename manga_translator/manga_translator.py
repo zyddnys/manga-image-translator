@@ -1373,7 +1373,8 @@ class MangaTranslator:
             else:
                 output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, self.font_path, config.render.line_spacing)
         else:
-            output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, self.font_path, config.render.font_size,
+            _effective_font_path = config.render.font_path or self.font_path
+            output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, _effective_font_path, config.render.font_size,
                                               config.render.font_size_offset,
                                               config.render.font_size_minimum, not config.render.no_hyphenation, ctx.render_mask, config.render.line_spacing)
         return output
