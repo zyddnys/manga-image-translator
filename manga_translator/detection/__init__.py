@@ -6,6 +6,7 @@ from .ctd import ComicTextDetector
 from .craft import CRAFTDetector
 from .paddle_rust import PaddleDetector
 from .none import NoneDetector
+from .yolo_manga import YoloMangaDetector
 from .common import CommonDetector, OfflineDetector
 from ..config import Detector
 
@@ -16,6 +17,7 @@ DETECTORS = {
     Detector.craft: CRAFTDetector,
     Detector.paddle: PaddleDetector,
     Detector.none: NoneDetector,
+    Detector.yolomanga: YoloMangaDetector,
 }
 detector_cache = {}
 

@@ -450,7 +450,7 @@ def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_
         
         # 设置描边半径和样式  
         # Set stroke radius and style  
-        stroke_radius = 64 * max(int(0.07 * font_size), 1)  # 基于字体大小的比例值 / Proportional value based on font size  
+        stroke_radius = max(64, int(64 * border_size * 3))  # min 1px radius so stroke is always visible
         stroker.set(stroke_radius, freetype.FT_STROKER_LINEJOIN_ROUND, freetype.FT_STROKER_LINECAP_ROUND, 0)  
         
         # 应用描边效果  
@@ -614,40 +614,19 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
     Splits up a string of text into lines. Returns list of lines and their widths.
     Will go over max_height if too much text is present.
     """
-    import tempfile as _tmpfile, os as _os, datetime as _dt
-    _dbg_log = _os.path.join(_tmpfile.gettempdir(), 'mit_render_debug.txt')
-    def _dbg(msg):
-        with open(_dbg_log, 'a', encoding='utf-8') as _f:
-            _f.write(f'[{_dt.datetime.now().strftime("%H:%M:%S.%f")}] CALC_H: {msg}\n')
-    _dbg(f'fs={font_size} mw={max_width} mh={max_height} text={repr(text[:50])}')
-
     max_width = max(max_width, 2 * font_size)
 
-    _dbg('max_width adjusted, calling get_char_offset_x space')
     whitespace_offset_x = get_char_offset_x(font_size, ' ')
-    _dbg(f'whitespace_offset_x={whitespace_offset_x}')
     hyphen_offset_x = get_char_offset_x(font_size, '-')
-    _dbg(f'hyphen_offset_x={hyphen_offset_x}')
 
     # Split text into words and precalculate each word width
     words = re.split(r'\s+', text)
-    _dbg(f'words={len(words)} calculating widths...')
     word_widths = []
     for i, word in enumerate(words):
-        _dbg(f'  word[{i}]={repr(word[:20])}')
         word_widths.append(get_string_width(font_size, word))
-        _dbg(f'  word[{i}] width done')
-    _dbg(f'word_widths done, entering while loop')
 
     # Try to increase width usage if a height overflow is unavoidable
-    _dbg_iter = 0
     while True:
-        _dbg_iter += 1
-        if _dbg_iter > 5000:
-            _dbg(f'LOOP EXCEEDED 5000 iters! mw={max_width:.1f} mh={max_height:.1f}')
-            break
-        if _dbg_iter in (1, 2, 10, 100, 500, 1000):
-            _dbg(f'  loop iter={_dbg_iter} mw={max_width:.1f} mh={max_height:.6f}')
         max_lines = max_height // font_size + 1
         expected_size = sum(word_widths) + max((len(word_widths) - 1) * whitespace_offset_x - (max_lines - 1) * hyphen_offset_x, 0)
         max_size = max_width * max_lines
@@ -658,13 +637,9 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
         else:
             break
 
-    _dbg(f'while loop DONE after {_dbg_iter} iters, mw={max_width:.1f} mh={max_height:.1f}')
-
     # Split words into syllables
     syllables = []
-    _dbg(f'calling select_hyphenator lang={language}')
     hyphenator = select_hyphenator(language)
-    _dbg(f'hyphenator={hyphenator}')
     for i, word in enumerate(words):
         new_syls = []
         if hyphenator and len(word) <= 100:
@@ -1031,7 +1006,7 @@ def put_char_horizontal(font_size: int, cdpt: str, pen_l: Tuple[int, int], canva
         
         # Configure stroker 配置描边器
         stroker = freetype.Stroker()
-        stroke_radius = 64 * max(int(0.07 * font_size), 1)  # In 1/64 pixel units 单位: 1/64 像素
+        stroke_radius = max(64, int(64 * border_size * 3))  # min 1px radius so stroke is always visible
         stroker.set(stroke_radius, 
                    freetype.FT_STROKER_LINEJOIN_ROUND,  # Round joins 圆角连接
                    freetype.FT_STROKER_LINECAP_ROUND,   # Round line caps 圆头线帽

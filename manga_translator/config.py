@@ -88,6 +88,7 @@ class Detector(str, Enum):
     craft = "craft"
     paddle = "paddle"
     none = "none"
+    yolomanga = "yolomanga"
 
 class Inpainter(str, Enum):
     default = "default"
@@ -96,6 +97,7 @@ class Inpainter(str, Enum):
     sd = "sd"
     none = "none"
     original = "original"
+    manga_sd_cn = "manga_sd_cn"
 
 class Colorizer(str, Enum):
     none = "none"
