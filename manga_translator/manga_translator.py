@@ -429,6 +429,7 @@ class MangaTranslator:
 
         return ctx
 
+    # 翻译的所有信息保存在ctx，函数最终返回ctx
     async def _translate(self, config: Config, ctx: Context) -> Context:
         # Start the background cleanup job once if not already started.
         if self._detector_cleanup_task is None:
@@ -542,6 +543,7 @@ class MangaTranslator:
         # -- Translation
         await self._report_progress('translating')
         try:
+            # 填充text_region.translation 译文
             ctx.text_regions = await self._run_text_translation(config, ctx)
         except Exception as e:  
             logger.error(f"Error during translating:\n{traceback.format_exc()}")  
@@ -581,6 +583,7 @@ class MangaTranslator:
         # -- Inpainting
         await self._report_progress('inpainting')
         try:
+            # 实际逻辑在inpainter._infer，返回图片，待翻译填充的区域被处理成和周围背景衔接的像素
             ctx.img_inpainted = await self._run_inpainting(config, ctx)
         except Exception as e:  
             logger.error(f"Error during inpainting:\n{traceback.format_exc()}")  
@@ -617,8 +620,10 @@ class MangaTranslator:
             ctx.img_rendered = ctx.img_inpainted # Fallback to inpainted (or original RGB) image if rendering fails
 
         await self._report_progress('finished', True)
+        # 把numpy结果数组，渲染到img pil画布上
         ctx.result = dump_image(ctx.input, ctx.img_rendered, ctx.img_alpha)
 
+        # 如果流式输出，把ctx.result保存为final.png
         return await self._revert_upscale(config, ctx)
     
     # If `revert_upscaling` is True, revert to input size

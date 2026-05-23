@@ -81,6 +81,7 @@ class MangaShare:
 
     async def run_method(self, method, **attributes):
         try:
+            # method=translate，接口返回ctx
             if asyncio.iscoroutinefunction(method):
                 result = await method(**attributes)
             else:
@@ -98,10 +99,12 @@ class MangaShare:
             else:
                 result_bytes = pickle.dumps(result)
 
+            # 正常返回 status=0. status(1byte)+len(4byte)+ctx_bytes
             encoded_result = b'\x00' + len(result_bytes).to_bytes(4, 'big') + result_bytes
             await self.progress_queue.put(encoded_result)
         except Exception as e:
             err_bytes = str(e).encode("utf-8")
+            # 异常返回 status=2. body=错误信息
             encoded_result = b'\x02' + len(err_bytes).to_bytes(4, 'big') + err_bytes
             await self.progress_queue.put(encoded_result)
         finally:
@@ -135,6 +138,7 @@ class MangaShare:
                 return {"locked": True}
             return {"locked": False}
 
+        # non-stream response
         @app.post("/simple_execute/{method_name}")
         async def execute_method(request: Request, method_name: str = Path(...)):
             self.check_nonce(request)
@@ -156,6 +160,7 @@ class MangaShare:
                 self.lock.release()
                 raise HTTPException(status_code=500, detail=str(e))
 
+        # stream response
         @app.post("/execute/{method_name}")
         async def execute_method(request: Request, method_name: str = Path(...)):
             self.check_nonce(request)

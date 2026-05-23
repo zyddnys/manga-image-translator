@@ -71,7 +71,9 @@ def handle_buffer(buffer, sender: NotifyType):
         status, expected_size = extract_header(buffer)
 
         if len(buffer) >= 5 + expected_size:
+            # data=ctx_bytes or errmsg
             data = buffer[5:5 + expected_size]
+            # 结果返回给调用方
             sender(status, data)
             buffer = buffer[5 + expected_size:]
         else:

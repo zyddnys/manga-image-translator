@@ -66,6 +66,7 @@ async def while_streaming(req: Request, transform, config: Config, image: bytes 
 
     messages = asyncio.Queue()
 
+    # send_data_internal.process_stream 中会把fetch返回的code，ctx_bytes传入
     def notify_internal(code: int, data: bytes) -> None:
         notify(code, data, transform, messages)
     streaming_response = StreamingResponse(stream(messages), media_type="application/octet-stream")

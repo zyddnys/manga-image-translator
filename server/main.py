@@ -49,6 +49,7 @@ async def register_instance(instance: ExecutorInstance, req: Request, req_nonce:
     instance.ip = req.client.host
     executor_instances.register(instance)
 
+# ctx 是子进程返回的, 详细结构见to_json.py
 def transform_to_image(ctx):
     # 检查是否使用占位符（在web模式下final.png保存后会设置此标记）
     if hasattr(ctx, 'use_placeholder') and ctx.use_placeholder:
@@ -154,7 +155,7 @@ async def stream_image_form_web(req: Request, image: UploadFile = File(...), con
     """Web前端专用端点：使用占位符优化，提供极速体验"""
     img = await image.read()
     conf = Config.parse_raw(config)
-    # 标记为Web前端优化模式，使用占位符优化
+    # 标记为Web前端优化模式，使用占位符优化，结果会保存为final.png
     conf._web_frontend_optimized = True
     return await while_streaming(req, transform_to_image, conf, img)
 
