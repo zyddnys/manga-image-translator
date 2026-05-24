@@ -95,7 +95,7 @@ class MangaTranslatorLocal(MangaTranslator):
 
         if config_file_path:
             try:
-                with open(config_file_path, 'r') as file:
+                with open(config_file_path, 'r', encoding='utf-8') as file:
                     config_content = file.read()
             except Exception as e:
                 print("Couldnt read file")
