@@ -104,6 +104,58 @@ class ComicTextDetector(OfflineDetector):
     async def _unload(self):
         del self.model
 
+    @staticmethod
+    def _normalize_detect_size(detect_size: int, fallback: int = 1024) -> int:
+        """
+        CTD is fully-convolutional in the torch backend, so it can benefit from
+        higher detect sizes for tiny/SFX lettering. Keep the size on YOLO/UNet's
+        stride boundary and cap it to avoid accidental VRAM explosions.
+        """
+        try:
+            size = int(detect_size)
+        except Exception:
+            size = fallback
+        size = max(512, min(3072, size))
+        return int(((size + 63) // 64) * 64)
+
+    @staticmethod
+    def _ctd_text_thresh(text_threshold: float) -> float:
+        """
+        MIT's global default is 0.5, but CTD historically used 0.3 internally.
+        Treat values <= 0.5 as "sensitive CTD mode" so UI values such as 0.4
+        do not accidentally become stricter than the old hard-coded behavior.
+        """
+        try:
+            thresh = float(text_threshold)
+        except Exception:
+            thresh = 0.5
+        if thresh <= 0.5:
+            thresh = min(0.3, thresh)
+        return max(0.05, min(0.95, thresh))
+
+    @staticmethod
+    def _ctd_box_thresh(box_threshold: float) -> float:
+        """
+        CTD used to ignore MIT's box_threshold and hard-code 0.6. Preserve that
+        when config is left at MIT default 0.7, but honor lower user values for
+        SFX/small text detection.
+        """
+        try:
+            thresh = float(box_threshold)
+        except Exception:
+            thresh = 0.7
+        if abs(thresh - 0.7) < 1e-6:
+            thresh = 0.6
+        return max(0.05, min(0.95, thresh))
+
+    @staticmethod
+    def _ctd_unclip_ratio(unclip_ratio: float) -> float:
+        try:
+            ratio = float(unclip_ratio)
+        except Exception:
+            ratio = 1.5
+        return max(0.5, min(6.0, ratio))
+
     def det_batch_forward_ctd(self, batch: np.ndarray, device: str) -> Tuple[np.ndarray, np.ndarray]:
         if isinstance(self.model, TextDetBase):
             batch = einops.rearrange(batch.astype(np.float32) / 255., 'n h w c -> n c h w')
@@ -134,11 +186,30 @@ class ComicTextDetector(OfflineDetector):
         # refine_mode = REFINEMASK_INPAINT
 
         im_h, im_w = image.shape[:2]
-        lines_map, mask = det_rearrange_forward(image, self.det_batch_forward_ctd, self.input_size[0], 4, self.device, verbose)
+        runtime_size = self._normalize_detect_size(detect_size, self.input_size[0])
+        # The ONNX/OpenCV backend is exported for a fixed input size. Only the
+        # torch backend should use user-selected high-resolution detection.
+        if self.backend != 'torch':
+            runtime_size = self.input_size[0]
+
+        seg_thresh = self._ctd_text_thresh(text_threshold)
+        score_thresh = self._ctd_box_thresh(box_threshold)
+        ctd_unclip_ratio = self._ctd_unclip_ratio(unclip_ratio)
+
+        if verbose:
+            self.logger.info(
+                f'CTD config: detect_size={runtime_size}, '
+                f'text_threshold={seg_thresh:.2f}, '
+                f'box_threshold={score_thresh:.2f}, '
+                f'unclip_ratio={ctd_unclip_ratio:.2f}'
+            )
+
+        lines_map, mask = det_rearrange_forward(image, self.det_batch_forward_ctd, runtime_size, 4, self.device, verbose)
         # blks = []
         # resize_ratio = [1, 1]
         if lines_map is None:
-            img_in, ratio, dw, dh = preprocess_img(image, input_size=self.input_size, device=self.device, half=self.half, to_tensor=self.backend=='torch')
+            runtime_input_size = (runtime_size, runtime_size) if self.backend == 'torch' else self.input_size
+            img_in, ratio, dw, dh = preprocess_img(image, input_size=runtime_input_size, device=self.device, half=self.half, to_tensor=self.backend=='torch')
             blks, mask, lines_map = self.model(img_in)
 
             if self.backend == 'opencv':
@@ -153,9 +224,17 @@ class ComicTextDetector(OfflineDetector):
             lines_map = lines_map[..., :lines_map.shape[2]-dh, :lines_map.shape[3]-dw]
 
         mask = postprocess_mask(mask)
-        lines, scores = self.seg_rep(None, lines_map, height=im_h, width=im_w)
-        box_thresh = 0.6
-        idx = np.where(scores[0] > box_thresh)
+        # Recreate SegDetectorRepresenter per request so UI thresholds actually
+        # affect CTD. Previously CTD ignored text_threshold/unclip_ratio and
+        # hard-coded a 0.6 score cutoff, causing tiny SFX/handwritten text to be
+        # dropped even when the UI was set to aggressive values.
+        seg_rep = SegDetectorRepresenter(
+            thresh=seg_thresh,
+            box_thresh=score_thresh,
+            unclip_ratio=ctd_unclip_ratio,
+        )
+        lines, scores = seg_rep(None, lines_map, height=im_h, width=im_w)
+        idx = np.where(scores[0] > score_thresh)
         lines, scores = lines[0][idx], scores[0][idx]
 
         # map output to input img
