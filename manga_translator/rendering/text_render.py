@@ -212,6 +212,15 @@ FALLBACK_FONTS = [
     os.path.join(BASE_PATH, 'fonts/msyh.ttc'),
     os.path.join(BASE_PATH, 'fonts/msgothic.ttc'),
 ]
+
+FONT_NAME_PATH_MAP = {
+    'Auto': 'fonts/anime_ace.ttf',
+    'Anime Ace': 'fonts/anime_ace.ttf',
+    'Anime Ace 3.0': 'fonts/anime_ace_3.ttf',
+    'Arial Unicode Regular': 'fonts/Arial-Unicode-Regular.ttf',
+    'Comic Shanns 2': 'fonts/comic shanns 2.ttf',
+}
+
 FONT_SELECTION: List[freetype.Face] = []
 font_cache = {}
 def get_cached_font(path: str) -> freetype.Face:
@@ -229,6 +238,12 @@ def set_font(font_path: str):
     else:
         selection = FALLBACK_FONTS
     FONT_SELECTION = [get_cached_font(p) for p in selection]
+
+def get_font_path(font_name: str):
+    rel_path = FONT_NAME_PATH_MAP.get(font_name) if font_name else None
+    if rel_path:
+        return os.path.join(BASE_PATH, rel_path)
+    return ''
 
 class namespace:
     pass
