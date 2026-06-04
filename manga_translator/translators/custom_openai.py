@@ -1,4 +1,5 @@
 import re
+from collections import deque
 
 from ..config import TranslatorConfig
 from .config_gpt import ConfigGPT  # Import the `gpt_config` parsing parent class
@@ -129,6 +130,14 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
     # Extra system content appended during Vietnamese retry — reset per prompt batch
     _vi_retry_extra_system: str = ''
 
+    # ── Cross-page story context ─────────────────────────────────────────────
+    # MIT reuses one translator instance for every image in a run, so we keep a
+    # rolling buffer of the most recent translated pages. It is injected into the
+    # system prompt as read-only reference, letting the model keep names/pronouns/
+    # tone consistent and pick scene-appropriate wording across the chapter.
+    _CONTEXT_MAX_PAGES = 10    # nhớ nội dung ~10 ảnh gần nhất
+    _CONTEXT_MAX_CHARS = 1200  # giới hạn cứng độ dài context bơm vào prompt (tránh phình token)
+
     def __init__(self, model=None, api_base=None, api_key=None, check_openai_key=False):
         # If the user has specified a nested key to use for the model, append the key
         #   Otherwise: Use the `ollama` defaults.
@@ -143,6 +152,8 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
         self.client.base_url = api_base or CUSTOM_OPENAI_API_BASE
         self.token_count = 0
         self.token_count_last = 0
+        # Rolling buffer of recent translated pages (each item = list of VI lines).
+        self._recent_context: deque = deque(maxlen=self._CONTEXT_MAX_PAGES)
 
     def parse_args(self, args: TranslatorConfig):
         self.config = args.chatgpt_config
@@ -161,6 +172,34 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
             "3. Watermark/logo segments (containing ACG, .com, .net, .org) → output empty string for that segment.\n"
             "4. NEVER output English, Chinese, or system tokens like </, </|3|>, <|assistant|>, </s>.\n"
             "5. Output ONLY the translated segments — do NOT echo or repeat these instructions."
+        )
+
+    def _build_context_block(self) -> str:
+        """Read-only story context from recently translated pages.
+
+        Injected into the SYSTEM message (not the user prompt, to avoid weak
+        models echoing it as translation content). Helps the model keep names,
+        pronouns, tone and vocabulary consistent and choose words that fit the
+        ongoing scene across the whole chapter.
+        """
+        if not self._recent_context:
+            return ''
+        flat: List[str] = []
+        for page in self._recent_context:
+            flat.extend(page)
+        text = ' / '.join(s.replace('\n', ' ').strip() for s in flat if s and s.strip())
+        text = text.strip()
+        if not text:
+            return ''
+        if len(text) > self._CONTEXT_MAX_CHARS:
+            # Keep the most recent tail — closest to the current scene.
+            text = '…' + text[-self._CONTEXT_MAX_CHARS:]
+        return (
+            "\n\nSTORY CONTEXT (recent dialogue from previous pages, Vietnamese — "
+            "REFERENCE ONLY). Use it to keep character names, pronouns, tone and "
+            "vocabulary consistent, and to choose words that fit the ongoing scene. "
+            "NEVER translate, repeat or output these lines — only output the <|n|> "
+            "segments for the new text:\n" + text
         )
 
     def _is_translation_invalid(self, query: str, trans: str) -> bool:
@@ -404,10 +443,24 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
         if self.token_count_last:
             self.logger.info(f'Used {self.token_count_last} tokens (Total: {self.token_count})')
 
+        # Remember this page's real Vietnamese lines as context for later pages.
+        # The VI-diacritic test alone filters out empties, ZWJ watermark markers
+        # and source-text fallbacks (none of which carry Vietnamese diacritics).
+        if _target_is_vietnamese(to_lang):
+            page_vi = [
+                t.strip() for t in translations
+                if t and t.strip() and _VI_DIACRITIC_RE.search(t)
+            ]
+            if page_vi:
+                self._recent_context.append(page_vi)
+
         return translations
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
         sys_content = self.chat_system_template.format(to_lang=to_lang)
+        context_block = self._build_context_block()
+        if context_block:
+            sys_content += context_block
         if getattr(self, '_vi_retry_extra_system', ''):
             sys_content += self._vi_retry_extra_system
         messages = [{'role': 'system', 'content': sys_content}]
