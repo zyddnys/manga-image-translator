@@ -51,9 +51,24 @@ def _contains_watermark_text(text: str) -> bool:
 
     compact = re.sub(r"\s+", "", text.lower())
     compact = re.sub(r"[^a-z0-9._:/-]", "", compact)
+    # Site / handle / domain tags that only ever appear as scanlation watermarks.
+    site_tags = (
+        "acg",
+        "pixiv",
+        "twitter",
+        "weibo",
+        "fanbox",
+        "patreon",
+        "fantia",
+        "danbooru",
+        "dlsite",
+        "bilibili",
+    )
     return (
-        "acg" in compact
+        any(tag in compact for tag in site_tags)
         or ".com" in compact
+        or ".net" in compact
+        or ".org" in compact
         or compact.endswith("com")
         or "www." in compact
         or "http://" in compact

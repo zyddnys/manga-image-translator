@@ -100,10 +100,11 @@ class YoloMangaDetector(OfflineDetector):
         del self.model
 
     # ------------------------------------------------------------------
-    # Core _detect — must return (textlines, raw_mask, mask)
+    # Core _infer — must return (textlines, raw_mask, mask)
+    # OfflineDetector._detect -> self.infer() -> self._infer() (this method).
     # ------------------------------------------------------------------
 
-    async def _detect(
+    async def _infer(
         self,
         image: np.ndarray,
         detect_size: int,

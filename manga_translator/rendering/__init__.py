@@ -80,14 +80,16 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
         expansion_ratio = vn_chars / cn_chars
 
         # ── Adaptive factor: scale down font proportionally to how much longer VN is ──
+        # Làm dịu so với trước (0.93/0.85/0.76) để chữ VI không bị bé;
+        # vòng fit-to-bbox bên dưới vẫn thu lại nếu tràn nên an toàn.
         if expansion_ratio <= 1.3:
             adaptive_factor = 1.0
         elif expansion_ratio <= 1.8:
-            adaptive_factor = 0.93
+            adaptive_factor = 0.97
         elif expansion_ratio <= 2.5:
-            adaptive_factor = 0.85
+            adaptive_factor = 0.92
         else:
-            adaptive_factor = 0.76
+            adaptive_factor = 0.86
 
         if font_size_fixed is not None:
             target_font_size = font_size_fixed
