@@ -118,7 +118,8 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                 prompt,
             ])
 
-    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+    async def _translate(self, model_name: str, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+        self._current_model_name = self._resolve_model(model_name, self.model or CUSTOM_OPENAI_MODEL)
         translations = []
         self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')
 
@@ -226,7 +227,7 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
         messages.append({'role': 'user', 'content': prompt})
 
         response = await self.client.chat.completions.create(
-            model=self.model or CUSTOM_OPENAI_MODEL,
+            model=getattr(self, '_current_model_name', None) or self.model or CUSTOM_OPENAI_MODEL,
             messages=messages,
             max_tokens=self._MAX_TOKENS // 2,
             temperature=self.temperature,

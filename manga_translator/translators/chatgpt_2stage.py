@@ -331,27 +331,28 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                 self.logger.info(f"Using dual models - Stage 1: {self.stage1_model}, Stage 2: {self.stage2_model}")
             ChatGPT2StageTranslator._warned_about_model = True
 
-    async def _translate(self, from_lang: str, to_lang: str, queries: List[str], ctx: Context = None) -> List[str]:
+    async def _translate(self, model_name: str, from_lang: str, to_lang: str, queries: List[str], ctx: Context = None) -> List[str]:
         """
         Override the base translate method to implement 2-stage translation
         """
+        self._current_model_name = self._resolve_model(model_name, OPENAI_MODEL)
         if not queries:
             return queries
 
         if ctx is None:
             self.logger.warning("No context provided, falling back to single-stage translation")
-            return await super()._translate(from_lang, to_lang, queries)
+            return await super()._translate(model_name, from_lang, to_lang, queries)
 
         # Check if this is a batch processing scenario
         batch_contexts = getattr(ctx, 'batch_contexts', None)
         if batch_contexts and len(batch_contexts) > 1:
             # Batch processing mode
-            return await self._translate_batch_2stage(from_lang, to_lang, queries, batch_contexts)
+            return await self._translate_batch_2stage(from_lang, to_lang, queries, batch_contexts, model_name)
         else:
             # Single image processing mode
-            return await self._translate_2stage(from_lang, to_lang, queries, ctx)
+            return await self._translate_2stage(from_lang, to_lang, queries, ctx, model_name)
 
-    async def _translate_2stage(self, from_lang: str, to_lang: str, queries: List[str], ctx: Context) -> List[str]:
+    async def _translate_2stage(self, from_lang: str, to_lang: str, queries: List[str], ctx: Context, model_name: str = None) -> List[str]:
         """
         Three-stage translation process with text reordering:
         1. Stage 1: OCR correction and text region reordering by reading sequence
@@ -485,7 +486,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
 
             try:
                 # Use parent class translation logic with reordered texts
-                reordered_translations = await super()._translate(from_lang, to_lang, reordered_texts)
+                reordered_translations = await super()._translate(model_name, from_lang, to_lang, reordered_texts)
             except Exception as e:
                 # Stage 2 翻译失败，清除标志位后重试，避免分割翻译时发送图片
                 self.logger.warning(f"Stage 2 translation failed: {e}. Clearing stage 2 flags and retrying with text-only split translation.")
@@ -495,7 +496,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
 
                 try:
                     # 重新尝试翻译，此时不会发送图片
-                    reordered_translations = await super()._translate(from_lang, to_lang, reordered_texts)
+                    reordered_translations = await super()._translate(model_name, from_lang, to_lang, reordered_texts)
                 except Exception as retry_e:
                     # 如果重试也失败，恢复标志位并重新抛出异常
                     self._is_stage2_translation = True
@@ -519,7 +520,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
             
         except Exception as e:
             self.logger.error(f"2-stage translation failed: {e}. Falling back to single-stage.")
-            return await super()._translate(from_lang, to_lang, queries)
+            return await super()._translate(model_name, from_lang, to_lang, queries)
 
     def _process_refine_output(self, refine_output: List[str]) -> List[str]:
         """
@@ -911,17 +912,14 @@ class ChatGPT2StageTranslator(OpenAITranslator):
 
         # 发起请求 / Initiate the request
         # 在Stage 2时使用指定的Stage 2模型或已激活的fallback模型
-        model_to_use = OPENAI_MODEL
+        default_model = getattr(self, '_current_model_name', None) or OPENAI_MODEL
+        model_to_use = default_model
         if self._is_stage2_translation:
             if self._stage2_use_fallback and hasattr(self, '_fallback_model') and self._fallback_model:
                 model_to_use = self._fallback_model
                 self.logger.info(f"Using activated fallback model for Stage 2 (text-only mode): {model_to_use}")
             else:
-                model_to_use = self.stage2_model
-        else:
-            # For non-stage2, use the default model from parent logic, which is typically OPENAI_MODEL
-            # This branch is needed to avoid using a potentially uninitialized model_to_use
-            model_to_use = OPENAI_MODEL
+                model_to_use = default_model if getattr(self, '_current_model_name', None) else self.stage2_model
 
         response = await self.client.chat.completions.create(
             model=model_to_use,
@@ -995,7 +993,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
         self.print_boxed(response_text, border_color="green", title="GPT Response")          
         return cleaned_text
 
-    async def translate(self, from_lang: str, to_lang: str, queries: List[str], ctx: Context, use_mtpe: bool = False) -> List[str]:
+    async def translate(self, from_lang: str, to_lang: str, queries: List[str], ctx: Context, use_mtpe: bool = False, model_name: str = None) -> List[str]:
         """
         Main translation entry point - override to ensure context is passed through
         """
@@ -1035,7 +1033,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
 
         # Perform 2-stage translation
         await self._ratelimit_sleep()
-        translations = await self._translate(from_lang, to_lang, filtered_queries, ctx)
+        translations = await self._translate(model_name, from_lang, to_lang, filtered_queries, ctx)
 
         # Apply post-processing
         translations = [self._clean_translation_output(q, r, to_lang) for q, r in zip(filtered_queries, translations)]
@@ -1059,7 +1057,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
 
         return final_translations
 
-    async def _translate_batch_2stage(self, from_lang: str, to_lang: str, queries: List[str], batch_contexts: List[Context]) -> List[str]:
+    async def _translate_batch_2stage(self, from_lang: str, to_lang: str, queries: List[str], batch_contexts: List[Context], model_name: str = None) -> List[str]:
         """
         Batch processing version of 2-stage translation:
         1. Stage 1: OCR correction and text region reordering for multiple images
@@ -1207,7 +1205,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
 
             try:
                 # Use parent class translation logic with reordered texts
-                batch_reordered_translations = await super()._translate(from_lang, to_lang, batch_reordered_texts)
+                batch_reordered_translations = await super()._translate(model_name, from_lang, to_lang, batch_reordered_texts)
             except Exception as e:
                 # Batch Stage 2 翻译失败，清除标志位后重试，避免分割翻译时发送图片
                 self.logger.warning(f"Batch Stage 2 translation failed: {e}. Clearing stage 2 flags and retrying with text-only split translation.")
@@ -1217,7 +1215,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
 
                 try:
                     # 重新尝试翻译，此时不会发送图片
-                    batch_reordered_translations = await super()._translate(from_lang, to_lang, batch_reordered_texts)
+                    batch_reordered_translations = await super()._translate(model_name, from_lang, to_lang, batch_reordered_texts)
                 except Exception as retry_e:
                     # 如果重试也失败，恢复标志位并重新抛出异常
                     self._is_stage2_translation = True
@@ -1257,7 +1255,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                             query_idx += 1
 
                 if ctx_queries:
-                    ctx_results = await self._translate_2stage(from_lang, to_lang, ctx_queries, ctx)
+                    ctx_results = await self._translate_2stage(from_lang, to_lang, ctx_queries, ctx, model_name)
                     results.extend(ctx_results)
 
             return results

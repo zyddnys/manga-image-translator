@@ -44,7 +44,7 @@ class BaiduTranslator(CommonTranslator):
         if not BAIDU_APP_ID or not BAIDU_SECRET_KEY:
             raise MissingAPIKeyException('Please set the BAIDU_APP_ID and BAIDU_SECRET_KEY environment variables before using the baidu translator.')
 
-    async def _translate(self, from_lang, to_lang, queries):
+    async def _translate(self, model_name, from_lang, to_lang, queries):
         # Split queries with \n up
         n_queries = []
         query_split_sizes = []

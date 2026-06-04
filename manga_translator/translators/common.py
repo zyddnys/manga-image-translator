@@ -144,7 +144,11 @@ class CommonTranslator(InfererModule):
         _to_lang = self._LANGUAGE_CODE_MAP.get(to_lang)
         return _from_lang, _to_lang
 
-    async def translate(self, from_lang: str, to_lang: str, queries: List[str], use_mtpe: bool = False) -> List[str]:
+    @staticmethod
+    def _resolve_model(model_name: str, default: str) -> str:
+        return model_name if model_name else default
+
+    async def translate(self, from_lang: str, to_lang: str, queries: List[str], use_mtpe: bool = False, model_name: str = None) -> List[str]:
         """
         Translates list of queries of one language into another.
         """
@@ -180,7 +184,8 @@ class CommonTranslator(InfererModule):
             await self._ratelimit_sleep()
 
             # Translate
-            _translations = await self._translate(*self.parse_language_codes(from_lang, to_lang, fatal=True), queries)
+            from_lang_code, to_lang_code = self.parse_language_codes(from_lang, to_lang, fatal=True)
+            _translations = await self._translate(model_name, from_lang_code, to_lang_code, queries)
 
             # Extend returned translations list to have the same size as queries
             if len(_translations) < len(queries):
@@ -224,7 +229,7 @@ class CommonTranslator(InfererModule):
         return final_translations
 
     @abstractmethod
-    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+    async def _translate(self, model_name: str, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         pass
 
     async def _ratelimit_sleep(self):

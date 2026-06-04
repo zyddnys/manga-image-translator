@@ -28,7 +28,7 @@ class CaiyunTranslator(CommonTranslator):
         if not CAIYUN_TOKEN:
             raise MissingAPIKeyException('Please set the CAIYUN_TOKEN environment variables before using the caiyun translator.')
 
-    async def _translate(self, from_lang, to_lang, queries):
+    async def _translate(self, model_name, from_lang, to_lang, queries):
         data = {
             "trans_type": from_lang + "2" + to_lang,
             "source": queries,

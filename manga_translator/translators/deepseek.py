@@ -102,7 +102,8 @@ class DeepseekTranslator(CommonGPTTranslator):
                 prompt,
             ])
 
-    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:  
+    async def _translate(self, model_name: str, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:  
+        self._current_model_name = self._resolve_model(model_name, DEEPSEEK_MODEL)
         translations = [''] * len(queries)  
         self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')  
         MAX_SPLIT_ATTEMPTS = 5  # Default max split attempts  
@@ -242,7 +243,7 @@ class DeepseekTranslator(CommonGPTTranslator):
         messages.append({"role": "user", "content": prompt})
 
         kwargs = {
-            'model': DEEPSEEK_MODEL,
+            'model': getattr(self, '_current_model_name', None) or DEEPSEEK_MODEL,
             'messages': messages,
             
             # `max_tokens` only affects output token length. Set to max.

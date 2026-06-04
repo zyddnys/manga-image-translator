@@ -29,7 +29,7 @@ class PapagoTranslator(CommonTranslator):
     }
     _API_URL = 'https://papago.naver.com/apis/n2mt/translate'
 
-    async def _translate(self, from_lang, to_lang, queries):
+    async def _translate(self, model_name, from_lang, to_lang, queries):
         data = {}
         data['honorific'] = "false"
         data['source'] = from_lang

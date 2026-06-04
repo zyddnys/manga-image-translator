@@ -85,8 +85,7 @@ setup() {
     fi
 
     print_info "Creating Modal secret from .env file..."
-    modal secret create manga-translator-env --from-dotenv .env || \
-        modal secret update manga-translator-env --from-dotenv .env
+    modal secret create manga-translator-env --from-dotenv .env --force
 
     print_success "Setup completed!"
     print_info "Next steps:"

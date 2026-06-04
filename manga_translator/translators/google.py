@@ -138,7 +138,7 @@ class GoogleTranslator(CommonTranslator):
 
         self.raise_exception = raise_exception
 
-    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+    async def _translate(self, model_name: str, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
 
         # Separate en/ja queries to improve translation quality
         langs = ['en', 'ja']

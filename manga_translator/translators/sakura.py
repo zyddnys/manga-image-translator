@@ -451,7 +451,8 @@ class SakuraTranslator(CommonTranslator):
             new_texts.append(text)
         return new_texts
 
-    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+    async def _translate(self, model_name: str, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+        self._current_model_name = self._resolve_model(model_name, 'sukinishiro')
         self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')
         self.logger.debug(f'原文： {queries}')
         text_prompt = '\n'.join(queries)
@@ -542,7 +543,7 @@ class SakuraTranslator(CommonTranslator):
                 }
             ]
         response = await self.client.chat.completions.create(
-            model="sukinishiro",
+            model=getattr(self, '_current_model_name', None) or 'sukinishiro',
             messages=messages,
             temperature=self.temperature,
             top_p=self.top_p,

@@ -48,5 +48,5 @@ class DeeplTranslator(CommonTranslator):
             raise MissingAPIKeyException('Please set the DEEPL_AUTH_KEY environment variable before using the deepl translator.')
         self.translator = deepl.Translator(DEEPL_AUTH_KEY)
 
-    async def _translate(self, from_lang, to_lang, queries):
+    async def _translate(self, model_name, from_lang, to_lang, queries):
         return self.translator.translate_text('\n'.join(queries), target_lang = to_lang).text.split('\n')

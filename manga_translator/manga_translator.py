@@ -1045,9 +1045,9 @@ class MangaTranslator:
             if config.translator.translator == Translator.chatgpt_2stage:
                 # 添加result_path_callback到Context，让translator可以保存bboxes_fixed.png
                 ctx.result_path_callback = self._result_path
-                return await translator._translate(ctx.from_lang, config.translator.target_lang, texts, ctx)
+                return await translator._translate(config.translator.model_name, ctx.from_lang, config.translator.target_lang, texts, ctx)
             else:
-                return await translator._translate(ctx.from_lang, config.translator.target_lang, texts)
+                return await translator._translate(config.translator.model_name, ctx.from_lang, config.translator.target_lang, texts)
 
 
         return await dispatch_translation(
@@ -2321,6 +2321,7 @@ class MangaTranslator:
 
                 # ChatGPT2Stage需要传递ctx参数
                 return await translator._translate(
+                    config.translator.model_name,
                     ctx.from_lang,
                     config.translator.target_lang,
                     texts,
@@ -2329,6 +2330,7 @@ class MangaTranslator:
             else:
                 # 普通ChatGPT不需要ctx参数
                 return await translator._translate(
+                    config.translator.model_name,
                     ctx.from_lang,
                     config.translator.target_lang,
                     texts

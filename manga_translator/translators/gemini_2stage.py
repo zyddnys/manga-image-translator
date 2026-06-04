@@ -88,7 +88,7 @@ class Gemini2StageTranslator(CommonTranslator):
             return False
         return True
 
-    async def translate(self, from_lang: str, to_lang: str, queries: List[str], ctx: Context, use_mtpe: bool = False) -> \
+    async def translate(self, from_lang: str, to_lang: str, queries: List[str], ctx: Context, use_mtpe: bool = False, model_name: str = None) -> \
     List[str]:
         if not queries: return queries
 
@@ -121,7 +121,7 @@ class Gemini2StageTranslator(CommonTranslator):
                 await asyncio.sleep(0.1)
 
             await self._ratelimit_sleep()
-            _translations = await self._translate(from_lang, to_lang, query_indices, ctx)
+            _translations = await self._translate(model_name, from_lang, to_lang, query_indices, ctx)
 
             _translations += [''] * (len(queries) - len(_translations))
             _translations = _translations[:len(queries)]
@@ -155,10 +155,10 @@ class Gemini2StageTranslator(CommonTranslator):
 
         return final_translations
 
-    async def _translate(self, from_lang: str, to_lang: str, query_indices: List[int], ctx: Context) -> List[str]:
-        return await self._translate_2stage(from_lang, to_lang, query_indices, ctx)
+    async def _translate(self, model_name: str, from_lang: str, to_lang: str, query_indices: List[int], ctx: Context) -> List[str]:
+        return await self._translate_2stage(from_lang, to_lang, query_indices, ctx, model_name)
 
-    async def _translate_2stage(self, from_lang: str, to_lang: str, query_indices: List[int], ctx: Context) -> List[
+    async def _translate_2stage(self, from_lang: str, to_lang: str, query_indices: List[int], ctx: Context, model_name: str = None) -> List[
         str]:
         rgb_img = Image.fromarray(ctx.img_rgb)
         w, h = rgb_img.size
@@ -185,7 +185,7 @@ class Gemini2StageTranslator(CommonTranslator):
         translate_prompt = self.get_prompt(query_regions, w, h, nw, nh, only_text=True, texts=refine_sentences)
 
         response = self.client2.beta.chat.completions.parse(
-            model=self.translate_model,
+            model=self._resolve_model(model_name, self.translate_model),
             messages=[
                 {"role": "system", "content": self.get_translate_system_instruction(from_lang, to_lang)},
                 {"role": "user", "content": [{"type": "text", "text": translate_prompt}]}

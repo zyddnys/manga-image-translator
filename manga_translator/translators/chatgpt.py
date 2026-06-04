@@ -146,12 +146,13 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
                 prompt += f"\n<|{i+1}|>{query}"
             yield prompt.lstrip(), len(this_batch)
 
-    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+    async def _translate(self, model_name: str, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         """
         核心翻译逻辑：
             1. 把 queries 拆成多个 prompt 批次
             2. 对每个批次调用 translate_batch，并将结果写回 translations
         """
+        self._current_model_name = self._resolve_model(model_name, OPENAI_MODEL)
         translations = [''] * len(queries)
         # 记录当前处理到 queries 列表的哪个位置
         idx_offset = 0
@@ -718,7 +719,7 @@ class OpenAITranslator(ConfigGPT, CommonTranslator):
 
         # 发起请求 / Initiate the request
         response = await self.client.chat.completions.create(
-            model=OPENAI_MODEL,
+            model=getattr(self, '_current_model_name', None) or OPENAI_MODEL,
             messages=messages,
             max_tokens=self._MAX_TOKENS // 2,
             temperature=self.temperature,

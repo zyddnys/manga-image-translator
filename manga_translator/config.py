@@ -219,6 +219,8 @@ class UpscaleConfig(BaseModel):
 class TranslatorConfig(BaseModel):
     translator: Translator = Translator.sugoi
     """Language translator to use"""
+    model_name: str = None
+    """Model Name"""
     target_lang: str = 'ENG' #todo: validate VALID_LANGUAGES #todo: convert to enum
     """Destination language"""
     no_text_lang_skip: bool = False

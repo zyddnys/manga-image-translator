@@ -94,6 +94,7 @@ async def dispatch(chain: TranslatorChain, queries: List[str], translator_config
         text_lang = ISO_639_1_TO_VALID_LANGUAGES.get(langid.classify('\n'.join(queries))[0])
         translator = None
         flag=0
+        model_name = translator_config.model_name if translator_config else None
         for key, lang in chain.chain:           
             #if text_lang == lang:
                 #translator = get_translator(key)
@@ -105,14 +106,15 @@ async def dispatch(chain: TranslatorChain, queries: List[str], translator_config
             if translator_config:
                 translator.parse_args(translator_config)
             if key == "gemini_2stage" or key == "chatgpt_2stage":
-                queries = await translator.translate('auto', chain.langs[flag], queries, args)
+                queries = await translator.translate('auto', chain.langs[flag], queries, args, model_name=model_name)
             else:
-                queries = await translator.translate('auto', chain.langs[flag], queries, use_mtpe)
+                queries = await translator.translate('auto', chain.langs[flag], queries, use_mtpe, model_name=model_name)
             await translator.unload(device)
             flag+=1
         return queries
     if args is not None:
         args['translations'] = {}
+    model_name = translator_config.model_name if translator_config else None
     for key, tgt_lang in chain.chain:
         translator = get_translator(key)
         if isinstance(translator, OfflineTranslator):
@@ -120,9 +122,9 @@ async def dispatch(chain: TranslatorChain, queries: List[str], translator_config
         if translator_config:
             translator.parse_args(translator_config)
         if key == "gemini_2stage" or key == "chatgpt_2stage":
-            queries = await translator.translate('auto', tgt_lang, queries, args)
+            queries = await translator.translate('auto', tgt_lang, queries, args, model_name=model_name)
         else:
-            queries = await translator.translate('auto', tgt_lang, queries, use_mtpe)
+            queries = await translator.translate('auto', tgt_lang, queries, use_mtpe, model_name=model_name)
         if args is not None:
             args['translations'][tgt_lang] = queries
     return queries

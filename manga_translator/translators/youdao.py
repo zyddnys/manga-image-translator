@@ -43,7 +43,7 @@ class YoudaoTranslator(CommonTranslator):
         if not YOUDAO_APP_KEY or not YOUDAO_SECRET_KEY:
             raise MissingAPIKeyException('Please set the YOUDAO_APP_KEY and YOUDAO_SECRET_KEY environment variables before using the youdao translator.')
 
-    async def _translate(self, from_lang, to_lang, queries):
+    async def _translate(self, model_name, from_lang, to_lang, queries):
         data = {}
         query_text = '\n'.join(queries)
         data['from'] = from_lang

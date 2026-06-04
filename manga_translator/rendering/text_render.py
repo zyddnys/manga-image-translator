@@ -241,6 +241,7 @@ def set_font(font_path: str):
 
 def get_font_path(font_name: str):
     rel_path = FONT_NAME_PATH_MAP.get(font_name) if font_name else None
+    logger.info(f"get_font_path, font_name: ${font_name}, rel_path: ${rel_path}")
     if rel_path:
         return os.path.join(BASE_PATH, rel_path)
     return ''

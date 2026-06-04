@@ -98,7 +98,8 @@ class GroqTranslator(CommonTranslator):
             prompt,
         ])
 
-    async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+    async def _translate(self, model_name: str, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+        self._current_model_name = self._resolve_model(model_name, GROQ_MODEL)
         translations = []
         for prompt in queries:
     #        self.logger.debug('-- Groq Prompt --\n' + self._format_prompt_log(to_lang, prompt))
@@ -124,7 +125,7 @@ class GroqTranslator(CommonTranslator):
         
         # Make the API call
         response = await self.client.chat.completions.create(
-            model=self.model,
+            model=getattr(self, '_current_model_name', None) or self.model,
             messages=sanity + self.messages,
             max_tokens=self._MAX_TOKENS // 2,
             temperature=self.temperature,
