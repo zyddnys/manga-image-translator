@@ -136,9 +136,16 @@ def CJK_Compatibility_Forms_translate(cdpt: str, direction: int):
 def compact_special_symbols(text: str) -> str:  
     text = text.replace('...', '…')  
     text = text.replace('..', '…')      
+    # B\u1ecf d\u1ea5u c\u00e2u cu\u1ed1i-c\u00e2u b\u1ecb \u0111\u1eb7t nh\u1ea7m \u1edf \u0110\u1ea6U d\u00f2ng (vd "\uff01\u597d\u96be\u53d7" \u2192 "! Kh\u00f3 ch\u1ecbu qu\u00e1").
+    # Ch\u1ec9 b\u1ecf ! ? , ; : (gi\u1eef \u2026 v\u00e0 \u2014 v\u00ec \u0111\u00f4i khi c\u1ed1 \u00fd m\u1edf \u0111\u1ea7u).
+    text = re.sub(r'^[\s!\uff01?\uff1f,\uff0c;\uff1b:\uff1a]+', '', text)
+    # B\u1ecf d\u1ea5u CH\u1ea4M \u0111\u01a1n \u1edf CU\u1ed0I c\u00e2u (model auto th\u00eam theo lu\u1eadt prompt, nh\u01b0ng trong
+    # bong b\u00f3ng manga th\u00ec v\u00f4 ngh\u0129a). GI\u1eee "\u2026", "?", "!" v\u00e0 "\u2661". "..." \u0111\u00e3 th\u00e0nh "\u2026"
+    # \u1edf tr\u00ean n\u00ean d\u1ea5u "." c\u00f2n l\u1ea1i l\u00e0 ch\u1ea5m \u0111\u01a1n \u2192 b\u1ecf.
+    text = re.sub(r'\s*\.\s*$', '', text)
     # Remove half-width and full-width spaces after each punctuation mark
-    pattern = r'([^\w\s])[ \u3000]+'  
-    text = re.sub(pattern, r'\1', text) 
+    pattern = r'([^\w\s])[ \u3000]+'
+    text = re.sub(pattern, r'\1', text)
     return text
     
 def rotate_image(image, angle):
@@ -1122,7 +1129,10 @@ def put_text_horizontal(font_size: int, text: str, width: int, height: int, alig
     if not text :
         return
     bg_size = int(max(font_size * 0.07, 1)) if bg is not None else 0
-    spacing_y = int(font_size * (line_spacing or 0.01))
+    # Giãn dòng cho tiếng Việt: dấu thanh 2 tầng (Ặ, ế, ộ…) tràn lên trên cell glyph,
+    # nếu spacing_y ≈ 0 thì dấu dòng dưới chạm chữ dòng trên. Mặc định 0.14×font_size
+    # (config.render.line_spacing là int nên không truyền được phân số → chỉnh ở đây).
+    spacing_y = max(int(font_size * (line_spacing or 0.14)), 2)
 
     # calc
     # print(width)

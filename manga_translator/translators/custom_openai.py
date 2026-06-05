@@ -15,6 +15,21 @@ from .common import CommonTranslator, VALID_LANGUAGES
 from .keys import CUSTOM_OPENAI_API_KEY, CUSTOM_OPENAI_API_BASE, CUSTOM_OPENAI_MODEL, CUSTOM_OPENAI_MODEL_CONF
 
 _CHINESE_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf]")
+
+# Nh\u00e3n lo\u1ea1i tho\u1ea1i do model g\u00e1n \u1edf \u0111\u1ea7u m\u1ed7i \u0111o\u1ea1n: "[thought] ...". B\u00f3c ra \u0111\u1ec3 (a) kh\u00f4ng
+# l\u1ecdt v\u00e0o b\u1ea3n d\u1ecbch hi\u1ec3n th\u1ecb, (b) kh\u00f4ng b\u1ecb b\u1ed9 check ti\u1ebfng Vi\u1ec7t t\u01b0\u1edfng l\u00e0 ti\u1ebfng Anh.
+_TYPE_TAG_RE = re.compile(r"^\s*\[\s*(speech|thought|moan|shout|narration|sfx)\s*\]\s*", re.IGNORECASE)
+
+
+def _region_type_store() -> dict:
+    """Dict d\u00f9ng chung gi\u1eefa translator v\u00e0 renderer (c\u00f9ng ti\u1ebfn tr\u00ecnh MIT), kho\u00e1 =
+    text g\u1ed1c (CJK) \u0111\u00e3 strip \u2192 lo\u1ea1i tho\u1ea1i. Renderer tra theo region.text \u0111\u1ec3 ch\u1ecdn font."""
+    import manga_translator as _mt
+    d = getattr(_mt, "_VI_REGION_TYPES", None)
+    if d is None:
+        d = {}
+        _mt._VI_REGION_TYPES = d
+    return d
 # Vietnamese has unique diacritical marks — their presence confirms Vietnamese output
 _VI_DIACRITIC_RE = re.compile(
     r"[àáâãèéêìíòóôõùúăđơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]",
@@ -294,6 +309,7 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         translations = []
         self._active_to_lang = to_lang
+        _region_type_store().clear()  # nhãn loại thoại chỉ cho trang hiện tại
         self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')
 
         for prompt, query_size in self._assemble_prompts(from_lang, to_lang, queries):
@@ -388,6 +404,18 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                 elif len(cleaned_translations) < query_size:
                     cleaned_translations = cleaned_translations + [''] * (query_size - len(cleaned_translations))
 
+                # ── Bóc nhãn loại thoại "[type]" ở đầu mỗi đoạn ──────────────────
+                # Lưu (text gốc → loại) cho renderer chọn font, rồi BỎ nhãn khỏi bản
+                # dịch (trước khi check tiếng Việt, kẻo "[moan] Haa" bị tưởng tiếng Anh).
+                _store = _region_type_store()
+                for _i in range(len(cleaned_translations)):
+                    _m = _TYPE_TAG_RE.match(cleaned_translations[_i] or "")
+                    if _m:
+                        cleaned_translations[_i] = cleaned_translations[_i][_m.end():].lstrip()
+                        _src = batch_queries[_i].strip() if _i < len(batch_queries) else ""
+                        if _src:
+                            _store[_src] = _m.group(1).lower()
+
                 if _target_is_vietnamese(to_lang):
                     non_vietnamese = [t for t in cleaned_translations if _needs_vietnamese_retry(t)]
                     if non_vietnamese and language_retry_attempt < 10:
@@ -479,6 +507,9 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
             max_tokens=self._MAX_TOKENS,
             temperature=self.temperature,
             top_p=self.top_p,
+            # Tắt "thinking" của Qwen3 → trả lời thẳng (content), không nhồi token vào
+            # reasoning. Cần cho nhãn [type] ra sạch & ổn định.
+            extra_body={"chat_template_kwargs": {"enable_thinking": False}},
         )
 
         self.logger.debug('\n-- GPT Response (raw) --')
