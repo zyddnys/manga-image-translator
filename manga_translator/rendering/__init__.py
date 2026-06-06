@@ -29,11 +29,13 @@ logger = get_logger('render')
 _FONT_BY_KIND = {
     "normal":    "MTO Astro City.ttf",   # thoại thường           (có sẵn)
     "thought":   "MTO COMIC 1.ttf",      # thoại suy nghĩ          (có sẵn; cần phát hiện bong bóng mây)
-    "sfx":       "MTO COMIC 2.ttf",          # SFX / rên — ngoài khung (có sẵn)
+    "moan":      "MTO COMIC 2.ttf",          # rên / khoái cảm         (có sẵn)
+    "sfx":       "Bangers-Regular.ttf",      # SFX tượng thanh         (dùng chung font impact với anger)
     "shout":     "MTO Damn Noisy Kids.ttf",  # thoại hét               (Việt hoá, đã tải)
     "narration": "MTO Chaney.ttf",           # thoại dẫn truyện        (Việt hoá, đã tải; cần classifier mới dùng)
     "anger":     "Bangers-Regular.ttf",      # tức giận / hiệu ứng     (Google Fonts, full tiếng Việt) — thay Badaboom BB (font Anh, ra ô vuông)
     "fear":      "ShantellSans.ttf",         # sợ hãi / run rẩy        (Google Fonts, full tiếng Việt, nét run) — thay Shiver Me Timbers (font Anh)
+    # "horror":  "MTO Chiller.ttf",          # để dành cho cảnh kinh dị / special (chưa map kind nào)
 }
 # Hét: dấu '!' lặp (!!), hoặc '?!' / '!?' (kể cả fullwidth). KHÔNG khớp 1 dấu '!'
 # đơn lẻ vì thoại thường tiếng Việt cũng hay kết thúc bằng '!'.
@@ -98,8 +100,11 @@ def _classify_region(region) -> str:
                       and llm in (None, "", "speech", "shout"))
     if _SHOUT_RE.search(text) or all_caps_short or llm == "shout" or kind == "burst":
         return "shout"
-    # Rên / tượng thanh: tin LLM (đoán theo nội dung) → font Comic 2.
-    if llm in ("moan", "sfx"):
+    # Rên / khoái cảm: tin LLM → font Comic 2 (mềm, viết tay).
+    if llm == "moan":
+        return "moan"
+    # Tượng thanh khác: tin LLM → font Bangers (impact, dùng chung anger).
+    if llm == "sfx":
         return "sfx"
     # Dẫn truyện: khung chữ nhật HOẶC LLM nói narration.
     if kind == "rect" or llm == "narration":
