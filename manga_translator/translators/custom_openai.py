@@ -18,7 +18,7 @@ _CHINESE_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf]")
 
 # Nh\u00e3n lo\u1ea1i tho\u1ea1i do model g\u00e1n \u1edf \u0111\u1ea7u m\u1ed7i \u0111o\u1ea1n: "[thought] ...". B\u00f3c ra \u0111\u1ec3 (a) kh\u00f4ng
 # l\u1ecdt v\u00e0o b\u1ea3n d\u1ecbch hi\u1ec3n th\u1ecb, (b) kh\u00f4ng b\u1ecb b\u1ed9 check ti\u1ebfng Vi\u1ec7t t\u01b0\u1edfng l\u00e0 ti\u1ebfng Anh.
-_TYPE_TAG_RE = re.compile(r"^\s*\[\s*(speech|thought|moan|shout|narration|sfx)\s*\]\s*", re.IGNORECASE)
+_TYPE_TAG_RE = re.compile(r"^\s*\[\s*(speech|thought|moan|shout|narration|sfx|anger|fear)\s*\]\s*", re.IGNORECASE)
 
 
 def _region_type_store() -> dict:

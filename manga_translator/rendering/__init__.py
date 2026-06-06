@@ -32,6 +32,8 @@ _FONT_BY_KIND = {
     "sfx":       "MTO COMIC 2.ttf",          # SFX / rên — ngoài khung (có sẵn)
     "shout":     "MTO Damn Noisy Kids.ttf",  # thoại hét               (Việt hoá, đã tải)
     "narration": "MTO Chaney.ttf",           # thoại dẫn truyện        (Việt hoá, đã tải; cần classifier mới dùng)
+    "anger":     "Bangers-Regular.ttf",      # tức giận / hiệu ứng     (Google Fonts, full tiếng Việt) — thay Badaboom BB (font Anh, ra ô vuông)
+    "fear":      "ShantellSans.ttf",         # sợ hãi / run rẩy        (Google Fonts, full tiếng Việt, nét run) — thay Shiver Me Timbers (font Anh)
 }
 # Hét: dấu '!' lặp (!!), hoặc '?!' / '!?' (kể cả fullwidth). KHÔNG khớp 1 dấu '!'
 # đơn lẻ vì thoại thường tiếng Việt cũng hay kết thúc bằng '!'.
@@ -80,9 +82,20 @@ def _classify_region(region) -> str:
     llm = _llm_type_for(region)
     kind = getattr(region, "_bubble_kind", None)  # 'oval'|'cloud'|'rect' (bubble-fit gắn)
 
-    # Hét: dấu trong chữ HOẶC LLM nói shout HOẶC burst gai-nền-đen (nhấn mạnh).
+    # Sợ hãi / run rẩy: tin LLM hoàn toàn (theo nội dung) → font Shantell Sans (nét run).
+    if llm == "fear":
+        return "fear"
+    # Tức giận: tin LLM → font Bangers (impact). Đặt TRƯỚC shout vì "tức giận" ≠ "gào hét"
+    # (LLM phân biệt) — dù câu có '!!' vẫn ưu tiên nhãn anger của LLM.
+    if llm == "anger":
+        return "anger"
+    # Hét: dấu '!!'/'?!' trong chữ, HOẶC LLM gán shout, HOẶC burst gai-nền-đen.
+    # all_caps_short chỉ là PHỎNG ĐOÁN kiểu chữ (viết HOA, ngắn) → (a) cần ≥2 chữ cái
+    # để 1 ký tự SFX lẻ như "A"/"W" KHÔNG bị tưởng hét, (b) KHÔNG đè khi LLM đã gán
+    # loại nội dung khác (sfx/moan/thought/narration) — chỉ áp khi LLM bỏ trống/speech.
     letters = [c for c in text if c.isalpha()]
-    all_caps_short = bool(letters) and len(text) <= 14 and all(c.isupper() for c in letters)
+    all_caps_short = (len(letters) >= 2 and len(text) <= 14 and all(c.isupper() for c in letters)
+                      and llm in (None, "", "speech", "shout"))
     if _SHOUT_RE.search(text) or all_caps_short or llm == "shout" or kind == "burst":
         return "shout"
     # Rên / tượng thanh: tin LLM (đoán theo nội dung) → font Comic 2.
@@ -91,8 +104,12 @@ def _classify_region(region) -> str:
     # Dẫn truyện: khung chữ nhật HOẶC LLM nói narration.
     if kind == "rect" or llm == "narration":
         return "narration"
-    # Suy nghĩ: CHỈ theo hình dạng mây (LLM hay nhầm nói→nghĩ nên không tin LLM 'thought').
-    if kind == "cloud":
+    # Suy nghĩ: hình mây HOẶC LLM gán 'thought' (mà KHÔNG phải khung dẫn/burst hét).
+    # Trước đây CHỈ tin hình mây vì sợ LLM nhầm nói→nghĩ; nhưng nhiều manga vẽ suy nghĩ
+    # trong bóng oval/không viền (không phải mây) → cloud-detect bắt trượt, font suy nghĩ
+    # bị áp thiếu. Nay tin thêm nhãn LLM khi shape không phải rect (dẫn truyện) / burst
+    # (hét) — hai loại này đã được xử lý ở các nhánh trên nên guard chỉ để phòng đổi thứ tự.
+    if kind == "cloud" or (llm == "thought" and kind not in ("rect", "burst")):
         return "thought"
     # Chữ ngoài bong bóng → coi như SFX/rên.
     if not _region_is_bubble(region):
