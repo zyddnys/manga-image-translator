@@ -134,15 +134,15 @@ def CJK_Compatibility_Forms_translate(cdpt: str, direction: int):
     return cdpt, 0
 
 def compact_special_symbols(text: str) -> str:  
-    text = text.replace('...', '…')  
-    text = text.replace('..', '…')      
+    text = text.replace('…', '...')
+    text = re.sub(r'\.{4,}', '...', text)
     # B\u1ecf d\u1ea5u c\u00e2u cu\u1ed1i-c\u00e2u b\u1ecb \u0111\u1eb7t nh\u1ea7m \u1edf \u0110\u1ea6U d\u00f2ng (vd "\uff01\u597d\u96be\u53d7" \u2192 "! Kh\u00f3 ch\u1ecbu qu\u00e1").
     # Ch\u1ec9 b\u1ecf ! ? , ; : (gi\u1eef \u2026 v\u00e0 \u2014 v\u00ec \u0111\u00f4i khi c\u1ed1 \u00fd m\u1edf \u0111\u1ea7u).
     text = re.sub(r'^[\s!\uff01?\uff1f,\uff0c;\uff1b:\uff1a]+', '', text)
-    # B\u1ecf d\u1ea5u CH\u1ea4M \u0111\u01a1n \u1edf CU\u1ed0I c\u00e2u (model auto th\u00eam theo lu\u1eadt prompt, nh\u01b0ng trong
-    # bong b\u00f3ng manga th\u00ec v\u00f4 ngh\u0129a). GI\u1eee "\u2026", "?", "!" v\u00e0 "\u2661". "..." \u0111\u00e3 th\u00e0nh "\u2026"
-    # \u1edf tr\u00ean n\u00ean d\u1ea5u "." c\u00f2n l\u1ea1i l\u00e0 ch\u1ea5m \u0111\u01a1n \u2192 b\u1ecf.
-    text = re.sub(r'\s*\.\s*$', '', text)
+    # GI\u1eee d\u1ea5u k\u1ebft c\u00e2u \u1edf CU\u1ed0I (. ! ? \u2026). Y\u00eau c\u1ea7u: m\u1ecdi tho\u1ea1i ph\u1ea3i c\u00f3 d\u1ea5u k\u1ebft v\u00e0
+    # NH\u00ccN TH\u1ea4Y \u0111\u01b0\u1ee3c. (Tr\u01b0\u1edbc \u0111\u00e2y xo\u00e1 '.' cu\u1ed1i \u2192 c\u00e2u tr\u1ea7n thu\u1eadt m\u1ea5t h\u1eb3n d\u1ea5u ch\u1ea5m;
+    # c\u1ed9ng v\u1edbi vi\u1ec7c "\u2026" l\u00e0 glyph r\u1ed7ng \u1edf v\u00e0i font n\u00ean ellipsis c\u0169ng bi\u1ebfn m\u1ea5t. Nay
+    # "\u2026" \u0111\u00e3 \u0111\u01b0\u1ee3c \u0111\u1ed5i th\u00e0nh "..." \u1edf tr\u00ean \u0111\u1ec3 hi\u1ec7n b\u1eb1ng glyph period.)
     # Remove half-width and full-width spaces after each punctuation mark
     pattern = r'([^\w\s])[ \u3000]+'
     text = re.sub(pattern, r'\1', text)

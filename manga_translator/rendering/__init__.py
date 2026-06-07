@@ -32,7 +32,7 @@ _FONT_BY_KIND = {
     "moan":      "MTO COMIC 2.ttf",          # rên / khoái cảm         (có sẵn)
     "sfx":       "Bangers-Regular.ttf",      # SFX tượng thanh         (dùng chung font impact với anger)
     "shout":     "MTO Damn Noisy Kids.ttf",  # thoại hét               (Việt hoá, đã tải)
-    "narration": "MTO Chaney.ttf",           # thoại dẫn truyện        (Việt hoá, đã tải; cần classifier mới dùng)
+    "narration": "Itim-Regular.ttf",         # thoại dẫn truyện        (Google Fonts, full tiếng Việt, chữ thường thật — thay MTO Chaney bị small-caps "Ta tU lUyệN")
     "anger":     "Bangers-Regular.ttf",      # tức giận / hiệu ứng     (Google Fonts, full tiếng Việt) — thay Badaboom BB (font Anh, ra ô vuông)
     "fear":      "ShantellSans.ttf",         # sợ hãi / run rẩy        (Google Fonts, full tiếng Việt, nét run) — thay Shiver Me Timbers (font Anh)
     # "horror":  "MTO Chiller.ttf",          # để dành cho cảnh kinh dị / special (chưa map kind nào)

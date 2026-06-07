@@ -61,6 +61,38 @@ def _strip_generation_artifacts(text: str, preserve_segment_tokens: bool = False
     return cleaned.strip()
 
 
+# ── Bảo đảm thoại kết thúc bằng dấu câu ──────────────────────────────────────
+# Dấu KẾT câu hợp lệ: nếu thoại đã kết thúc bằng một trong số này thì GIỮ NGUYÊN.
+# Gồm cả dấu fullwidth (CJK), dấu lửng "…" và gạch ngang "—" (thoại bị ngắt/cắt
+# ngang — thêm '.' vào đây sẽ phá ý đồ). ',;:' cũng đã là dấu câu nên không thêm.
+_TERMINAL_PUNCT = set(".!?…~" "。！？⋯～" "—–-" ",;:")
+# Ký tự ĐÓNG (ngoặc / nháy) có thể đứng SAU dấu kết câu, vd: 「Xin chào!」 — nhìn
+# xuyên qua chúng để xét dấu câu THẬT bên trong.
+_TRAILING_CLOSERS = set('"\'”’»)]}）】」』›')
+
+
+def _ensure_terminal_punct(text: str) -> str:
+    """Bảo đảm thoại kết thúc bằng dấu câu (mặc định thêm '.').
+
+    Bỏ qua: chuỗi rỗng, marker ZWJ (vùng watermark đã xoá) và chuỗi chỉ gồm ký tự
+    đóng. SFX (tượng thanh: rầm, bùm…) KHÔNG phải thoại nên được caller loại trừ
+    trước khi gọi hàm này."""
+    if not isinstance(text, str):
+        return text
+    stripped = text.rstrip()
+    if not stripped or stripped == "‍":
+        return text
+    # Nhìn xuyên qua ký tự đóng ở cuối để xét dấu câu thật bên trong.
+    idx = len(stripped)
+    while idx > 0 and stripped[idx - 1] in _TRAILING_CLOSERS:
+        idx -= 1
+    if idx == 0:
+        return stripped  # chỉ toàn ký tự đóng — không đụng tới
+    if stripped[idx - 1] in _TERMINAL_PUNCT:
+        return stripped  # đã có dấu kết câu
+    return stripped[:idx] + "." + stripped[idx:]
+
+
 def _contains_watermark_text(text: str) -> bool:
     if not isinstance(text, str) or not text.strip():
         return False
@@ -448,6 +480,7 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
             #     - Better than rendering English text on the image
             #     - Fixes Issue 1 + Issue 3b (slot stays occupied, no misalignment)
             if _target_is_vietnamese(to_lang):
+                _store = _region_type_store()
                 for i in range(len(cleaned_translations)):
                     src = batch_queries[i] if i < len(batch_queries) else ""
                     if _contains_watermark_text(src):
@@ -461,6 +494,10 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                             f'reverting to source text to preserve original.'
                         )
                         cleaned_translations[i] = src if src else cleaned_translations[i]
+                    elif _store.get(src.strip()) != "sfx":
+                        # Tho\u1ea1i (m\u1ecdi lo\u1ea1i TR\u1eea SFX t\u01b0\u1ee3ng thanh) ph\u1ea3i k\u1ebft th\u00fac b\u1eb1ng d\u1ea5u
+                        # c\u00e2u. SFX (r\u1ea7m, b\u00f9m, v\u00fat\u2026) gi\u1eef nguy\u00ean \u2014 th\u00eam '.' s\u1ebd k\u1ef3 c\u1ee5c.
+                        cleaned_translations[i] = _ensure_terminal_punct(cleaned_translations[i])
 
             translations.extend(cleaned_translations)
 
