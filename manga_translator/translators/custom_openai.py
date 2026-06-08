@@ -56,6 +56,11 @@ def _strip_generation_artifacts(text: str, preserve_segment_tokens: bool = False
     cleaned = re.sub(r"</(?=[^a-zA-Z]|$)", "", cleaned)
     if not preserve_segment_tokens:
         cleaned = re.sub(r"<\|\d+\|>?", "", cleaned)  # <|3|> and <|3|
+        # Sót pipe LẺ từ marker méo (vd model xuất '<||3|>' → split để lại '|', hoặc
+        # model tự gõ '|'). '|' KHÔNG bao giờ là ký tự hợp lệ trong thoại tiếng Việt →
+        # bỏ hẳn. Nếu KHÔNG bỏ, '|' lọt xuống _ensure_terminal_punct (không phải dấu
+        # kết, không phải ngoặc đóng) → bị nối thêm '.' → ra "「Phạm phu nhân」|.".
+        cleaned = cleaned.replace("|", "")
     cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     return cleaned.strip()
@@ -93,6 +98,24 @@ def _ensure_terminal_punct(text: str) -> str:
     return stripped[:idx] + "." + stripped[idx:]
 
 
+# Chỉ-toàn-rác: ngoặc/dấu câu/marker/khoảng trắng, KHÔNG có chữ-số thật. Dùng để bắt
+# các segment model trả rỗng kiểu "[]", "[ ]", "[.]", "【】", "..." → coi là TRỐNG.
+_MEANINGLESS_RE = re.compile(
+    r"[\s\[\](){}<>|.,!?…~。！？⋯—–\-:;\"'`“”‘’«»「」『』【】（）]+"
+)
+
+
+def _is_effectively_empty(text: str) -> bool:
+    """True nếu segment KHÔNG còn nội dung thật sau khi bỏ nhãn loại + mọi dấu/ngoặc.
+    Bắt các trường hợp model trả "[]" / "[.]" / "【】" (rỗng có chủ ý) — nếu KHÔNG bắt,
+    "[]" lọt xuống _ensure_terminal_punct → bị chèn '.' thành "[.]" → render ra rác."""
+    if not isinstance(text, str):
+        return True
+    t = _TYPE_TAG_RE.sub("", text.strip())   # bỏ "[speech]"… nếu có
+    t = _MEANINGLESS_RE.sub("", t)
+    return t == "" or t == "‍"
+
+
 def _contains_watermark_text(text: str) -> bool:
     if not isinstance(text, str) or not text.strip():
         return False
@@ -100,6 +123,10 @@ def _contains_watermark_text(text: str) -> bool:
     compact = re.sub(r"\s+", "", text.lower())
     compact = re.sub(r"[^a-z0-9._:/-]", "", compact)
     # Site / handle / domain tags that only ever appear as scanlation watermarks.
+    # Pixiv ID watermark, kể cả khi OCR đọc lệch I↔1↔l (vd "PIX1V:fh8di",
+    # "P1XIV:...", "P1X1V:..."). Tag "pixiv" thuần ở dưới bắt trượt các biến thể này.
+    if re.search(r"p[i1l]x[i1l]v", compact):
+        return True
     site_tags = (
         "acg",
         "pixiv",
@@ -505,6 +532,10 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                     src = batch_queries[i] if i < len(batch_queries) else ""
                     if _contains_watermark_text(src):
                         # Always erase watermarks regardless of what model returned.
+                        cleaned_translations[i] = "\u200d"
+                    elif _is_effectively_empty(cleaned_translations[i]):
+                        # Model tr\u1ea3 r\u1ed7ng/ch\u1ec9-d\u1ea5u ("[]", "[.]", "\u3010\u3011"\u2026) \u2192 xo\u00e1 h\u1eb3n b\u1eb1ng ZWJ
+                        # (v\u00f9ng \u0111\u01b0\u1ee3c inpaint, KH\u00d4NG render r\u00e1c). Tr\u00e1nh "[.]"\u2192"\u3010.\u3011" tr\u00ean \u1ea3nh.
                         cleaned_translations[i] = "\u200d"
                     elif _needs_vietnamese_retry(cleaned_translations[i]):
                         # Translation still English after all retries.

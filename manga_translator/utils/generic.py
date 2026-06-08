@@ -459,11 +459,22 @@ class Quadrilateral(object):
         # cv2.warpPerspective could overflow if image size is too large, better crop it here
         img_croped = img[y1: y2, x1: x2]
 
-        
+        self.assigned_direction = direction
+        # A textline whose bbox clips entirely to the image border yields an empty crop.
+        # cv2.warpPerspective would then fail the `_src.total() > 0` assertion and abort
+        # the whole page. Skip the warp and return a blank region of the expected size so
+        # OCR simply yields no text for this region instead of crashing.
+        if img_croped.size == 0:
+            th = max(int(textheight), 2)
+            if direction == 'h':
+                w = max(int(round(textheight / ratio)), 2)
+            else:
+                w = max(int(round(textheight * ratio)), 2)
+            return np.zeros((th, w, 3), dtype=img.dtype)
+
         src_pts[:, 0] -= x1
         src_pts[:, 1] -= y1
 
-        self.assigned_direction = direction
         if direction == 'h':
             h = max(int(textheight), 2)
             w = max(int(round(textheight / ratio)), 2)

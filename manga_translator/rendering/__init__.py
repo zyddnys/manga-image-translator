@@ -244,26 +244,36 @@ def _scaled_box_for_floor(region, font_size: int, img: np.ndarray):
         oh = max(1.0, maxy - miny)
         lang = getattr(region, "target_lang", "en_US")
         line_h = font_size * 1.14  # khớp spacing_y mặc định ở put_text_horizontal
-        chosen_k = None
-        for k in (1.0, 1.2, 1.5, 1.8, 2.0, 2.5, 3.0):
-            sw, sh = ow * k, oh * k
-            if region.horizontal:
-                lines, widths = text_render.calc_horizontal(
-                    font_size, region.translation,
-                    max_width=int(sw), max_height=int(sh), language=lang)
-                tw = max(widths) if widths else 0
-                th = len(lines) * line_h
-            else:
+
+        if region.horizontal:
+            # ── "GIỮ LÀN NGANG, XUỐNG DÒNG" ───────────────────────────────────────
+            # GIỚI HẠN bề ngang ≈ ô gốc (nới nhẹ X_CAP) → câu Việt dài bị ÉP xuống
+            # NHIỀU DÒNG thay vì bành ngang đè artwork/nhân vật; chiều cao được giãn
+            # tới Y_CAP để chứa các dòng. Box ôm SÁT text ở font_size (xfact=tw/ow,
+            # yfact=th/oh) nên warp không thu < font_size — chữ vẫn to, chỉ xuống dòng.
+            X_CAP, Y_CAP = 1.0, 6.0   # 1.0 = KHÔNG nới ngang: wrap đúng trong bề ngang gốc
+            sw = max(1.0, ow * X_CAP)
+            lines, widths = text_render.calc_horizontal(
+                font_size, region.translation,
+                max_width=int(sw), max_height=int(oh * Y_CAP), language=lang)
+            tw = max(widths) if widths else ow
+            th = max(line_h, len(lines) * line_h)
+            xfact = min(X_CAP, max(1.0, tw / ow))
+            yfact = min(Y_CAP, max(1.0, th / oh))
+        else:
+            # Vertical: GIỮ hành vi cũ — phóng ĐỀU 2 chiều đến khi vừa (thêm cột).
+            xfact = yfact = 3.0  # chốt trần — không phình vô hạn
+            for k in (1.0, 1.2, 1.5, 1.8, 2.0, 2.5, 3.0):
+                sw, sh = ow * k, oh * k
                 lines, heights = text_render.calc_vertical(
                     font_size, region.translation, max_height=int(sh))
                 tw = len(lines) * line_h   # mỗi cột rộng ~font_size (+spacing)
                 th = max(heights) if heights else 0
-            if tw <= sw and th <= sh:
-                chosen_k = k
-                break
-        if chosen_k is None:
-            chosen_k = 3.0  # chốt trần — không phình vô hạn
-        poly = affinity.scale(poly0, xfact=chosen_k, yfact=chosen_k, origin='center')
+                if tw <= sw and th <= sh:
+                    xfact = yfact = k
+                    break
+
+        poly = affinity.scale(poly0, xfact=xfact, yfact=yfact, origin='center')
         pts = np.array(poly.exterior.coords[:4])
         dst = rotate_polygons(
             region.center, pts.reshape(1, -1), -region.angle, to_int=False,
@@ -487,62 +497,116 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
             #     (chấp nhận có thể tràn artwork — theo lựa chọn người dùng).
             lang = getattr(region, "target_lang", "en_US")
             if bub_in is not None:
-                # Trong bong bóng: khối căn GIỮA, clamp theo ruột bóng (chữ to vừa,
-                # không phình ra đè bóng cạnh).
+                # Trong bong bóng: AUTO-FIT theo ruột bóng, BỎ QUA font_min. Bóng có
+                # kích thước cố định — ép tới Font min sẽ tràn/đè viền. Tìm cỡ lớn nhất
+                # ≤ target (cỡ tự nhiên) mà chữ vừa ruột bóng; cho phép GIẢM xuống dưới
+                # min nếu bóng nhỏ. (Font min chỉ là SÀN cho chữ NGOÀI bóng/artwork.)
                 try:
+                    _ix1, _iy1, _ix2, _iy2 = bub_in[:4]
+                    _bw = max(8, _ix2 - _ix1)
+                    _bh = max(8, _iy2 - _iy1)
+                    fit_fs = max(1, int(target_font_size))
+                    while fit_fs > 1:
+                        _lns, _wds = text_render.calc_horizontal(
+                            fit_fs, region.translation,
+                            max_width=_bw, max_height=_bh, language=lang)
+                        _n = max(1, len(_lns))
+                        _tw = int(max(_wds)) if _wds else 0
+                        _th = int(_n * fit_fs + (_n - 1) * fit_fs * 0.14)
+                        if _tw <= _bw and _th <= _bh:
+                            break
+                        fit_fs -= 1
+                    target_font_size = max(1, fit_fs)
                     dst_points = _centered_text_block(
                         target_font_size, region.translation, bub_in, lang,
                         img.shape[1], img.shape[0])
                     # bub_in != None ⇒ recompute bằng _centered_text_block sau cap.
                     bubble_jobs.append((len(dst_points_list), region, bub_in, lang))
                     logger.info(f'[bubble-fit] "{region.get_translation_for_rendering()[:18]}" '
-                                f'fs={target_font_size} giữa bóng')
+                                f'fs={target_font_size} giữa bóng (auto-fit, bỏ min)')
                 except Exception:
                     pass
-            elif not is_bubble:
-                # CHỈ chữ NGOÀI bong bóng (artwork) mới PHÓNG TO ô gốc theo hệ số
-                # (×1.2,1.5,1.8,2…) đến khi text vừa ở target_font_size — GIỮ NGUYÊN
-                # hướng & tỉ lệ ô gốc, không reflow thành dải ngang che nhân vật.
+            else:
+                # bub_in is None ⇒ KHÔNG có biên bong bóng thật để tôn trọng, dù
+                # is_bubble True hay False. Hai trường hợp:
+                #   • Artwork thật (is_bubble=False).
+                #   • is_bubble=True nhưng floodfill KHÔNG dò ra ruột (vd chữ trên
+                #     quạt/nền sáng KHÔNG kín — _region_is_bubble dương tính giả).
+                # Trước đây case sau bị GIỮ min_rect gốc (ô hẹp) → render warp chữ co
+                # nhỏ & ép ~1 ký tự/dòng (chữ "to nhưng box bé" nên nhìn vẫn tí xíu, bất
+                # kể Font min). Nay cả hai đều PHÓNG TO ô gốc theo hệ số (k=1→3, thử nhỏ
+                # trước) đến khi text vừa ở target_font_size — GIỮ hướng & tỉ lệ ô gốc.
+                # Bong bóng thật mà box gốc đã đủ → k=1, không tràn; chỉ nới khi cần.
                 dp = _scaled_box_for_floor(region, target_font_size, img)
                 if dp is not None:
                     dst_points = dp
                     # bub_in=None ⇒ recompute bằng scale-box sau cap cỡ chữ.
                     bubble_jobs.append((len(dst_points_list), region, None, lang))
                     logger.info(f'[fit] "{region.get_translation_for_rendering()[:18]}" '
-                                f'fs={target_font_size} trên artwork (×box)')
-            # else: được coi là bong bóng nhưng KHÔNG dò được ruột (bub_in=None) →
-            # GIỮ hành vi cũ (min_rect / height-expansion ở trên) để chữ KHÔNG tràn
-            # ra ngoài bong bóng. Tuyệt đối không scale-box ở đây.
+                                f'fs={target_font_size} (×box, is_bubble={is_bubble})')
 
         if region.vertical:
-            used_cols = max(1, len(region.texts))
-            line_text_list, _ = text_render.calc_vertical(
-                region.font_size,
-                region.translation,
-                max_height=region.unrotated_size[1],
-            )
-            needed_cols = len(line_text_list)
-            if needed_cols > used_cols:
-                scale_x = min(((needed_cols - used_cols) / used_cols) + 1, 2.0)
-                try:
-                    poly = Polygon(region.unrotated_min_rect[0])
-                    minx, miny, maxx, maxy = poly.bounds
-                    poly = affinity.scale(poly, xfact=1.0, yfact=scale_x, origin=(minx, miny))
-                    pts = np.array(poly.exterior.coords[:4])
-                    dst_points = rotate_polygons(
-                        region.center, pts.reshape(1, -1), -region.angle,
-                        to_int=False,
-                    ).reshape(-1, 4, 2)
-                    dst_points = dst_points.astype(np.int64)
-                    dst_points[..., 0] = dst_points[..., 0].clip(0, img.shape[1] - 1)
-                    dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0] - 1)
-                    single_axis_expanded = True
-                except Exception:
-                    pass
+            # ── Sàn cỡ chữ cho vùng DỌC (lưu ý #1, đồng bộ vùng ngang/artwork) ──────
+            # TRƯỚC: nhánh dọc chỉ nới bề ngang ≤2× theo số cột cần thêm rồi để render()
+            # warp ÉP chữ cho lấp đầy → cỡ HIỂN THỊ do box quyết định, "Font min" KHÔNG
+            # thành sàn thật (câu Việt dọc dài bị co nhỏ bất kể min=30).
+            # NAY: dùng chung _scaled_box_for_floor (đã hỗ trợ vertical qua calc_vertical)
+            # — phóng to ô GỐC (giữ hướng dọc & tỉ lệ) đến khi text vừa ở target_font_size
+            # ≥ font_min (trần ×3). Box đủ to ⇒ warp không thu chữ < min ⇒ min là SÀN thật.
+            lang = getattr(region, "target_lang", "en_US")
+            dp = _scaled_box_for_floor(region, target_font_size, img)
+            if dp is not None:
+                dst_points = dp
+                # bub_in=None ⇒ recompute bằng scale-box sau khi cap cỡ chữ toàn trang.
+                bubble_jobs.append((len(dst_points_list), region, None, lang))
+                single_axis_expanded = True
+                logger.info(f'[fit] "{region.get_translation_for_rendering()[:18]}" '
+                            f'fs={target_font_size} dọc (×box)')
+            else:
+                # Fallback (lỗi/suy biến): hành vi cũ — nới bề ngang theo số cột cần thêm.
+                used_cols = max(1, len(region.texts))
+                line_text_list, _ = text_render.calc_vertical(
+                    region.font_size,
+                    region.translation,
+                    max_height=region.unrotated_size[1],
+                )
+                needed_cols = len(line_text_list)
+                if needed_cols > used_cols:
+                    scale_x = min(((needed_cols - used_cols) / used_cols) + 1, 2.0)
+                    try:
+                        poly = Polygon(region.unrotated_min_rect[0])
+                        minx, miny, maxx, maxy = poly.bounds
+                        poly = affinity.scale(poly, xfact=1.0, yfact=scale_x, origin=(minx, miny))
+                        pts = np.array(poly.exterior.coords[:4])
+                        dst_points = rotate_polygons(
+                            region.center, pts.reshape(1, -1), -region.angle,
+                            to_int=False,
+                        ).reshape(-1, 4, 2)
+                        dst_points = dst_points.astype(np.int64)
+                        dst_points[..., 0] = dst_points[..., 0].clip(0, img.shape[1] - 1)
+                        dst_points[..., 1] = dst_points[..., 1].clip(0, img.shape[0] - 1)
+                        single_axis_expanded = True
+                    except Exception:
+                        pass
 
         # Ensure dst_points is never None — render() will crash if it is
         if dst_points is None:
             dst_points = region.min_rect
+
+        # ── DIAG: vùng đi nhánh nào, box ra bao nhiêu (gỡ sau khi chỉnh xong) ──────
+        try:
+            _dp = np.asarray(dst_points, dtype=np.float64).reshape(-1, 2)
+            _bw = int(_dp[:, 0].max() - _dp[:, 0].min())
+            _bh = int(_dp[:, 1].max() - _dp[:, 1].min())
+            _fd = getattr(region, "_direction", None) or getattr(region, "direction", "?")
+            logger.info(
+                f'[size-diag] "{(region.get_translation_for_rendering() or "")[:18]}" '
+                f'H={region.horizontal} V={region.vertical} dir={_fd} '
+                f'is_bubble={locals().get("is_bubble")} bub_in={locals().get("bub_in") is not None} '
+                f'fs={int(target_font_size)} min={font_size_minimum} box={_bw}x{_bh}'
+            )
+        except Exception:
+            pass
 
         dst_points_list.append(dst_points)
         region.font_size = int(target_font_size)
