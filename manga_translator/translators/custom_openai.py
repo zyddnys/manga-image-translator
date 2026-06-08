@@ -185,6 +185,23 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
     _CONTEXT_MAX_PAGES = 10    # nhớ nội dung ~10 ảnh gần nhất
     _CONTEXT_MAX_CHARS = 1200  # giới hạn cứng độ dài context bơm vào prompt (tránh phình token)
 
+    # ── Sampling — NGUỒN SỰ THẬT DUY NHẤT ────────────────────────────────
+    # Quyết định sampling tập trung ở ĐÂY, ghi đè mọi temperature/top_p từ
+    # gpt_config_vi.yaml và config tạm theo style.
+    #
+    # MẤU CHỐT: tái lập (mỗi lần refresh ra cùng kết quả) đến từ SEED CỐ ĐỊNH,
+    # KHÔNG phải từ greedy. llama.cpp/LM Studio: cùng seed + cùng params + cùng
+    # prompt → cùng output, kể cả ở temperature 0.7. Ép greedy (temp=0/top_k=1)
+    # làm model sáng tạo như Qwen dịch cụt, phẳng, rớt nghĩa — nên KHÔNG dùng.
+    # Bộ tham số dưới là khuyến nghị của Qwen3 (chế độ non-thinking) để dịch
+    # ngon NGANG khung chat, mà vẫn tái lập nhờ seed.
+    #   _DETERMINISTIC=True  (mặc định) → sampling chất lượng + seed cố định.
+    #   _DETERMINISTIC=False → dùng temperature/top_p từ config, seed ngẫu nhiên.
+    _DETERMINISTIC = True
+    _SEED = 1234
+    _SAMPLING = {"temperature": 0.7, "top_p": 0.8, "top_k": 20,
+                 "min_p": 0.0, "repeat_penalty": 1.0}
+
     def __init__(self, model=None, api_base=None, api_key=None, check_openai_key=False):
         # If the user has specified a nested key to use for the model, append the key
         #   Otherwise: Use the `ollama` defaults.
@@ -342,7 +359,10 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
         translations = []
         self._active_to_lang = to_lang
         _region_type_store().clear()  # nhãn loại thoại chỉ cho trang hiện tại
-        self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')
+        if self._DETERMINISTIC:
+            self.logger.debug(f'Sampling: reproducible ({self._SAMPLING}, seed={self._SEED})')
+        else:
+            self.logger.debug(f'Temperature: {self.temperature}, TopP: {self.top_p}')
 
         for prompt, query_size in self._assemble_prompts(from_lang, to_lang, queries):
             # Track which source queries belong to this batch so we can map
@@ -538,15 +558,32 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
 
         messages.append({'role': 'user', 'content': prompt})
 
+        # Tắt "thinking" của Qwen3 → trả lời thẳng (content), không nhồi token vào
+        # reasoning. Cần cho nhãn [type] ra sạch & ổn định.
+        extra_body = {"chat_template_kwargs": {"enable_thinking": False}}
+
+        if self._DETERMINISTIC:
+            # Sampling chất lượng (giống khung chat) + seed cố định ⇒ tái lập.
+            # top_k/min_p/repeat_penalty là tham số riêng của llama.cpp/LM Studio
+            # nên đi qua extra_body. repeat_penalty=1.0 (tắt) để KHÔNG phạt
+            # marker <|n|> và SFX lặp (hà hà hà…), tránh méo bản dịch.
+            s = self._SAMPLING
+            temperature, top_p = s["temperature"], s["top_p"]
+            seed = self._SEED
+            extra_body.update({"top_k": s["top_k"], "min_p": s["min_p"],
+                               "repeat_penalty": s["repeat_penalty"]})
+        else:
+            temperature, top_p = self.temperature, self.top_p
+            seed = None
+
         response = await self.client.chat.completions.create(
             model=self.model or CUSTOM_OPENAI_MODEL,
             messages=messages,
             max_tokens=self._MAX_TOKENS,
-            temperature=self.temperature,
-            top_p=self.top_p,
-            # Tắt "thinking" của Qwen3 → trả lời thẳng (content), không nhồi token vào
-            # reasoning. Cần cho nhãn [type] ra sạch & ổn định.
-            extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+            temperature=temperature,
+            top_p=top_p,
+            seed=seed,
+            extra_body=extra_body,
         )
 
         self.logger.debug('\n-- GPT Response (raw) --')

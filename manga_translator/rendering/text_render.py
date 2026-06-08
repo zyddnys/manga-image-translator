@@ -229,13 +229,21 @@ def get_cached_font(path: str) -> freetype.Face:
         font_cache[path] = freetype.Face(Path(path).open('rb'))
     return font_cache[path]
 
+# Cache glyph (get_char_glyph) trước đây key theo (ký_tự, cỡ, hướng) — THIẾU font.
+# set_font đổi FONT_SELECTION toàn cục nhưng cache không biết → glyph của font render
+# TRƯỚC (vd Astro City toàn HOA cho "PHU NHÂN") bị tái dùng cho font SAU (Itim) ở cùng
+# cỡ chữ → "đang tu luyện" thành "đaNg tU lUyệN" (chỉ n,u trùng "PHU NHÂN" bị hoa).
+# Bơm _FONT_GEN mỗi lần đổi font để tách key cache theo font.
+_FONT_GEN = 0
+
 def set_font(font_path: str):
-    global FONT_SELECTION
+    global FONT_SELECTION, _FONT_GEN
     if font_path:
         selection = [font_path] + FALLBACK_FONTS
     else:
         selection = FALLBACK_FONTS
     FONT_SELECTION = [get_cached_font(p) for p in selection]
+    _FONT_GEN += 1
 
 class namespace:
     pass
@@ -260,7 +268,7 @@ class Glyph:
         self.metrics.vertAdvance = glyph.metrics.vertAdvance
 
 @functools.lru_cache(maxsize = 1024, typed = True)
-def get_char_glyph(cdpt: str, font_size: int, direction: int) -> Glyph:
+def _get_char_glyph_cached(cdpt: str, font_size: int, direction: int, font_gen: int) -> Glyph:
     global FONT_SELECTION
     for i, face in enumerate(FONT_SELECTION):
         if face.get_char_index(cdpt) == 0 and i != len(FONT_SELECTION) - 1:
@@ -271,6 +279,10 @@ def get_char_glyph(cdpt: str, font_size: int, direction: int) -> Glyph:
             face.set_pixel_sizes(font_size, 0)
         face.load_char(cdpt)
         return Glyph(face.glyph)
+
+def get_char_glyph(cdpt: str, font_size: int, direction: int) -> Glyph:
+    # font_gen=_FONT_GEN đưa font hiện tại vào key cache (xem set_font) — chống bleed glyph.
+    return _get_char_glyph_cached(cdpt, font_size, direction, _FONT_GEN)
 
 #@functools.lru_cache(maxsize = 1024, typed = True)
 def get_char_border(cdpt: str, font_size: int, direction: int):

@@ -116,9 +116,17 @@ def _classify_region(region) -> str:
     # (hét) — hai loại này đã được xử lý ở các nhánh trên nên guard chỉ để phòng đổi thứ tự.
     if kind == "cloud" or (llm == "thought" and kind not in ("rect", "burst")):
         return "thought"
-    # Chữ ngoài bong bóng → coi như SFX/rên.
+    # Chữ ngoài bong bóng (trên artwork): TRƯỚC ĐÂY ép hết thành "sfx" (font Bangers
+    # impact) → câu thoại dài đặt trên nền tranh bị méo (vd "Ta là phàm tu, muốn làm
+    # ma." ra font đập). Nay:
+    #   - LLM đã khẳng định "speech" → tin LLM, giữ font thường dù nằm trên artwork.
+    #   - LLM bỏ trống → chỉ chữ NGẮN (tượng thanh thật: "Bùm", "Rầm", "hà hà hà")
+    #     mới dùng font SFX; câu dài coi như thoại thường.
     if not _region_is_bubble(region):
-        return "sfx"
+        if llm == "speech":
+            return "normal"
+        if llm in (None, "") and len(text) <= 14:
+            return "sfx"
     return "normal"
 
 
@@ -221,6 +229,51 @@ def _centered_text_block(fs: int, translation: str, bub_in, lang: str, img_w: in
     dp[..., 0] = dp[..., 0].clip(0, img_w - 1)
     dp[..., 1] = dp[..., 1].clip(0, img_h - 1)
     return dp
+
+def _scaled_box_for_floor(region, font_size: int, img: np.ndarray):
+    """Phóng to Ô GỐC (min_rect) theo hệ số tăng dần đến khi text vừa ở `font_size`,
+    GIỮ NGUYÊN hướng + tỉ lệ của ô gốc (dọc↔dọc, ngang↔ngang). render() warp chữ cho
+    LẤP ĐẦY dst_points; nếu dst_points = ô đủ to ôm trọn text ở `font_size` thì chữ
+    KHÔNG bị thu < font_size → "Font min" thành SÀN thật, mà không reflow thành dải
+    ngang che nhân vật (chỉ nới khung to hơn quanh tâm gốc). Trả dst_points (1,4,2)
+    hoặc None nếu lỗi."""
+    try:
+        poly0 = Polygon(region.unrotated_min_rect[0])
+        minx, miny, maxx, maxy = poly0.bounds
+        ow = max(1.0, maxx - minx)
+        oh = max(1.0, maxy - miny)
+        lang = getattr(region, "target_lang", "en_US")
+        line_h = font_size * 1.14  # khớp spacing_y mặc định ở put_text_horizontal
+        chosen_k = None
+        for k in (1.0, 1.2, 1.5, 1.8, 2.0, 2.5, 3.0):
+            sw, sh = ow * k, oh * k
+            if region.horizontal:
+                lines, widths = text_render.calc_horizontal(
+                    font_size, region.translation,
+                    max_width=int(sw), max_height=int(sh), language=lang)
+                tw = max(widths) if widths else 0
+                th = len(lines) * line_h
+            else:
+                lines, heights = text_render.calc_vertical(
+                    font_size, region.translation, max_height=int(sh))
+                tw = len(lines) * line_h   # mỗi cột rộng ~font_size (+spacing)
+                th = max(heights) if heights else 0
+            if tw <= sw and th <= sh:
+                chosen_k = k
+                break
+        if chosen_k is None:
+            chosen_k = 3.0  # chốt trần — không phình vô hạn
+        poly = affinity.scale(poly0, xfact=chosen_k, yfact=chosen_k, origin='center')
+        pts = np.array(poly.exterior.coords[:4])
+        dst = rotate_polygons(
+            region.center, pts.reshape(1, -1), -region.angle, to_int=False,
+        ).reshape(-1, 4, 2).astype(np.int64)
+        dst[..., 0] = dst[..., 0].clip(0, img.shape[1] - 1)
+        dst[..., 1] = dst[..., 1].clip(0, img.shape[0] - 1)
+        return dst
+    except Exception:
+        return None
+
 
 def parse_font_paths(path: str, default: List[str] = None) -> List[str]:
     if path:
@@ -422,22 +475,44 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
                 except Exception:
                     pass
 
-            # ── Lưu ý #1 (chuẩn): đặt KHỐI CHỮ ở GIỮA bong bóng, cỡ TỰ NHIÊN ──
-            # render() warp chữ để LẤP ĐẦY dst_points → nếu dst_points = cả ruột
-            # bong bóng thì chữ phình quá to & đè bóng cạnh. Vì vậy đặt dst_points =
-            # đúng khối chữ ở target_font_size, căn giữa bong bóng (không lấp đầy).
+            # ── Đặt KHỐI CHỮ căn giữa, cỡ TỰ NHIÊN theo target_font_size ──────────
+            # render() warp chữ để LẤP ĐẦY dst_points → dựng dst_points = đúng khối
+            # chữ ở target_font_size (đã ≥ font_size_minimum nhờ fit-loop) thì cỡ
+            # HIỂN THỊ không nhỏ hơn min → "Font min" trở thành SÀN thật.
+            #   • Trong bong bóng (bub_in): clamp theo ruột bóng — chữ to vừa, không
+            #     phình ra đè bóng cạnh.
+            #   • Trên artwork (bub_in=None): TRƯỚC ĐÂY để dst_points = bbox gốc nhỏ
+            #     → render warp THU chữ về cỡ bbox gốc nên set min KHÔNG ăn. Nay neo
+            #     theo TÂM GỐC với vùng cho phép rộng → khối = cỡ tự nhiên ở fs ≥ min
+            #     (chấp nhận có thể tràn artwork — theo lựa chọn người dùng).
+            lang = getattr(region, "target_lang", "en_US")
             if bub_in is not None:
+                # Trong bong bóng: khối căn GIỮA, clamp theo ruột bóng (chữ to vừa,
+                # không phình ra đè bóng cạnh).
                 try:
-                    lang = getattr(region, "target_lang", "en_US")
                     dst_points = _centered_text_block(
                         target_font_size, region.translation, bub_in, lang,
                         img.shape[1], img.shape[0])
-                    # Ghi nhận để TÍNH LẠI khối sau khi cap cỡ chữ (cap mới hiệu lực).
+                    # bub_in != None ⇒ recompute bằng _centered_text_block sau cap.
                     bubble_jobs.append((len(dst_points_list), region, bub_in, lang))
                     logger.info(f'[bubble-fit] "{region.get_translation_for_rendering()[:18]}" '
                                 f'fs={target_font_size} giữa bóng')
                 except Exception:
                     pass
+            elif not is_bubble:
+                # CHỈ chữ NGOÀI bong bóng (artwork) mới PHÓNG TO ô gốc theo hệ số
+                # (×1.2,1.5,1.8,2…) đến khi text vừa ở target_font_size — GIỮ NGUYÊN
+                # hướng & tỉ lệ ô gốc, không reflow thành dải ngang che nhân vật.
+                dp = _scaled_box_for_floor(region, target_font_size, img)
+                if dp is not None:
+                    dst_points = dp
+                    # bub_in=None ⇒ recompute bằng scale-box sau cap cỡ chữ.
+                    bubble_jobs.append((len(dst_points_list), region, None, lang))
+                    logger.info(f'[fit] "{region.get_translation_for_rendering()[:18]}" '
+                                f'fs={target_font_size} trên artwork (×box)')
+            # else: được coi là bong bóng nhưng KHÔNG dò được ruột (bub_in=None) →
+            # GIỮ hành vi cũ (min_rect / height-expansion ở trên) để chữ KHÔNG tràn
+            # ra ngoài bong bóng. Tuyệt đối không scale-box ở đây.
 
         if region.vertical:
             used_cols = max(1, len(region.texts))
@@ -488,13 +563,21 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
         if n_capped:
             logger.info(f'[font-normalize] median={med:.0f} cap={cap} → ghìm {n_capped} vùng chữ to.')
 
-    # Tính LẠI khối chữ bubble-fit bằng cỡ chữ ĐÃ CAP (để cap có hiệu lực thật:
-    # dst_points quyết định cỡ hiển thị qua warp, nên phải dựng lại theo fs mới).
+    # Tính LẠI khối chữ bằng cỡ chữ ĐÃ CAP (để cap có hiệu lực thật: dst_points
+    # quyết định cỡ hiển thị qua warp, nên phải dựng lại theo fs mới).
+    #   • bub_in != None → khối căn giữa trong bong bóng.
+    #   • bub_in == None → scale-box trên artwork (giữ hướng & tỉ lệ).
     for idx, region, bub_in, lang in bubble_jobs:
-        if 0 <= idx < len(dst_points_list):
+        if not (0 <= idx < len(dst_points_list)):
+            continue
+        if bub_in is not None:
             dst_points_list[idx] = _centered_text_block(
                 region.font_size, region.translation, bub_in, lang,
                 img.shape[1], img.shape[0])
+        else:
+            dp = _scaled_box_for_floor(region, region.font_size, img)
+            if dp is not None:
+                dst_points_list[idx] = dp
 
     # ── Tách các khối chữ ĐÈ NHAU ─────────────────────────────────────────────
     # Hai khối chồng nhau >12% (vùng nhỏ hơn) → ĐẨY RA XA theo trục đè ít hơn
