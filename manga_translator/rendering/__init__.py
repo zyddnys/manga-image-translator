@@ -42,6 +42,16 @@ _FONT_BY_KIND = {
 _SHOUT_RE = re.compile(r"[!！]{2,}|[?？][!！]|[!！][?？]")
 
 
+def _is_manual_run() -> bool:
+    """True khi cả run này là PASS VẼ TAY (✏️ vùng chữ thủ công).
+
+    Pass thủ công chạy subprocess RIÊNG với detector=none và env MIT_MANUAL_REGIONS
+    được set (xem _mit_backend._mit_manual_pass) → MỌI region trong run này đều là
+    box người dùng vẽ. Dùng làm NGOẠI LỆ: vùng thủ công được phép nới ngang+dọc
+    kể cả khi trông như bong bóng (người dùng chủ động đặt chỗ, chấp nhận tràn)."""
+    return bool(os.environ.get("MIT_MANUAL_REGIONS", "").strip())
+
+
 def _resolve_font_paths(primary_font: str) -> dict:
     """Trả dict kind→đường-dẫn-font. File không tồn tại → fallback primary_font."""
     base_dir = Path(primary_font).parent if primary_font else None
@@ -206,6 +216,93 @@ def _bubble_interior_rect(img: np.ndarray, region) -> list | None:
     return [ix1, iy1, ix2, iy2]
 
 
+def _bubble_border_rect(img: np.ndarray, region) -> list | None:
+    """Dò bong bóng bằng ĐƯỜNG VIỀN (Canny + contour) → [x1,y1,x2,y2] hoặc None.
+
+    Dùng làm FALLBACK khi floodfill (ruột) thất bại — vd bong bóng MỜ / bán trong suốt
+    đè lên nền: ruột KHÔNG đồng màu nên floodfill lan tràn, nhưng VIỀN bóng vẫn còn.
+    Tìm contour KÍN, ĐẶC (lồi), BAO TRỌN text, NHỎ NHẤT và KHÔNG phải cả panel.
+    Mọi lỗi / không chắc → None (an toàn: rơi về free-scale)."""
+    try:
+        x1, y1, x2, y2 = [int(v) for v in region.xyxy]
+    except Exception:
+        return None
+    H, W = img.shape[:2]
+    tw, th = x2 - x1, y2 - y1
+    if tw < 4 or th < 4:
+        return None
+    # Cửa sổ rộng (bóng thường to hơn text ~1.5× mỗi bên) — có trần để khỏi ôm cả panel.
+    ex, ey = int(tw * 1.5), int(th * 1.5)
+    wx1, wy1 = max(0, x1 - ex), max(0, y1 - ey)
+    wx2, wy2 = min(W, x2 + ex), min(H, y2 + ey)
+    crop = img[wy1:wy2, wx1:wx2]
+    if crop.size == 0:
+        return None
+    cw_, chh = wx2 - wx1, wy2 - wy1
+    try:
+        gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop
+        gray = cv2.GaussianBlur(gray, (3, 3), 0)
+        med = float(np.median(gray))
+        lo = int(max(0, 0.5 * med)); hi = int(min(255, 1.3 * med))
+        edges = cv2.Canny(gray, lo, hi)
+        # Khép HỞ viền mờ/đứt nét bằng morphological close → contour kín.
+        kk = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kk, iterations=2)
+        cnts, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    except Exception:
+        return None
+    if not cnts:
+        return None
+    # Toạ độ text trong crop.
+    ctx1, cty1, ctx2, cty2 = x1 - wx1, y1 - wy1, x2 - wx1, y2 - wy1
+    tcx, tcy = (ctx1 + ctx2) / 2.0, (cty1 + cty2) / 2.0
+    text_area = float(max(1, tw * th))
+    win_area = float(max(1, cw_ * chh))
+    slack_x, slack_y = tw * 0.12, th * 0.12
+    best = None  # (area, (bx,by,bw,bh), contour)
+    for c in cnts:
+        bx, by, bbw, bbh = cv2.boundingRect(c)
+        area = bbw * bbh
+        # Phải BAO TRỌN text (lề nhỏ) và không phải gần cả cửa sổ.
+        if not (bx <= ctx1 + slack_x and by <= cty1 + slack_y and
+                bx + bbw >= ctx2 - slack_x and by + bbh >= cty2 - slack_y):
+            continue
+        if area < text_area * 0.8 or area > win_area * 0.92:
+            continue
+        # Tâm text phải NẰM TRONG contour (kín thật, không chỉ chồng bbox).
+        if cv2.pointPolygonTest(c, (float(tcx), float(tcy)), False) < 0:
+            continue
+        # ĐẶC/LỒI (bóng tròn/oval/chữ nhật) → loại viền artwork lằng nhằng.
+        cnt_area = cv2.contourArea(c)
+        hull_area = cv2.contourArea(cv2.convexHull(c))
+        if hull_area <= 0 or (cnt_area / hull_area) < 0.80:
+            continue
+        # Chọn contour bao text NHỎ NHẤT (bóng sát text, không ôm panel ngoài).
+        if best is None or area < best[0]:
+            best = (area, (bx, by, bbw, bbh), c)
+    if best is None:
+        return None
+    _, (bx, by, bbw, bbh), c = best
+    ix1, iy1, ix2, iy2 = bx + wx1, by + wy1, bx + bbw + wx1, by + bbh + wy1
+
+    # Phân loại HÌNH DẠNG (giống _bubble_interior_rect, dùng để chọn font).
+    try:
+        cnt_area = float(cv2.contourArea(c))
+        rect_ratio = cnt_area / float(max(1, bbw * bbh))
+        perim = cv2.arcLength(c, True)
+        circ = (4.0 * np.pi * cnt_area / (perim * perim)) if perim > 0 else 1.0
+        aspect = bbw / float(max(1, bbh))
+        if rect_ratio > 0.90:
+            region._bubble_kind = 'rect'
+        elif circ < 0.55 and 0.55 <= rect_ratio <= 0.86 and 0.55 <= aspect <= 1.8:
+            region._bubble_kind = 'cloud'
+        else:
+            region._bubble_kind = 'oval'
+    except Exception:
+        region._bubble_kind = 'oval'
+    return [ix1, iy1, ix2, iy2]
+
+
 def _centered_text_block(fs: int, translation: str, bub_in, lang: str, img_w: int, img_h: int):
     """Trả dst_points (1,4,2) = khối chữ ở cỡ `fs`, căn GIỮA vùng bub_in (không lấp đầy).
     Tách riêng để tính lại được sau khi cap cỡ chữ (cap mới có tác dụng thật)."""
@@ -231,11 +328,10 @@ def _centered_text_block(fs: int, translation: str, bub_in, lang: str, img_w: in
     return dp
 
 def _scaled_box_for_floor(region, font_size: int, img: np.ndarray):
-    """Phóng to Ô GỐC (min_rect) theo hệ số tăng dần đến khi text vừa ở `font_size`,
-    GIỮ NGUYÊN hướng + tỉ lệ của ô gốc (dọc↔dọc, ngang↔ngang). render() warp chữ cho
-    LẤP ĐẦY dst_points; nếu dst_points = ô đủ to ôm trọn text ở `font_size` thì chữ
-    KHÔNG bị thu < font_size → "Font min" thành SÀN thật, mà không reflow thành dải
-    ngang che nhân vật (chỉ nới khung to hơn quanh tâm gốc). Trả dst_points (1,4,2)
+    """FREE SCALE GIỮ TỈ LỆ: phóng to Ô GỐC (min_rect) ĐỀU CẢ 2 CHIỀU (xfact=yfact=k)
+    đến khi text vừa ở `font_size`. GIỮ NGUYÊN hướng + tỉ lệ ô gốc → ô 10×20 thành
+    10k×20k, KHÔNG đổi chữ dọc thành chữ ngang (KHÔNG reflow). render() warp chữ lấp
+    đầy ô đã đủ to nên chữ ≈ font_size (≥ min), không bị co. Trả dst_points (1,4,2)
     hoặc None nếu lỗi."""
     try:
         poly0 = Polygon(region.unrotated_min_rect[0])
@@ -245,41 +341,51 @@ def _scaled_box_for_floor(region, font_size: int, img: np.ndarray):
         lang = getattr(region, "target_lang", "en_US")
         line_h = font_size * 1.14  # khớp spacing_y mặc định ở put_text_horizontal
 
-        if region.horizontal:
-            # ── "GIỮ LÀN NGANG, XUỐNG DÒNG" ───────────────────────────────────────
-            # GIỚI HẠN bề ngang ≈ ô gốc (nới nhẹ X_CAP) → câu Việt dài bị ÉP xuống
-            # NHIỀU DÒNG thay vì bành ngang đè artwork/nhân vật; chiều cao được giãn
-            # tới Y_CAP để chứa các dòng. Box ôm SÁT text ở font_size (xfact=tw/ow,
-            # yfact=th/oh) nên warp không thu < font_size — chữ vẫn to, chỉ xuống dòng.
-            X_CAP, Y_CAP = 1.0, 6.0   # 1.0 = KHÔNG nới ngang: wrap đúng trong bề ngang gốc
-            sw = max(1.0, ow * X_CAP)
-            lines, widths = text_render.calc_horizontal(
-                font_size, region.translation,
-                max_width=int(sw), max_height=int(oh * Y_CAP), language=lang)
-            tw = max(widths) if widths else ow
-            th = max(line_h, len(lines) * line_h)
-            xfact = min(X_CAP, max(1.0, tw / ow))
-            yfact = min(Y_CAP, max(1.0, th / oh))
-        else:
-            # Vertical: GIỮ hành vi cũ — phóng ĐỀU 2 chiều đến khi vừa (thêm cột).
-            xfact = yfact = 3.0  # chốt trần — không phình vô hạn
-            for k in (1.0, 1.2, 1.5, 1.8, 2.0, 2.5, 3.0):
-                sw, sh = ow * k, oh * k
+        # Trần hệ số phóng: vừa không phình vô hạn (4×), vừa KHÔNG vượt ~0.9 kích thước
+        # ẢNH ở mỗi chiều (chống TRÀN mép — vd dải mảnh-cao phóng to thành cột kín ảnh).
+        # max(1.0,…) để không bao giờ thu nhỏ dưới ô gốc.
+        Wimg, Himg = img.shape[1], img.shape[0]
+        k_img = min((0.90 * Wimg) / ow, (0.90 * Himg) / oh)
+        CAP = max(1.0, min(4.0, k_img))
+        xfact = yfact = CAP  # trần — không phình vô hạn / không tràn ảnh
+        for k in (1.0, 1.2, 1.5, 1.8, 2.0, 2.5, 3.0, 3.5, 4.0):
+            if k > CAP:
+                break
+            sw, sh = ow * k, oh * k
+            if region.horizontal:
+                lines, widths = text_render.calc_horizontal(
+                    font_size, region.translation,
+                    max_width=int(sw), max_height=int(sh), language=lang)
+                tw = max(widths) if widths else ow
+                th = max(line_h, len(lines) * line_h)
+            else:
                 lines, heights = text_render.calc_vertical(
                     font_size, region.translation, max_height=int(sh))
                 tw = len(lines) * line_h   # mỗi cột rộng ~font_size (+spacing)
                 th = max(heights) if heights else 0
-                if tw <= sw and th <= sh:
-                    xfact = yfact = k
-                    break
+            if tw <= sw and th <= sh:
+                xfact = yfact = k
+                break
 
         poly = affinity.scale(poly0, xfact=xfact, yfact=yfact, origin='center')
         pts = np.array(poly.exterior.coords[:4])
         dst = rotate_polygons(
             region.center, pts.reshape(1, -1), -region.angle, to_int=False,
-        ).reshape(-1, 4, 2).astype(np.int64)
-        dst[..., 0] = dst[..., 0].clip(0, img.shape[1] - 1)
-        dst[..., 1] = dst[..., 1].clip(0, img.shape[0] - 1)
+        ).reshape(-1, 4, 2)
+        # DỜI NGUYÊN KHỐI vào trong ảnh (không squash méo) rồi mới clip an toàn cuối.
+        # Box đã ≤0.9 ảnh nên không thể chạm cả 2 mép → dời 1 phía là đủ.
+        xs, ys = dst[..., 0], dst[..., 1]
+        if xs.min() < 0:
+            dst[..., 0] -= xs.min()
+        elif xs.max() > Wimg - 1:
+            dst[..., 0] -= (xs.max() - (Wimg - 1))
+        if ys.min() < 0:
+            dst[..., 1] -= ys.min()
+        elif ys.max() > Himg - 1:
+            dst[..., 1] -= (ys.max() - (Himg - 1))
+        dst = dst.astype(np.int64)
+        dst[..., 0] = dst[..., 0].clip(0, Wimg - 1)
+        dst[..., 1] = dst[..., 1].clip(0, Himg - 1)
         return dst
     except Exception:
         return None
@@ -332,8 +438,11 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
         font_size_minimum = round((img.shape[0] + img.shape[1]) / 200)
     font_size_minimum = max(1, font_size_minimum)
 
+    # Cả run này là vùng vẽ tay? (✏️ thủ công = NGOẠI LỆ, được nới như artwork.)
+    is_manual = _is_manual_run()
+
     dst_points_list = []
-    bubble_jobs = []  # (index, region, bub_in, lang) để tính lại khối sau khi cap cỡ chữ
+    bubble_jobs = []  # (index, region, bub_in, lang) tính lại khối sau khi cap cỡ chữ
     for region in text_regions:
 
         original_region_font_size = region.font_size
@@ -375,6 +484,14 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
         except Exception:
             is_bubble = True  # safer default
 
+        # CHAT BOX = floodfill (bub_in) dò được ruột bóng KÍN — đáng tin hơn màu nền
+        # (is_bubble theo màu hay nhận NGƯỢC: chữ trắng/nền tối artwork bị coi là bóng,
+        # bóng hồng nhạt lại bị coi là artwork). Quyết định:
+        #   • bub_in dò RA   → CHAT BOX → fit trong bóng, KHÔNG nới (nhánh bubble-fit).
+        #   • bub_in KHÔNG ra → chữ TỰ DO → FREE SCALE (khối chữ đúng tỉ lệ, căn tâm).
+        #   • ✏️ vùng thủ công → bỏ qua dò bóng → free scale theo ý người dùng vẽ.
+        # is_bubble (màu) chỉ còn dùng cho heuristic rows_capacity, KHÔNG quyết định nới.
+
         dst_points = None
         single_axis_expanded = False
 
@@ -384,7 +501,18 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
             # ── Lưu ý #1: căn theo BONG BÓNG thật ──────────────────────────────
             # Nếu dò được ruột bong bóng, dùng nó làm vùng fit + đặt chữ (căn giữa,
             # chữ to tự nhiên) thay vì vùng text unclip (ôm sát → chữ bị co nhỏ).
-            bubble_rect = _bubble_interior_rect(img, region) if is_bubble else None
+            # LUÔN thử dò chat box (KHÔNG gate theo màu). Vùng thủ công bỏ qua → free
+            # scale theo ý người dùng vẽ. Hai tầng:
+            #   1) floodfill ruột — chính xác khi ruột bóng sạch/đồng màu.
+            #   2) FALLBACK viền (Canny+contour) — bắt bóng MỜ/đè nền mà floodfill trượt.
+            bubble_rect = None
+            if not is_manual:
+                bubble_rect = _bubble_interior_rect(img, region)
+                if bubble_rect is None:
+                    bubble_rect = _bubble_border_rect(img, region)
+                    if bubble_rect is not None:
+                        logger.info(f'[bubble-border] "{region.get_translation_for_rendering()[:18]}" '
+                                    f'bắt bóng bằng VIỀN (floodfill trượt).')
             bub_in = None  # (in_x1, in_y1, in_x2, in_y2, cx, cy) vùng đặt chữ (đã giới hạn)
             if bubble_rect is not None:
                 bx1, by1, bx2, by2 = bubble_rect
@@ -527,23 +655,16 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
                 except Exception:
                     pass
             else:
-                # bub_in is None ⇒ KHÔNG có biên bong bóng thật để tôn trọng, dù
-                # is_bubble True hay False. Hai trường hợp:
-                #   • Artwork thật (is_bubble=False).
-                #   • is_bubble=True nhưng floodfill KHÔNG dò ra ruột (vd chữ trên
-                #     quạt/nền sáng KHÔNG kín — _region_is_bubble dương tính giả).
-                # Trước đây case sau bị GIỮ min_rect gốc (ô hẹp) → render warp chữ co
-                # nhỏ & ép ~1 ký tự/dòng (chữ "to nhưng box bé" nên nhìn vẫn tí xíu, bất
-                # kể Font min). Nay cả hai đều PHÓNG TO ô gốc theo hệ số (k=1→3, thử nhỏ
-                # trước) đến khi text vừa ở target_font_size — GIỮ hướng & tỉ lệ ô gốc.
-                # Bong bóng thật mà box gốc đã đủ → k=1, không tràn; chỉ nới khi cần.
+                # bub_in is None ⇒ KHÔNG dò ra bong bóng kín ⇒ chữ TỰ DO ⇒ FREE SCALE
+                # GIỮ TỈ LỆ: phóng đều ô gốc cả 2 chiều (giữ hướng dọc/ngang gốc).
                 dp = _scaled_box_for_floor(region, target_font_size, img)
                 if dp is not None:
                     dst_points = dp
                     # bub_in=None ⇒ recompute bằng scale-box sau cap cỡ chữ.
                     bubble_jobs.append((len(dst_points_list), region, None, lang))
                     logger.info(f'[fit] "{region.get_translation_for_rendering()[:18]}" '
-                                f'fs={target_font_size} (×box, is_bubble={is_bubble})')
+                                f'fs={target_font_size} (free-scale giữ tỉ lệ, no bubble, '
+                                f'is_bubble_color={is_bubble})')
 
         if region.vertical:
             # ── Sàn cỡ chữ cho vùng DỌC (lưu ý #1, đồng bộ vùng ngang/artwork) ──────
@@ -553,6 +674,7 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
             # NAY: dùng chung _scaled_box_for_floor (đã hỗ trợ vertical qua calc_vertical)
             # — phóng to ô GỐC (giữ hướng dọc & tỉ lệ) đến khi text vừa ở target_font_size
             # ≥ font_min (trần ×3). Box đủ to ⇒ warp không thu chữ < min ⇒ min là SÀN thật.
+            # Vùng dọc không dò bong bóng → coi như chữ tự do, FREE SCALE giữ tỉ lệ.
             lang = getattr(region, "target_lang", "en_US")
             dp = _scaled_box_for_floor(region, target_font_size, img)
             if dp is not None:
@@ -635,10 +757,12 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
         if not (0 <= idx < len(dst_points_list)):
             continue
         if bub_in is not None:
+            # CHAT BOX → căn giữa trong ruột bóng.
             dst_points_list[idx] = _centered_text_block(
                 region.font_size, region.translation, bub_in, lang,
                 img.shape[1], img.shape[0])
         else:
+            # Chữ tự do (ngang/dọc) → phóng đều giữ tỉ lệ (free scale).
             dp = _scaled_box_for_floor(region, region.font_size, img)
             if dp is not None:
                 dst_points_list[idx] = dp
