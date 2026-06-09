@@ -613,6 +613,40 @@ def select_hyphenator(lang: str):
         return None
 
 # @functools.lru_cache(maxsize = 1024, typed = True)
+def _letter_spacing_px(font_size: int) -> int:
+    """Khoảng cách THÊM giữa các ký tự khi vẽ NGANG (letter-spacing/tracking), px.
+
+    Font display đậm/condensed (Bangers, MTO…) có advance gốc rất sát; cộng thêm dấu
+    thanh tiếng Việt bè ngang (Ỗ, Ặ, ữ…) → mép dấu chạm ký tự kế bên, trông "dính".
+    Cộng đều một khoảng nhỏ theo font_size cho MỌI font để chữ thở ra.
+
+    Tuỳ chỉnh qua env MIT_LETTER_SPACING (tỉ lệ theo font_size); rỗng/âm = mặc định
+    0.08; trần 0.4 để khỏi rời rạc. PHẢI dùng CHUNG ở calc_horizontal (đo bề rộng) và
+    put_text_horizontal (vẽ) — nên cộng tại đây, điểm chốt mọi phép đo qua
+    get_string_width — để wrap/căn giữa không lệch."""
+    try:
+        frac = float(os.environ.get("MIT_LETTER_SPACING", "") or 0.08)
+    except (TypeError, ValueError):
+        frac = 0.08
+    if frac < 0:
+        frac = 0.08
+    return int(round(font_size * min(frac, 0.4)))
+
+def _line_spacing_frac() -> float:
+    """Tỉ lệ GIÃN DÒNG ngang (line-spacing) theo font_size — khoảng HỞ giữa hai dòng,
+    KHÔNG kể chiều cao chữ. Tiếng Việt VIẾT HOA có dấu chồng 2 tầng (Ữ, Ộ, Ế…) vươn
+    lên trên đỉnh cap, cộng dấu chấm dưới (Ạ, Ộ) tụt dưới baseline → dòng dưới đụng dòng
+    trên khi hở quá hẹp. Mặc định 0.30 (trước 0.14, quá sát); env MIT_LINE_SPACING chỉnh;
+    trần 1.0. PHẢI dùng CHUNG với ước lượng box height ở rendering/__init__ — nếu render
+    giãn rộng mà box ước lượng vẫn hẹp thì warp ÉP dòng chồng lại y như cũ."""
+    try:
+        frac = float(os.environ.get("MIT_LINE_SPACING", "") or 0.30)
+    except (TypeError, ValueError):
+        frac = 0.30
+    if frac < 0:
+        frac = 0.30
+    return min(frac, 1.0)
+
 def get_char_offset_x(font_size: int, cdpt: str):
     c, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 0)
     glyph = get_char_glyph(c, font_size, 0)
@@ -623,6 +657,15 @@ def get_char_offset_x(font_size: int, cdpt: str):
         char_offset_x = glyph.advance.x >> 6
     else:
         char_offset_x = glyph.metrics.horiAdvance >> 6
+    # +tracking (letter-spacing): áp tại điểm chốt → lan ra mọi phép đo của
+    # calc_horizontal (get_string_width, whitespace/hyphen offset, width chốt dòng 912).
+    # Vòng vẽ ở put_text_horizontal cộng ĐÚNG lượng này nên đo↔vẽ luôn khớp.
+    # CHỈ cộng cho glyph CÓ advance > 0: ký tự vô hình (ZWJ U+200D dùng xoá watermark) và
+    # dấu kết hợp (combining) có advance 0 — KHÔNG được tracking, nếu không ZWJ có width
+    # > 0 sẽ phá guard "line_width_list rỗng" của put_text_horizontal → canvas toàn-0 →
+    # add_color cắt còn 0 hàng → chia 0 ở render(). Vòng vẽ cũng gate theo offset_x>0.
+    if char_offset_x > 0:
+        char_offset_x += _letter_spacing_px(font_size)
     return char_offset_x
 
 def get_string_width(font_size: int, text: str):
@@ -1144,7 +1187,7 @@ def put_text_horizontal(font_size: int, text: str, width: int, height: int, alig
     # Giãn dòng cho tiếng Việt: dấu thanh 2 tầng (Ặ, ế, ộ…) tràn lên trên cell glyph,
     # nếu spacing_y ≈ 0 thì dấu dòng dưới chạm chữ dòng trên. Mặc định 0.14×font_size
     # (config.render.line_spacing là int nên không truyền được phân số → chỉnh ở đây).
-    spacing_y = max(int(font_size * (line_spacing or 0.14)), 2)
+    spacing_y = max(int(font_size * (line_spacing or _line_spacing_frac())), 2)
 
     # calc
     # print(width)
@@ -1181,16 +1224,21 @@ def put_text_horizontal(font_size: int, text: str, width: int, height: int, alig
         # print((line_width, pen_line[0], canvas_w))
         # print(0, pen_line, line_text)
 
+        # Tracking (letter-spacing) cộng SAU mỗi ký tự — PHẢI khớp lượng đã cộng trong
+        # get_char_offset_x, nếu không bề rộng vẽ ≠ line_width (đo) → lệch wrap/căn giữa.
+        tracking = _letter_spacing_px(font_size)
         for c in line_text:
             if reversed_direction:
                 cdpt, rot_degree = CJK_Compatibility_Forms_translate(c, 0)
                 glyph = get_char_glyph(cdpt, font_size, 0)
                 offset_x = glyph.metrics.horiAdvance >> 6
-                pen_line[0] -= offset_x
+                pen_line[0] -= offset_x + (tracking if offset_x > 0 else 0)
             # print(1, pen_line, c)
             offset_x = put_char_horizontal(font_size, c, pen_line, canvas_text, canvas_border, border_size=bg_size)
             if not reversed_direction:
-                pen_line[0] += offset_x
+                # Gate tracking theo advance>0 (khớp get_char_offset_x): glyph vô hình/dấu
+                # kết hợp (advance 0) không cộng tracking → đo↔vẽ nhất quán.
+                pen_line[0] += offset_x + (tracking if offset_x > 0 else 0)
         pen_orig[1] += spacing_y + font_size
 
     # colorize
