@@ -939,9 +939,10 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
         dst_points_list[idx] = dp.astype(np.int64).reshape(shp)
 
     n_box = len(dst_points_list)
-    _sep_moves = 0
-    for _ in range(8):
-        moved = False
+
+    def _overlap_pairs():
+        """Các cặp (i, j) CHỒNG nhau > 6% diện tích vùng nhỏ hơn (đọc aabb tươi)."""
+        out = []
         for i in range(n_box):
             for j in range(i + 1, n_box):
                 ax1, ay1, ax2, ay2 = _aabb(dst_points_list[i])
@@ -953,39 +954,78 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
                 amin = min((ax2 - ax1) * (ay2 - ay1), (bx2 - bx1) * (by2 - by1))
                 if amin <= 0 or ox * oy <= 0.06 * amin:
                     continue
-                # ĐẶT theo THỨ TỰ ĐỌC quanh tâm chung: i < j = đọc trước → i sang
-                # TRÁI/TRÊN, j sang PHẢI/DƯỚI. Đặt thẳng (không chỉ nhích) để SỬA cả
-                # khi gốc bị đảo (vd CJK dọc đọc phải→trái: 感觉 ở phải, 如何 ở trái →
-                # phải hoán lại thành "Cảm giác" trái, "thế nào" phải).
-                ci_x, cj_x = (ax1 + ax2) / 2, (bx1 + bx2) / 2
-                ci_y, cj_y = (ay1 + ay2) / 2, (by1 + by2) / 2
-                wi, wj = ax2 - ax1, bx2 - bx1
-                hi, hj = ay2 - ay1, by2 - by1
-                gap = 6
-                if ox <= oy:
-                    cc = (ci_x + cj_x) / 2
-                    _shift(i, (cc - gap / 2 - wi / 2) - ci_x, 0)
-                    _shift(j, (cc + gap / 2 + wj / 2) - cj_x, 0)
-                else:
-                    cc = (ci_y + cj_y) / 2
-                    _shift(i, 0, (cc - gap / 2 - hi / 2) - ci_y)
-                    _shift(j, 0, (cc + gap / 2 + hj / 2) - cj_y)
-                moved = True
-                _sep_moves += 1
-        if not moved:
-            break
-    else:
-        # Sau 8 vòng vẫn còn đè (kẹt mép ảnh) → thu nhỏ các cặp còn chồng.
-        for i in range(n_box):
-            for j in range(i + 1, n_box):
-                ax1, ay1, ax2, ay2 = _aabb(dst_points_list[i])
-                bx1, by1, bx2, by2 = _aabb(dst_points_list[j])
-                ox = min(ax2, bx2) - max(ax1, bx1)
-                oy = min(ay2, by2) - max(ay1, by1)
-                if ox > 0 and oy > 0:
-                    _shrink(i, 0.8); _shrink(j, 0.8)
+                out.append((i, j))
+        return out
 
-    logger.info(f'[separate] {n_box} khối, đã đẩy {_sep_moves} lần để tách đè.')
+    def _push_apart(i, j):
+        # ĐẶT theo THỨ TỰ ĐỌC quanh tâm chung: i < j = đọc trước → i sang TRÁI/TRÊN,
+        # j sang PHẢI/DƯỚI. Đặt thẳng (không chỉ nhích) để SỬA cả khi gốc bị đảo (vd
+        # CJK dọc đọc phải→trái: 感觉 ở phải, 如何 ở trái → hoán "Cảm giác" trái,
+        # "thế nào" phải). Tách theo TRỤC ĐÈ ÍT HƠN (mỗi khối dịch nửa độ chồng).
+        ax1, ay1, ax2, ay2 = _aabb(dst_points_list[i])
+        bx1, by1, bx2, by2 = _aabb(dst_points_list[j])
+        ox = min(ax2, bx2) - max(ax1, bx1)
+        oy = min(ay2, by2) - max(ay1, by1)
+        ci_x, cj_x = (ax1 + ax2) / 2, (bx1 + bx2) / 2
+        ci_y, cj_y = (ay1 + ay2) / 2, (by1 + by2) / 2
+        wi, wj = ax2 - ax1, bx2 - bx1
+        hi, hj = ay2 - ay1, by2 - by1
+        gap = 6
+        if ox <= oy:
+            cc = (ci_x + cj_x) / 2
+            _shift(i, (cc - gap / 2 - wi / 2) - ci_x, 0)
+            _shift(j, (cc + gap / 2 + wj / 2) - cj_x, 0)
+        else:
+            cc = (ci_y + cj_y) / 2
+            _shift(i, 0, (cc - gap / 2 - hi / 2) - ci_y)
+            _shift(j, 0, (cc + gap / 2 + hj / 2) - cj_y)
+
+    # SÀN THU NHỎ: không thu khối quá nhỏ kẻo chữ không đọc được (env
+    # MIT_OVERLAP_SHRINK_FLOOR, mặc định 0.5 = thu tối đa còn 50%; đặt 1.0 = TẮT thu,
+    # chỉ đẩy như cũ). Kẹp trong [0.3, 1.0].
+    try:
+        floor = float(os.environ.get("MIT_OVERLAP_SHRINK_FLOOR", "") or 0.5)
+    except (TypeError, ValueError):
+        floor = 0.5
+    floor = min(1.0, max(0.3, floor))
+
+    _sep_moves = 0
+    _sep_shrinks = 0
+
+    # 1) ĐẨY ra xa trước (giữ nguyên cỡ chữ) — tách sạch khi còn chỗ trống.
+    for _ in range(8):
+        pairs = _overlap_pairs()
+        if not pairs:
+            break
+        for (i, j) in pairs:
+            _push_apart(i, j)
+            _sep_moves += 1
+
+    # 2) ĐẨY không tách hết (kẹt mép ảnh / khối quá to so với chỗ trống) → THU NHỎ
+    # CỠ CHỮ các cặp còn chồng (giảm dần xuống sàn) rồi đẩy lại, lặp đến khi hết đè
+    # hoặc mọi khối đã chạm sàn. Đây là phần "giảm cỡ chữ 2 text gần nhau để khỏi đè".
+    _scale = [1.0] * n_box
+    for _ in range(12):
+        pairs = _overlap_pairs()
+        if not pairs:
+            break
+        shrank = False
+        for (i, j) in pairs:
+            for k in (i, j):
+                if _scale[k] > floor:
+                    _scale[k] *= 0.85
+                    _shrink(k, 0.85)
+                    _sep_shrinks += 1
+                    shrank = True
+        # đẩy lại để dồn phần dư sau khi đã nhỏ đi
+        for (i, j) in _overlap_pairs():
+            _push_apart(i, j)
+            _sep_moves += 1
+        if not shrank:
+            break  # mọi khối còn đè đã chạm sàn → không thu thêm được
+
+    logger.info(
+        f'[separate] {n_box} khối, đẩy {_sep_moves} lần, thu nhỏ {_sep_shrinks} lần để tách đè.')
     return dst_points_list
 
 async def dispatch(

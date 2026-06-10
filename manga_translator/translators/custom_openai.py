@@ -203,6 +203,11 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
 
     # Extra system content appended during Vietnamese retry — reset per prompt batch
     _vi_retry_extra_system: str = ''
+    # Số thứ tự lần retry tiếng Việt hiện tại (0 = lần đầu). Dùng để lệch seed mỗi
+    # lần retry → output thật sự KHÁC nhau, model có cơ hội dịch nốt chữ Hán còn sót
+    # (seed cố định khiến 10 lần retry ra y hệt, vô dụng). Lần đầu vẫn seed cố định
+    # ⇒ giữ tính tái lập cho ca thường.
+    _vi_retry_attempt: int = 0
 
     # ── Cross-page story context ─────────────────────────────────────────────
     # MIT reuses one translator instance for every image in a run, so we keep a
@@ -400,6 +405,7 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
             language_retry_attempt = 0
             request_prompt = prompt
             self._vi_retry_extra_system = ''  # reset per prompt batch
+            self._vi_retry_attempt = 0       # lần đầu dùng seed cố định
             cleaned_translations: List[str] = []
 
             while True:
@@ -506,10 +512,12 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                         # Injecting into user prompt causes weak models to echo the
                         # instructions as translation content, rendering them onto the image.
                         self._vi_retry_extra_system = self._get_vietnamese_retry_system_suffix()
+                        self._vi_retry_attempt = language_retry_attempt  # lệch seed lần này
                         request_prompt = prompt  # keep user message clean
                         continue
 
                 self._vi_retry_extra_system = ''  # clear after successful pass
+                self._vi_retry_attempt = 0
                 break
 
             # ── Post-retry fallback for Vietnamese target ──────────────────────────────
@@ -600,7 +608,10 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
             # marker <|n|> và SFX lặp (hà hà hà…), tránh méo bản dịch.
             s = self._SAMPLING
             temperature, top_p = s["temperature"], s["top_p"]
-            seed = self._SEED
+            # Lần đầu: seed cố định ⇒ tái lập. Khi đang retry tiếng Việt: BỎ seed
+            # (None) để server tự random mỗi lần → output thật sự khác đi, cho model
+            # cơ hội dịch nốt chữ Hán/Anh còn sót (seed cố định khiến retry ra y hệt).
+            seed = None if self._vi_retry_attempt > 0 else self._SEED
             extra_body.update({"top_k": s["top_k"], "min_p": s["min_p"],
                                "repeat_penalty": s["repeat_penalty"]})
         else:
