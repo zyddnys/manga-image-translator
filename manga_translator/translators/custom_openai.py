@@ -20,6 +20,11 @@ _CHINESE_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf]")
 # l\u1ecdt v\u00e0o b\u1ea3n d\u1ecbch hi\u1ec3n th\u1ecb, (b) kh\u00f4ng b\u1ecb b\u1ed9 check ti\u1ebfng Vi\u1ec7t t\u01b0\u1edfng l\u00e0 ti\u1ebfng Anh.
 _TYPE_TAG_RE = re.compile(r"^\s*\[\s*(speech|thought|moan|shout|narration|sfx|anger|fear)\s*\]\s*", re.IGNORECASE)
 
+# Nhãn [cont]: segment là PHẦN SAU của một câu nguồn bị detector cắt thành nhiều
+# vùng — bản dịch TRỌN câu nằm ở segment anchor phía trước (rule 6c system prompt).
+# Bắt cả biến thể [continuation]/[continued]/[cont.].
+_CONT_TAG_RE = re.compile(r"^\s*\[\s*cont[\w.]*\s*\]\s*", re.IGNORECASE)
+
 
 def _region_type_store() -> dict:
     """Dict d\u00f9ng chung gi\u1eefa translator v\u00e0 renderer (c\u00f9ng ti\u1ebfn tr\u00ecnh MIT), kho\u00e1 =
@@ -29,6 +34,18 @@ def _region_type_store() -> dict:
     if d is None:
         d = {}
         _mt._VI_REGION_TYPES = d
+    return d
+
+
+def _region_merge_store() -> dict:
+    """Dict dùng chung translator↔renderer (cùng tiến trình MIT): text gốc của vùng
+    [cont] → text gốc của vùng anchor. Renderer dùng để UNION box các vùng vốn là
+    MỘT câu bị detector cắt đôi. Xoá mỗi trang (như _region_type_store)."""
+    import manga_translator as _mt
+    d = getattr(_mt, "_VI_REGION_MERGES", None)
+    if d is None:
+        d = {}
+        _mt._VI_REGION_MERGES = d
     return d
 # Vietnamese has unique diacritical marks — their presence confirms Vietnamese output
 _VI_DIACRITIC_RE = re.compile(
@@ -390,7 +407,8 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
         translations = []
         self._active_to_lang = to_lang
-        _region_type_store().clear()  # nhãn loại thoại chỉ cho trang hiện tại
+        _region_type_store().clear()   # nhãn loại thoại chỉ cho trang hiện tại
+        _region_merge_store().clear()  # map gộp [cont] cũng chỉ cho trang hiện tại
         if self._DETERMINISTIC:
             self.logger.debug(f'Sampling: reproducible ({self._SAMPLING}, seed={self._SEED})')
         else:
@@ -500,6 +518,39 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                         _src = batch_queries[_i].strip() if _i < len(batch_queries) else ""
                         if _src:
                             _store[_src] = _m.group(1).lower()
+
+                # ── Bóc nhãn [cont]: câu nguồn bị detector cắt thành nhiều segment ──
+                # Model dịch TRỌN câu vào segment anchor (đầu chuỗi) và trả "[cont]"
+                # cho các segment tiếp theo (rule 6c). Ghi map (text cont → text
+                # anchor) để renderer UNION box các vùng, rồi thay segment cont bằng
+                # ZWJ — placeholder vô hình đã được mọi bộ check chấp nhận ('' sẽ
+                # kích retry "translation invalid"). Nhờ map này các bản dịch phía
+                # sau KHÔNG còn bị dồn lệch slot như khi model tự ý gộp.
+                _merges = _region_merge_store()
+                _anchor_i = None
+                for _i in range(len(cleaned_translations)):
+                    _t = cleaned_translations[_i] or ""
+                    _cm = _CONT_TAG_RE.match(_t)
+                    if _cm is not None:
+                        _rest = _t[_cm.end():].strip()
+                        if _rest or _anchor_i is None:
+                            # "[cont] chữ…" (model lệch contract) hoặc [cont] mở đầu
+                            # không có anchor → bỏ nhãn, giữ phần còn lại như bản
+                            # dịch thường (rỗng thì thay ZWJ để khỏi kích retry).
+                            cleaned_translations[_i] = _rest if _rest else "‍"
+                            if _rest:
+                                _anchor_i = _i
+                            continue
+                        _src = batch_queries[_i].strip() if _i < len(batch_queries) else ""
+                        _anchor_src = batch_queries[_anchor_i].strip() if _anchor_i < len(batch_queries) else ""
+                        if _src and _anchor_src and _src != _anchor_src:
+                            _merges[_src] = _anchor_src
+                            self.logger.info(f'[cont] segment {_i + 1} gộp vào segment {_anchor_i + 1} '
+                                             f'(một câu bị cắt đôi).')
+                        cleaned_translations[_i] = "‍"
+                        continue
+                    if _t.strip() and _t.strip() != "‍":
+                        _anchor_i = _i
 
                 if _target_is_vietnamese(to_lang):
                     non_vietnamese = [t for t in cleaned_translations if _needs_vietnamese_retry(t)]

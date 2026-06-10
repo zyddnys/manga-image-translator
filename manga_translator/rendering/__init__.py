@@ -535,6 +535,85 @@ def count_text_length(text: str) -> float:
             length += 1.0
     return length
 
+# Ký tự VÔ HÌNH translator dùng làm placeholder (ZWJ cho watermark đã xoá, [cont]
+# đã gộp…) — translation chỉ gồm những ký tự này nghĩa là "không render gì".
+# (ZWSP, ZWNJ, ZWJ, WORD JOINER, BOM — viết dạng code-point vì literal không nhìn thấy.)
+_INVISIBLE_TRANS = {cp: None for cp in (0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF)}
+
+
+def _meaningful_translation(t) -> bool:
+    """True nếu bản dịch có nội dung THẬT để render. Lọc trước khi tính cỡ chữ —
+    placeholder ZWJ mà lọt qua sẽ được fit cỡ chữ rất to (1 ký tự / box rộng) rồi
+    kéo lệch median của bước đồng bộ cỡ chữ toàn trang + tốn lượt render thừa."""
+    if not t:
+        return False
+    try:
+        return bool(str(t).translate(_INVISIBLE_TRANS).strip())
+    except Exception:
+        return True
+
+
+def _merge_cont_regions(text_regions):
+    """UNION vùng [cont] vào vùng anchor của nó.
+
+    Một câu nguồn bị detector cắt thành nhiều vùng → LLM dịch TRỌN câu vào segment
+    đầu (anchor) và đánh dấu các segment sau là [cont] (rule 6c trong system prompt).
+    Translator ghi map (text cont → text anchor) ở manga_translator._VI_REGION_MERGES.
+    Ở đây: nối lines của vùng cont vào anchor + xoá cache hình học (cached_property)
+    → box anchor phình ra ôm đủ chỗ câu gộp; vùng cont bị xoá translation để bước
+    lọc phía sau loại khỏi render. Không có map / lỗi → giữ nguyên (an toàn)."""
+    try:
+        import manga_translator as _mt
+        merges = getattr(_mt, "_VI_REGION_MERGES", None)
+    except Exception:
+        return
+    if not merges:
+        return
+    by_text = {}
+    for r in text_regions:
+        key = (getattr(r, 'text', '') or '').strip()
+        if key and key not in by_text:
+            by_text[key] = r
+    geom_cache = ('xyxy', 'xywh', 'center', 'unrotated_polygons', 'unrotated_min_rect',
+                  'min_rect', 'polygon_aspect_ratio', 'unrotated_size', 'aspect_ratio')
+    for cont_key, anchor_key in merges.items():
+        cont = by_text.get(cont_key)
+        anchor = by_text.get(anchor_key)
+        if cont is None or anchor is None or cont is anchor:
+            continue
+        try:
+            anchor.lines = np.concatenate(
+                [np.asarray(anchor.lines), np.asarray(cont.lines)], axis=0)
+            # Nối cả texts: used_rows / expansion_ratio tính theo câu nguồn ĐẦY ĐỦ.
+            anchor.texts = list(anchor.texts) + list(cont.texts)
+            for prop in geom_cache:
+                anchor.__dict__.pop(prop, None)
+            cont.translation = ''
+            logger.info(f'[merge-cont] union vùng "{cont_key[:14]}…" vào "{anchor_key[:14]}…" '
+                        f'(một câu bị detector cắt đôi).')
+        except Exception:
+            continue
+
+
+def _bubble_max_fit(region, bub_in, lang: str, fs_start: int) -> int:
+    """Cỡ chữ LỚN NHẤT ≤ fs_start mà bản dịch (wrap nhiều dòng) vừa ruột bóng bub_in.
+    Dùng chung cho bubble-fit trong vòng chính lẫn bước đồng bộ cỡ chữ toàn trang."""
+    ix1, iy1, ix2, iy2 = bub_in[:4]
+    bw = max(8, ix2 - ix1)
+    bh = max(8, iy2 - iy1)
+    fs = max(1, int(fs_start))
+    while fs > 1:
+        lns, wds = text_render.calc_horizontal(
+            fs, region.translation, max_width=bw, max_height=bh, language=lang)
+        n = max(1, len(lns))
+        tw = int(max(wds)) if wds else 0
+        th = int(n * fs + (n - 1) * fs * text_render._line_spacing_frac())
+        if tw <= bw and th <= bh:
+            break
+        fs -= 1
+    return max(1, fs)
+
+
 def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock'], font_size_fixed: int, font_size_offset: int, font_size_minimum: int):
     """
     Adjust font size to fit translated text within the original speech bubble bbox.
@@ -772,21 +851,7 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
                 # ≤ target (cỡ tự nhiên) mà chữ vừa ruột bóng; cho phép GIẢM xuống dưới
                 # min nếu bóng nhỏ. (Font min chỉ là SÀN cho chữ NGOÀI bóng/artwork.)
                 try:
-                    _ix1, _iy1, _ix2, _iy2 = bub_in[:4]
-                    _bw = max(8, _ix2 - _ix1)
-                    _bh = max(8, _iy2 - _iy1)
-                    fit_fs = max(1, int(target_font_size))
-                    while fit_fs > 1:
-                        _lns, _wds = text_render.calc_horizontal(
-                            fit_fs, region.translation,
-                            max_width=_bw, max_height=_bh, language=lang)
-                        _n = max(1, len(_lns))
-                        _tw = int(max(_wds)) if _wds else 0
-                        _th = int(_n * fit_fs + (_n - 1) * fit_fs * text_render._line_spacing_frac())
-                        if _tw <= _bw and _th <= _bh:
-                            break
-                        fit_fs -= 1
-                    target_font_size = max(1, fit_fs)
+                    target_font_size = _bubble_max_fit(region, bub_in, lang, target_font_size)
                     dst_points = _centered_text_block(
                         target_font_size, region.translation, bub_in, lang,
                         img.shape[1], img.shape[0])
@@ -875,21 +940,66 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
         dst_points_list.append(dst_points)
         region.font_size = int(target_font_size)
 
-    # ── Chuẩn hoá cỡ chữ toàn trang (lưu ý 3: chữ to chữ nhỏ chênh lệch) ──
-    # Ghìm các vùng có cỡ chữ to bất thường về gần trung vị để cả trang đỡ chênh.
-    # CHỈ thu NHỎ (không phóng to) → an toàn, không gây tràn bong bóng. Cho phép
-    # vẫn lớn hơn trung vị 25% để thoại hét/nhấn mạnh vẫn nổi bật.
-    sizes = [r.font_size for r in text_regions if r.font_size > 0]
-    if len(sizes) >= 3:
-        med = float(np.median(sizes))
-        cap = max(int(round(med * 0.95)), max(1, font_size_minimum))
-        n_capped = 0
+    # ── Đồng bộ cỡ chữ BODY theo nhóm toàn trang (lưu ý 3: chữ to chữ nhỏ chênh) ──
+    # Per-region auto-fit cho mỗi vùng MỘT cỡ tuỳ box dò được → cùng là thoại/dẫn
+    # truyện mà chữ to chữ nhỏ lộn xộn. Chuẩn typesetting: MỘT cỡ body cho cả trang.
+    #   • body (thoại/dẫn/suy nghĩ/rên/sợ): kéo VỀ CÙNG cỡ = median nhóm — vùng tự
+    #     do dựng lại box theo cỡ mới (lên/xuống đều được), vùng trong bóng chỉ lên
+    #     tới mức còn vừa ruột bóng.
+    #   • bóng dò được mà phải ép XUỐNG DƯỚI font_min mới vừa → coi là bóng ẢO
+    #     (floodfill/canny vớ nhầm trên nền trống — vd trang nền đen) hoặc bóng
+    #     không chứa nổi câu → CỨU: bỏ bubble-fit, free-scale ở cỡ nhóm (box tự nới).
+    #   • sfx/hét/giận: to nhỏ là chủ ý nghệ thuật — để tự do, chỉ ghìm trần lỏng
+    #     1.8× cỡ nhóm để chống outlier vô lý.
+    _BODY_KINDS = {'normal', 'narration', 'thought', 'moan', 'fear'}
+    jobs_by_region = {id(_r): _k for _k, (_idx, _r, _bub, _lng) in enumerate(bubble_jobs)}
+    body_regions = []
+    for r in text_regions:
+        r._font_kind = _classify_region(r)  # cache — dispatch() dùng lại khi chọn font
+        if r._font_kind in _BODY_KINDS and r.font_size > 0:
+            body_regions.append(r)
+    if len(body_regions) >= 2:
+        fs_min = max(1, font_size_minimum)
+        sizes = [r.font_size for r in body_regions]
+        # Median trên các cỡ "lành" (≥ font_min) — cỡ tí hon từ bóng ảo/box lỗi
+        # không được phép kéo sập chuẩn của cả trang.
+        healthy = [s for s in sizes if s >= fs_min] or sizes
+        target = max(fs_min, int(round(float(np.median(healthy)))))
+        n_up = n_down = n_rescue = 0
+        for r in body_regions:
+            k = jobs_by_region.get(id(r))
+            if k is None:
+                # Không có job dựng lại box (nhánh nới-cao / min_rect fallback) →
+                # chỉ ghìm xuống như trước; nâng lên mà không nới box thì warp lại
+                # co chữ về cỡ box, không ăn.
+                if r.font_size > target:
+                    r.font_size = target
+                    n_down += 1
+                continue
+            _idx, _reg, _bub, _lng = bubble_jobs[k]
+            if _bub is None:
+                # Chữ tự do: box dựng lại theo fs → kéo thẳng về cỡ nhóm.
+                n_up += int(r.font_size < target)
+                n_down += int(r.font_size > target)
+                r.font_size = target
+            else:
+                fit = _bubble_max_fit(_reg, _bub, _lng, target)
+                if fit < fs_min:
+                    # Bóng ảo / bóng quá bé: dưới cả cỡ đọc tối thiểu → cứu.
+                    bubble_jobs[k] = (_idx, _reg, None, _lng)
+                    r.font_size = target
+                    n_rescue += 1
+                else:
+                    n_up += int(fit > r.font_size)
+                    n_down += int(fit < r.font_size)
+                    r.font_size = fit
+        loose_cap = int(target * 1.8)
         for r in text_regions:
-            if r.font_size > cap:
-                r.font_size = cap
-                n_capped += 1
-        if n_capped:
-            logger.info(f'[font-normalize] median={med:.0f} cap={cap} → ghìm {n_capped} vùng chữ to.')
+            if getattr(r, '_font_kind', None) not in _BODY_KINDS and r.font_size > loose_cap:
+                r.font_size = loose_cap
+                n_down += 1
+        logger.info(f'[font-normalize] body target={target} ({len(body_regions)} vùng) '
+                    f'→ nâng {n_up}, ghìm {n_down}, cứu {n_rescue} bóng ảo.')
 
     # Tính LẠI khối chữ bằng cỡ chữ ĐÃ CAP (để cap có hiệu lực thật: dst_points
     # quyết định cỡ hiển thị qua warp, nên phải dựng lại theo fs mới).
@@ -1042,7 +1152,13 @@ async def dispatch(
     ) -> np.ndarray:
 
     text_render.set_font(font_path)
-    text_regions = list(filter(lambda region: region.translation, text_regions))
+    # Gộp các vùng [cont] (một câu nguồn bị detector cắt thành nhiều vùng) TRƯỚC
+    # khi lọc — vùng cont phải còn mặt ở đây để union hình học vào vùng anchor.
+    _merge_cont_regions(text_regions)
+    # Bỏ vùng không có gì để render: rỗng hoặc chỉ gồm ký tự vô hình (ZWJ translator
+    # trả cho watermark/[cont]). Không lọc → chúng được fit cỡ chữ to (1 ký tự /
+    # box rộng) kéo lệch chuẩn cỡ chữ toàn trang + tốn lượt render thừa.
+    text_regions = [r for r in text_regions if _meaningful_translation(r.translation)]
 
     # Resize regions that are too small
     dst_points_list = resize_regions_to_font_size(img, text_regions, font_size_fixed, font_size_offset, font_size_minimum)
@@ -1058,7 +1174,8 @@ async def dispatch(
             # set render_mask to 1 for the region that is inside dst_points
             cv2.fillConvexPoly(render_mask, dst_points.astype(np.int32), 1)
         # Đổi font theo loại thoại trước khi render vùng này (get_cached_font cache nên rẻ).
-        kind = _classify_region(region)
+        # Ưu tiên kind đã phân loại ở bước đồng bộ cỡ chữ (nhất quán size ↔ font).
+        kind = getattr(region, '_font_kind', None) or _classify_region(region)
         chosen_font = font_map.get(kind, font_path)
         text_render.set_font(chosen_font)
         logger.info(f'[font] "{(region.get_translation_for_rendering() or "")[:16]}" '
