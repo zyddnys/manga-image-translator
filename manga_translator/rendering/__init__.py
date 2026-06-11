@@ -190,6 +190,32 @@ def _bubble_interior_rect(img: np.ndarray, region) -> list | None:
         return None
     if (ix2 - ix1) * (iy2 - iy1) > tw * th * 12:
         return None
+    # Bóng to bất thường so với CẢ TRANG → không phải bong bóng thoại. Trang nền
+    # đen toàn chữ (trang dẫn truyện): flood phủ trọn nền đen rồi dừng ở LỀ TRẮNG
+    # mép trang — biên có tương phản thật nên ring-check bên dưới không bắt được,
+    # phải chặn bằng kích thước. Bong bóng thật hiếm khi vượt 1/3 trang hay trải
+    # dài 3/4 bề cao/bề rộng trang (slab nền đen thường cao gần trọn trang).
+    if (ix2 - ix1) * (iy2 - iy1) > 0.35 * (W * H):
+        return None
+    if (ix2 - ix1) > 0.75 * W or (iy2 - iy1) > 0.75 * H:
+        return None
+
+    # ── Chặn BÓNG ẢO: biên flood phải là VIỀN MỰC thật ─────────────────────────
+    # Trang nền đen/nền phẳng (vd trang dẫn truyện toàn chữ): flood dừng ở nhiễu
+    # JPEG chứ không phải viền bóng → rect bắt được là NGẪU NHIÊN → bubble-fit bóp
+    # chữ Việt thành tháp hẹp + neo sai chỗ. Viền bóng thật luôn TƯƠNG PHẢN rõ với
+    # ruột (nét mực tối quanh ruột trắng / viền sáng quanh burst đen); nhiễu thì
+    # vành ngoài ≈ ruột. Vành = dilate(filled) − filled (2-3px sát biên flood).
+    try:
+        _ring = cv2.dilate(filled, np.ones((3, 3), np.uint8), iterations=2)
+        _ring = (_ring > 0) & (filled == 0)
+        if int(_ring.sum()) >= 32:
+            _inner_mean = float(gray[filled > 0].mean())
+            _ring_mean = float(gray[_ring].mean())
+            if abs(_inner_mean - _ring_mean) < 18.0:
+                return None
+    except Exception:
+        pass
 
     # ── Phân loại HÌNH DẠNG bong bóng (để chọn font) ──────────────────────────
     # rect (khung dẫn truyện): diện-tích/bbox cao (~0.9+); oval ~0.78.
@@ -283,6 +309,24 @@ def _bubble_border_rect(img: np.ndarray, region) -> list | None:
     if best is None:
         return None
     _, (bx, by, bbw, bbh), c = best
+    # Trần kích thước theo TRANG (đồng bộ _bubble_interior_rect): bóng thật không
+    # chiếm quá 1/3 trang hay trải 3/4 bề cao/bề rộng trang.
+    if bbw * bbh > 0.35 * (W * H) or bbw > 0.75 * W or bbh > 0.75 * H:
+        return None
+    # Viền phải là NÉT MỰC thật: ruột contour vs pixel TRÊN đường viền phải tương
+    # phản rõ. Cạnh GIẢ (mép blotch inpaint / vệt nén trên nền đen) chênh chỉ vài
+    # mức xám → loại, kẻo chữ bị bubble-fit vào khung ngẫu nhiên.
+    try:
+        m_in = np.zeros(gray.shape, np.uint8)
+        cv2.drawContours(m_in, [c], -1, 255, -1)
+        m_line = np.zeros(gray.shape, np.uint8)
+        cv2.drawContours(m_line, [c], -1, 255, 3)
+        m_inner = (m_in > 0) & (m_line == 0)
+        if int(m_inner.sum()) >= 64 and int((m_line > 0).sum()) >= 32:
+            if abs(float(gray[m_inner].mean()) - float(gray[m_line > 0].mean())) < 18.0:
+                return None
+    except Exception:
+        pass
     ix1, iy1, ix2, iy2 = bx + wx1, by + wy1, bx + bbw + wx1, by + bbh + wy1
 
     # Phân loại HÌNH DẠNG (giống _bubble_interior_rect, dùng để chọn font).
@@ -389,6 +433,26 @@ def _scaled_box_for_floor(region, font_size: int, img: np.ndarray):
         lang = getattr(region, "target_lang", "en_US")
         line_h = font_size * (1.0 + text_render._line_spacing_frac())  # khớp spacing_y ở put_text_horizontal
         Wimg, Himg = img.shape[1], img.shape[0]
+
+        # ── LÀN CỘT (trang free-text CJK dọc, đọc trên→dưới phải→trái) ────────
+        # Khối Việt giữ NGUYÊN làn cột gốc: rộng ≈ bề rộng cột (sàn ~3.2 cỡ chữ
+        # để chứa được từ dài), NEO ĐỈNH cột + tâm-x cột → các cột giữ đúng vị
+        # trí và thứ tự phải→trái như bản gốc, không phình thành khối ngang to
+        # đè cột bên cạnh (đè nhau → _separate_blocks xáo hết vị trí).
+        if getattr(region, '_col_keep', False):
+            lane = min(0.45 * Wimg, max(ow, font_size * 3.2))
+            lines, widths = text_render.calc_horizontal(
+                font_size, region.translation,
+                max_width=int(lane), max_height=int(0.92 * Himg), language=lang)
+            n = max(1, len(lines))
+            bw = max(8.0, min(lane, float(max(widths)) if widths else lane))
+            bh = max(8.0, min(0.92 * Himg, n * line_h + line_h * 0.14))
+            poly = affinity.scale(poly0, xfact=bw / ow, yfact=bh / oh,
+                                  origin=(minx + ow / 2.0, miny))
+            logger.info(f'[col-keep] "{region.get_translation_for_rendering()[:18]}" '
+                        f'cột {int(ow)}×{int(oh)} → làn {int(bw)}×{int(bh)} '
+                        f'neo đỉnh, {n} dòng')
+            return _finalize_scaled_poly(poly, region, img, Wimg, Himg)
 
         # ── Nới ngang vùng DỌC HẸP (tuỳ chọn) ────────────────────────────────
         # Box HẸP CHIỀU RỘNG (bề cao ≥ _NARROW_RATIO × bề rộng — xem _is_narrow_region).
@@ -593,6 +657,28 @@ def _merge_cont_regions(text_regions):
         if cont is None or anchor is None or cont is anchor:
             continue
         try:
+            # CHỈ union hình học khi 2 vùng THẬT SỰ KỀ NHAU (câu bị detector cắt
+            # giữa chừng). Cặp merge nằm XA nhau (vd 2 nửa câu ở 2 panel khác nhau)
+            # mà union thì box anchor phình thành dải dài xuyên panel → khối chữ
+            # rơi đúng GIỮA dải, đè lên artwork/nhân vật. Khi xa: GIỮ box anchor,
+            # câu gộp render tại CHỖ anchor; chỗ cont đã inpaint sạch, bỏ trống.
+            ax1, ay1, ax2, ay2 = [float(v) for v in anchor.xyxy]
+            cx1, cy1, cx2, cy2 = [float(v) for v in cont.xyxy]
+            gap_x = max(0.0, max(ax1, cx1) - min(ax2, cx2))
+            gap_y = max(0.0, max(ay1, cy1) - min(ay2, cy2))
+            # Ngưỡng "kề": 1.5× cạnh NGẮN của box nhỏ hơn (≈ bề dày dòng/cột chữ,
+            # tỉ lệ theo cỡ chữ thật), sàn 30px. Cột/cạnh dòng kề nhau luôn lọt;
+            # 2 nhãn ở 2 panel cách cả nghìn px thì không.
+            near_thr = max(30.0, 1.5 * min(
+                min(ax2 - ax1, ay2 - ay1), min(cx2 - cx1, cy2 - cy1)))
+            if max(gap_x, gap_y) > near_thr:
+                # Vẫn nối texts để expansion_ratio tính trên câu nguồn ĐẦY ĐỦ.
+                anchor.texts = list(anchor.texts) + list(cont.texts)
+                cont.translation = ''
+                logger.info(f'[merge-far] "{cont_key[:14]}…" cách "{anchor_key[:14]}…" '
+                            f'{int(max(gap_x, gap_y))}px (> ngưỡng {int(near_thr)}) — '
+                            f'render câu gộp tại vùng anchor, KHÔNG union box.')
+                continue
             anchor.lines = np.concatenate(
                 [np.asarray(anchor.lines), np.asarray(cont.lines)], axis=0)
             # Nối cả texts: used_rows / expansion_ratio tính theo câu nguồn ĐẦY ĐỦ.
@@ -795,8 +881,13 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
                     # vệt mực splash.
                     _nwords = len((region.translation or '').split())
                     if oh_ >= 3 * ow_ and _nwords >= 6:
+                        # Trang FREE-TEXT CJK dọc (đọc trên→dưới, PHẢI→TRÁI): giữ
+                        # LÀN cột gốc — khối Việt hẹp, neo ĐỈNH cột, tâm-x giữ
+                        # nguyên (xem nhánh _col_keep trong _scaled_box_for_floor)
+                        # → giữ đúng thứ tự đọc phải→trái, không choán chỗ cột bên.
+                        region._col_keep = True
                         logger.info(f'[box-fit-skip] "{(region.get_translation_for_rendering() or "")[:18]}" '
-                                    f'cột {ow_}x{oh_} + {_nwords} từ → khối ngang free-scale')
+                                    f'cột {ow_}x{oh_} + {_nwords} từ → làn cột (col-keep)')
                     else:
                         if oh_ > ow_:
                             # Cột DỌC-HẸP (CJK dọc): chữ Việt chạy ngang bị bề rộng cột
@@ -1161,6 +1252,9 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
         # j sang PHẢI/DƯỚI. Đặt thẳng (không chỉ nhích) để SỬA cả khi gốc bị đảo (vd
         # CJK dọc đọc phải→trái: 感觉 ở phải, 如何 ở trái → hoán "Cảm giác" trái,
         # "thế nào" phải). Tách theo TRỤC ĐÈ ÍT HƠN (mỗi khối dịch nửa độ chồng).
+        # NGOẠI LỆ cột free-text (_col_keep): trang CJK dọc đọc PHẢI→TRÁI có chủ
+        # đích — giữ TƯƠNG QUAN HÌNH HỌC hiện có (khối đang bên nào tách về bên
+        # đó), KHÔNG ép theo thứ tự đọc kẻo lật layout phải→trái thành trái→phải.
         ax1, ay1, ax2, ay2 = _aabb(dst_points_list[i])
         bx1, by1, bx2, by2 = _aabb(dst_points_list[j])
         ox = min(ax2, bx2) - max(ax1, bx1)
@@ -1170,6 +1264,17 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
         wi, wj = ax2 - ax1, bx2 - bx1
         hi, hj = ay2 - ay1, by2 - by1
         gap = 6
+        try:
+            keep_geom = (getattr(text_regions[i], '_col_keep', False)
+                         and getattr(text_regions[j], '_col_keep', False))
+        except Exception:
+            keep_geom = False
+        if keep_geom:
+            # Hoán vai để "i" luôn là khối đang ở TRÁI/TRÊN theo hình học.
+            if (ox <= oy and ci_x > cj_x) or (ox > oy and ci_y > cj_y):
+                i, j = j, i
+                ci_x, cj_x, ci_y, cj_y = cj_x, ci_x, cj_y, ci_y
+                wi, wj, hi, hj = wj, wi, hj, hi
         if ox <= oy:
             cc = (ci_x + cj_x) / 2
             _shift(i, (cc - gap / 2 - wi / 2) - ci_x, 0)

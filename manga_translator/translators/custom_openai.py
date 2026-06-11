@@ -129,10 +129,22 @@ def _expand_merged_translations(orig_queries: List[str], groups: List[List[int]]
     expanded = ['‍'] * len(orig_queries)
     for g, tr in zip(groups, translations):
         a = g[0]
-        expanded[a] = tr
         anchor_key = (orig_queries[a] or '').strip()
         if len(g) > 1:
             merged_key = ''.join((orig_queries[j] or '').strip() for j in g)
+            if (tr or '').strip() == merged_key:
+                # Fallback "giữ nguyên gốc" ([title] nghi nhầm / không dịch được):
+                # trả MỖI vùng đúng text gốc CỦA NÓ → MIT thấy dịch == gốc, bỏ qua
+                # inpaint, chữ thư pháp gốc còn nguyên. KHÔNG ghi map merge — nếu
+                # ghi, anchor nhận chuỗi GỘP (≠ text vùng) sẽ bị inpaint rồi render
+                # lại chữ Hán bằng font Việt, còn vùng cont bị xoá trắng.
+                for j in g:
+                    expanded[j] = orig_queries[j]
+                logger.info(f'[merge-llm] segments {[k + 1 for k in g]} giữ nguyên '
+                            f'chữ gốc (không dịch) — bỏ union, không inpaint.')
+                continue
+        expanded[a] = tr
+        if len(g) > 1:
             if anchor_key and merged_key in _types:
                 _types[anchor_key] = _types[merged_key]
             for j in g[1:]:
@@ -274,6 +286,29 @@ def _clean_watermark_fragments(text: str) -> str:
     if _contains_watermark_text(text):
         return ""
     return _strip_generation_artifacts(text)
+
+
+# Dấu hiệu TIÊU ĐỀ/TRANG TRÍ thật: Latin/số (cả fullwidth), ngoặc, marker chương
+# (第/章/话/回/卷/期). Chuỗi Hán THUẦN không có các dấu hiệu này có thể là LỜI DẪN
+# viết thư pháp bị model dán nhầm nhãn [title] — không được phép xoá.
+_TITLE_DECOR_RE = re.compile(
+    r"[A-Za-z0-9０-９Ａ-Ｚａ-ｚ()（）\[\]【】"
+    r"《》〈〉#＃*＊·•:：]"
+    r"|第|章|话|話|回|卷|期"
+)
+
+
+def _title_safe_to_erase(text: str) -> bool:
+    """[title] chỉ CHẮC CHẮN là trang trí (được xoá khỏi ảnh) khi nguồn mang dấu
+    hiệu tiêu đề: Latin/số/ngoặc/số chương, hoặc chuỗi rác OCR rất dài. Câu Hán
+    thuần ngắn (vd "于逆星之下举起义旗") có thể là lời dẫn cảnh bị phân loại nhầm
+    → trả False: GIỮ NGUYÊN chữ gốc thay vì xoá mất nội dung truyện."""
+    t = (text or "").strip()
+    if not t:
+        return True
+    if len(t) >= 16:  # chuỗi rác OCR dài — lời dẫn thật hiếm khi dài cỡ này mà bị gán [title]
+        return True
+    return bool(_TITLE_DECOR_RE.search(t))
 
 
 def _target_is_vietnamese(to_lang: str) -> bool:
@@ -707,7 +742,17 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                         # [title] = ti\u00eau \u0111\u1ec1/ch\u1eef trang tr\u00ed/con d\u1ea5u \u2014 OCR c\u1ee7a ch\u1eef c\u00e1ch
                         # \u0111i\u1ec7u th\u01b0\u1eddng l\u00e0 chu\u1ed7i r\u00e1c, "b\u1ea3n d\u1ecbch" ch\u1ec9 ra ch\u1eef to v\u00f4 ngh\u0129a
                         # \u0111\u00e8 artwork \u2192 xo\u00e1 nh\u01b0 watermark, k\u1ec3 c\u1ea3 khi model l\u1ee1 k\u00e8m d\u1ecbch.
-                        cleaned_translations[i] = "\u200d"
+                        # NH\u01afNG model hay d\u00e1n nh\u1ea7m [title] cho L\u1edcI D\u1eaaN vi\u1ebft th\u01b0 ph\u00e1p
+                        # (vd "\u4e8e\u9006\u661f\u4e4b\u4e0b\u4e3e\u8d77\u4e49\u65d7" b\u1ecb xo\u00e1 tr\u1eafng m\u1ea5t n\u1ed9i dung truy\u1ec7n).
+                        # Ngu\u1ed3n KH\u00d4NG c\u00f3 d\u1ea5u hi\u1ec7u ti\u00eau \u0111\u1ec1 \u2192 GI\u1eee NGUY\u00caN ch\u1eef g\u1ed1c tr\u00ean
+                        # \u1ea3nh (thi\u1ebfu b\u1ea3n d\u1ecbch v\u1eabn h\u01a1n xo\u00e1 m\u1ea5t ch\u1eef).
+                        if _title_safe_to_erase(src):
+                            cleaned_translations[i] = "\u200d"
+                        else:
+                            self.logger.warning(
+                                f'[title] cho segment {i} nh\u01b0ng ngu\u1ed3n "{src.strip()[:20]}" '
+                                f'tr\u00f4ng nh\u01b0 c\u00e2u c\u00f3 ngh\u0129a \u2014 gi\u1eef ch\u1eef g\u1ed1c, kh\u00f4ng xo\u00e1.')
+                            cleaned_translations[i] = src
                     elif _is_effectively_empty(cleaned_translations[i]):
                         # Model tr\u1ea3 r\u1ed7ng/ch\u1ec9-d\u1ea5u ("[]", "[.]", "\u3010\u3011"\u2026) \u2192 xo\u00e1 h\u1eb3n b\u1eb1ng ZWJ
                         # (v\u00f9ng \u0111\u01b0\u1ee3c inpaint, KH\u00d4NG render r\u00e1c). Tr\u00e1nh "[.]"\u2192"\u3010.\u3011" tr\u00ean \u1ea3nh.
