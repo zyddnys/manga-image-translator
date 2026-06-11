@@ -143,9 +143,15 @@ def compact_special_symbols(text: str) -> str:
     # NH\u00ccN TH\u1ea4Y \u0111\u01b0\u1ee3c. (Tr\u01b0\u1edbc \u0111\u00e2y xo\u00e1 '.' cu\u1ed1i \u2192 c\u00e2u tr\u1ea7n thu\u1eadt m\u1ea5t h\u1eb3n d\u1ea5u ch\u1ea5m;
     # c\u1ed9ng v\u1edbi vi\u1ec7c "\u2026" l\u00e0 glyph r\u1ed7ng \u1edf v\u00e0i font n\u00ean ellipsis c\u0169ng bi\u1ebfn m\u1ea5t. Nay
     # "\u2026" \u0111\u00e3 \u0111\u01b0\u1ee3c \u0111\u1ed5i th\u00e0nh "..." \u1edf tr\u00ean \u0111\u1ec3 hi\u1ec7n b\u1eb1ng glyph period.)
-    # Remove half-width and full-width spaces after each punctuation mark
-    pattern = r'([^\w\s])[ \u3000]+'
+    # CH\u1ec8 xo\u00e1 kho\u1ea3ng tr\u1eafng sau d\u1ea5u c\u00e2u FULLWIDTH CJK (vd "\u3002 " OCR th\u1eeba space).
+    # KH\u00d4NG \u0111\u1ee5ng d\u1ea5u ASCII: ti\u1ebfng Vi\u1ec7t c\u1ea7n gi\u1eef space sau , . \u2026 \u2014 xo\u00e1 l\u00e0 hai t\u1eeb
+    # d\u00ednh th\u00e0nh M\u1ed8T token ("mu\u1ed1n... ngoan" \u2192 "mu\u1ed1n...ngoan") m\u00e0 wrapper t\u00e1ch t\u1eeb
+    # theo kho\u1ea3ng tr\u1eafng kh\u00f4ng b\u1ebb \u0111\u01b0\u1ee3c \u2192 d\u00f2ng l\u1edfm ch\u1edfm ("KH\u00d4NG" \u0111\u1ee9ng m\u1ed9t m\u00ecnh)
+    # + ch\u1eef tr\u00ean \u1ea3nh m\u1ea5t space ("ch\u1ee7 l\u1ef1c,nh\u01b0ng").
+    pattern = r'([\u3000-\u303f\uff00-\uffef])[ \u3000]+'
     text = re.sub(pattern, r'\1', text)
+    # Sau d\u1ea5u ASCII: kho\u1ea3ng tr\u1eafng L\u1eb6P \u2192 m\u1ed9t space (gi\u1eef t\u00e1ch t\u1eeb, ch\u1ec9 d\u1ecdn r\u00e1c OCR).
+    text = re.sub(r'([^\w\s])[ \u3000]{2,}', r'\1 ', text)
     return text
     
 def rotate_image(image, angle):
@@ -313,6 +319,9 @@ def get_char_border(cdpt: str, font_size: int, direction: int):
 #         return face.get_kerning(face.get_char_index(prev), face.get_char_index(cdpt))
 
 def calc_vertical(font_size: int, text: str, max_height: int):
+    # Compact tại điểm chốt (idempotent) — đồng bộ chuỗi giữa nhánh ĐO ở
+    # rendering/__init__ và nhánh VẼ put_text_vertical (xem calc_horizontal).
+    text = compact_special_symbols(text)
     line_text_list = []
     # line_width_list = []
     line_height_list = []
@@ -676,6 +685,11 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
     Splits up a string of text into lines. Returns list of lines and their widths.
     Will go over max_height if too much text is present.
     """
+    # Compact NGAY TẠI ĐÂY (idempotent) để các nhánh ĐO ở rendering/__init__
+    # (fit-loop, _bubble_max_fit, _centered_text_block…) thấy ĐÚNG chuỗi sẽ vẽ —
+    # trước đây chỉ put_text_horizontal compact ("…"→"...", dọn space) nên đo
+    # ra 4 dòng mà vẽ ra 5 dòng, khối chữ bị warp ép méo.
+    text = compact_special_symbols(text)
     max_width = max(max_width, 2 * font_size)
 
     whitespace_offset_x = get_char_offset_x(font_size, ' ')
