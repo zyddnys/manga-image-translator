@@ -444,18 +444,22 @@ def _scaled_box_for_floor(region, font_size: int, img: np.ndarray):
             poly = affinity.scale(poly0, xfact=bw / ow, yfact=bh / oh, origin='center')
             return _finalize_scaled_poly(poly, region, img, Wimg, Himg)
 
-        # ── Vùng cao hơn rộng nhưng CHƯA đủ hẹp (ratio < 3) → FREE SCALE giữ tỉ lệ ──
-        # Trần hệ số phóng: vừa không phình vô hạn (4×), vừa KHÔNG vượt ~0.9 kích thước
-        # ẢNH ở mỗi chiều (chống TRÀN mép — vd dải mảnh-cao phóng to thành cột kín ảnh).
-        # max(1.0,…) để không bao giờ thu nhỏ dưới ô gốc.
+        # ── Vùng cao hơn rộng nhưng CHƯA đủ hẹp → tìm "làn" vừa chữ rồi dựng hộp ──
+        # Vòng k chỉ để TÌM bề rộng làn (≤4× ô gốc, ≤0.9 ảnh) mà chữ wrap vừa ở
+        # font_size — KHÔNG dùng ô-gốc-phóng-to làm hộp nữa.
         k_img = min((0.90 * Wimg) / ow, (0.90 * Himg) / oh)
         CAP = max(1.0, min(4.0, k_img))
-        xfact = yfact = CAP  # trần — không phình vô hạn / không tràn ảnh
+        best_tw, best_th = None, None
         for k in (1.0, 1.2, 1.5, 1.8, 2.0, 2.5, 3.0, 3.5, 4.0):
             if k > CAP:
                 break
             sw, sh = ow * k, oh * k
             if region.horizontal:
+                # LÀN TỐI THIỂU cho chữ NGANG: cột CJK gốc rất hẹp (60-120px) làm
+                # câu Việt wrap 1-2 từ/dòng thành "tháp" khó đọc. Cho làn rộng ít
+                # nhất ~6 cỡ chữ (≈4-5 từ/dòng), trần 0.9 ảnh. Chữ DỌC giữ nguyên
+                # (tháp là đúng hướng đọc dọc).
+                sw = min(0.90 * Wimg, max(sw, font_size * 6.0))
                 lines, widths = text_render.calc_horizontal(
                     font_size, region.translation,
                     max_width=int(sw), max_height=int(sh), language=lang)
@@ -466,11 +470,18 @@ def _scaled_box_for_floor(region, font_size: int, img: np.ndarray):
                     font_size, region.translation, max_height=int(sh))
                 tw = len(lines) * line_h   # mỗi cột rộng ~font_size (+spacing)
                 th = max(heights) if heights else 0
+            best_tw, best_th = tw, th
             if tw <= sw and th <= sh:
-                xfact = yfact = k
                 break
 
-        poly = affinity.scale(poly0, xfact=xfact, yfact=yfact, origin='center')
+        # Hộp = KÍCH THƯỚC THẬT của khối chữ ở font_size (KHÔNG giữ ô gốc to):
+        # render() warp chữ LẤP ĐẦY hộp — cột CJK gốc thường RỘNG/CAO hơn khối chữ
+        # Việt tự nhiên, giữ nguyên ô gốc sẽ THỔI cỡ hiển thị vượt xa fs (vd fs=45
+        # hiện ~79) → phá đồng bộ cỡ chữ toàn trang. Hộp đúng cỡ ⇒ hiển thị == fs.
+        pad = font_size * 0.25
+        bw = max(8.0, min(0.90 * Wimg, (best_tw or ow) + pad))
+        bh = max(8.0, min(0.90 * Himg, (best_th or oh) + pad))
+        poly = affinity.scale(poly0, xfact=bw / ow, yfact=bh / oh, origin='center')
         return _finalize_scaled_poly(poly, region, img, Wimg, Himg)
     except Exception:
         return None
@@ -666,6 +677,22 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
 
         target_font_size = max(target_font_size, font_size_minimum, 1)
 
+        # Trần TUYỆT ĐỐI theo ảnh + ĐỘ DÀI bản dịch: OCR đôi khi trả font_size ảo
+        # rất lớn (tiêu đề trang trí/con dấu bị gộp vùng — vd fs=166×0.86=143 lọt
+        # ngay dưới trần 1/12 cũ), trang chỉ 1 vùng thì font-normalize (cần ≥2 vùng)
+        # không chạy → chữ Việt phủ nửa trang. Câu càng DÀI trần càng THẤP (cỡ chữ
+        # hợp lý tỉ lệ nghịch với lượng chữ phải chứa): ≤36 ký tự giữ trần 1/12 cũ
+        # (tiêu đề ngắn vẫn được to), ~50 ký tự → 1/17, clamp 1/30 để câu dẫn rất
+        # dài không bị ép sát font_min (fit-loop/bubble-fit vẫn tự thu thêm sau).
+        _tlen = count_text_length(region.translation or "")
+        _den = max(12.0, min(30.0, _tlen / 3.0))
+        _abs_cap = max(font_size_minimum, int(round(min(img.shape[0], img.shape[1]) / _den)))
+        if target_font_size > _abs_cap:
+            logger.info(f'[font-abs-cap] "{(region.get_translation_for_rendering() or "")[:18]}" '
+                        f'fs {target_font_size} → {_abs_cap} (trần cạnh ngắn/{_den:.0f}, '
+                        f'dịch {int(_tlen)} ký tự).')
+            target_font_size = _abs_cap
+
         # ── Detect if inside a styled speech bubble ──
         # High contrast (white-on-black / black-on-white) OR light background
         try:
@@ -706,6 +733,7 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
                         logger.info(f'[bubble-border] "{region.get_translation_for_rendering()[:18]}" '
                                     f'bắt bóng bằng VIỀN (floodfill trượt).')
             bub_in = None  # (in_x1, in_y1, in_x2, in_y2, cx, cy) vùng đặt chữ (đã giới hạn)
+            bub_src = 'bóng'  # khung chứa lấy từ đâu — chỉ để log cho dễ soi
             if bubble_rect is not None:
                 bx1, by1, bx2, by2 = bubble_rect
                 # Chừa lề trong để chữ không chạm viền bong bóng (x:7%, y:9%).
@@ -749,6 +777,50 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
                         cx = (ix1 + ix2) // 2
                         cy = (iy1 + iy2) // 2
                         bub_in = (ix1, iy1, ix2, iy2, cx, cy)
+                        bub_src = 'box tay'
+                except Exception:
+                    pass
+            if bub_in is None and not is_manual:
+                # KHÔNG dò ra bóng (floodfill lẫn viền đều trượt — vd vệt mực splash
+                # trên nền biển/trời) → coi CHÍNH BOX TEXT detector cắt là khung chứa
+                # cố định: FIT chữ BÊN TRONG (giảm font nếu cần) như hành vi cũ,
+                # KHÔNG free-scale phình ra ngoài đè artwork.
+                try:
+                    ox1, oy1, ox2, oy2 = [int(v) for v in region.xyxy]
+                    ow_, oh_ = ox2 - ox1, oy2 - oy1
+                    # CỘT cao-hẹp + câu DÀI (≥6 từ): box-fit xếp tháp 1-từ/dòng rất
+                    # khó đọc (trang toàn chữ: tiêu đề/cột dẫn truyện dài — tháp
+                    # 362x1772) → BỎ box-fit, để free-scale dựng KHỐI NGANG quanh tâm
+                    # cột. Nhãn ngắn (≤5 từ, vd "Kết Đan sơ kỳ.") vẫn tháp — đẹp trên
+                    # vệt mực splash.
+                    _nwords = len((region.translation or '').split())
+                    if oh_ >= 3 * ow_ and _nwords >= 6:
+                        logger.info(f'[box-fit-skip] "{(region.get_translation_for_rendering() or "")[:18]}" '
+                                    f'cột {ow_}x{oh_} + {_nwords} từ → khối ngang free-scale')
+                    else:
+                        if oh_ > ow_:
+                            # Cột DỌC-HẸP (CJK dọc): chữ Việt chạy ngang bị bề rộng cột
+                            # bóp nghẹt (fs rơi 27/20 trong khi body trang 52) → nới
+                            # ngang 1.5× + cao 1.15× quanh tâm. Vệt mực/splash vốn loe
+                            # rộng hơn cột text nên nới nhẹ vẫn nằm trên nền bóng. Box
+                            # ngang (caption/thoại) giữ NGUYÊN — không cần nới.
+                            ex = int(ow_ * 0.25); ey = int(oh_ * 0.075)
+                            ox1 = max(0, ox1 - ex); ox2 = min(img.shape[1] - 1, ox2 + ex)
+                            oy1 = max(0, oy1 - ey); oy2 = min(img.shape[0] - 1, oy2 + ey)
+                        if ox2 - ox1 >= 12 and oy2 - oy1 >= 12:
+                            bbox_w = ox2 - ox1
+                            bbox_h = oy2 - oy1
+                            bub_in = (ox1, oy1, ox2, oy2,
+                                      (ox1 + ox2) // 2, (oy1 + oy2) // 2)
+                            bub_src = 'box gốc'
+                            # Đánh dấu khung chứa là BOX THẬT của detector (không phải
+                            # bóng dò) — van cứu "bóng ảo" ở font-normalize bỏ qua các
+                            # vùng này (xem _apply_body_target).
+                            region._box_fit = True
+                            # Cỡ TỰ NHIÊN (trước khi bị box bóp) — median toàn trang sẽ
+                            # dùng cỡ này thay vì cỡ đã fit, kẻo vài cột hẹp kéo sập
+                            # body target (median 52 → 27, bóng thoại bị ghìm nhỏ theo).
+                            region._natural_fs = int(target_font_size)
                 except Exception:
                     pass
             if bub_in is None:
@@ -858,7 +930,7 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
                     # bub_in != None ⇒ recompute bằng _centered_text_block sau cap.
                     bubble_jobs.append((len(dst_points_list), region, bub_in, lang))
                     logger.info(f'[bubble-fit] "{region.get_translation_for_rendering()[:18]}" '
-                                f'fs={target_font_size} giữa bóng (auto-fit, bỏ min)')
+                                f'fs={target_font_size} trong {bub_src} (auto-fit, bỏ min)')
                 except Exception:
                     pass
             else:
@@ -958,13 +1030,11 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
         r._font_kind = _classify_region(r)  # cache — dispatch() dùng lại khi chọn font
         if r._font_kind in _BODY_KINDS and r.font_size > 0:
             body_regions.append(r)
-    if len(body_regions) >= 2:
-        fs_min = max(1, font_size_minimum)
-        sizes = [r.font_size for r in body_regions]
-        # Median trên các cỡ "lành" (≥ font_min) — cỡ tí hon từ bóng ảo/box lỗi
-        # không được phép kéo sập chuẩn của cả trang.
-        healthy = [s for s in sizes if s >= fs_min] or sizes
-        target = max(fs_min, int(round(float(np.median(healthy)))))
+    fs_min = max(1, font_size_minimum)
+
+    def _apply_body_target(target: int):
+        """Kéo mọi vùng body về cỡ `target` (bóng thật chỉ lên tới mức còn vừa ruột;
+        bóng ảo được cứu sang free-scale). Trả (nâng, ghìm, cứu) để log."""
         n_up = n_down = n_rescue = 0
         for r in body_regions:
             k = jobs_by_region.get(id(r))
@@ -977,15 +1047,34 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
                     n_down += 1
                 continue
             _idx, _reg, _bub, _lng = bubble_jobs[k]
-            if _bub is None:
-                # Chữ tự do: box dựng lại theo fs → kéo thẳng về cỡ nhóm.
-                n_up += int(r.font_size < target)
-                n_down += int(r.font_size > target)
-                r.font_size = target
+            # NÂNG có trần 1.3× cỡ tự nhiên: median trang bị caption/splash to kéo
+            # lên thì câu narration dài đừng phình theo quá tay (56→93 trông thô) —
+            # đồng bộ là kéo GẦN nhau, không phải thổi chữ nhỏ lên gấp rưỡi.
+            # Ghìm xuống thì về thẳng target (không trần).
+            if target > r.font_size:
+                eff_target = min(target, max(r.font_size + 1, int(r.font_size * 1.3)))
             else:
-                fit = _bubble_max_fit(_reg, _bub, _lng, target)
-                if fit < fs_min:
-                    # Bóng ảo / bóng quá bé: dưới cả cỡ đọc tối thiểu → cứu.
+                eff_target = target
+            if _bub is None:
+                # Chữ tự do: box dựng lại theo fs → kéo về cỡ nhóm (nâng có trần).
+                n_up += int(eff_target > r.font_size)
+                n_down += int(eff_target < r.font_size)
+                r.font_size = eff_target
+            else:
+                fit = _bubble_max_fit(_reg, _bub, _lng, eff_target)
+                # Van cứu "bóng ảo" (≤50% target) CHỈ cho bóng DÒ — floodfill/canny
+                # có thể vớ nhầm (vd vệt inpaint sót trên nền đen). BOX GỐC là box
+                # detector THẬT: fit nhỏ hơn body trang là vì box nhỏ thật (caption
+                # dải hẹp…) — cứu sang free-scale sẽ THỔI chữ lên target (52 → 118,
+                # 7 dòng phủ panel) phá layout; chỉ giữ sàn đọc fs_min.
+                _phantom = fit < fs_min or (
+                    not getattr(_reg, '_box_fit', False)
+                    and target > fs_min and fit <= max(fs_min, int(target * 0.5)))
+                if _phantom:
+                    # Bóng ảo / bóng-box quá bé: cứu — bỏ bubble-fit, free-scale ở
+                    # cỡ nhóm (rescue về THẲNG target, không up-cap — cỡ bé kia là
+                    # artifact của khung chứa, không phải cỡ tự nhiên). Bóng thật
+                    # nhỏ (thì thầm) fit ~60-80% body nên không bị đụng.
                     bubble_jobs[k] = (_idx, _reg, None, _lng)
                     r.font_size = target
                     n_rescue += 1
@@ -998,26 +1087,26 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
             if getattr(r, '_font_kind', None) not in _BODY_KINDS and r.font_size > loose_cap:
                 r.font_size = loose_cap
                 n_down += 1
-        logger.info(f'[font-normalize] body target={target} ({len(body_regions)} vùng) '
-                    f'→ nâng {n_up}, ghìm {n_down}, cứu {n_rescue} bóng ảo.')
+        return n_up, n_down, n_rescue
 
-    # Tính LẠI khối chữ bằng cỡ chữ ĐÃ CAP (để cap có hiệu lực thật: dst_points
-    # quyết định cỡ hiển thị qua warp, nên phải dựng lại theo fs mới).
-    #   • bub_in != None → khối căn giữa trong bong bóng.
-    #   • bub_in == None → scale-box trên artwork (giữ hướng & tỉ lệ).
-    for idx, region, bub_in, lang in bubble_jobs:
-        if not (0 <= idx < len(dst_points_list)):
-            continue
-        if bub_in is not None:
-            # CHAT BOX → căn giữa trong ruột bóng.
-            dst_points_list[idx] = _centered_text_block(
-                region.font_size, region.translation, bub_in, lang,
-                img.shape[1], img.shape[0])
-        else:
-            # Chữ tự do (ngang/dọc) → phóng đều giữ tỉ lệ (free scale).
-            dp = _scaled_box_for_floor(region, region.font_size, img)
-            if dp is not None:
-                dst_points_list[idx] = dp
+    def _recompute_job_boxes():
+        # Tính LẠI khối chữ bằng cỡ chữ hiện hành (dst_points quyết định cỡ hiển
+        # thị qua warp, nên phải dựng lại theo fs mới).
+        #   • bub_in != None → khối căn giữa trong bong bóng.
+        #   • bub_in == None → hộp đúng kích thước khối chữ (free scale).
+        for idx, region, bub_in, lang in bubble_jobs:
+            if not (0 <= idx < len(dst_points_list)):
+                continue
+            if bub_in is not None:
+                # CHAT BOX → căn giữa trong ruột bóng.
+                dst_points_list[idx] = _centered_text_block(
+                    region.font_size, region.translation, bub_in, lang,
+                    img.shape[1], img.shape[0])
+            else:
+                # Chữ tự do (ngang/dọc) → hộp khít khối chữ, neo tâm vùng gốc.
+                dp = _scaled_box_for_floor(region, region.font_size, img)
+                if dp is not None:
+                    dst_points_list[idx] = dp
 
     # ── Tách các khối chữ ĐÈ NHAU ─────────────────────────────────────────────
     # Hai khối chồng nhau >12% (vùng nhỏ hơn) → ĐẨY RA XA theo trục đè ít hơn
@@ -1099,43 +1188,68 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
         floor = 0.5
     floor = min(1.0, max(0.3, floor))
 
-    _sep_moves = 0
-    _sep_shrinks = 0
+    def _separate_blocks():
+        """Tách khối đè: 1) ĐẨY ra xa (giữ cỡ chữ); 2) còn kẹt → THU NHỎ hình học
+        dần tới sàn rồi đẩy tiếp. Trả (số lần đẩy, số lần thu) để vòng phản hồi
+        bên dưới biết trang có CHẬT không."""
+        moves = shrinks = 0
+        for _ in range(8):
+            pairs = _overlap_pairs()
+            if not pairs:
+                break
+            for (i, j) in pairs:
+                _push_apart(i, j)
+                moves += 1
+        _scale = [1.0] * n_box
+        for _ in range(12):
+            pairs = _overlap_pairs()
+            if not pairs:
+                break
+            shrank = False
+            for (i, j) in pairs:
+                for k in (i, j):
+                    if _scale[k] > floor:
+                        _scale[k] *= 0.85
+                        _shrink(k, 0.85)
+                        shrinks += 1
+                        shrank = True
+            # đẩy lại để dồn phần dư sau khi đã nhỏ đi
+            for (i, j) in _overlap_pairs():
+                _push_apart(i, j)
+                moves += 1
+            if not shrank:
+                break  # mọi khối còn đè đã chạm sàn → không thu thêm được
+        return moves, shrinks
 
-    # 1) ĐẨY ra xa trước (giữ nguyên cỡ chữ) — tách sạch khi còn chỗ trống.
-    for _ in range(8):
-        pairs = _overlap_pairs()
-        if not pairs:
-            break
-        for (i, j) in pairs:
-            _push_apart(i, j)
-            _sep_moves += 1
+    # ── Điều phối: đồng bộ cỡ body → dựng box → tách đè, có VÒNG PHẢN HỒI ──────
+    # Tách đè phải THU NHỎ nghĩa là trang CHẬT — nhưng thu hình học từng khối lẻ
+    # (khối 85%, khối 72%…) lại phá đồng bộ cỡ chữ vừa làm. Chuẩn typesetting:
+    # hạ ĐỒNG LOẠT cỡ body một nấc rồi xếp lại từ đầu — cả trang vẫn MỘT cỡ.
+    if len(body_regions) >= 2:
+        # Vùng box-fit (box gốc) bị box dò BÓP cỡ chữ — cỡ đã fit KHÔNG phản ánh cỡ
+        # tự nhiên. Median lấy _natural_fs đã lưu cho các vùng đó (bóng thật/tự do
+        # giữ cỡ hiện có), kẻo vài cột hẹp kéo sập body target của cả trang.
+        sizes = [int(getattr(r, '_natural_fs', 0)) or r.font_size for r in body_regions]
+        # Median trên các cỡ "lành" (≥ font_min) — cỡ tí hon từ bóng ảo/box lỗi
+        # không được phép kéo sập chuẩn của cả trang.
+        healthy = [s for s in sizes if s >= fs_min] or sizes
+        target = max(fs_min, int(round(float(np.median(healthy)))))
+        for _round in range(2):
+            n_up, n_down, n_rescue = _apply_body_target(target)
+            logger.info(f'[font-normalize] body target={target} ({len(body_regions)} vùng) '
+                        f'→ nâng {n_up}, ghìm {n_down}, cứu {n_rescue} bóng ảo.')
+            _recompute_job_boxes()
+            moves, shrinks = _separate_blocks()
+            logger.info(f'[separate] {n_box} khối, đẩy {moves} lần, thu nhỏ {shrinks} lần để tách đè.')
+            if shrinks == 0 or target <= fs_min or _round == 1:
+                break
+            target = max(fs_min, int(target * 0.85))
+            logger.info(f'[font-normalize] trang chật → hạ body target={target}, xếp lại toàn trang.')
+    else:
+        _recompute_job_boxes()
+        moves, shrinks = _separate_blocks()
+        logger.info(f'[separate] {n_box} khối, đẩy {moves} lần, thu nhỏ {shrinks} lần để tách đè.')
 
-    # 2) ĐẨY không tách hết (kẹt mép ảnh / khối quá to so với chỗ trống) → THU NHỎ
-    # CỠ CHỮ các cặp còn chồng (giảm dần xuống sàn) rồi đẩy lại, lặp đến khi hết đè
-    # hoặc mọi khối đã chạm sàn. Đây là phần "giảm cỡ chữ 2 text gần nhau để khỏi đè".
-    _scale = [1.0] * n_box
-    for _ in range(12):
-        pairs = _overlap_pairs()
-        if not pairs:
-            break
-        shrank = False
-        for (i, j) in pairs:
-            for k in (i, j):
-                if _scale[k] > floor:
-                    _scale[k] *= 0.85
-                    _shrink(k, 0.85)
-                    _sep_shrinks += 1
-                    shrank = True
-        # đẩy lại để dồn phần dư sau khi đã nhỏ đi
-        for (i, j) in _overlap_pairs():
-            _push_apart(i, j)
-            _sep_moves += 1
-        if not shrank:
-            break  # mọi khối còn đè đã chạm sàn → không thu thêm được
-
-    logger.info(
-        f'[separate] {n_box} khối, đẩy {_sep_moves} lần, thu nhỏ {_sep_shrinks} lần để tách đè.')
     return dst_points_list
 
 async def dispatch(
