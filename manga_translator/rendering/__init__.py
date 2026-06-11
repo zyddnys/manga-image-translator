@@ -880,7 +880,21 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
                     # cột. Nhãn ngắn (≤5 từ, vd "Kết Đan sơ kỳ.") vẫn tháp — đẹp trên
                     # vệt mực splash.
                     _nwords = len((region.translation or '').split())
-                    if oh_ >= 3 * ow_ and _nwords >= 6:
+                    # Nguồn là CỘT DỌC CJK? Nhóm NHIỀU cột (vd 4 cột dẫn truyện)
+                    # union ra box GẦN VUÔNG (oh < 3×ow) nên lọt nhánh box-fit →
+                    # khối 1.3× bề nhóm chiếm nửa trang, đè làn cột bên cạnh →
+                    # _separate_blocks xáo vị trí + thu nhỏ chữ. Nhận diện bằng
+                    # TỈ LỆ TỪNG LINE gốc: median cao ≥ 2× rộng = cột dọc.
+                    _src_cols = False
+                    try:
+                        _lns = np.asarray(region.lines, dtype=np.float64).reshape(-1, 4, 2)
+                        if len(_lns) >= 2:
+                            _ws = _lns[:, :, 0].max(axis=1) - _lns[:, :, 0].min(axis=1)
+                            _hs = _lns[:, :, 1].max(axis=1) - _lns[:, :, 1].min(axis=1)
+                            _src_cols = float(np.median(_hs)) >= 2.0 * float(np.median(_ws))
+                    except Exception:
+                        _src_cols = False
+                    if _nwords >= 6 and (oh_ >= 3 * ow_ or _src_cols):
                         # Trang FREE-TEXT CJK dọc (đọc trên→dưới, PHẢI→TRÁI): giữ
                         # LÀN cột gốc — khối Việt hẹp, neo ĐỈNH cột, tâm-x giữ
                         # nguyên (xem nhánh _col_keep trong _scaled_box_for_floor)
@@ -1265,8 +1279,10 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
         hi, hj = ay2 - ay1, by2 - by1
         gap = 6
         try:
+            # MỘT khối là cột col-keep cũng đủ: cột được neo vị trí có chủ đích,
+            # xếp lại theo thứ tự đọc sẽ lật layout phải→trái của trang free-text.
             keep_geom = (getattr(text_regions[i], '_col_keep', False)
-                         and getattr(text_regions[j], '_col_keep', False))
+                         or getattr(text_regions[j], '_col_keep', False))
         except Exception:
             keep_geom = False
         if keep_geom:

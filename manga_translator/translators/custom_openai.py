@@ -54,6 +54,19 @@ _OCR_SOURCE_FIX = [
     ('结母', '结丹'), ('結母', '結丹'),
 ]
 
+# OCR đọc dấu lửng "……" thành chuỗi chữ 'o' (vd "非常好oooo那" / "夫人吧oo"):
+# run [oO0]{2,} dính liền chữ Hán KHÔNG bao giờ là từ thật → thay bằng "……" để
+# model dịch ra "…" thay vì bê nguyên "oooo" vào bản dịch ("tốtoooo", "đi oo.").
+# Điều kiện kẹp CJK giữ an toàn cho watermark/từ Latin thật ("gxracg.com", "cool"):
+#   - đứng SAU chữ Hán và KHÔNG nối tiếp bằng chữ/số Latin (cuối chuỗi, trước CJK
+#     hay trước dấu câu đều khớp), HOẶC
+#   - mở ĐẦU chuỗi và nối thẳng vào chữ Hán.
+_CJK_CLASS = r'一-鿿㐀-䶿'
+_OCR_ELLIPSIS_RE = re.compile(
+    rf'(?<=[{_CJK_CLASS}])[oO0]{{2,}}(?![A-Za-z0-9])'
+    rf'|^[oO0]{{2,}}(?=[{_CJK_CLASS}])'
+)
+
 
 def _fix_ocr_source(q: str) -> str:
     if not isinstance(q, str) or not q:
@@ -61,6 +74,7 @@ def _fix_ocr_source(q: str) -> str:
     for wrong, right in _OCR_SOURCE_FIX:
         if wrong in q:
             q = q.replace(wrong, right)
+    q = _OCR_ELLIPSIS_RE.sub('……', q)
     return q
 
 
@@ -818,8 +832,10 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
             return singles
         cands = []
         for i in range(n - 1):
-            a = (queries[i] or '').strip()
-            b = (queries[i + 1] or '').strip()
+            # Soi trên bản ĐÃ sửa lỗi OCR: "吧oo" (OCR của "吧……") phải được nhận
+            # diện là đã KẾT câu, không thành ứng viên gộp với segment sau.
+            a = _fix_ocr_source((queries[i] or '').strip())
+            b = _fix_ocr_source((queries[i + 1] or '').strip())
             if not a or not b:
                 continue
             if not _CHINESE_RE.search(a) or not _CHINESE_RE.search(b):
@@ -838,7 +854,8 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
             return singles
         qlines = []
         for k, i in enumerate(cands, 1):
-            qlines.append(f'{k}. A=「{(queries[i] or "").strip()}」 B=「{(queries[i + 1] or "").strip()}」')
+            qlines.append(f'{k}. A=「{_fix_ocr_source((queries[i] or "").strip())}」'
+                          f' B=「{_fix_ocr_source((queries[i + 1] or "").strip())}」')
         resp = await self._request_merge_plan('\n'.join(qlines))
         confirmed = set()
         for k, i in enumerate(cands, 1):
