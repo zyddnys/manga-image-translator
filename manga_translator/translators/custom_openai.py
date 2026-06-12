@@ -16,6 +16,28 @@ from .keys import CUSTOM_OPENAI_API_KEY, CUSTOM_OPENAI_API_BASE, CUSTOM_OPENAI_M
 
 _CHINESE_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf]")
 
+# C\u00f3 B\u1ea4T K\u1ef2 ch\u1eef CJK n\u00e0o kh\u00f4ng: H\u00e1n (k\u1ec3 c\u1ea3 m\u1edf r\u1ed9ng/compat), kana, hangul. V\u00f9ng OCR
+# m\u00e0 ngu\u1ed3n KH\u00d4NG d\u00ednh k\u00fd t\u1ef1 n\u00e0o trong nh\u00f3m n\u00e0y (to\u00e0n Latin/s\u1ed1: "ALENCIAGA",
+# "2ENag"\u2026) l\u00e0 ch\u1eef TRANG TR\u00cd in tr\u00ean artwork (brand print, tem, s\u1ed1 \u0111o) \u2014 kh\u00f4ng
+# ph\u1ea3i tho\u1ea1i, kh\u00f4ng c\u1ea7n d\u1ecbch v\u00e0 kh\u00f4ng \u0111\u01b0\u1ee3c xo\u00e1 kh\u1ecfi \u1ea3nh.
+_CJK_ANY_RE = re.compile(
+    r"[\u3041-\u30ff\u31f0-\u31ff"   # hiragana + katakana (+ phonetic ext)
+    r"\u3400-\u4dbf\u4e00-\u9fff"    # H\u00e1n ideographs (ext-A + URO)
+    r"\uf900-\ufaff\uff66-\uff9f"    # CJK compat + halfwidth katakana
+    r"\uac00-\ud7af\u3131-\u318e]"   # hangul syllables + jamo
+)
+
+
+def _is_decor_source(src: str) -> bool:
+    """True n\u1ebfu v\u00f9ng ngu\u1ed3n l\u00e0 ch\u1eef trang tr\u00ed Latin-only in s\u1eb5n tr\u00ean artwork
+    (brand print "BALENCIAGA" tr\u00ean qu\u1ea7n \u00e1o, m\u00e3 hi\u1ec7u\u2026) \u2014 KH\u00d4NG c\u00f3 k\u00fd t\u1ef1 CJK n\u00e0o.
+    Watermark scanlation do _contains_watermark_text x\u1eed l\u00fd ri\u00eang (b\u1ecb XO\u00c1);
+    decor th\u00ec ng\u01b0\u1ee3c l\u1ea1i: GI\u1eee NGUY\u00caN tr\u00ean \u1ea3nh, kh\u00f4ng d\u1ecbch, kh\u00f4ng inpaint."""
+    s = (src or "").strip()
+    if not s:
+        return False
+    return not _CJK_ANY_RE.search(s) and not _contains_watermark_text(s)
+
 # Nh\u00e3n lo\u1ea1i tho\u1ea1i do model g\u00e1n \u1edf \u0111\u1ea7u m\u1ed7i \u0111o\u1ea1n: "[thought] ...". B\u00f3c ra \u0111\u1ec3 (a) kh\u00f4ng
 # l\u1ecdt v\u00e0o b\u1ea3n d\u1ecbch hi\u1ec3n th\u1ecb, (b) kh\u00f4ng b\u1ecb b\u1ed9 check ti\u1ebfng Vi\u1ec7t t\u01b0\u1edfng l\u00e0 ti\u1ebfng Anh.
 _TYPE_TAG_RE = re.compile(r"^\s*\[\s*(speech|thought|moan|shout|narration|sfx|anger|fear|title)\s*\]\s*", re.IGNORECASE)
@@ -580,6 +602,11 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
             batch_offset = len(translations)
             batch_queries = queries[batch_offset:batch_offset + query_size]
 
+            # Vùng decor (Latin-only, không watermark): bản dịch sẽ bị ghi đè bằng
+            # nguyên văn nguồn ở fallback dưới → miễn check tiếng Việt cho các slot
+            # này (model trả gì cũng bỏ), khỏi tốn 10 lượt retry vô ích.
+            decor_idx = {i for i, q in enumerate(batch_queries) if _is_decor_source(q)}
+
             language_retry_attempt = 0
             request_prompt = prompt
             self._vi_retry_extra_system = ''  # reset per prompt batch
@@ -713,7 +740,8 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                         _anchor_i = _i
 
                 if _target_is_vietnamese(to_lang):
-                    non_vietnamese = [t for t in cleaned_translations if _needs_vietnamese_retry(t)]
+                    non_vietnamese = [t for _i, t in enumerate(cleaned_translations)
+                                      if _i not in decor_idx and _needs_vietnamese_retry(t)]
                     if non_vietnamese and language_retry_attempt < 10:
                         language_retry_attempt += 1
                         self.logger.warning(
@@ -752,6 +780,16 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                     if _contains_watermark_text(src):
                         # Always erase watermarks regardless of what model returned.
                         cleaned_translations[i] = "\u200d"
+                    elif i in decor_idx:
+                        # Ch\u1eef trang tr\u00ed in tr\u00ean artwork (brand print "BALENCIAGA",
+                        # m\u00e3 hi\u1ec7u\u2026): ngu\u1ed3n KH\u00d4NG c\u00f3 k\u00fd t\u1ef1 CJK n\u00e0o \u2192 kh\u00f4ng ph\u1ea3i tho\u1ea1i.
+                        # Tr\u1ea3 NGUY\u00caN V\u0102N ngu\u1ed3n \u2192 MIT l\u1ecdc "Translation identical to
+                        # original" \u2192 v\u00f9ng KH\u00d4NG inpaint, KH\u00d4NG render, artwork g\u1ed1c
+                        # gi\u1eef nguy\u00ean (kh\u00e1c watermark: watermark b\u1ecb xo\u00e1 b\u1eb1ng ZWJ).
+                        self.logger.info(
+                            f'[decor] segment {i + 1} "{src.strip()[:24]}" to\u00e0n Latin, '
+                            f'kh\u00f4ng ph\u1ea3i tho\u1ea1i \u2014 gi\u1eef nguy\u00ean tr\u00ean \u1ea3nh, b\u1ecf d\u1ecbch.')
+                        cleaned_translations[i] = src
                     elif _store.get(src.strip()) == "title":
                         # [title] = ti\u00eau \u0111\u1ec1/ch\u1eef trang tr\u00ed/con d\u1ea5u \u2014 OCR c\u1ee7a ch\u1eef c\u00e1ch
                         # \u0111i\u1ec7u th\u01b0\u1eddng l\u00e0 chu\u1ed7i r\u00e1c, "b\u1ea3n d\u1ecbch" ch\u1ec9 ra ch\u1eef to v\u00f4 ngh\u0129a
