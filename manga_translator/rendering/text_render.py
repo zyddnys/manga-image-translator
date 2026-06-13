@@ -316,8 +316,8 @@ def calc_vertical(font_size: int, text: str, max_height: int):
 
     line_str = ""
     line_height = 0
-    line_width_left = 0
-    line_width_right = 0
+    # line_width_left = 0
+    # line_width_right = 0
     for i, cdpt in enumerate(text):
         if line_height == 0 and cdpt == ' ':
             continue
@@ -329,20 +329,20 @@ def calc_vertical(font_size: int, text: str, max_height: int):
             char_offset_y = ckpt.metrics.vertBearingY >> 6
         else:
             char_offset_y = ckpt.metrics.vertAdvance >> 6
-        char_width = bitmap.width
-        char_bearing_x = ckpt.metrics.vertBearingX >> 6
+        # char_width = bitmap.width
+        # char_bearing_x = ckpt.metrics.vertBearingX >> 6
         if line_height + char_offset_y > max_height:
             line_text_list.append(line_str)
             line_height_list.append(line_height)
             # line_width_list.append(line_width_left + line_width_right)
             line_str = ""
             line_height = 0
-            line_width_left = 0
-            line_width_right = 0
+            # line_width_left = 0
+            # line_width_right = 0
         line_height += char_offset_y
         line_str += cdpt
-        line_width_left = max(line_width_left, abs(char_bearing_x))
-        line_width_right = max(line_width_right, char_width - abs(char_bearing_x))
+        # line_width_left = max(line_width_left, abs(char_bearing_x))
+        # line_width_right = max(line_width_right, char_width - abs(char_bearing_x))
     # last char
     line_text_list.append(line_str)
     line_height_list.append(line_height)

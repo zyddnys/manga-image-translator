@@ -162,6 +162,7 @@ class TextBlock(object):
         max_y = polygons[:, 1::2].max()
         min_bbox = np.array([[min_x, min_y, max_x, min_y, max_x, max_y, min_x, max_y]])
         if self.angle != 0:
+            # min_box 再旋回原文字矩形框的朝向
             min_bbox = rotate_polygons(self.center, min_bbox, -self.angle)
         return min_bbox.clip(0).reshape(-1, 4, 2).astype(np.int64)
 

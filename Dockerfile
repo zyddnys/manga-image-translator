@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:2.5.1-cuda11.8-cudnn9-runtime
+FROM pytorch/pytorch:2.6.0-cuda11.8-cudnn9-runtime
 
 # not apt update: most effective code in pytorch base image is in /opt/conda
 

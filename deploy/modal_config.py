@@ -54,7 +54,7 @@ GPU_CONFIGS = {
 }
 
 # Base Image Configuration
-BASE_IMAGE = "pytorch/pytorch:2.5.1-cuda11.8-cudnn9-runtime"
+BASE_IMAGE = "pytorch/pytorch:2.6.0-cuda11.8-cudnn9-runtime"
 
 # System Dependencies
 APT_PACKAGES = [
