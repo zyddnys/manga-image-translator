@@ -680,6 +680,22 @@ def get_char_offset_x(font_size: int, cdpt: str):
 def get_string_width(font_size: int, text: str):
     return sum([get_char_offset_x(font_size, c) for c in text])
 
+# Số thứ tự ĐẦU MỤC của danh sách đánh số: 1-2 chữ số + một trong . ) 、 ． rồi
+# khoảng trắng. Lookbehind (?<!\d) chặn số nhiều chữ số (123. không khớp "23.");
+# \s+ bắt buộc có khoảng trắng sau dấu nên KHÔNG đụng số thập phân ("2.5") hay
+# giờ ("10:30"). \s* phía trước để nuốt luôn space đứng trước mục (đỡ dư space).
+_LIST_MARKER_RE = re.compile(r'\s*(?<!\d)(\d{1,2}[.)、．])\s+(?=\S)')
+
+
+def _insert_list_breaks(text: str) -> str:
+    """Chèn ngắt dòng TRƯỚC mỗi số thứ tự đầu mục ("1." "2." "3."…) để mỗi mục
+    của danh sách đánh số nằm trên một DÒNG RIÊNG khi render. calc_horizontal vốn
+    reflow theo bề rộng (nuốt mọi khoảng trắng) nên "… 1. … 2. … 3. …" bị dồn
+    thành một khối liền; tách ở đây để xuống dòng đúng từng mục."""
+    out = _LIST_MARKER_RE.sub(lambda m: '\n' + m.group(1) + ' ', text)
+    return out.lstrip('\n')
+
+
 def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, language: str = 'en_US', hyphenate: bool = True) -> Tuple[List[str], List[int]]:
     """
     Splits up a string of text into lines. Returns list of lines and their widths.
@@ -690,6 +706,25 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
     # trước đây chỉ put_text_horizontal compact ("…"→"...", dọn space) nên đo
     # ra 4 dòng mà vẽ ra 5 dòng, khối chữ bị warp ép méo.
     text = compact_special_symbols(text)
+
+    # ── Danh sách đánh số → mỗi mục một dòng ──────────────────────────────────
+    # Gộp newline có sẵn về space (giữ NGUYÊN hành vi reflow cũ với \n tự do của
+    # LLM), rồi CHỈ chèn ngắt cứng trước số đầu mục. Mỗi đoạn tách bởi '\n' được
+    # wrap độc lập (đệ quy) rồi nối lại → mục "1." "2." "3." không còn dính nhau.
+    text = re.sub(r'[\r\n]+', ' ', text)
+    text = _insert_list_breaks(text)
+    if '\n' in text:
+        lines_all: List[str] = []
+        widths_all: List[int] = []
+        for _para in text.split('\n'):
+            if not _para.strip():
+                continue
+            _lns, _wds = calc_horizontal(font_size, _para, max_width, max_height, language, hyphenate)
+            lines_all.extend(_lns)
+            widths_all.extend(_wds)
+        if lines_all:
+            return lines_all, widths_all
+
     max_width = max(max_width, 2 * font_size)
 
     whitespace_offset_x = get_char_offset_x(font_size, ' ')

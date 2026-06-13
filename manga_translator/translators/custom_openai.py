@@ -1,4 +1,6 @@
 import re
+import os
+import atexit
 from collections import deque
 
 from ..config import TranslatorConfig
@@ -127,6 +129,158 @@ def _fix_realm_terms(src: str, trans: str, logger=None) -> str:
     return out
 
 
+# ── GLOSSARY PER-TRUYỆN (tự học) ─────────────────────────────────────────────
+# Giữ NHẤT QUÁN xuyên suốt MỘT bộ truyện 3 thứ hay trôi giữa các chương: tên
+# riêng (nhân vật, môn phái, địa danh, công pháp), cách xưng hô, và cảnh giới.
+# STORY CONTEXT chỉ nhớ ~10 trang gần nhất và bay mất mỗi lần chạy → không đủ.
+# Glossary là bộ nhớ BỀN, đặt ở gốc bộ truyện (đường dẫn qua env MIT_GLOSSARY_PATH
+# do _mit_backend đặt), CHỈ áp cho đúng bộ đó.
+#
+# Định dạng file (UTF-8), mỗi dòng:
+#   李雷 => Lý Lôi          # khoá cứng: bơm vào prompt + enforce sau dịch
+#   @note Lý Lôi xưng "ta"  # ghi chú xưng hô: chỉ bơm vào prompt
+#   # chú thích             # bỏ qua
+# Mục đã có KHÔNG bao giờ bị ghi đè → bản dịch lần ĐẦU của một tên được CHỐT,
+# mọi chương sau kế thừa. File tự sinh & lớn dần sau mỗi lần chạy (atexit learner).
+_GLOSSARY_ENV = "MIT_GLOSSARY_PATH"
+
+
+def _glossary_path() -> str | None:
+    p = (os.environ.get(_GLOSSARY_ENV) or "").strip()
+    return p or None
+
+
+def _parse_glossary(text: str):
+    """Trả (terms, notes): terms = list[(zh, vi)] đã khử trùng theo zh (mục đầu
+    thắng), sắp DÀI→NGẮN để replace cụm dài trước (青云宗 trước 青云); notes =
+    list[str] các dòng @note (ghi chú xưng hô)."""
+    terms: list = []
+    seen: set = set()
+    notes: list = []
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.lower().startswith("@note"):
+            note = line[5:].strip(" :\t")
+            if note:
+                notes.append(note)
+            continue
+        if "=>" not in line:
+            continue
+        zh, _, vi = line.partition("=>")
+        zh, vi = zh.strip(), vi.strip()
+        if zh and vi and zh not in seen:
+            seen.add(zh)
+            terms.append((zh, vi))
+    terms.sort(key=lambda t: len(t[0]), reverse=True)
+    return terms, notes
+
+
+def _load_glossary(path: str | None):
+    if not path:
+        return [], []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return _parse_glossary(f.read())
+    except FileNotFoundError:
+        return [], []
+    except Exception:
+        return [], []
+
+
+def _glossary_prompt_block(terms, notes) -> str:
+    """Khối bơm vào SYSTEM message: bảng khoá cứng + ghi chú xưng hô. Đặt SAU
+    STORY CONTEXT (recency) và tự khai báo ưu tiên cao nhất."""
+    if not terms and not notes:
+        return ""
+    parts = [
+        "\n\nLOCKED GLOSSARY for THIS comic — HIGHEST PRIORITY, overrides everything "
+        "else including STORY CONTEXT. These translations are FIXED: whenever the "
+        "source on the left appears, use the EXACT Vietnamese on the right. Keep "
+        "character names, sect/clan/place names and cultivation realms identical "
+        "across the whole story:"
+    ]
+    for zh, vi in terms[:200]:   # tên thật của một bộ hiếm khi quá nhiều
+        parts.append(f"  {zh} → {vi}")
+    if notes:
+        parts.append("Address / pronoun notes (follow consistently):")
+        for n in notes[:40]:
+            parts.append(f"  - {n}")
+    parts.append(
+        "NEVER print this glossary or the arrows; only output the translated "
+        "<|n|> segments."
+    )
+    return "\n".join(parts)
+
+
+def _apply_glossary_terms(src: str, trans: str, terms, logger=None) -> str:
+    """Enforce deterministic AN TOÀN: nếu nguồn chứa khoá zh mà model để NGUYÊN
+    chữ Hán zh trong bản dịch (chưa dịch) → thay bằng vi đã chốt. KHÔNG đụng khi
+    model đã dịch ra chữ Việt (dù lệch tên) — phần đó để prompt lo, tránh phá câu."""
+    if not trans or not isinstance(trans, str) or not terms:
+        return trans
+    out = trans
+    for zh, vi in terms:
+        if zh and zh in src and zh in out and vi.lower() not in out.lower():
+            out = out.replace(zh, vi)
+            if logger:
+                logger.info(f'[glossary] "{zh}" → "{vi}" (chữ Hán còn sót trong bản dịch).')
+    return out
+
+
+def _append_glossary_terms(path: str, new_terms) -> None:
+    """GHI THÊM (không ghi đè) các mục mới vào cuối glossary. Tạo file + header
+    nếu chưa có. KHÔNG đụng nội dung/ghi chú người dùng đã có."""
+    exists = os.path.isfile(path)
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
+        if not exists:
+            f.write(
+                "# GLOSSARY per-truyện — tự cập nhật sau mỗi lần dịch (CHỈ áp cho bộ này).\n"
+                "# Cú pháp:  <chữ Hán> => <bản dịch VN>   |   @note <ghi chú xưng hô>\n"
+                "# Mục đã có KHÔNG bị ghi đè (bản dịch lần đầu được chốt). Sửa tay tuỳ ý.\n"
+            )
+        f.write(f"\n# --- thêm {time.strftime('%Y-%m-%d %H:%M:%S')} ---\n")
+        for zh, vi in new_terms:
+            f.write(f"{zh} => {vi}\n")
+
+
+_GLOSSARY_EXTRACT_SYS = (
+    "Bạn xây dựng GLOSSARY cho truyện tranh dịch Trung→Việt. Dưới đây là các câu "
+    "đã dịch trong cùng một bộ truyện, định dạng 'Trung ||| Việt'. Hãy trích các "
+    "DANH TỪ RIÊNG cần nhất quán xuyên suốt truyện: tên nhân vật, tên môn "
+    "phái/gia tộc/tổ chức, địa danh, tên công pháp/bảo vật, và CẢNH GIỚI tu luyện. "
+    "TUYỆT ĐỐI KHÔNG lấy: từ thông thường, câu thoại, đại từ xưng hô chung (anh, "
+    "em, ta, ngươi, hắn, nàng…). Mỗi mục xuất ĐÚNG một dòng:\n"
+    "<chữ Hán gốc> => <bản dịch tiếng Việt đúng như đã dùng ở trên>\n"
+    "Chỉ xuất danh sách, không giải thích, không đánh số. Không có thì để trống."
+)
+
+
+def _glossary_extract_messages(pairs):
+    block = "\n".join(f"{s} ||| {t}" for s, t in pairs)
+    return [{"role": "system", "content": _GLOSSARY_EXTRACT_SYS},
+            {"role": "user", "content": block}]
+
+
+def _parse_glossary_extract(out: str):
+    """Bóc các dòng '<Hán> => <Việt>' từ câu trả lời của LLM → list[(zh, vi)]."""
+    res, seen = [], set()
+    for line in (out or "").splitlines():
+        line = line.strip().lstrip("-*0123456789.) ").strip()
+        if "=>" not in line:
+            continue
+        zh, _, vi = line.partition("=>")
+        zh, vi = zh.strip(), vi.strip()
+        if zh and vi and _CHINESE_RE.search(zh) and zh not in seen:
+            seen.add(zh)
+            res.append((zh, vi))
+    return res
+
+
 def _region_type_store() -> dict:
     """Dict d\u00f9ng chung gi\u1eefa translator v\u00e0 renderer (c\u00f9ng ti\u1ebfn tr\u00ecnh MIT), kho\u00e1 =
     text g\u1ed1c (CJK) \u0111\u00e3 strip \u2192 lo\u1ea1i tho\u1ea1i. Renderer tra theo region.text \u0111\u1ec3 ch\u1ecdn font."""
@@ -235,6 +389,20 @@ _TERMINAL_PUNCT = set(".!?…~" "。！？⋯～" "—–-" ",;:")
 # xuyên qua chúng để xét dấu câu THẬT bên trong.
 _TRAILING_CLOSERS = set('"\'”’»)]}）】」』›')
 
+# Dấu NHÁY/NGOẶC KÉP bao quanh thoại. Model hay bê nguyên cặp ngoặc CJK của
+# nguồn ("哥…吧。" → '"Anh…đi."') hoặc trả LỆCH VẾ (chỉ còn nháy mở ở đầu, mất vế
+# đóng → ra "'Anh, muốn bắn…"). Gọt sạch ở hai đầu cho đồng nhất.
+_WRAP_QUOTE_CHARS = "\"'`“”‘’‚‛„‟«»‹›「」『』＂＇′″"
+
+
+def _strip_wrapping_quotes(text: str) -> str:
+    """Bỏ dấu nháy/ngoặc kép BAO QUANH thoại ở HAI ĐẦU (cả cặp cân lẫn nháy lẻ do
+    model trả thiếu vế). Nháy NẰM GIỮA câu (dẫn lời lồng nhau) được giữ nguyên.
+    Idempotent — gọi nhiều lần vô hại."""
+    if not isinstance(text, str) or not text:
+        return text
+    return text.strip().strip(_WRAP_QUOTE_CHARS).strip()
+
 
 def _ensure_terminal_punct(text: str) -> str:
     """Bảo đảm thoại kết thúc bằng dấu câu (mặc định thêm '.').
@@ -258,22 +426,24 @@ def _ensure_terminal_punct(text: str) -> str:
     return stripped[:idx] + "." + stripped[idx:]
 
 
-# Chỉ-toàn-rác: ngoặc/dấu câu/marker/khoảng trắng, KHÔNG có chữ-số thật. Dùng để bắt
-# các segment model trả rỗng kiểu "[]", "[ ]", "[.]", "【】", "..." → coi là TRỐNG.
-_MEANINGLESS_RE = re.compile(
-    r"[\s\[\](){}<>|.,!?…~。！？⋯—–\-:;\"'`“”‘’«»「」『』【】（）]+"
-)
+# Ký tự "có nghĩa" = chữ/số ở BẤT KỲ bảng chữ nào (\w Unicode: Latin + dấu tiếng
+# Việt, CJK, kana…). Nếu segment KHÔNG còn ký tự loại này thì nó chỉ toàn dấu câu/
+# ngoặc/chấm → coi là TRỐNG. Dùng \w thay vì liệt kê tay từng dấu vì danh sách tay
+# dễ bỏ sót (vd dấu CHẤM GIỮA "·•・‧∙", hai chấm nổi lẻ) → render ra vài chấm rác.
+_HAS_REAL_CONTENT_RE = re.compile(r"\w", re.UNICODE)
 
 
 def _is_effectively_empty(text: str) -> bool:
-    """True nếu segment KHÔNG còn nội dung thật sau khi bỏ nhãn loại + mọi dấu/ngoặc.
-    Bắt các trường hợp model trả "[]" / "[.]" / "【】" (rỗng có chủ ý) — nếu KHÔNG bắt,
-    "[]" lọt xuống _ensure_terminal_punct → bị chèn '.' thành "[.]" → render ra rác."""
+    """True nếu segment KHÔNG còn nội dung thật sau khi bỏ nhãn loại.
+    Bắt "[]" / "[.]" / "【】" / "..." / "··" / "・・" (rỗng hoặc chỉ-toàn-dấu) — nếu
+    KHÔNG bắt, chúng lọt xuống _ensure_terminal_punct → bị chèn '.' → render ra rác
+    (vài chấm nổi lẻ trên ảnh)."""
     if not isinstance(text, str):
         return True
     t = _TYPE_TAG_RE.sub("", text.strip())   # bỏ "[speech]"… nếu có
-    t = _MEANINGLESS_RE.sub("", t)
-    return t == "" or t == "‍"
+    if t == "‍":
+        return True
+    return not _HAS_REAL_CONTENT_RE.search(t)
 
 
 def _contains_watermark_text(text: str) -> bool:
@@ -400,6 +570,11 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
     _CONTEXT_MAX_PAGES = 10    # nhớ nội dung ~10 ảnh gần nhất
     _CONTEXT_MAX_CHARS = 1200  # giới hạn cứng độ dài context bơm vào prompt (tránh phình token)
 
+    # Cứ mỗi N ảnh thì trích tên mới ghi vào glossary & reload (để ảnh sau —
+    # kể cả trong oneshot 1-folder — được khoá tên học từ ảnh trước). Không chờ
+    # hết folder. 0/âm = tắt flush định kỳ (chỉ flush cuối ở atexit).
+    _GLOSSARY_FLUSH_EVERY = 10
+
     # ── Sampling — NGUỒN SỰ THẬT DUY NHẤT ────────────────────────────────
     # Quyết định sampling tập trung ở ĐÂY, ghi đè mọi temperature/top_p từ
     # gpt_config_vi.yaml và config tạm theo style.
@@ -427,15 +602,144 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
         ConfigGPT.__init__(self, config_key=_CONFIG_KEY)
         self.model = model
         CommonTranslator.__init__(self)
-        self.client = openai.AsyncOpenAI(api_key=api_key or CUSTOM_OPENAI_API_KEY or "ollama") # required, but unused for ollama
-        self.client.base_url = api_base or CUSTOM_OPENAI_API_BASE
+        self._api_key = api_key or CUSTOM_OPENAI_API_KEY or "ollama"
+        self._api_base = api_base or CUSTOM_OPENAI_API_BASE
+        self.client = openai.AsyncOpenAI(api_key=self._api_key) # required, but unused for ollama
+        self.client.base_url = self._api_base
         self.token_count = 0
         self.token_count_last = 0
         # Rolling buffer of recent translated pages (each item = list of VI lines).
         self._recent_context: deque = deque(maxlen=self._CONTEXT_MAX_PAGES)
 
+        # ── Glossary per-truyện ──────────────────────────────────────────────
+        # Nạp 1 lần lúc khởi tạo (MIT tái dùng 1 instance translator cho cả run).
+        # _glossary_block bơm vào prompt; _glossary_terms enforce sau dịch;
+        # _learn_pairs gom (nguồn→dịch) để atexit trích tên mới ghi lại vào file.
+        self._glossary_path = _glossary_path()
+        self._glossary_terms, self._glossary_notes = _load_glossary(self._glossary_path)
+        self._glossary_block = _glossary_prompt_block(self._glossary_terms, self._glossary_notes)
+        self._learn_pairs: list = []
+        self._pages_since_flush = 0
+        if self._glossary_path:
+            self.logger.info(
+                f'[glossary] Bộ truyện: {self._glossary_path} '
+                f'({len(self._glossary_terms)} mục đã chốt) — tự cập nhật mỗi '
+                f'{self._GLOSSARY_FLUSH_EVERY} ảnh.')
+            atexit.register(self._flush_glossary_learning)
+
     def parse_args(self, args: TranslatorConfig):
         self.config = args.chatgpt_config
+
+    # ── Glossary auto-update ─────────────────────────────────────────────────
+    # Flush ĐỊNH KỲ mỗi _GLOSSARY_FLUSH_EVERY ảnh (mặc định 10) NGAY TRONG lần
+    # chạy: trích tên mới → ghi file → reload terms+prompt block, để các ảnh SAU
+    # (kể cả trong cùng một oneshot 1-folder) đã được khoá tên học từ các ảnh
+    # trước. Cộng thêm 1 flush cuối ở atexit cho phần dư (<10 ảnh). _learn_pairs
+    # được XOÁ sau mỗi flush → prompt trích luôn gọn (~10 ảnh gần nhất).
+    def _drain_flush_batch(self):
+        """Lấy & khử trùng các cặp tích luỹ từ lần flush trước, cắt theo ngân sách.
+        Trả (chosen, n_unique, capped) và XOÁ _learn_pairs."""
+        pairs = getattr(self, "_learn_pairs", None) or []
+        self._learn_pairs = []
+        uniq: dict = {}
+        for s, t in pairs:
+            if s and t and s not in uniq:
+                uniq[s] = t
+        # Ưu tiên câu NGẮN (tên/cảnh giới hay nằm ở caption/câu ngắn).
+        items = sorted(uniq.items(), key=lambda kv: len(kv[0]))
+        MAX_PAIRS, MAX_CHARS = 160, 8000
+        chosen, budget, capped = [], 0, False
+        for s, t in items:
+            line_len = len(s) + len(t) + 6
+            if len(chosen) >= MAX_PAIRS or budget + line_len > MAX_CHARS:
+                capped = True
+                break
+            chosen.append((s, t))
+            budget += line_len
+        return chosen, len(uniq), capped
+
+    def _merge_learned_into_glossary(self, learned):
+        """Ghi thêm các mục MỚI (chưa có trong file) rồi RELOAD terms + prompt
+        block để các ảnh sau dùng ngay. Trả số mục mới đã thêm."""
+        path = self._glossary_path
+        existing_terms, _ = _load_glossary(path)
+        existing_zh = {zh for zh, _ in existing_terms}
+        new_terms = [(zh, vi) for zh, vi in learned if zh not in existing_zh]
+        if not new_terms:
+            return 0
+        _append_glossary_terms(path, new_terms)
+        # Reload từ file (gộp cả mục người dùng sửa tay) → áp ngay cho ảnh kế.
+        self._glossary_terms, self._glossary_notes = _load_glossary(path)
+        self._glossary_block = _glossary_prompt_block(self._glossary_terms, self._glossary_notes)
+        preview = ', '.join(f'{zh}→{vi}' for zh, vi in new_terms[:12])
+        self.logger.info(
+            f'[glossary] +{len(new_terms)} mục mới → {path}: {preview}'
+            + ('…' if len(new_terms) > 12 else ''))
+        return len(new_terms)
+
+    async def _maybe_flush_glossary(self, force: bool = False):
+        """Gọi sau mỗi ảnh. Flush khi đủ _GLOSSARY_FLUSH_EVERY ảnh (hoặc force).
+        Dùng client ASYNC (đang trong event loop). Nuốt mọi lỗi."""
+        if not getattr(self, "_glossary_path", None):
+            return
+        self._pages_since_flush = getattr(self, "_pages_since_flush", 0) + 1
+        if not force and self._pages_since_flush < self._GLOSSARY_FLUSH_EVERY:
+            return
+        self._pages_since_flush = 0
+        try:
+            chosen, n_uniq, capped = self._drain_flush_batch()
+            if not chosen:
+                return
+            messages = _glossary_extract_messages(chosen)
+            extra_body = {"chat_template_kwargs": {"enable_thinking": False}}
+            resp = await self.client.chat.completions.create(
+                model=self.model or CUSTOM_OPENAI_MODEL, messages=messages,
+                max_tokens=1024, temperature=0, top_p=1.0,
+                seed=self._SEED if self._DETERMINISTIC else None,
+                extra_body=extra_body,
+            )
+            try:
+                self.token_count += resp.usage.total_tokens
+            except Exception:
+                pass
+            learned = _parse_glossary_extract(resp.choices[0].message.content or "")
+            if capped:
+                self.logger.info(f'[glossary] (lưu ý) batch này chỉ xét {len(chosen)}/{n_uniq} cặp.')
+            n = self._merge_learned_into_glossary(learned)
+            if not n:
+                self.logger.info('[glossary] batch: không có tên/thuật ngữ mới.')
+        except Exception as e:
+            self.logger.warning(f'[glossary] bỏ qua flush định kỳ ({e}).')
+
+    def _flush_glossary_learning(self):
+        """atexit (đồng bộ, async loop đã đóng): flush phần dư cuối cùng bằng client
+        ĐỒNG BỘ. Nuốt mọi lỗi — KHÔNG bao giờ làm hỏng/treo tiến trình."""
+        try:
+            if not getattr(self, "_glossary_path", None) or openai is None:
+                return
+            chosen, _n, _capped = self._drain_flush_batch()
+            if not chosen:
+                return
+            client = openai.OpenAI(
+                api_key=getattr(self, "_api_key", None) or CUSTOM_OPENAI_API_KEY or "ollama",
+                base_url=getattr(self, "_api_base", None) or CUSTOM_OPENAI_API_BASE,
+                timeout=90,
+            )
+            extra_body = {"chat_template_kwargs": {"enable_thinking": False}}
+            resp = client.chat.completions.create(
+                model=self.model or CUSTOM_OPENAI_MODEL,
+                messages=_glossary_extract_messages(chosen),
+                max_tokens=1024, temperature=0, top_p=1.0,
+                seed=self._SEED if self._DETERMINISTIC else None,
+                extra_body=extra_body,
+            )
+            learned = _parse_glossary_extract(resp.choices[0].message.content or "")
+            self._merge_learned_into_glossary(learned)
+        except Exception as e:
+            try:
+                self.logger.warning(f'[glossary] bỏ qua flush cuối ({e}).')
+            except Exception:
+                pass
 
     def _get_vietnamese_retry_system_suffix(self) -> str:
         """Extra system message appended when retrying to enforce Vietnamese output.
@@ -739,6 +1043,14 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                     if _t.strip() and _t.strip() != "‍":
                         _anchor_i = _i
 
+                # ── Gọt dấu nháy/ngoặc kép bao quanh thoại ───────────────────────
+                # Sau khi đã bóc nhãn [type]/[cont], thoại còn lại không cần cặp
+                # ngoặc kép bao ngoài (model bê từ nguồn CJK hoặc trả lệch vế →
+                # nháy lẻ đầu/cuối). Bỏ qua marker ZWJ (vùng watermark/cont đã xoá).
+                for _i in range(len(cleaned_translations)):
+                    if cleaned_translations[_i] and cleaned_translations[_i].strip() != "‍":
+                        cleaned_translations[_i] = _strip_wrapping_quotes(cleaned_translations[_i])
+
                 if _target_is_vietnamese(to_lang):
                     non_vietnamese = [t for _i, t in enumerate(cleaned_translations)
                                       if _i not in decor_idx and _needs_vietnamese_retry(t)]
@@ -824,8 +1136,14 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
                     # Enforce t\u00ean c\u1ea3nh gi\u1edbi kh\u1edbp ngu\u1ed3n (sau m\u1ecdi x\u1eed l\u00fd kh\u00e1c). Soi tr\u00ean
                     # ngu\u1ed3n \u0110\u00c3 s\u1eeda l\u1ed7i OCR (\u7ed3\u6bcd\u2192\u7ed3\u4e39) \u2014 kh\u1edbp v\u1edbi b\u1ea3n model nh\u00ecn th\u1ea5y.
                     if cleaned_translations[i] not in ("", "\u200d"):
+                        _fixed_src = _fix_ocr_source(src)
                         cleaned_translations[i] = _fix_realm_terms(
-                            _fix_ocr_source(src), cleaned_translations[i], self.logger)
+                            _fixed_src, cleaned_translations[i], self.logger)
+                        # Glossary per-truy\u1ec7n: thay ch\u1eef H\u00e1n kho\u00e1-c\u1ee9ng c\u00f2n s\u00f3t b\u1eb1ng
+                        # b\u1ea3n d\u1ecbch \u0111\u00e3 ch\u1ed1t (ch\u1ec9 khi model \u0111\u1ec3 nguy\u00ean CJK \u2014 an to\u00e0n).
+                        cleaned_translations[i] = _apply_glossary_terms(
+                            _fixed_src, cleaned_translations[i],
+                            getattr(self, "_glossary_terms", None), self.logger)
 
             translations.extend(cleaned_translations)
 
@@ -851,6 +1169,18 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
             ]
             if page_vi:
                 self._recent_context.append(page_vi)
+
+            # Gom cặp (nguồn CJK → bản dịch VI thật) để atexit trích tên/thuật ngữ
+            # mới ghi vào glossary của bộ. orig_queries ↔ translations đã căn slot
+            # (kể cả khi đã gộp câu) nên zip an toàn.
+            if getattr(self, "_glossary_path", None):
+                for s, t in zip(orig_queries, translations):
+                    if (s and isinstance(t, str) and t.strip()
+                            and _CHINESE_RE.search(s) and _VI_DIACRITIC_RE.search(t)):
+                        self._learn_pairs.append((s.strip(), t.strip()))
+                # Đếm ảnh đã dịch; đủ _GLOSSARY_FLUSH_EVERY thì trích tên + reload.
+                if self._GLOSSARY_FLUSH_EVERY and self._GLOSSARY_FLUSH_EVERY > 0:
+                    await self._maybe_flush_glossary()
 
         return translations
 
@@ -958,6 +1288,10 @@ class CustomOpenAiTranslator(ConfigGPT, CommonTranslator):
         context_block = self._build_context_block()
         if context_block:
             sys_content += context_block
+        # Glossary của bộ đặt SAU STORY CONTEXT (recency) — ưu tiên cao nhất, khoá
+        # cứng tên/xưng hô/cảnh giới nhất quán xuyên suốt truyện.
+        if getattr(self, '_glossary_block', ''):
+            sys_content += self._glossary_block
         if getattr(self, '_vi_retry_extra_system', ''):
             sys_content += self._vi_retry_extra_system
         messages = [{'role': 'system', 'content': sys_content}]
