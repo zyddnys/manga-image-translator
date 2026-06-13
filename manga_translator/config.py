@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Optional, Any, Literal, List
 
 from omegaconf import OmegaConf
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # TODO: Refactor
@@ -217,6 +217,8 @@ class UpscaleConfig(BaseModel):
     """Image upscale ratio applied before detection. Can improve text detection."""
 
 class TranslatorConfig(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     translator: Translator = Translator.sugoi
     """Language translator to use"""
     model_name: str = None

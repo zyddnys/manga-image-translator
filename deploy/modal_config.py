@@ -22,7 +22,7 @@ ENV_SECRET_NAME = "manga-translator-env"  # Contains all env vars including MT_W
 
 # GPU Configuration
 GPU_CONFIG = {
-    "gpu": "T4",  # Options: T4 (cost-effective), A10G, A100
+    "gpu": "A10G",  # Options: T4 (cost-effective), A10G, A100
     "cpu": 4.0,
     "memory": 16384,  # 16GB RAM
     "timeout": 600,  # 10 minutes
