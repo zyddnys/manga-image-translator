@@ -14,7 +14,7 @@ from PIL import Image
 from typing import Optional, Any, List
 import py3langid as langid
 
-from .config import Config, Colorizer, Detector, Translator, Renderer, Inpainter
+from .config import Config, Colorizer, Detector, Translator, Renderer, Inpainter, Ocr
 from .utils import (
     BASE_PATH,
     LANGUAGE_ORIENTATION_PRESETS,
@@ -30,7 +30,7 @@ from .utils import (
 from .detection import dispatch as dispatch_detection, prepare as prepare_detection, unload as unload_detection
 from .upscaling import dispatch as dispatch_upscaling, prepare as prepare_upscaling, unload as unload_upscaling
 from .ocr import dispatch as dispatch_ocr, prepare as prepare_ocr, unload as unload_ocr
-from .textline_merge import dispatch as dispatch_textline_merge
+from .textline_merge import dispatch as dispatch_textline_merge, dispatch_mocr_merged
 from .mask_refinement import dispatch as dispatch_mask_refinement
 from .inpainting import dispatch as dispatch_inpainting, prepare as prepare_inpainting, unload as unload_inpainting
 from .translators import (
@@ -417,6 +417,7 @@ class MangaTranslator:
         # 在翻译流程的最后保存翻译结果，确保保存的是最终结果（包括重试后的结果）
         # Save translation results at the end of translation process to ensure final results are saved
         if not skip_context_save and ctx.text_regions:
+            await self._report_progress('saving_context')
             # 汇总本页翻译，供下一页做上文
             page_translations = {r.text_raw if hasattr(r, "text_raw") else r.text: r.translation
                                  for r in ctx.text_regions}
@@ -451,6 +452,7 @@ class MangaTranslator:
         # -- Upscaling
         # The default text detector doesn't work very well on smaller images, might want to
         # consider adding automatic upscaling on certain kinds of small images.
+        # 调用 models/xxx 可执行文件，输入模糊图片，输出高清图
         if config.upscale.upscale_ratio:
             await self._report_progress('upscaling')
             try:
@@ -635,6 +637,7 @@ class MangaTranslator:
 
         # 在verbose模式下保存final.png到调试文件夹
         if ctx.result and self.verbose:
+            await self._report_progress('saving_debug')
             try:
                 final_img = np.array(ctx.result)
                 if len(final_img.shape) == 3:  # 彩色图片，转换BGR顺序
@@ -649,6 +652,7 @@ class MangaTranslator:
 
         # Web流式模式优化：保存final.png并使用占位符
         if ctx.result and not self.result_sub_folder and hasattr(self, '_is_streaming_mode') and self._is_streaming_mode:
+            await self._report_progress('saving_result')
             # 保存final.png文件
             final_img = np.array(ctx.result)
             if len(final_img.shape) == 3:  # 彩色图片，转换BGR顺序
@@ -775,36 +779,40 @@ class MangaTranslator:
     async def _run_textline_merge(self, config: Config, ctx: Context):
         current_time = time.time()
         self._model_usage_timestamps[("textline_merge", "textline_merge")] = current_time
-        text_regions = await dispatch_textline_merge(ctx.textlines, ctx.img_rgb.shape[1], ctx.img_rgb.shape[0],
-                                                     verbose=self.verbose)
-        for region in text_regions:
-            if not hasattr(region, "text_raw"):
-                region.text_raw = region.text      # <- Save the initial OCR results to expand the render detection box. Also, prevent affecting the forbidden translation function.       
-        # Filter out languages to skip  
-        if config.translator.skip_lang is not None:  
-            skip_langs = [lang.strip().upper() for lang in config.translator.skip_lang.split(',')]  
-            filtered_textlines = []  
-            for txtln in ctx.textlines:  
-                try:  
+
+        # Filter out languages to skip
+        if config.translator.skip_lang is not None:
+            skip_langs = [lang.strip().upper() for lang in config.translator.skip_lang.split(',')]
+            filtered_textlines = []
+            for txtln in ctx.textlines:
+                try:
                     detected_lang, confidence = langid.classify(txtln.text)
                     source_language = ISO_639_1_TO_VALID_LANGUAGES.get(detected_lang, 'UNKNOWN')
                     if source_language != 'UNKNOWN':
                         source_language = source_language.upper()
-                except Exception:  
-                    source_language = 'UNKNOWN'  
-    
-                # Print detected source_language and whether it's in skip_langs  
-                # logger.info(f'Detected source language: {source_language}, in skip_langs: {source_language in skip_langs}, text: "{txtln.text}"')  
-    
-                if source_language in skip_langs:  
-                    logger.info(f'Filtered out: {txtln.text}')  
-                    logger.info(f'Reason: Detected language {source_language} is in skip_langs')  
-                    continue  # Skip this region  
-                filtered_textlines.append(txtln)  
-            ctx.textlines = filtered_textlines  
-    
-        text_regions = await dispatch_textline_merge(ctx.textlines, ctx.img_rgb.shape[1], ctx.img_rgb.shape[0],  
-                                                     verbose=self.verbose)  
+                except Exception:
+                    source_language = 'UNKNOWN'
+
+                if source_language in skip_langs:
+                    logger.info(f'Filtered out: {txtln.text}')
+                    logger.info(f'Reason: Detected language {source_language} is in skip_langs')
+                    continue
+                filtered_textlines.append(txtln)
+            ctx.textlines = filtered_textlines
+
+        skip_merge = config.ocr.use_mocr_merge and config.ocr.ocr == Ocr.mocr
+        if skip_merge:
+            print("-------------- skip textline merge")
+            text_regions = await dispatch_mocr_merged(ctx.textlines, verbose=self.verbose)
+        else:
+            print("-------------- not skip textline merge")
+            text_regions = await dispatch_textline_merge(
+                ctx.textlines, ctx.img_rgb.shape[1], ctx.img_rgb.shape[0], verbose=self.verbose
+            )
+
+        for region in text_regions:
+            if not hasattr(region, "text_raw"):
+                region.text_raw = region.text
 
         new_text_regions = []
         for region in text_regions:
@@ -1380,7 +1388,8 @@ class MangaTranslator:
         else:
             output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, self.font_path, config.render.font_name, config.render.font_size,
                                               config.render.font_size_offset,
-                                              config.render.font_size_minimum, not config.render.no_hyphenation, ctx.render_mask, config.render.line_spacing)
+                                              config.render.font_size_minimum, not config.render.no_hyphenation, ctx.render_mask, config.render.line_spacing,
+                                              config.render.disable_font_border, config.render.fit_to_box)
         return output
 
     def _result_path(self, path: str) -> str:
@@ -1437,6 +1446,9 @@ class MangaTranslator:
             'rendering': 'Running rendering',
             'colorizing': 'Running colorization',
             'downscaling': 'Running downscaling',
+            'saving_debug': 'Saving debug result',
+            'saving_result': 'Saving result image',
+            'saving_context': 'Saving translation context',
         }
         LOG_MESSAGES_SKIP = {
             'skip-no-regions': 'No text regions! - Skipping',

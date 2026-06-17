@@ -1,7 +1,8 @@
 import os
+import re
 import cv2
 import numpy as np
-from typing import List
+from typing import List, Optional
 from shapely import affinity
 from shapely.geometry import Polygon
 from tqdm import tqdm
@@ -45,7 +46,95 @@ def count_text_length(text: str) -> float:
             length += 1.0
     return length
 
-def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock'], font_size_fixed: int, font_size_offset: int, font_size_minimum: int):  
+def _resolve_render_horizontal(region: TextBlock) -> bool:
+    forced_direction = region._direction if hasattr(region, '_direction') else region.direction
+    if forced_direction not in ('auto',):
+        if forced_direction in ('horizontal', 'h'):
+            return True
+        if forced_direction in ('vertical', 'v'):
+            return False
+    return region.horizontal
+
+def _vertical_text_fits(font_size: int, text: str, box_w: int, box_h: int, line_spacing: Optional[int]) -> bool:
+    text = text.strip()
+    if not text or box_w <= 0 or box_h <= 0:
+        return True
+    spacing_x = int(font_size * (line_spacing if line_spacing is not None else 0.2))
+    line_text_list, _ = text_render.calc_vertical(font_size, text, box_h)
+    n_cols = len(line_text_list)
+    if n_cols == 0:
+        return True
+    total_w = n_cols * font_size + max(0, n_cols - 1) * spacing_x
+    return total_w <= box_w
+
+def _horizontal_text_fits(font_size: int, text: str, box_w: int, box_h: int, lang: str, hyphenate: bool, line_spacing: Optional[int]) -> bool:
+    text = text.strip()
+    if not text or box_w <= 0 or box_h <= 0:
+        return True
+    spacing_y = int(font_size * (line_spacing if line_spacing is not None else 0.01))
+    max_w = max(box_w, 2 * font_size)
+    words = re.split(r'\s+', text)
+    word_widths = [text_render.get_string_width(font_size, word) for word in words if word]
+    if not word_widths:
+        return True
+    max_lines = max(box_h // font_size + 1, 1)
+    whitespace_offset_x = text_render.get_char_offset_x(font_size, ' ')
+    hyphen_offset_x = text_render.get_char_offset_x(font_size, '-')
+    expected_size = sum(word_widths) + max(
+        (len(word_widths) - 1) * whitespace_offset_x - (max_lines - 1) * hyphen_offset_x, 0
+    )
+    if max_w * max_lines < expected_size:
+        return False
+    line_text_list, line_width_list = text_render.calc_horizontal(
+        font_size, text, max_w, box_h, lang, hyphenate
+    )
+    if not line_text_list:
+        return True
+    total_h = len(line_text_list) * font_size + max(0, len(line_text_list) - 1) * spacing_y
+    max_line_w = max(line_width_list) if line_width_list else 0
+    return total_h <= box_h and max_line_w <= box_w
+
+# 在给定的文字框（bounding box）内，找出能让翻译文本完整显示的最大字号
+def _fit_font_size_to_box(
+    region: TextBlock,
+    initial_font_size: int,
+    font_size_minimum: int,
+    hyphenate: bool,
+    line_spacing: Optional[int],
+) -> int:
+    box_w, box_h = region.unrotated_size
+    box_w = max(int(round(box_w)), 1)
+    box_h = max(int(round(box_h)), 1)
+    text = region.get_translation_for_rendering()
+    lang = getattr(region, 'target_lang', 'en_US') or 'en_US'
+    horizontal = _resolve_render_horizontal(region)
+    fits = _horizontal_text_fits if horizontal else _vertical_text_fits
+    fit_kwargs = (
+        {'lang': lang, 'hyphenate': hyphenate, 'line_spacing': line_spacing}
+        if horizontal else
+        {'line_spacing': line_spacing}
+    )
+    lo, hi = font_size_minimum, max(initial_font_size, font_size_minimum)
+    best = lo
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        if fits(mid, text, box_w, box_h, **fit_kwargs):
+            best = mid
+            lo = mid + 1
+        else:
+            hi = mid - 1
+    return best
+
+def resize_regions_to_font_size(
+    img: np.ndarray,
+    text_regions: List['TextBlock'],
+    font_size_fixed: int,
+    font_size_offset: int,
+    font_size_minimum: int,
+    hyphenate: bool = True,
+    line_spacing: Optional[int] = None,
+    fit_to_box: bool = True,
+):
     """
     Adjust text region size to accommodate font size and translated text length.
     
@@ -83,10 +172,16 @@ def resize_regions_to_font_size(img: np.ndarray, text_regions: List['TextBlock']
             target_font_size = current_base_font_size + font_size_offset  
 
         target_font_size = max(target_font_size, font_size_minimum, 1)  
-        # print("-" * 50)
-        # logger.debug(f"Calculated target font size: {target_font_size} for text '{region.translation}'")  
 
-        # Single-axis text box expansion
+        if fit_to_box:
+            target_font_size = _fit_font_size_to_box(
+                region, target_font_size, font_size_minimum, hyphenate, line_spacing
+            )
+            dst_points_list.append(region.min_rect)
+            region.font_size = int(target_font_size)
+            continue
+
+        # Legacy: expand bounding box when translation is longer than the OCR region
         single_axis_expanded = False
         dst_points = None
         
@@ -243,7 +338,8 @@ async def dispatch(
     hyphenate: bool = True,
     render_mask: np.ndarray = None,
     line_spacing: int = None,
-    disable_font_border: bool = False
+    disable_font_border: bool = False,
+    fit_to_box: bool = True,
     ) -> np.ndarray:
 
     if font_path:
@@ -256,7 +352,10 @@ async def dispatch(
     text_regions = list(filter(lambda region: region.translation, text_regions))
 
     # Resize regions that are too small
-    dst_points_list = resize_regions_to_font_size(img, text_regions, font_size_fixed, font_size_offset, font_size_minimum)
+    dst_points_list = resize_regions_to_font_size(
+        img, text_regions, font_size_fixed, font_size_offset, font_size_minimum,
+        hyphenate=hyphenate, line_spacing=line_spacing, fit_to_box=fit_to_box,
+    )
 
     # TODO: Maybe remove intersections
 
@@ -282,6 +381,11 @@ def render(
     if disable_font_border :
         bg = None
 
+    #    0 --- m0 --- 1
+    #    |            |
+    #    m3           m1
+    #    |            |
+    #    3 --- m2 --- 2
     middle_pts = (dst_points[:, [1, 2, 3, 0]] + dst_points) / 2
     norm_h = np.linalg.norm(middle_pts[:, 1] - middle_pts[:, 3], axis=1)
     norm_v = np.linalg.norm(middle_pts[:, 2] - middle_pts[:, 0], axis=1)
@@ -339,7 +443,7 @@ def render(
     #print(f"Starting image adjustment: r_temp={r_temp}, r_orig={r_orig}, h={h}, w={w}")  
     if region.horizontal:  
         #print("Processing HORIZONTAL region")  
-        
+        # 文字画布比目标区域更宽，需要增加高度
         if r_temp > r_orig:   
             #print(f"Case: r_temp({r_temp}) > r_orig({r_orig}) - Need vertical padding")  
             h_ext = int((w / r_orig - h) // 2) if r_orig > 0 else 0  
@@ -355,6 +459,7 @@ def render(
                 #print("h_ext < 0, using original temp_box")  
                 box = temp_box.copy()  
         else:   
+            # 文字画布比目标区域更窄，需要增加宽度
             #print(f"Case: r_temp({r_temp}) <= r_orig({r_orig}) - Need horizontal padding")  
             w_ext = int((h * r_orig - w) // 2)  
             #print(f"Calculated w_ext = {w_ext}")  
@@ -408,6 +513,7 @@ def render(
     #src_pts[:, 0] = np.clip(np.round(src_pts[:, 0]), 0, enlarged_w * 2)
     #src_pts[:, 1] = np.clip(np.round(src_pts[:, 1]), 0, enlarged_h * 2)
 
+    # 把在平面矩形画布上画好的翻译文字，通过透视变换贴回原图对应的气泡/文字区域，并用 Alpha 通道做混合。
     M, _ = cv2.findHomography(src_points, dst_points, cv2.RANSAC, 5.0)
     rgba_region = cv2.warpPerspective(box, M, (img.shape[1], img.shape[0]), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
     x, y, w, h = cv2.boundingRect(dst_points.astype(np.int32))

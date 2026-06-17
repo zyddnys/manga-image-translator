@@ -21,10 +21,11 @@ async def test_translate(image_path):
     config = Config(
         render=RenderConfig(
             renderer=Renderer.default,
+            fit_to_box=True,
         ),
         translator=TranslatorConfig(
-            translator=Translator.deepseek,
-            model_name='deepseek-v4-flash',
+            translator=Translator.gemini,
+            model_name='gemini-3.5-flash',
             target_lang="CHS"
         ),
         detector=DetectorConfig(
@@ -39,7 +40,7 @@ async def test_translate(image_path):
             # prob=0.1 # mocr 写死了0.2置信度
         ),
         upscale=UpscaleConfig(
-            upscaler=Upscaler.waifu2x,
+            upscaler=Upscaler.esrgan,
             revert_upscaling=False,
             upscale_ratio=2
         )

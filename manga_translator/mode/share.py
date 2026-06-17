@@ -3,7 +3,7 @@ import pickle
 import io
 import secrets
 from threading import Lock
-
+import logging
 import uvicorn
 from fastapi import FastAPI, HTTPException, Path, Request, Response
 from pydantic import BaseModel
@@ -11,6 +11,8 @@ from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 
 from manga_translator import MangaTranslator
+
+logger = logging.getLogger('manga-translator')
 
 SAFE_PICKLE_MODULES = frozenset({
     'builtins',
@@ -69,6 +71,13 @@ class MangaShare:
 
         self.manga.add_progress_hook(hook)
 
+    async def _emit_progress(self, state: str):
+        logger.info(state)
+        state_data = state.encode("utf-8")
+        progress_data = b'\x01' + len(state_data).to_bytes(4, 'big') + state_data
+        await self.progress_queue.put(progress_data)
+        await asyncio.sleep(0)
+
     async def progress_stream(self):
         """
         loops until the status is != 1 which is eiter an error or the result
@@ -87,6 +96,7 @@ class MangaShare:
             else:
                 result = method(**attributes)
 
+            await self._emit_progress('serializing')
             # 检查是否使用占位符，如果是则创建最小化的结果对象
             if hasattr(result, 'use_placeholder') and result.use_placeholder:
                 # 创建一个最小的Context对象，只包含占位符图片，避免传输大量数据

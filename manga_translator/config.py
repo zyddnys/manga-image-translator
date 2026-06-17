@@ -180,6 +180,8 @@ class RenderConfig(BaseModel):
     """Line spacing is font_size * this value. Default is 0.01 for horizontal text and 0.2 for vertical."""
     font_size: Optional[int] = None
     """Use fixed font size for rendering"""
+    fit_to_box: bool = True
+    """Shrink font to fit inside the OCR box instead of expanding the box for long translations"""
     rtl: bool = True
     """Right-to-left reading order for panel and text_region sorting,"""  
     _font_color_fg = None

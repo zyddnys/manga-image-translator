@@ -181,6 +181,26 @@ def merge_bboxes_text_region(bboxes: List[Quadrilateral], width, height):
         # yield overall bbox and sorted indices
         yield txtlns, (fg_r, fg_g, fg_b), (bg_r, bg_g, bg_b)
 
+async def dispatch_mocr_merged(textlines: List[Quadrilateral], verbose: bool = False) -> List[TextBlock]:
+    """Convert mocr pre-merged quadrilaterals to TextBlocks (one region per quad, no merge)."""
+    text_regions: List[TextBlock] = []
+    for txtln in textlines:
+        angle = np.rad2deg(txtln.angle) - 90
+        if abs(angle) < 3:
+            angle = 0
+        region = TextBlock(
+            [txtln.pts],
+            [txtln.text],
+            font_size=int(txtln.font_size),
+            angle=angle,
+            prob=txtln.prob,
+            fg_color=(txtln.fg_r, txtln.fg_g, txtln.fg_b),
+            bg_color=(txtln.bg_r, txtln.bg_g, txtln.bg_b),
+        )
+        text_regions.append(region)
+    return text_regions
+
+
 async def dispatch(textlines: List[Quadrilateral], width: int, height: int, verbose: bool = False) -> List[TextBlock]:
     # print(width, height)
     # import re
