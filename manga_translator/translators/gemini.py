@@ -328,6 +328,7 @@ class GeminiTranslator(CommonGPTTranslator):
             # Assemble prompt for the current batch  
             prompt, query_size = self._assemble_prompts(from_lang, to_lang, prompt_queries).__next__()
 
+            server_error_attempt = 0
             for attempt in range(RETRY_ATTEMPTS):  
                 try:  
                     # Get the response (synchronously)
