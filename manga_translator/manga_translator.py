@@ -14,7 +14,7 @@ from PIL import Image
 from typing import Optional, Any, List
 import py3langid as langid
 
-from .config import Config, Colorizer, Detector, Translator, Renderer, Inpainter, Ocr
+from .config import Config, Colorizer, Detector, SaveConfig, SavePlace, Translator, Renderer, Inpainter, Ocr
 from .utils import (
     BASE_PATH,
     LANGUAGE_ORIENTATION_PRESETS,
@@ -41,6 +41,7 @@ from .translators import (
 from .translators.common import ISO_639_1_TO_VALID_LANGUAGES
 from .colorization import dispatch as dispatch_colorization, prepare as prepare_colorization, unload as unload_colorization
 from .rendering import dispatch as dispatch_rendering, dispatch_eng_render, dispatch_eng_render_pillow
+from .utils.supabase import create_service_role_client, upload_file
 
 # Will be overwritten by __main__.py if module is being run directly (with python -m)
 logger = logging.getLogger('manga_translator')
@@ -653,16 +654,35 @@ class MangaTranslator:
         # Web流式模式优化：保存final.png并使用占位符
         if ctx.result and not self.result_sub_folder and hasattr(self, '_is_streaming_mode') and self._is_streaming_mode:
             await self._report_progress('saving_result')
-            # 保存final.png文件
             final_img = np.array(ctx.result)
             if len(final_img.shape) == 3:  # 彩色图片，转换BGR顺序
                 final_img = cv2.cvtColor(final_img, cv2.COLOR_RGB2BGR)
-            cv2.imwrite(self._result_path('final.png'), final_img)
 
-            # 通知前端文件已就绪
-            if hasattr(self, '_progress_hooks') and self._current_image_context:
-                folder_name = self._current_image_context['subfolder']
-                await self._report_progress(f'final_ready:{folder_name}')
+            # 根据config决定保存本地 or supabase storage
+            if config.save.save_to == SavePlace.supabase_storage:
+                # 上传
+                ok, png_bytes = cv2.imencode('.png', final_img)
+                if not ok:
+                    raise RuntimeError("failed to encode final.png")
+                supabase_client = create_service_role_client()
+                try:
+                    output_path = upload_file(supabase_client, 
+                        png_bytes.tobytes(), 
+                        config.save.supabase_storage_path, 
+                        config.save.supabase_storage_bucket)
+                except Exception as e:
+                    logger.error(f"Failed to upload result image to supabase storage: {e}")
+                    raise
+                # 通知前端文件已就绪
+                if hasattr(self, '_progress_hooks') and self._current_image_context:
+                    await self._report_progress(f'final_ready:{output_path}')
+            elif config.save.save_to == SavePlace.local:
+                # 保存final.png文件
+                cv2.imwrite(self._result_path('final.png'), final_img)
+                # 通知前端文件已就绪
+                if hasattr(self, '_progress_hooks') and self._current_image_context:
+                    folder_name = self._current_image_context['subfolder']
+                    await self._report_progress(f'final_ready:{folder_name}')
 
             # 创建占位符结果并立即返回
             from PIL import Image

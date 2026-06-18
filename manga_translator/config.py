@@ -151,6 +151,11 @@ class Upscaler(str, Enum):
     esrgan = "esrgan"
     upscler4xultrasharp = "4xultrasharp"
 
+class SavePlace(str, Enum):
+    local = "local"
+    supabase_storage = "supabase_storage"
+
+
 class RenderConfig(BaseModel):
     renderer: Renderer = Renderer.default
     """Render english text translated from manga with some additional typesetting. Ignores some other argument options"""
@@ -324,6 +329,14 @@ class OcrConfig(BaseModel):
     prob: float | None = None
     """Minimum probability of a text region to be considered valid. If None, uses the model default."""
 
+class SaveConfig(BaseModel):
+    save_to: SavePlace = SavePlace.local
+    """save to local or other storage"""
+    supabase_storage_bucket: str = None
+    """when save to supabase storage, set bucket here"""
+    supabase_storage_path: str = None
+    """when save to supabase storage, set path here, foramt: folder/subfolder/filename.png"""
+
 class Config(BaseModel):
     # General
     filter_text: Optional[str] = None
@@ -350,6 +363,8 @@ class Config(BaseModel):
     mask_dilation_offset: int = 20
     """By how much to extend the text mask to remove left-over text pixels of the original image."""
     _filter_text = None
+    """filter text"""
+    save: SaveConfig = SaveConfig()
 
     @property
     def re_filter_text(self):
