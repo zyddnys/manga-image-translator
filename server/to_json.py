@@ -78,7 +78,7 @@ class Translation(BaseModel):
 
 class TranslationResponse(BaseModel):
     translations: List[Translation]
-    debug_folder: str = None  # 添加debug_folder字段
+    debug_folder: str | None = None  # 添加debug_folder字段
 
     def to_bytes(self):
         items= [v.to_bytes() for v in self.translations]

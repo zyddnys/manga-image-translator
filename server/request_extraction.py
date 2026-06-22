@@ -13,7 +13,7 @@ from fastapi.responses import StreamingResponse
 
 from manga_translator import Config
 from server.myqueue import task_queue, wait_in_queue, QueueElement, BatchQueueElement
-from server.streaming import notify, stream
+from server.streaming import notify, stream, stream_batch
 
 class TranslateRequest(BaseModel):
     """This request can be a multipart or a json request"""
@@ -72,6 +72,21 @@ async def while_streaming(req: Request, transform, config: Config, image: bytes 
     streaming_response = StreamingResponse(stream(messages), media_type="application/octet-stream")
     asyncio.create_task(wait_in_queue(task, notify_internal))
     return streaming_response
+
+
+async def while_batch_streaming(req: Request, transform, config: Config, images: list[str|bytes]):
+    pil_images = [await to_pil_image(img) for img in images]
+    task = BatchQueueElement(req, pil_images, config, len(pil_images))
+    task_queue.add_task(task)
+
+    messages = asyncio.Queue()
+    def notify_internal(code: int, data: bytes) -> None:
+        notify(code, data, transform, messages)
+
+    streaming_response = StreamingResponse(stream_batch(messages), media_type="application/octet-stream")
+    asyncio.create_task(wait_in_queue(task, notify_internal))
+    return streaming_response
+
 
 async def get_batch_ctx(req: Request, config: Config, images: list[str|bytes], batch_size: int = 4):
     """Process batch translation request"""

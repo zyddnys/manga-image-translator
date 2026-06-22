@@ -78,15 +78,36 @@ class MangaShare:
         await self.progress_queue.put(progress_data)
         await asyncio.sleep(0)
 
-    async def progress_stream(self):
+    async def progress_stream(self, is_batch: bool = False):
         """
-        loops until the status is != 1 which is eiter an error or the result
+        loops until the stream ends.
+        Single: status 0 (result) or 2 (error).
+        Batch: multiple status 0 per image, then status 5 (batch complete), or 2 (error).
         """
         while True:
             progress = await self.progress_queue.get()
             yield progress
-            if progress[0] != 1:
+            status = progress[0]
+            if status == 2:
                 break
+            if is_batch and status == 5:
+                break
+            if not is_batch and status == 0:
+                break
+
+    def _serialize_stream_result(self, result):
+        if hasattr(result, 'use_placeholder') and result.use_placeholder:
+            from manga_translator import Context
+            from PIL import Image
+            minimal_result = Context()
+            minimal_result.result = Image.new('RGB', (1, 1), color='white')
+            minimal_result.use_placeholder = True
+            return pickle.dumps(minimal_result)
+        return pickle.dumps(result)
+
+    async def _emit_stream_result(self, result_bytes: bytes):
+        encoded_result = b'\x00' + len(result_bytes).to_bytes(4, 'big') + result_bytes
+        await self.progress_queue.put(encoded_result)
 
     async def run_method(self, method, **attributes):
         try:
@@ -97,21 +118,12 @@ class MangaShare:
                 result = method(**attributes)
 
             await self._emit_progress('serializing')
-            # 检查是否使用占位符，如果是则创建最小化的结果对象
-            if hasattr(result, 'use_placeholder') and result.use_placeholder:
-                # 创建一个最小的Context对象，只包含占位符图片，避免传输大量数据
-                from manga_translator import Context
-                from PIL import Image
-                minimal_result = Context()
-                minimal_result.result = Image.new('RGB', (1, 1), color='white')
-                minimal_result.use_placeholder = True
-                result_bytes = pickle.dumps(minimal_result)
+            if isinstance(result, list):
+                for item in result:
+                    await self._emit_stream_result(self._serialize_stream_result(item))
+                await self.progress_queue.put(b'\x05' + (0).to_bytes(4, 'big') + b'')
             else:
-                result_bytes = pickle.dumps(result)
-
-            # 正常返回 status=0. status(1byte)+len(4byte)+ctx_bytes
-            encoded_result = b'\x00' + len(result_bytes).to_bytes(4, 'big') + result_bytes
-            await self.progress_queue.put(encoded_result)
+                await self._emit_stream_result(self._serialize_stream_result(result))
         except Exception as e:
             err_bytes = str(e).encode("utf-8")
             # 异常返回 status=2. body=错误信息
@@ -181,9 +193,14 @@ class MangaShare:
             # 根据端点类型决定是否使用占位符优化
             config = attr.get('config')
             self.manga._is_streaming_mode = getattr(config, '_web_frontend_optimized', False) if config else False
+            if method_name == "translate_batch":
+                attr.pop('config', None)  # translate_batch 不接受此参数
 
-            # streaming response
-            streaming_response = StreamingResponse(self.progress_stream(), media_type="application/octet-stream")
+            is_batch = method_name == "translate_batch"
+            streaming_response = StreamingResponse(
+                self.progress_stream(is_batch),
+                media_type="application/octet-stream",
+            )
             asyncio.create_task(self.run_method(method, **attr))
             return streaming_response
 

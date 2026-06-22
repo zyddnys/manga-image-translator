@@ -20,7 +20,7 @@ from pathlib import Path
 from manga_translator import Config
 from server.instance import ExecutorInstance, executor_instances
 from server.myqueue import task_queue
-from server.request_extraction import get_ctx, while_streaming, TranslateRequest, BatchTranslateRequest, get_batch_ctx
+from server.request_extraction import get_ctx, while_batch_streaming, while_streaming, TranslateRequest, BatchTranslateRequest, get_batch_ctx
 from server.to_json import to_translation, TranslationResponse
 
 app = FastAPI()
@@ -62,6 +62,18 @@ def transform_to_image(ctx):
     img_byte_arr = io.BytesIO()
     ctx.result.save(img_byte_arr, format="PNG")
     return img_byte_arr.getvalue()
+
+def transform_batch_to_image(ctx):
+    # 批量 stream 优先返回占位图；非占位符时回退为完整图片
+    if hasattr(ctx, 'use_placeholder') and ctx.use_placeholder:
+        img_byte_arr = io.BytesIO()
+        ctx.result.save(img_byte_arr, format="PNG")
+        return img_byte_arr.getvalue()
+
+    img_byte_arr = io.BytesIO()
+    ctx.result.save(img_byte_arr, format="PNG")
+    return img_byte_arr.getvalue()
+
 
 def transform_to_json(ctx):
     return to_translation(ctx).model_dump_json().encode("utf-8")
@@ -224,6 +236,19 @@ async def batch_images(req: Request, data: BatchTranslateRequest):
             media_type="application/zip",
             headers={"Content-Disposition": "attachment; filename=translated_images.zip"}
         )
+
+@app.post("/translate/batch/image/stream/web", response_description="uses placeholder optimization for faster response.", tags=["api", "batch"])
+async def batch_stream_image_form_web(req: Request, images: list[UploadFile] = File(...), config: str = Form("{}")):
+    conf = Config.parse_raw(config)
+    # 标记为Web前端优化模式，使用占位符优化，结果会直接保存
+    conf._web_frontend_optimized = True   
+    # 保存路径和图片数量对不上，返回错误
+    if conf.save.save_to == "supabase_storage" and len(images) != len(conf.save.supabase_storage_paths):
+        raise HTTPException(400, detail="supabase_storage_paths length should equal to images length")
+    
+    imgs = [await image.read() for image in images]
+
+    return await while_batch_streaming(req, transform_batch_to_image, conf, imgs)
 
 @app.get("/", response_class=HTMLResponse,tags=["ui"])
 async def index() -> HTMLResponse:
