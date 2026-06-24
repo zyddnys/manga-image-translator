@@ -660,29 +660,9 @@ class MangaTranslator:
 
             # 根据config决定保存本地 or supabase storage
             if config.save.save_to == SavePlace.supabase_storage:
-                # 上传
-                ok, png_bytes = cv2.imencode('.png', final_img)
-                if not ok:
-                    raise RuntimeError("failed to encode final.png")
-                supabase_client = create_service_role_client()
-                try:
-                    output_path = upload_file(supabase_client, 
-                        png_bytes.tobytes(), 
-                        config.save.supabase_storage_path, 
-                        config.save.supabase_storage_bucket)
-                except Exception as e:
-                    logger.error(f"Failed to upload result image to supabase storage: {e}")
-                    raise
-                # 通知前端文件已就绪
-                if hasattr(self, '_progress_hooks') and self._current_image_context:
-                    await self._report_progress(f'final_ready:{output_path}')
+                await self._save_streaming_result_to_supabase(final_img, config)
             elif config.save.save_to == SavePlace.local:
-                # 保存final.png文件
-                cv2.imwrite(self._result_path('final.png'), final_img)
-                # 通知前端文件已就绪
-                if hasattr(self, '_progress_hooks') and self._current_image_context:
-                    folder_name = self._current_image_context['subfolder']
-                    await self._report_progress(f'final_ready:{folder_name}')
+                await self._save_streaming_result_locally(final_img)
 
             # 创建占位符结果并立即返回
             from PIL import Image
@@ -692,6 +672,30 @@ class MangaTranslator:
             return ctx
 
         return ctx
+
+    async def _save_streaming_result_to_supabase(self, final_img: np.ndarray, config: Config) -> None:
+        ok, png_bytes = cv2.imencode('.png', final_img)
+        if not ok:
+            raise RuntimeError("failed to encode final.png")
+        supabase_client = create_service_role_client()
+        try:
+            output_path = upload_file(
+                supabase_client,
+                png_bytes.tobytes(),
+                config.save.supabase_storage_path,
+                config.save.supabase_storage_bucket,
+            )
+        except Exception as e:
+            logger.error(f"Failed to upload result image to supabase storage: {e}")
+            raise
+        if hasattr(self, '_progress_hooks') and self._current_image_context:
+            await self._report_progress(f'final_ready:{output_path}')
+
+    async def _save_streaming_result_locally(self, final_img: np.ndarray) -> None:
+        cv2.imwrite(self._result_path('final.png'), final_img)
+        if hasattr(self, '_progress_hooks') and self._current_image_context:
+            folder_name = self._current_image_context['subfolder']
+            await self._report_progress(f'final_ready:{folder_name}')
 
     async def _run_colorizer(self, config: Config, ctx: Context):
         current_time = time.time()
