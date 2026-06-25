@@ -155,6 +155,9 @@ def web():
     if use_gpu:
         worker_cmd.append('--use-gpu')
 
+    worker_cmd.append('--ignore-errors')
+    worker_cmd.append('--notify-progress-fail')
+
     print(f"Starting worker subprocess: {' '.join(worker_cmd)}")
 
     worker_process = subprocess.Popen(
@@ -235,7 +238,8 @@ def web():
         start_instance=False,  # We already started it manually
         use_gpu=use_gpu,
         use_gpu_limited=False,
-        ignore_errors=False,
+        ignore_errors=True,
+        notify_progress_fail=True,
         verbose=True,
         models_ttl=None,
         pre_dict=None,

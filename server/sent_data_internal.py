@@ -40,6 +40,7 @@ async def fetch_batch_stream(url, images: List[Image], config: Config, batch_siz
         for i, image in enumerate(images):
             img_conf = config.model_copy(deep=True)
             img_conf.save.supabase_storage_path = config.save.supabase_storage_paths[i]
+            img_conf.image_identifier = config.image_identifiers[i]
             images_with_config.append((image, img_conf))
     else:
         images_with_config = [(image, config) for image in images]

@@ -367,6 +367,11 @@ class Config(BaseModel):
     _filter_text = None
     """filter text"""
     save: SaveConfig = SaveConfig()
+    """save configs"""
+    image_identifier: str = None
+    """single image identifier"""
+    image_identifiers: List[str] = None
+    """identify each image in batch translate"""
 
     @property
     def re_filter_text(self):

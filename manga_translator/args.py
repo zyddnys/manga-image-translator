@@ -82,6 +82,7 @@ def general_parser(g_parser):
     g_parser.add_argument('--attempts', default=0, type=int,
                         help='Retry attempts on encountered error. -1 means infinite times.')
     g_parser.add_argument('--ignore-errors', action='store_true', help='Skip image on encountered error.')
+    g_parser.add_argument('--notify-progress-fail', action='store_true', help='Notify client when any translate step fail, only work in stream mode.')
     g_parser.add_argument('--model-dir', default=None, type=dir_path,
                         help='Model directory (by default ./models in project root)')
     g = g_parser.add_mutually_exclusive_group()

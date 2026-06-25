@@ -96,6 +96,7 @@ def apply_dictionary(text, dictionary):
 class MangaTranslator:
     verbose: bool
     ignore_errors: bool
+    notify_progress_fail: bool
     _gpu_limited_memory: bool
     device: Optional[str]
     kernel_size: Optional[int]
@@ -113,6 +114,7 @@ class MangaTranslator:
         self.device = None
         self._gpu_limited_memory = False
         self.ignore_errors = False
+        self.notify_progress_fail = False
         self.verbose = False
         self.models_ttl = 0
         self.batch_size = 1  # 默认不批量处理
@@ -286,6 +288,7 @@ class MangaTranslator:
             self.batch_concurrent = False
             
         self.ignore_errors = params.get('ignore_errors', False)
+        self.notify_progress_fail = params.get('notify_progress_fail', False)
         # check mps for apple silicon or cuda for nvidia
         device = 'mps' if torch.backends.mps.is_available() else 'cuda'
         self.device = device if params.get('use_gpu', False) else 'cpu'
@@ -662,7 +665,7 @@ class MangaTranslator:
             if config.save.save_to == SavePlace.supabase_storage:
                 await self._save_streaming_result_to_supabase(final_img, config)
             elif config.save.save_to == SavePlace.local:
-                await self._save_streaming_result_locally(final_img)
+                await self._save_streaming_result_locally(final_img, config)
 
             # 创建占位符结果并立即返回
             from PIL import Image
@@ -676,6 +679,7 @@ class MangaTranslator:
     async def _save_streaming_result_to_supabase(self, final_img: np.ndarray, config: Config) -> None:
         ok, png_bytes = cv2.imencode('.png', final_img)
         if not ok:
+            await self._notify_image_failed(config, 'failed to encode final.png')
             raise RuntimeError("failed to encode final.png")
         supabase_client = create_service_role_client()
         try:
@@ -687,15 +691,19 @@ class MangaTranslator:
             )
         except Exception as e:
             logger.error(f"Failed to upload result image to supabase storage: {e}")
+            await self._notify_image_failed(config, f'Failed to upload result image to supabase storage: {e}')
             raise
         if hasattr(self, '_progress_hooks') and self._current_image_context:
-            await self._report_progress(f'final_ready:{output_path}')
+            await self._notify_image_completed(config, output_path)
 
-    async def _save_streaming_result_locally(self, final_img: np.ndarray) -> None:
-        cv2.imwrite(self._result_path('final.png'), final_img)
+    async def _save_streaming_result_locally(self, final_img: np.ndarray, config: Config) -> None:
+        success = cv2.imwrite(self._result_path('final.png'), final_img)
+        if not success:
+            await self._notify_image_failed(config, 'failed to save final.png locally')
+            raise RuntimeError("failed to save final.png locally")
         if hasattr(self, '_progress_hooks') and self._current_image_context:
             folder_name = self._current_image_context['subfolder']
-            await self._report_progress(f'final_ready:{folder_name}')
+            await self._notify_image_completed(config, folder_name)
 
     async def _run_colorizer(self, config: Config, ctx: Context):
         current_time = time.time()
@@ -1459,6 +1467,16 @@ class MangaTranslator:
         for ph in self._progress_hooks:
             await ph(state, finished)
 
+    async def _notify_image_failed(self, config: Config, reason: str) -> None:
+        if not self.notify_progress_fail or not config.image_identifier:
+            return
+        await self._report_progress(f'image_failed:{config.image_identifier}:{reason}')
+
+    async def _notify_image_completed(self, config: Config, output_path: str) -> None:
+        if not config.image_identifier:
+            return
+        await self._report_progress(f'image_completed:{config.image_identifier}:{output_path}')
+
     def _add_logger_hook(self):
         # TODO: Pass ctx to logger hook
         LOG_MESSAGES = {
@@ -1595,6 +1613,7 @@ class MangaTranslator:
                     logger.info(f'Image {i+1} fallback processing successful')
                 except Exception as retry_error:
                     logger.error(f'Image {i+1} fallback processing also failed: {retry_error}')
+                    await self._notify_image_failed(config, f'Pre-processing fallback failed: {retry_error}')
                     # 创建空context作为占位符
                     ctx = Context()
                     ctx.input = image
@@ -1602,6 +1621,7 @@ class MangaTranslator:
                     pre_translation_contexts.append((ctx, config))
             except Exception as e:
                 logger.error(f'Image {i+1} pre-processing error: {e}')
+                await self._notify_image_failed(config, f'Pre-processing error: {e}')
                 # 创建空context作为占位符
                 ctx = Context()
                 ctx.input = image
@@ -1654,6 +1674,7 @@ class MangaTranslator:
                         
                 except Exception as individual_error:
                     logger.error(f'Individual page translation failed: {individual_error}')
+                    await self._notify_image_failed(config, f'Individual page translation failed: {individual_error}')
                     translated_contexts.append((ctx, config))
         
         # 完成翻译后的处理
@@ -1675,6 +1696,7 @@ class MangaTranslator:
                 logger.debug(f'Image {i+1} post-processing completed')
             except Exception as e:
                 logger.error(f'Image {i+1} post-processing error: {e}')
+                await self._notify_image_failed(config, f'Post-processing error: {e}')
                 results.append(ctx)
         
         logger.info(f'Batch translation completed: processed {len(results)} images')
@@ -1742,6 +1764,7 @@ class MangaTranslator:
                 ctx.img_colorized = await self._run_colorizer(config, ctx)
             except Exception as e:  
                 logger.error(f"Error during colorizing:\n{traceback.format_exc()}")  
+                await self._notify_image_failed(config, 'Error during colorizing')
                 if not self.ignore_errors:  
                     raise  
                 ctx.img_colorized = ctx.input
@@ -1755,6 +1778,7 @@ class MangaTranslator:
                 ctx.upscaled = await self._run_upscaling(config, ctx)
             except Exception as e:  
                 logger.error(f"Error during upscaling:\n{traceback.format_exc()}")  
+                await self._notify_image_failed(config, 'Error during upscaling')
                 if not self.ignore_errors:  
                     raise  
                 ctx.upscaled = ctx.img_colorized
@@ -1780,6 +1804,7 @@ class MangaTranslator:
 
         if not ctx.textlines:
             await self._report_progress('skip-no-regions', True)
+            await self._notify_image_failed(config, 'No text regions detected')
             ctx.result = ctx.upscaled
             return await self._revert_upscale(config, ctx)
 
@@ -1801,6 +1826,7 @@ class MangaTranslator:
 
         if not ctx.textlines:
             await self._report_progress('skip-no-text', True)
+            await self._notify_image_failed(config, 'No text found after ocr')
             ctx.result = ctx.upscaled
             return await self._revert_upscale(config, ctx)
 
@@ -1813,6 +1839,9 @@ class MangaTranslator:
             if not self.ignore_errors:  
                 raise 
             ctx.text_regions = []
+
+        if not ctx.text_regions:
+            await self._notify_image_failed(config, 'No text regions after textline merge')
 
         if self.verbose and ctx.text_regions:
             show_panels = not config.force_simple_sort  # 当不使用简单排序时显示panel
@@ -2033,6 +2062,7 @@ class MangaTranslator:
                     raise
                 # 错误时保持原文
                 for ctx, config in batch:
+                    await self._notify_image_failed(config, f'Error in batch translation: {e}')
                     if not ctx.text_regions:  # 检查text_regions是否为None或空
                         continue
                     for region in ctx.text_regions:
@@ -2200,6 +2230,7 @@ class MangaTranslator:
                 logger.error(f"Error in concurrent translation for single image: {e}")
                 if not self.ignore_errors:
                     raise
+                await self._notify_image_failed(config, f'Error in concurrent translation: {e}')
                 # 错误时保持原文
                 if ctx.text_regions:
                     for region in ctx.text_regions:
@@ -2237,6 +2268,7 @@ class MangaTranslator:
                     raise result
                 # 创建失败的占位符
                 ctx, config = contexts_with_configs[i]
+                await self._notify_image_failed(config, f'Concurrent translation failed: {result}')
                 if ctx.text_regions:
                     for region in ctx.text_regions:
                         region.translation = region.text
@@ -2529,10 +2561,12 @@ class MangaTranslator:
 
         if not ctx.text_regions:
             await self._report_progress('error-translating', True)
+            await self._notify_image_failed(config, 'Text translator returned empty regions')
             ctx.result = ctx.upscaled
             return await self._revert_upscale(config, ctx)
         elif ctx.text_regions == 'cancel':
             await self._report_progress('cancelled', True)
+            await self._notify_image_failed(config, 'Image translation cancelled')
             ctx.result = ctx.upscaled
             return await self._revert_upscale(config, ctx)
 
@@ -2543,6 +2577,7 @@ class MangaTranslator:
                 ctx.mask = await self._run_mask_refinement(config, ctx)
             except Exception as e:  
                 logger.error(f"Error during mask-generation:\n{traceback.format_exc()}")  
+                await self._notify_image_failed(config, 'Error during mask-generation')
                 if not self.ignore_errors:  
                     raise 
                 ctx.mask = ctx.mask_raw if ctx.mask_raw is not None else np.zeros_like(ctx.img_rgb, dtype=np.uint8)[:,:,0]
@@ -2574,6 +2609,7 @@ class MangaTranslator:
 
         except Exception as e:  
             logger.error(f"Error during inpainting:\n{traceback.format_exc()}")  
+            await self._notify_image_failed(config, 'Error during inpainting')
             if not self.ignore_errors:  
                 raise
             else:
@@ -2603,6 +2639,7 @@ class MangaTranslator:
             ctx.img_rendered = await self._run_text_rendering(config, ctx)
         except Exception as e:
             logger.error(f"Error during rendering:\n{traceback.format_exc()}")
+            await self._notify_image_failed(config, 'Error during rendering')
             if not self.ignore_errors:
                 raise
             ctx.img_rendered = ctx.img_inpainted

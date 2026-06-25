@@ -237,6 +237,15 @@ async def batch_images(req: Request, data: BatchTranslateRequest):
             headers={"Content-Disposition": "attachment; filename=translated_images.zip"}
         )
 
+# stream response:
+# status=0 接口执行完毕后，每张图片发一次; 
+# status=1 过程数据; 
+# - image_completed:{image_identifier}:{output_path} 保存成功
+# - image_failed:{image_identifier}:{errMsg} 翻译过程遇到失败
+# status=2 整体异常报错; 
+# status=3 排队中; 
+# status=4 即将开始; 
+# status=5 批量接口执行完毕
 @app.post("/translate/batch/image/stream/web", response_description="uses placeholder optimization for faster response.", tags=["api", "batch"])
 async def batch_stream_image_form_web(req: Request, images: list[UploadFile] = File(...), config: str = Form("{}")):
     conf = Config.parse_raw(config)
@@ -245,6 +254,9 @@ async def batch_stream_image_form_web(req: Request, images: list[UploadFile] = F
     # 保存路径和图片数量对不上，返回错误
     if conf.save.save_to == "supabase_storage" and len(images) != len(conf.save.supabase_storage_paths):
         raise HTTPException(400, detail="supabase_storage_paths length should equal to images length")
+    # 图片标识和图片数量对不上，返回错误
+    if len(images) != len(conf.image_identifiers):
+        raise HTTPException(400, detail="image length should equal to image_identifiers")
     
     imgs = [await image.read() for image in images]
 
@@ -282,6 +294,8 @@ def start_translator_client_proc(host: str, port: int, nonce: str, params: Names
         cmds.append('--use-gpu-limited')
     if params.ignore_errors:
         cmds.append('--ignore-errors')
+    if params.notify_progress_fail:
+        cmds.append('--notify-progress-fail')
     if params.verbose:
         cmds.append('--verbose')
     if params.models_ttl:
