@@ -285,13 +285,13 @@ class MangaTranslator:
             self.batch_concurrent = False
             
         self.ignore_errors = params.get('ignore_errors', False)
-        # check mps for apple silicon or cuda for nvidia
-        device = 'mps' if torch.backends.mps.is_available() else 'cuda'
+        # check xpu for intel arc, mps for apple silicon, or cuda for nvidia
+        device = 'xpu' if torch.xpu.is_available() else ('mps' if torch.backends.mps.is_available() else 'cuda')
         self.device = device if params.get('use_gpu', False) else 'cpu'
         self._gpu_limited_memory = params.get('use_gpu_limited', False)
         if self._gpu_limited_memory and not self.using_gpu:
             self.device = device
-        if self.using_gpu and ( not torch.cuda.is_available() and not torch.backends.mps.is_available()):
+        if self.using_gpu and ( not torch.cuda.is_available() and not torch.backends.mps.is_available() and not torch.xpu.is_available()):
             raise Exception(
                 'CUDA or Metal compatible device could not be found in torch whilst --use-gpu args was set.\n'
                 'Is the correct pytorch version installed? (See https://pytorch.org/)')
@@ -355,7 +355,7 @@ class MangaTranslator:
 
     @property
     def using_gpu(self):
-        return self.device.startswith('cuda') or self.device == 'mps'
+        return self.device.startswith('cuda') or self.device == 'mps' or self.device == 'xpu'
 
     async def translate(self, image: Image.Image, config: Config, image_name: str = None, skip_context_save: bool = False) -> Context:
         """
@@ -709,6 +709,8 @@ class MangaTranslator:
                 await unload_translation(model)
         if torch.cuda.is_available():
             torch.cuda.empty_cache()  # empty CUDA cache
+        elif torch.xpu.is_available():
+            torch.xpu.empty_cache()
 
     # Background models cleanup job.
     async def _detector_cleanup_job(self):
@@ -1500,6 +1502,8 @@ class MangaTranslator:
                         gc.collect()
                         if torch.cuda.is_available():
                             torch.cuda.empty_cache()
+                        elif torch.xpu.is_available():
+                            torch.xpu.empty_cache()
                 except ImportError:
                     pass  # psutil 不可用时忽略
                 except Exception as e:
@@ -1537,6 +1541,8 @@ class MangaTranslator:
                     gc.collect()
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
+                    elif torch.xpu.is_available():
+                        torch.xpu.empty_cache()
                     
                     # 重新设置图片上下文
                     self._set_image_context(recovery_config, image)
@@ -1610,6 +1616,8 @@ class MangaTranslator:
                     gc.collect()
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
+                    elif torch.xpu.is_available():
+                        torch.xpu.empty_cache()
                         
                 except Exception as individual_error:
                     logger.error(f'Individual page translation failed: {individual_error}')
@@ -2006,6 +2014,8 @@ class MangaTranslator:
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+            elif torch.xpu.is_available():
+                torch.xpu.empty_cache()
                 
         return results
 

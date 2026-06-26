@@ -83,7 +83,7 @@ class ComicTextDetector(OfflineDetector):
 
     async def _load(self, device: str, input_size=1024, half=False, nms_thresh=0.35, conf_thresh=0.4):
         self.device = device
-        if self.device == 'cuda' or self.device == 'mps':
+        if self.device.startswith('cuda') or self.device == 'mps' or self.device == 'xpu':
             self.model = TextDetBase(self._get_file_path('comictextdetector.pt'), device=self.device, act='leaky')
             self.model.to(self.device)
             self.backend = 'torch'

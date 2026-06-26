@@ -138,7 +138,7 @@ class CRAFTDetector(OfflineDetector):
         self.model_refiner.load_state_dict(copyStateDict(torch.load(self._get_file_path('craft_refiner_CTW1500.pth'), map_location='cpu')))
         self.model_refiner.eval()
         self.device = device
-        if device == 'cuda' or device == 'mps':
+        if device.startswith('cuda') or device == 'mps' or device == 'xpu':
             self.model = self.model.to(self.device)
             self.model_refiner = self.model_refiner.to(self.device)
         global MODEL

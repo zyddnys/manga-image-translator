@@ -117,7 +117,7 @@ class ModelMangaOCR(OfflineOCR):
         self.model.load_state_dict(sd)
         self.model.eval()
         self.device = device
-        if (device == 'cuda' or device == 'mps'):
+        if (device.startswith('cuda') or device == 'mps' or device == 'xpu'):
             self.use_gpu = True
         else:
             self.use_gpu = False
