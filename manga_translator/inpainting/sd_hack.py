@@ -58,7 +58,7 @@ def _hacked_clip_forward(self, text):
         raw_tokens_123 = [pad(raw_tokens_i, PAD, 77) for raw_tokens_i in raw_tokens_123]
         tokens_list.append(raw_tokens_123)
 
-    tokens_list = torch.IntTensor(tokens_list).to(self.device)
+    tokens_list = torch.IntTensor(tokens_list).to(next(self.parameters()).device)
 
     feed = einops.rearrange(tokens_list, 'b f i -> (b f) i')
     y = transformer_encode(feed)
