@@ -38,10 +38,8 @@ def concatenate_input_noise_map(input, noise_sigma):
     # Fill the downsampled image with zeros
     if 'cuda' in dtype:
         downsampledfeatures = torch.cuda.FloatTensor(N, Cout, Hout, Wout).fill_(0)
-    elif 'xpu' in dtype:
-        downsampledfeatures = torch.xpu.FloatTensor(N, Cout, Hout, Wout).fill_(0)
     else:
-        # cpu and mps are the same
+        # cpu, xpu and mps are the same
         downsampledfeatures = torch.FloatTensor(N, Cout, Hout, Wout).fill_(0)
 
     # Build the CxH/2xW/2 noise map
