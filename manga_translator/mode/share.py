@@ -117,7 +117,6 @@ class MangaShare:
             else:
                 result = method(**attributes)
 
-            await self._emit_progress('serializing')
             if isinstance(result, list):
                 for item in result:
                     await self._emit_stream_result(self._serialize_stream_result(item))

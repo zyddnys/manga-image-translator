@@ -36,11 +36,8 @@ async def stream_batch(messages):
 
 def notify(code: int, data: bytes, transform_to_bytes, messages: asyncio.Queue):
     if code == 0:
-        _emit_progress('decoding_result', messages)
         ctx = pickle.loads(data)
-        _emit_progress('encoding_image', messages)
         result_bytes = transform_to_bytes(ctx)
-        _emit_progress('encoding_image_done', messages)
         _emit_result(result_bytes, messages)
     elif code == 5:
         _emit_batch_complete(messages)
