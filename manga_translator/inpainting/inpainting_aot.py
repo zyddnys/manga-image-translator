@@ -29,7 +29,7 @@ class AotInpainter(LamaMPEInpainter):
         self.model.load_state_dict(sd['model'] if 'model' in sd else sd)
         self.model.eval()
         self.device = device
-        if device.startswith('cuda') or device == 'mps':
+        if device.startswith('cuda') or device == 'mps' or device == 'xpu':
             self.model.to(device)
 
 

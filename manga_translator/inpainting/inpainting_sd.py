@@ -9,6 +9,7 @@ from PIL import Image
 from omegaconf import OmegaConf
 
 from .common import OfflineInpainter
+from ..config import InpainterConfig
 from ..utils import resize_keep_aspect
 
 from .booru_tagger import Tagger
@@ -52,7 +53,7 @@ class StableDiffusionInpainter(OfflineInpainter):
         },
         'model_wd_swinv2': {
             'url': 'https://huggingface.co/SmilingWolf/wd-v1-4-swinv2-tagger-v2/resolve/main/model.onnx',
-            'hash': '67740df7ede9a53e50d6e29c6a5c0d6c862f1876c22545d810515bad3ae17bb1',
+            'hash': '04ec04fdf7db74b4fed7f4b52f52e04dec4dbad9e4d88d2d178f334079a29fde',
             'file': 'wd_swinv2.onnx',
         },
         'model_wd_swinv2_csv': {
@@ -68,7 +69,7 @@ class StableDiffusionInpainter(OfflineInpainter):
 
     async def _load(self, device: str):
         self.tagger = Tagger(self._get_file_path('wd_swinv2.onnx'))
-        self.model = create_model('manga_translator/inpainting/guided_ldm_inpaint9_v15.yaml').cuda()
+        self.model = create_model('manga_translator/inpainting/guided_ldm_inpaint9_v15.yaml')
         load_ldm_sd(self.model, self._get_file_path('abyssorangemix2_Hard-inpainting.safetensors'))
         hack_everything()
         self.model.eval()
@@ -79,7 +80,7 @@ class StableDiffusionInpainter(OfflineInpainter):
         del self.model
 
     @torch.no_grad()
-    async def _infer(self, image: np.ndarray, mask: np.ndarray, inpainting_size: int = 1024, verbose: bool = False) -> np.ndarray:
+    async def _infer(self, image: np.ndarray, mask: np.ndarray, config: InpainterConfig, inpainting_size: int = 1024, verbose: bool = False) -> np.ndarray:
         img_original = np.copy(image)
         mask_original = np.copy(mask)
         mask_original[mask_original < 127] = 0
@@ -110,8 +111,8 @@ class StableDiffusionInpainter(OfflineInpainter):
         pos_prompt = ','.join([x for x in tags.keys() if x not in blacklist]).replace('_', ' ')
         pos_prompt = 'masterpiece,best quality,' + pos_prompt
         neg_prompt = 'worst quality, low quality, normal quality,text,text,text,text'
-        if self.device.startswith('cuda') :
-            with torch.autocast(enabled = True, device_type = 'cuda') :
+        if self.device.startswith('cuda') or self.device == 'xpu' :
+            with torch.autocast(enabled = True, device_type = self.device) :
                 img = self.model.img2img_inpaint(
                     image = Image.fromarray(image),
                     c_text = pos_prompt,

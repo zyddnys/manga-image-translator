@@ -1,0 +1,7 @@
+# For Intel Arc GPU (XPU) support.
+
+--extra-index-url https://download.pytorch.org/whl/xpu
+-r requirements.txt
+
+torch
+torchvision

@@ -42,7 +42,7 @@ class FFDNetDenoiser:
             state_dict = torch.load(weights_path, map_location=torch.device('cpu'))
             self.model = nn.DataParallel(self.model,device_ids = [0]).to(self.device)
         else:
-            # MPS devices don't support DataParallel
+            # MPS and XPU devices don't support DataParallel
             state_dict = torch.load(weights_path, map_location=self.device)
             # CPU mode: remove the DataParallel wrapper
             state_dict = remove_dataparallel_wrapper(state_dict)

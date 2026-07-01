@@ -57,9 +57,14 @@ class M2M100Translator(OfflineTranslator):
             'to_lang': to_lang,
             'device': device,
         }
+        if device == 'xpu':
+            self.logger.warning(f'ctranslate2 does not support device "{device}", falling back to CPU')
+            ct2_device = 'cpu'
+        else:
+            ct2_device = device
         self.model = ctranslate2.Translator(
             model_path=self._get_file_path(self._CT2_MODEL_DIR),
-            device=device,
+            device=ct2_device,
             device_index=0,
         )
         self.model.load_model()

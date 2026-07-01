@@ -122,6 +122,8 @@ class ModelWrapper(ABC):
         to determine whether a model should be loaded into vram or ram or automatically choose a model size).
         TODO: Use together with `--use-cuda-limited` flag to enforce stricter memory checks
         '''
+        if torch.xpu.is_available():
+            return torch.xpu.mem_get_info()
         return torch.cuda.mem_get_info()
 
     def _check_for_malformed_model_mapping(self):

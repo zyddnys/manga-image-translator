@@ -166,7 +166,7 @@ class GuidedLDM(LatentDiffusion):
         **kwargs) -> Image.Image :
         ddim_sampler = GuidedDDIMSample(self)
         # move to device mps, cuda or cpu
-        if device.startswith('cuda') or device == 'mps':
+        if device.startswith('cuda') or device == 'mps' or device == 'xpu':
             self.cond_stage_model.to(device)
             self.first_stage_model.to(device)
         c_text = self.get_learned_conditioning([c_text])
@@ -206,23 +206,23 @@ class GuidedLDM(LatentDiffusion):
         ddim_sampler.make_schedule(ddim_num_steps=steps, ddim_eta=eta, ddim_discretize="uniform", verbose=False)
         x1 = ddim_sampler.stochastic_encode(init_latent, torch.tensor([t_enc] * int(init_latent.shape[0])).to(device), noise=noise)
 
-        if device.startswith('cuda') or device == 'mps':
+        if device.startswith('cuda') or device == 'mps' or device == 'xpu':
             self.cond_stage_model.cpu()
             self.first_stage_model.cpu()
 
-        if device.startswith('cuda') or device == 'mps':
+        if device.startswith('cuda') or device == 'mps' or device == 'xpu':
             self.model.to(device)
         decoded = ddim_sampler.decode(x1, cond,t_enc,init_latent=init_latent,nmask=nmask,unconditional_guidance_scale=7,unconditional_conditioning=uc_cond)
-        if device.startswith('cuda') or device == 'mps':
+        if device.startswith('cuda') or device == 'mps' or device == 'xpu':
             self.model.cpu()
 
         if mask is not None :
             decoded = init_latent * (1 - nmask) + decoded * nmask
 
-        if device.startswith('cuda') or device == 'mps':
+        if device.startswith('cuda') or device == 'mps' or device == 'xpu':
             self.first_stage_model.to(device)
         x_samples = self.decode_first_stage(decoded)
-        if device.startswith('cuda') or device == 'mps':
+        if device.startswith('cuda') or device == 'mps' or device == 'xpu':
             self.first_stage_model.cpu()
         return torch.clip(x_samples, -1, 1)
     

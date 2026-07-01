@@ -530,7 +530,7 @@ class DBConvNextDetector(OfflineDetector):
         self.model.load_state_dict(sd['model'] if 'model' in sd else sd)
         self.model.eval()
         self.device = device
-        if device == 'cuda' or device == 'mps':
+        if device.startswith('cuda') or device == 'mps' or device == 'xpu':
             self.model = self.model.to(self.device)
         global MODEL
         MODEL = self.model
