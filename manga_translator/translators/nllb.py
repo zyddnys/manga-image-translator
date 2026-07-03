@@ -44,13 +44,13 @@ class NLLBTranslator(OfflineTranslator):
         'DEU': 'deu_Latn',
         'HUN': 'hun_Latn',
         'ITA': 'ita_Latn',
-        'POL': 'pol_Latn',
+        'PLK': 'pol_Latn',
         'PTB': 'por_Latn',
         'ROM': 'ron_Latn',
         'RUS': 'rus_Cyrl',
         'ESP': 'spa_Latn',
         'TRK': 'tur_Latn',
-        'UKR': 'Ukrainian',
+        'UKR': 'ukr_Cyrl',
         'VIN': 'vie_Latn',
         'ARA': 'arb_Arab',
         'SRP': 'srp_Cyrl',
@@ -64,11 +64,13 @@ class NLLBTranslator(OfflineTranslator):
     async def _load(self, from_lang: str, to_lang: str, device: str):
         from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
-        if ':' not in device:
-            device += ':0'
+        if device not in ('cpu',) and ':' not in device:
+            device = device + ':0'
         self.device = device
-        self.model = AutoModelForSeq2SeqLM.from_pretrained(self._TRANSLATOR_MODEL)
         self.tokenizer = AutoTokenizer.from_pretrained(self._TRANSLATOR_MODEL)
+        self.model = AutoModelForSeq2SeqLM.from_pretrained(self._TRANSLATOR_MODEL)
+        self.model = self.model.to(device)
+        self.model.eval()
 
     async def _unload(self):
         del self.model
@@ -79,54 +81,51 @@ class NLLBTranslator(OfflineTranslator):
             detected_lang = langid.classify('\n'.join(queries))[0]
             target_lang = self._map_detected_lang_to_translator(detected_lang)
 
-            if target_lang == None:
-                self.logger.warn('Could not detect language from over all sentence. Will try per sentence.')
-            else:
-                from_lang = target_lang
+            if target_lang is None:
+                self.logger.warning('Could not detect source language, skipping translation')
+                return [''] * len(queries)
+            from_lang = target_lang
 
-        return [self._translate_sentence(from_lang, to_lang, query) for query in queries]
+        return self._translate_batch(from_lang, to_lang, queries)
 
-    def _translate_sentence(self, from_lang: str, to_lang: str, query: str) -> str:
-        from transformers import pipeline
-
-        if not self.is_loaded():
-            return ''
-
-        if from_lang == 'auto':
-            detected_lang = langid.classify(query)[0]
-            from_lang = self._map_detected_lang_to_translator(detected_lang)
-
-        if from_lang == None:
-            self.logger.warn(f'NLLB Translation Failed. Could not detect language (Or language not supported for text: {query})')
-            return ''
-
-        translator = pipeline('translation',
-            device=self.device,
-            model=self.model,
-            tokenizer=self.tokenizer,
-            src_lang=from_lang,
-            tgt_lang=to_lang,
-            max_length = 512,
-        )
-
-        result = translator(query)[0]['translation_text']
-        return result
+    def _translate_batch(self, from_lang: str, to_lang: str, queries: List[str]) -> List[str]:
+        import torch
+        try:
+            self.tokenizer.src_lang = from_lang
+            encoded = self.tokenizer(queries, return_tensors='pt', padding=True, truncation=True, max_length=512)
+            encoded = {k: v.to(self.device) for k, v in encoded.items()}
+            target_lang_id = self.tokenizer.lang_code_to_id[to_lang]
+            with torch.no_grad():
+                generated = self.model.generate(
+                    **encoded,
+                    forced_bos_token_id=target_lang_id,
+                    max_length=512,
+                    num_beams=5,
+                )
+            return self.tokenizer.batch_decode(generated, skip_special_tokens=True)
+        except Exception as e:
+            self.logger.error(f'Batch translation failed: {e}')
+            return [''] * len(queries)
 
     def _map_detected_lang_to_translator(self, lang):
-        if not lang in ISO_639_1_TO_FLORES_200:
+        if lang not in ISO_639_1_TO_FLORES_200:
             return None
-
         return ISO_639_1_TO_FLORES_200[lang]
 
     async def _download(self):
         import huggingface_hub
-        # do not download msgpack and h5 files as they are not needed to run the model
-        huggingface_hub.snapshot_download(self._TRANSLATOR_MODEL, cache_dir=self._MODEL_SUB_DIR, ignore_patterns=["*.msgpack", "*.h5", '*.ot',".*", "*.safetensors"])
-
+        huggingface_hub.snapshot_download(
+            self._TRANSLATOR_MODEL,
+            cache_dir=self._MODEL_SUB_DIR,
+            ignore_patterns=['*.msgpack', '*.h5', '*.ot', '.*'],
+        )
 
     def _check_downloaded(self) -> bool:
         import huggingface_hub
-        return huggingface_hub.try_to_load_from_cache(self._TRANSLATOR_MODEL, 'pytorch_model.bin', cache_dir=self._MODEL_SUB_DIR) is not None
+        return (
+            huggingface_hub.try_to_load_from_cache(self._TRANSLATOR_MODEL, 'model.safetensors', cache_dir=self._MODEL_SUB_DIR) is not None
+            or huggingface_hub.try_to_load_from_cache(self._TRANSLATOR_MODEL, 'pytorch_model.bin', cache_dir=self._MODEL_SUB_DIR) is not None
+        )
 
 class NLLBBigTranslator(NLLBTranslator):
     _MODEL_SUB_DIR = os.path.join(OfflineTranslator._MODEL_DIR, OfflineTranslator._MODEL_SUB_DIR, 'nllb_big')
