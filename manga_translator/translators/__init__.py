@@ -15,6 +15,7 @@ from .chatgpt_2stage import ChatGPT2StageTranslator
 from .nllb import NLLBTranslator, NLLBBigTranslator
 from .sugoi import JparacrawlTranslator, JparacrawlBigTranslator, SugoiTranslator
 from .m2m100 import M2M100Translator, M2M100BigTranslator
+from .m2m100_hf import M2M100HFTranslator, M2M100HFBigTranslator
 from .mbart50 import MBart50Translator
 from .selective import SelectiveOfflineTranslator, prepare as prepare_selective_translator
 from .none import NoneTranslator
@@ -37,6 +38,8 @@ OFFLINE_TRANSLATORS = {
     Translator.jparacrawl_big: JparacrawlBigTranslator,
     Translator.m2m100: M2M100Translator,
     Translator.m2m100_big: M2M100BigTranslator,
+    Translator.m2m100_hf: M2M100HFTranslator,
+    Translator.m2m100_hf_big: M2M100HFBigTranslator,
     Translator.mbart50: MBart50Translator,
     Translator.qwen2: Qwen2Translator,
     Translator.qwen2_big: Qwen2BigTranslator,

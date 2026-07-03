@@ -131,6 +131,8 @@ class Translator(str, Enum):
     jparacrawl_big = "jparacrawl_big"
     m2m100 = "m2m100"
     m2m100_big = "m2m100_big"
+    m2m100_hf = "m2m100_hf"
+    m2m100_hf_big = "m2m100_hf_big"
     mbart50 = "mbart50"
     qwen2 = "qwen2"
     qwen2_big = "qwen2_big"
