@@ -134,11 +134,24 @@ def CJK_Compatibility_Forms_translate(cdpt: str, direction: int):
     return cdpt, 0
 
 def compact_special_symbols(text: str) -> str:  
-    text = text.replace('...', '…')  
-    text = text.replace('..', '…')      
-    # Remove half-width and full-width spaces after each punctuation mark
-    pattern = r'([^\w\s])[ \u3000]+'  
-    text = re.sub(pattern, r'\1', text) 
+    text = text.replace('…', '...')
+    text = re.sub(r'\.{4,}', '...', text)
+    # B\u1ecf d\u1ea5u c\u00e2u cu\u1ed1i-c\u00e2u b\u1ecb \u0111\u1eb7t nh\u1ea7m \u1edf \u0110\u1ea6U d\u00f2ng (vd "\uff01\u597d\u96be\u53d7" \u2192 "! Kh\u00f3 ch\u1ecbu qu\u00e1").
+    # Ch\u1ec9 b\u1ecf ! ? , ; : (gi\u1eef \u2026 v\u00e0 \u2014 v\u00ec \u0111\u00f4i khi c\u1ed1 \u00fd m\u1edf \u0111\u1ea7u).
+    text = re.sub(r'^[\s!\uff01?\uff1f,\uff0c;\uff1b:\uff1a]+', '', text)
+    # GI\u1eee d\u1ea5u k\u1ebft c\u00e2u \u1edf CU\u1ed0I (. ! ? \u2026). Y\u00eau c\u1ea7u: m\u1ecdi tho\u1ea1i ph\u1ea3i c\u00f3 d\u1ea5u k\u1ebft v\u00e0
+    # NH\u00ccN TH\u1ea4Y \u0111\u01b0\u1ee3c. (Tr\u01b0\u1edbc \u0111\u00e2y xo\u00e1 '.' cu\u1ed1i \u2192 c\u00e2u tr\u1ea7n thu\u1eadt m\u1ea5t h\u1eb3n d\u1ea5u ch\u1ea5m;
+    # c\u1ed9ng v\u1edbi vi\u1ec7c "\u2026" l\u00e0 glyph r\u1ed7ng \u1edf v\u00e0i font n\u00ean ellipsis c\u0169ng bi\u1ebfn m\u1ea5t. Nay
+    # "\u2026" \u0111\u00e3 \u0111\u01b0\u1ee3c \u0111\u1ed5i th\u00e0nh "..." \u1edf tr\u00ean \u0111\u1ec3 hi\u1ec7n b\u1eb1ng glyph period.)
+    # CH\u1ec8 xo\u00e1 kho\u1ea3ng tr\u1eafng sau d\u1ea5u c\u00e2u FULLWIDTH CJK (vd "\u3002 " OCR th\u1eeba space).
+    # KH\u00d4NG \u0111\u1ee5ng d\u1ea5u ASCII: ti\u1ebfng Vi\u1ec7t c\u1ea7n gi\u1eef space sau , . \u2026 \u2014 xo\u00e1 l\u00e0 hai t\u1eeb
+    # d\u00ednh th\u00e0nh M\u1ed8T token ("mu\u1ed1n... ngoan" \u2192 "mu\u1ed1n...ngoan") m\u00e0 wrapper t\u00e1ch t\u1eeb
+    # theo kho\u1ea3ng tr\u1eafng kh\u00f4ng b\u1ebb \u0111\u01b0\u1ee3c \u2192 d\u00f2ng l\u1edfm ch\u1edfm ("KH\u00d4NG" \u0111\u1ee9ng m\u1ed9t m\u00ecnh)
+    # + ch\u1eef tr\u00ean \u1ea3nh m\u1ea5t space ("ch\u1ee7 l\u1ef1c,nh\u01b0ng").
+    pattern = r'([\u3000-\u303f\uff00-\uffef])[ \u3000]+'
+    text = re.sub(pattern, r'\1', text)
+    # Sau d\u1ea5u ASCII: kho\u1ea3ng tr\u1eafng L\u1eb6P \u2192 m\u1ed9t space (gi\u1eef t\u00e1ch t\u1eeb, ch\u1ec9 d\u1ecdn r\u00e1c OCR).
+    text = re.sub(r'([^\w\s])[ \u3000]{2,}', r'\1 ', text)
     return text
     
 def rotate_image(image, angle):
@@ -222,13 +235,21 @@ def get_cached_font(path: str) -> freetype.Face:
         font_cache[path] = freetype.Face(Path(path).open('rb'))
     return font_cache[path]
 
+# Cache glyph (get_char_glyph) trước đây key theo (ký_tự, cỡ, hướng) — THIẾU font.
+# set_font đổi FONT_SELECTION toàn cục nhưng cache không biết → glyph của font render
+# TRƯỚC (vd Astro City toàn HOA cho "PHU NHÂN") bị tái dùng cho font SAU (Itim) ở cùng
+# cỡ chữ → "đang tu luyện" thành "đaNg tU lUyệN" (chỉ n,u trùng "PHU NHÂN" bị hoa).
+# Bơm _FONT_GEN mỗi lần đổi font để tách key cache theo font.
+_FONT_GEN = 0
+
 def set_font(font_path: str):
-    global FONT_SELECTION
+    global FONT_SELECTION, _FONT_GEN
     if font_path:
         selection = [font_path] + FALLBACK_FONTS
     else:
         selection = FALLBACK_FONTS
     FONT_SELECTION = [get_cached_font(p) for p in selection]
+    _FONT_GEN += 1
 
 class namespace:
     pass
@@ -253,7 +274,7 @@ class Glyph:
         self.metrics.vertAdvance = glyph.metrics.vertAdvance
 
 @functools.lru_cache(maxsize = 1024, typed = True)
-def get_char_glyph(cdpt: str, font_size: int, direction: int) -> Glyph:
+def _get_char_glyph_cached(cdpt: str, font_size: int, direction: int, font_gen: int) -> Glyph:
     global FONT_SELECTION
     for i, face in enumerate(FONT_SELECTION):
         if face.get_char_index(cdpt) == 0 and i != len(FONT_SELECTION) - 1:
@@ -264,6 +285,10 @@ def get_char_glyph(cdpt: str, font_size: int, direction: int) -> Glyph:
             face.set_pixel_sizes(font_size, 0)
         face.load_char(cdpt)
         return Glyph(face.glyph)
+
+def get_char_glyph(cdpt: str, font_size: int, direction: int) -> Glyph:
+    # font_gen=_FONT_GEN đưa font hiện tại vào key cache (xem set_font) — chống bleed glyph.
+    return _get_char_glyph_cached(cdpt, font_size, direction, _FONT_GEN)
 
 #@functools.lru_cache(maxsize = 1024, typed = True)
 def get_char_border(cdpt: str, font_size: int, direction: int):
@@ -294,6 +319,9 @@ def get_char_border(cdpt: str, font_size: int, direction: int):
 #         return face.get_kerning(face.get_char_index(prev), face.get_char_index(cdpt))
 
 def calc_vertical(font_size: int, text: str, max_height: int):
+    # Compact tại điểm chốt (idempotent) — đồng bộ chuỗi giữa nhánh ĐO ở
+    # rendering/__init__ và nhánh VẼ put_text_vertical (xem calc_horizontal).
+    text = compact_special_symbols(text)
     line_text_list = []
     # line_width_list = []
     line_height_list = []
@@ -450,7 +478,7 @@ def put_char_vertical(font_size: int, cdpt: str, pen_l: Tuple[int, int], canvas_
         
         # 设置描边半径和样式  
         # Set stroke radius and style  
-        stroke_radius = 64 * max(int(0.07 * font_size), 1)  # 基于字体大小的比例值 / Proportional value based on font size  
+        stroke_radius = max(64, int(64 * border_size * 3))  # min 1px radius so stroke is always visible
         stroker.set(stroke_radius, freetype.FT_STROKER_LINEJOIN_ROUND, freetype.FT_STROKER_LINECAP_ROUND, 0)  
         
         # 应用描边效果  
@@ -594,6 +622,40 @@ def select_hyphenator(lang: str):
         return None
 
 # @functools.lru_cache(maxsize = 1024, typed = True)
+def _letter_spacing_px(font_size: int) -> int:
+    """Khoảng cách THÊM giữa các ký tự khi vẽ NGANG (letter-spacing/tracking), px.
+
+    Font display đậm/condensed (Bangers, MTO…) có advance gốc rất sát; cộng thêm dấu
+    thanh tiếng Việt bè ngang (Ỗ, Ặ, ữ…) → mép dấu chạm ký tự kế bên, trông "dính".
+    Cộng đều một khoảng nhỏ theo font_size cho MỌI font để chữ thở ra.
+
+    Tuỳ chỉnh qua env MIT_LETTER_SPACING (tỉ lệ theo font_size); rỗng/âm = mặc định
+    0.08; trần 0.4 để khỏi rời rạc. PHẢI dùng CHUNG ở calc_horizontal (đo bề rộng) và
+    put_text_horizontal (vẽ) — nên cộng tại đây, điểm chốt mọi phép đo qua
+    get_string_width — để wrap/căn giữa không lệch."""
+    try:
+        frac = float(os.environ.get("MIT_LETTER_SPACING", "") or 0.08)
+    except (TypeError, ValueError):
+        frac = 0.08
+    if frac < 0:
+        frac = 0.08
+    return int(round(font_size * min(frac, 0.4)))
+
+def _line_spacing_frac() -> float:
+    """Tỉ lệ GIÃN DÒNG ngang (line-spacing) theo font_size — khoảng HỞ giữa hai dòng,
+    KHÔNG kể chiều cao chữ. Tiếng Việt VIẾT HOA có dấu chồng 2 tầng (Ữ, Ộ, Ế…) vươn
+    lên trên đỉnh cap, cộng dấu chấm dưới (Ạ, Ộ) tụt dưới baseline → dòng dưới đụng dòng
+    trên khi hở quá hẹp. Mặc định 0.30 (trước 0.14, quá sát); env MIT_LINE_SPACING chỉnh;
+    trần 1.0. PHẢI dùng CHUNG với ước lượng box height ở rendering/__init__ — nếu render
+    giãn rộng mà box ước lượng vẫn hẹp thì warp ÉP dòng chồng lại y như cũ."""
+    try:
+        frac = float(os.environ.get("MIT_LINE_SPACING", "") or 0.30)
+    except (TypeError, ValueError):
+        frac = 0.30
+    if frac < 0:
+        frac = 0.30
+    return min(frac, 1.0)
+
 def get_char_offset_x(font_size: int, cdpt: str):
     c, rot_degree = CJK_Compatibility_Forms_translate(cdpt, 0)
     glyph = get_char_glyph(c, font_size, 0)
@@ -604,16 +666,65 @@ def get_char_offset_x(font_size: int, cdpt: str):
         char_offset_x = glyph.advance.x >> 6
     else:
         char_offset_x = glyph.metrics.horiAdvance >> 6
+    # +tracking (letter-spacing): áp tại điểm chốt → lan ra mọi phép đo của
+    # calc_horizontal (get_string_width, whitespace/hyphen offset, width chốt dòng 912).
+    # Vòng vẽ ở put_text_horizontal cộng ĐÚNG lượng này nên đo↔vẽ luôn khớp.
+    # CHỈ cộng cho glyph CÓ advance > 0: ký tự vô hình (ZWJ U+200D dùng xoá watermark) và
+    # dấu kết hợp (combining) có advance 0 — KHÔNG được tracking, nếu không ZWJ có width
+    # > 0 sẽ phá guard "line_width_list rỗng" của put_text_horizontal → canvas toàn-0 →
+    # add_color cắt còn 0 hàng → chia 0 ở render(). Vòng vẽ cũng gate theo offset_x>0.
+    if char_offset_x > 0:
+        char_offset_x += _letter_spacing_px(font_size)
     return char_offset_x
 
 def get_string_width(font_size: int, text: str):
     return sum([get_char_offset_x(font_size, c) for c in text])
+
+# Số thứ tự ĐẦU MỤC của danh sách đánh số: 1-2 chữ số + một trong . ) 、 ． rồi
+# khoảng trắng. Lookbehind (?<!\d) chặn số nhiều chữ số (123. không khớp "23.");
+# \s+ bắt buộc có khoảng trắng sau dấu nên KHÔNG đụng số thập phân ("2.5") hay
+# giờ ("10:30"). \s* phía trước để nuốt luôn space đứng trước mục (đỡ dư space).
+_LIST_MARKER_RE = re.compile(r'\s*(?<!\d)(\d{1,2}[.)、．])\s+(?=\S)')
+
+
+def _insert_list_breaks(text: str) -> str:
+    """Chèn ngắt dòng TRƯỚC mỗi số thứ tự đầu mục ("1." "2." "3."…) để mỗi mục
+    của danh sách đánh số nằm trên một DÒNG RIÊNG khi render. calc_horizontal vốn
+    reflow theo bề rộng (nuốt mọi khoảng trắng) nên "… 1. … 2. … 3. …" bị dồn
+    thành một khối liền; tách ở đây để xuống dòng đúng từng mục."""
+    out = _LIST_MARKER_RE.sub(lambda m: '\n' + m.group(1) + ' ', text)
+    return out.lstrip('\n')
+
 
 def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, language: str = 'en_US', hyphenate: bool = True) -> Tuple[List[str], List[int]]:
     """
     Splits up a string of text into lines. Returns list of lines and their widths.
     Will go over max_height if too much text is present.
     """
+    # Compact NGAY TẠI ĐÂY (idempotent) để các nhánh ĐO ở rendering/__init__
+    # (fit-loop, _bubble_max_fit, _centered_text_block…) thấy ĐÚNG chuỗi sẽ vẽ —
+    # trước đây chỉ put_text_horizontal compact ("…"→"...", dọn space) nên đo
+    # ra 4 dòng mà vẽ ra 5 dòng, khối chữ bị warp ép méo.
+    text = compact_special_symbols(text)
+
+    # ── Danh sách đánh số → mỗi mục một dòng ──────────────────────────────────
+    # Gộp newline có sẵn về space (giữ NGUYÊN hành vi reflow cũ với \n tự do của
+    # LLM), rồi CHỈ chèn ngắt cứng trước số đầu mục. Mỗi đoạn tách bởi '\n' được
+    # wrap độc lập (đệ quy) rồi nối lại → mục "1." "2." "3." không còn dính nhau.
+    text = re.sub(r'[\r\n]+', ' ', text)
+    text = _insert_list_breaks(text)
+    if '\n' in text:
+        lines_all: List[str] = []
+        widths_all: List[int] = []
+        for _para in text.split('\n'):
+            if not _para.strip():
+                continue
+            _lns, _wds = calc_horizontal(font_size, _para, max_width, max_height, language, hyphenate)
+            lines_all.extend(_lns)
+            widths_all.extend(_wds)
+        if lines_all:
+            return lines_all, widths_all
+
     max_width = max(max_width, 2 * font_size)
 
     whitespace_offset_x = get_char_offset_x(font_size, ' ')
@@ -648,7 +759,11 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
             except Exception:
                 new_syls = []
         if len(new_syls) == 0:
-            if len(word) <= 3:
+            # For Latin/Vietnamese text never split at character level — the whole word
+            # is the minimum unit.  CJK "words" (no spaces) can fall back to per-char.
+            if re.search(r'[a-zA-Z\u00C0-\u024F\u1E00-\u1EFF]', word):
+                new_syls = [word]
+            elif len(word) <= 3:
                 new_syls = [word]
             else:
                 new_syls = list(word)
@@ -659,12 +774,17 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
         #     if w > max_width:
         #         max_width = w
 
-        # Split up syllables that are too large
+        # Split up syllables that are too large.
+        # For Latin/Vietnamese syllables keep the unit whole (accept overflow) rather
+        # than breaking individual letters apart.
         normalized_syls = []
         for syl in new_syls:
             syl_width = get_string_width(font_size, syl)
             if syl_width > max_width:
-                normalized_syls.extend(list(syl))
+                if re.search(r'[a-zA-Z\u00C0-\u024F\u1E00-\u1EFF]', syl):
+                    normalized_syls.append(syl)   # keep Latin/VI word whole
+                else:
+                    normalized_syls.extend(list(syl))
             else:
                 normalized_syls.append(syl)
         syllables.append(normalized_syls)
@@ -720,7 +840,8 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
             line_width += current_width + word_widths[i]
             i += 1
         elif word_widths[i] > max_width:
-            # We know no syllable can be larger than max_width
+            # Split word by syllables; for Latin/VI whole words kept as single syllable,
+            # force-place them on a new line (accept overflow) rather than looping forever.
             j = 0
             hyphenation_idx = 0
             while j < len(syllables[i]):
@@ -734,8 +855,16 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
                     if hyphenation_idx > 0:
                         line_words.append(i)
                         line_width += current_width
-                    current_width = 0
-                    break_line()
+                        current_width = 0
+                        break_line()
+                    elif line_width > 0:
+                        # Current line has content — flush it first, then retry same syllable
+                        break_line()
+                    else:
+                        # Empty line and syllable still too wide — force-place and advance
+                        current_width += syl_width
+                        j += 1
+                        hyphenation_idx = j
             line_words.append(i)
             line_width += current_width
             i += 1
@@ -988,7 +1117,7 @@ def put_char_horizontal(font_size: int, cdpt: str, pen_l: Tuple[int, int], canva
         
         # Configure stroker 配置描边器
         stroker = freetype.Stroker()
-        stroke_radius = 64 * max(int(0.07 * font_size), 1)  # In 1/64 pixel units 单位: 1/64 像素
+        stroke_radius = max(64, int(64 * border_size * 3))  # min 1px radius so stroke is always visible
         stroker.set(stroke_radius, 
                    freetype.FT_STROKER_LINEJOIN_ROUND,  # Round joins 圆角连接
                    freetype.FT_STROKER_LINECAP_ROUND,   # Round line caps 圆头线帽
@@ -1104,12 +1233,19 @@ def put_text_horizontal(font_size: int, text: str, width: int, height: int, alig
     if not text :
         return
     bg_size = int(max(font_size * 0.07, 1)) if bg is not None else 0
-    spacing_y = int(font_size * (line_spacing or 0.01))
+    # Giãn dòng cho tiếng Việt: dấu thanh 2 tầng (Ặ, ế, ộ…) tràn lên trên cell glyph,
+    # nếu spacing_y ≈ 0 thì dấu dòng dưới chạm chữ dòng trên. Mặc định 0.14×font_size
+    # (config.render.line_spacing là int nên không truyền được phân số → chỉnh ở đây).
+    spacing_y = max(int(font_size * (line_spacing or _line_spacing_frac())), 2)
 
     # calc
     # print(width)
     line_text_list, line_width_list = calc_horizontal(font_size, text, width, height, lang, hyphenate)
     # print(line_text_list, line_width_list)
+
+    # Guard: if text has no renderable glyphs (e.g. ZWJ U+200D), skip rendering
+    if not line_width_list:
+        return
 
     # make large canvas
     canvas_w = max(line_width_list) + (font_size + bg_size) * 2
@@ -1137,16 +1273,21 @@ def put_text_horizontal(font_size: int, text: str, width: int, height: int, alig
         # print((line_width, pen_line[0], canvas_w))
         # print(0, pen_line, line_text)
 
+        # Tracking (letter-spacing) cộng SAU mỗi ký tự — PHẢI khớp lượng đã cộng trong
+        # get_char_offset_x, nếu không bề rộng vẽ ≠ line_width (đo) → lệch wrap/căn giữa.
+        tracking = _letter_spacing_px(font_size)
         for c in line_text:
             if reversed_direction:
                 cdpt, rot_degree = CJK_Compatibility_Forms_translate(c, 0)
                 glyph = get_char_glyph(cdpt, font_size, 0)
                 offset_x = glyph.metrics.horiAdvance >> 6
-                pen_line[0] -= offset_x
+                pen_line[0] -= offset_x + (tracking if offset_x > 0 else 0)
             # print(1, pen_line, c)
             offset_x = put_char_horizontal(font_size, c, pen_line, canvas_text, canvas_border, border_size=bg_size)
             if not reversed_direction:
-                pen_line[0] += offset_x
+                # Gate tracking theo advance>0 (khớp get_char_offset_x): glyph vô hình/dấu
+                # kết hợp (advance 0) không cộng tracking → đo↔vẽ nhất quán.
+                pen_line[0] += offset_x + (tracking if offset_x > 0 else 0)
         pen_orig[1] += spacing_y + font_size
 
     # colorize

@@ -88,6 +88,7 @@ class Detector(str, Enum):
     craft = "craft"
     paddle = "paddle"
     none = "none"
+    yolomanga = "yolomanga"
 
 class Inpainter(str, Enum):
     default = "default"
@@ -96,6 +97,7 @@ class Inpainter(str, Enum):
     sd = "sd"
     none = "none"
     original = "original"
+    manga_sd_cn = "manga_sd_cn"
 
 class Colorizer(str, Enum):
     none = "none"
@@ -178,6 +180,8 @@ class RenderConfig(BaseModel):
     """Line spacing is font_size * this value. Default is 0.01 for horizontal text and 0.2 for vertical."""
     font_size: Optional[int] = None
     """Use fixed font size for rendering"""
+    font_path: Optional[str] = None
+    """Path to a custom font file for rendering"""
     rtl: bool = True
     """Right-to-left reading order for panel and text_region sorting,"""  
     _font_color_fg = None

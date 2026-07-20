@@ -1375,7 +1375,8 @@ class MangaTranslator:
             else:
                 output = await dispatch_eng_render(ctx.img_inpainted, ctx.img_rgb, ctx.text_regions, self.font_path, config.render.line_spacing)
         else:
-            output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, self.font_path, config.render.font_size,
+            _effective_font_path = config.render.font_path or self.font_path
+            output = await dispatch_rendering(ctx.img_inpainted, ctx.text_regions, _effective_font_path, config.render.font_size,
                                               config.render.font_size_offset,
                                               config.render.font_size_minimum, not config.render.no_hyphenation, ctx.render_mask, config.render.line_spacing)
         return output
@@ -1445,13 +1446,33 @@ class MangaTranslator:
             # 'error-lang':           'Target language not supported by chosen translator',
         }
 
+        # ── Đo thời lượng từng bước pipeline ──────────────────────────────────
+        # Mỗi lần đổi state, in thời gian bước TRƯỚC đã chạy bao lâu (prefix
+        # "[time]") → soi ra ngay bước nào ngốn thời gian (vd LLM rớt xuống CPU).
+        # Nhãn lấy từ LOG_MESSAGES nếu có, không thì dùng tên state thô.
+        _timing = {'state': None, 't0': None}
+
+        def _flush_timing(now):
+            prev = _timing['state']
+            if prev is not None and _timing['t0'] is not None:
+                label = LOG_MESSAGES.get(prev, prev)
+                logger.info(f'[time] {label}: {now - _timing["t0"]:.1f}s')
+
         async def ph(state, finished):
+            now = time.time()
+            _flush_timing(now)  # in thời lượng của bước trước đó
             if state in LOG_MESSAGES:
                 logger.info(LOG_MESSAGES[state])
             elif state in LOG_MESSAGES_SKIP:
                 logger.warn(LOG_MESSAGES_SKIP[state])
             elif state in LOG_MESSAGES_ERROR:
                 logger.error(LOG_MESSAGES_ERROR[state])
+            if finished:
+                _timing['state'] = None
+                _timing['t0'] = None
+            else:
+                _timing['state'] = state
+                _timing['t0'] = now
 
         self.add_progress_hook(ph)
 

@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(git remote*)",
+      "Bash(python --version)",
+      "Bash(python -m pytest*)",
+      "Bash(pip list*)",
+      "Bash(pip show*)",
+      "Bash(npx gitnexus status*)",
+      "Bash(npx gitnexus analyze*)",
+      "Bash(npx gitnexus detect-changes*)",
+      "Bash(ls*)",
+      "Bash(find . -name*)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)"
+    ],
+    "deny": []
+  }
+}
