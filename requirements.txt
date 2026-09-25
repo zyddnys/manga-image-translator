@@ -58,6 +58,5 @@ python-multipart
 google-genai
 rich
 regex
---extra-index-url https://frederik-uni.github.io/manga-image-translator-rust/python/wheels/simple/
 rusty-manga-image-translator
 python-bidi
