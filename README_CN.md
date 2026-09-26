@@ -1480,4 +1480,4 @@ GPU 服务器开销较大，请考虑支持我们，非常感谢！
 
 ## Star 增长曲线
 
-[![Star History Chart](https://api.star-history.com/svg?repos=zyddnys/manga-image-translator&type=Date)](https://star-history.com/#zyddnys/manga-image-translator&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=zyddnys/manga-image-translator&type=Date)](https://star-history.dera.page/#zyddnys/manga-image-translator&Date)

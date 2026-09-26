@@ -1492,4 +1492,4 @@ GPU server costs are high, please consider supporting us. Thank you very much!
 
 ## Star Growth Curve
 
-[![Star History Chart](https://api.star-history.com/svg?repos=zyddnys/manga-image-translator&type=Date)](https://star-history.com/#zyddnys/manga-image-translator&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=zyddnys/manga-image-translator&type=Date)](https://star-history.dera.page/#zyddnys/manga-image-translator&Date)
