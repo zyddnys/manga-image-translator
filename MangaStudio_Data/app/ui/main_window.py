@@ -3061,7 +3061,7 @@ class TranslatorStudioApp(QMainWindow):
             "OPENAI_GLOSSARY_PATH=./dict/mit_glossary.txt",
             "\n# --- Groq ---",
             "GROQ_API_KEY=",
-            "GROQ_MODEL=mixtral-8x7b-32768",
+            "GROQ_MODEL=openai/gpt-oss-20b",
             "\n# --- Gemini ---",
             "GEMINI_API_KEY=",
             "GEMINI_MODEL=gemini-1.5-flash",

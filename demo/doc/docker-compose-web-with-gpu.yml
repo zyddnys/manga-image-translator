@@ -39,7 +39,7 @@ services:
       
       # Groq  
       GROQ_API_KEY: ''  
-      GROQ_MODEL: 'mixtral-8x7b-32768'  
+      GROQ_MODEL: 'openai/gpt-oss-20b'
       
       # sakura  
       SAKURA_API_BASE: 'http://127.0.0.1:8080/v1'  
