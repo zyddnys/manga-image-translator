@@ -6,6 +6,7 @@ from .common import CommonInpainter, OfflineInpainter
 from .inpainting_aot import AotInpainter
 from .inpainting_lama_mpe import LamaMPEInpainter, LamaLargeInpainter
 from .inpainting_sd import StableDiffusionInpainter
+from .inpainting_sd_cn import MangaSDControlNetInpainter
 from .none import NoneInpainter
 from .original import OriginalInpainter
 from ..config import Inpainter, InpainterConfig
@@ -17,6 +18,7 @@ INPAINTERS = {
     Inpainter.sd: StableDiffusionInpainter,
     Inpainter.none: NoneInpainter,
     Inpainter.original: OriginalInpainter,
+    Inpainter.manga_sd_cn: MangaSDControlNetInpainter,
 }
 inpainter_cache = {}
 

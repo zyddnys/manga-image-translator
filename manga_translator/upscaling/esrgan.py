@@ -68,8 +68,16 @@ class ESRGANUpscaler(OfflineUpscaler):
         # Has to cache images because chosen upscaler doesn't support piping
         in_dir = tempfile.mkdtemp()
         out_dir = tempfile.mkdtemp()
+        # Strip alpha before passing to ESRGAN NCNN — RGBA input causes alpha=0
+        # (fully transparent) in the output, resulting in an all-black image.
+        alpha_channels = []
         for i, image in enumerate(image_batch):
-            image.save(os.path.join(in_dir, f'{i}.png'))
+            if image.mode == 'RGBA':
+                alpha_channels.append(image.split()[3])
+                image.convert('RGB').save(os.path.join(in_dir, f'{i}.png'))
+            else:
+                alpha_channels.append(None)
+                image.save(os.path.join(in_dir, f'{i}.png'))
 
         try:
             self._run_esrgan_executable(in_dir, out_dir, upscale_ratio, 0)
@@ -84,6 +92,11 @@ class ESRGANUpscaler(OfflineUpscaler):
             if os.path.exists(img_path):
                 img = Image.open(img_path)
                 img.load()
+                # Restore alpha channel if the original had one
+                if alpha_channels[i] is not None:
+                    upscaled_alpha = alpha_channels[i].resize(img.size, Image.Resampling.LANCZOS)
+                    img = img.convert('RGB')
+                    img.putalpha(upscaled_alpha)
                 output_batch.append(img)
             else:
                 output_batch.append(image)
