@@ -766,6 +766,7 @@ An example config file can be found in example/config-example.json
         "sakura",
         "deepseek",
         "groq",
+        "atlascloud",
         "custom_openai",
         "offline",
         "nllb",
@@ -1117,6 +1118,7 @@ FIL: Filipino (Tagalog)
 | openai | ✔️ | | Requires `OPENAI_API_KEY` |
 | deepseek | ✔️ | | Requires `DEEPSEEK_API_KEY` |
 | groq | ✔️ | | Requires `GROQ_API_KEY` |
+| atlascloud | ✔️ | | Requires `ATLASCLOUD_API_KEY` |
 | gemini | ✔️ | | Requires `GEMINI_API_KEY` |
 | papago | | | |
 | sakura | | | Requires `SAKURA_API_BASE` |
@@ -1192,6 +1194,9 @@ This can achieve further optimization of the translation effect and make it poss
 | `DEEPSEEK_API_KEY`                     | DeepSeek API Key                                                                                         | `''`                               |                                                                                                           |
 | `DEEPSEEK_API_BASE`                    | DeepSeek API Base URL                                                                                   | `https://api.deepseek.com`         |                                                                                                           |
 | `DEEPSEEK_MODEL`                       | DeepSeek Model name                                                                                      | `deepseek-chat`                  | Options: `deepseek-chat` or `deepseek-reasoner`                                                           |
+| `ATLASCLOUD_API_KEY`                   | Atlas Cloud API Key                                                                                      | `''`                               |                                                                                                           |
+| `ATLASCLOUD_API_BASE`                  | Atlas Cloud API Base URL                                                                                 | `https://api.atlascloud.ai/v1`     |                                                                                                           |
+| `ATLASCLOUD_MODEL`                     | Atlas Cloud Model name                                                                                   | `deepseek-ai/deepseek-v4-flash` | Full list: <https://api.atlascloud.ai/v1/models>                                                          |
 | `CUSTOM_OPENAI_API_KEY`                | Custom OpenAI API Key                                                    | `ollama`                         | Not needed for Ollama, but possibly required for other tools                                               |
 | `CUSTOM_OPENAI_API_BASE`               | Custom OpenAI API Base URL                                | `http://localhost:11434/v1`        | Use OLLAMA_HOST environment variable to change bind IP and port                                            |
 | `CUSTOM_OPENAI_MODEL`                  | Custom OpenAI compatible model name                                               | `''`                               | Example: `qwen2.5:7b`, ensure you pull and run it before usage                                             |
@@ -1220,7 +1225,7 @@ Used by the `gpt_config` parameter.
 #   Set it as a top-level entry.
 # If you wish to set a different value for a specific translator configuration:
 #   Set it beneath the configuration name 
-#   Top-level configuration options: 'chatgpt', 'ollama', 'deepseek', 'groq'
+#   Top-level configuration options: 'chatgpt', 'ollama', 'deepseek', 'groq', 'atlascloud'
 #     For translators that support model specification: 
 #         The model name can be used as an addition level of specification
 #     Some translators also support additional leveling options (e.g. CUSTOM_OPENAI_MODEL_CONF)

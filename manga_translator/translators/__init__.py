@@ -26,6 +26,7 @@ from .groq import GroqTranslator
 from .gemini import GeminiTranslator
 from .gemini_2stage import Gemini2StageTranslator
 from .custom_openai import CustomOpenAiTranslator
+from .atlascloud import AtlasCloudTranslator
 from ..config import Translator, TranslatorConfig, TranslatorChain
 from ..utils import Context
 
@@ -51,6 +52,7 @@ GPT_TRANSLATORS = {
     Translator.deepseek: DeepseekTranslator,
     Translator.groq:GroqTranslator,
     Translator.custom_openai: CustomOpenAiTranslator,
+    Translator.atlascloud: AtlasCloudTranslator,
     Translator.gemini: GeminiTranslator,
     Translator.gemini_2stage: Gemini2StageTranslator,
 }
