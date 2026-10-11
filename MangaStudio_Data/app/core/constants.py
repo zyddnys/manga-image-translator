@@ -44,7 +44,7 @@ TRANSLATOR_GROUPS = {
         "jparacrawl", "jparacrawl_big", "qwen2", "qwen2_big", "offline"
     ],
     "--- API-BASED (Requires Setup) ---": [
-        "deepl", "gemini", "deepseek", "groq", "youdao", "baidu",
+        "deepl", "gemini", "deepseek", "groq", "atlascloud", "youdao", "baidu",
         "caiyun", "sakura", "papago", "openai", "custom_openai"
     ],
     "--- OTHER ACTIONS ---": [
@@ -70,6 +70,7 @@ TRANSLATOR_CAPABILITIES = {
     "gemini": {'__any__': '__all__'},
     "deepseek": {'__any__': '__all__'},
     "groq": {'__any__': '__all__'},
+    "atlascloud": {'__any__': '__all__'},
     "youdao": {'__any__': '__all__'},
     "baidu": {'__any__': '__all__'},
     "caiyun": {'__any__': '__all__'},

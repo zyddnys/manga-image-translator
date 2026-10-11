@@ -122,6 +122,7 @@ class Translator(str, Enum):
     groq = "groq"
     gemini = "gemini"
     gemini_2stage = "gemini_2stage"
+    atlascloud = "atlascloud"
     custom_openai = "custom_openai"
     offline = "offline"
     nllb = "nllb"

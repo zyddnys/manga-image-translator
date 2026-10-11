@@ -4,7 +4,7 @@
 #   Set it as a top-level entry.
 # If you wish to set a different value for a specific translator configuration:
 #   Set it beneath the configuration name 
-#   Top-level configuration options: 'chatgpt', 'ollama', 'deepseek', 'groq'
+#   Top-level configuration options: 'chatgpt', 'ollama', 'deepseek', 'groq', 'atlascloud'
 #     For translators that support model specification: 
 #         The model name can be used as an addition level of specification
 #     Some translators also support additional leveling options (e.g. CUSTOM_OPENAI_MODEL_CONF)
