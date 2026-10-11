@@ -175,10 +175,10 @@ Browser script (maintained by QiroNT): <https://greasyfork.org/scripts/437569>
 #### Using Pip/venv (Recommended)
 
 ```bash
-# First, ensure you have Python 3.10 or later installed on your machine
+# First, ensure you have Python 3.12 or later installed on your machine
 # The very latest version of Python might not be compatible with some PyTorch libraries yet
 $ python --version
-Python 3.10.6
+Python 3.13.16
 
 # Clone this repository
 $ git clone https://github.com/zyddnys/manga-image-translator.git
@@ -195,6 +195,8 @@ $ source venv/bin/activate
 # Install dependencies
 $ pip install -r requirements.txt
 ```
+
+Dependencies are pinned to current releases. `websockets` stays on the latest 16.x release because `google-genai` requires `<17`. `pydensecrf` is built from the [Python 3.13 / Cython 3 source branch](https://github.com/zyddnys/pydensecrf/tree/fix/python313-cython3); install Git and a C++ compiler before running pip (for example, `sudo apt install git build-essential` on Ubuntu). Pip installs its Cython build dependency automatically.
 
 Models will be automatically downloaded to the `./models` directory at runtime.
 
@@ -233,7 +235,6 @@ docker run \
   -v /demo/doc/../../server/instance.py:/app/server/instance.py \
   -e OPENAI_API_KEY='' \
   -e OPENAI_API_BASE='' \
-  -e OPENAI_MODEL='' \
   zyddnys/manga-image-translator:main \
   server/main.py --verbose --start-instance --host=0.0.0.0 --port=5003
 ```
@@ -267,7 +268,6 @@ docker run \
   -v /demo/doc/../../server/instance.py:/app/server/instance.py \
   -e OPENAI_API_KEY='' \
   -e OPENAI_API_BASE='' \
-  -e OPENAI_MODEL='' \
   -e OPENAI_HTTP_PROXY='' \
   zyddnys/manga-image-translator:main \
   server/main.py --verbose --start-instance --host=0.0.0.0 --port=5003 --use-gpu
@@ -1115,7 +1115,8 @@ FIL: Filipino (Tagalog)
 | baidu | ✔️ | | Requires `BAIDU_APP_ID` and `BAIDU_SECRET_KEY` |
 | deepl | ✔️ | | Requires `DEEPL_AUTH_KEY` |
 | caiyun | ✔️ | | Requires `CAIYUN_TOKEN` |
-| openai | ✔️ | | Requires `OPENAI_API_KEY` |
+| chatgpt | ✔️ | | GPT-6 Luna only; requires `OPENAI_API_KEY`. Aliases: `openai`, `gpt-6-luna` |
+| chatgpt_2stage | ✔️ | | GPT-6 Luna for both OCR correction and translation; requires `OPENAI_API_KEY` |
 | deepseek | ✔️ | | Requires `DEEPSEEK_API_KEY` |
 | groq | ✔️ | | Requires `GROQ_API_KEY` |
 | atlascloud | ✔️ | | Requires `ATLASCLOUD_API_KEY` |
@@ -1171,6 +1172,10 @@ This can achieve further optimization of the translation effect and make it poss
 
 #### Environment Variables Summary
 
+`chatgpt` and `chatgpt_2stage` always use [`gpt-6-luna`](https://developers.openai.com/api/docs/models/gpt-6-luna). Remove old `OPENAI_MODEL`, `OPENAI_STAGE1_MODEL`, `OPENAI_STAGE2_MODEL`, and `OPENAI_FALLBACK_MODEL` settings; they no longer select a model. Use `custom_openai` with `CUSTOM_OPENAI_MODEL` for other models. Old `gpt-*` translator aliases are no longer accepted; use `chatgpt`, `openai`, or `gpt-6-luna`.
+
+Requests use Chat Completions with `max_completion_tokens` and `reasoning_effort="none"`, preserving the configurable `temperature` and `top_p` settings. See the [OpenAI migration guide](https://developers.openai.com/api/docs/guides/latest-model#migration-quickstart).
+
 | Environment Variable Name              | Description                                                                                              | Default Value                      | Remarks                                                                                                   |
 | :------------------------------------ | :-------------------------------------------------------------------------------------------------------- | :--------------------------------- | :-------------------------------------------------------------------------------------------------------- |
 | `BAIDU_APP_ID`                         | Baidu Translate appid                                                                                    | `''`                               |                                                                                                           |
@@ -1179,7 +1184,6 @@ This can achieve further optimization of the translation effect and make it poss
 | `YOUDAO_SECRET_KEY`                    | Youdao Translate application secret key                                                                  | `''`                               |                                                                                                           |
 | `DEEPL_AUTH_KEY`                       | DeepL Translate AUTH_KEY                                                                                 | `''`                               |                                                                                                           |
 | `OPENAI_API_KEY`                       | OpenAI API Key                                                                                           | `''`                               |                                                                                                           |
-| `OPENAI_MODEL`                         | OpenAI Model                                                                                        | `'chatgpt-4o-latest'`              |                                                                                                           |
 | `OPENAI_HTTP_PROXY`                    | OpenAI HTTP Proxy                                                                              | `''`                               | Replaces `--proxy`                                                                                         |
 | `OPENAI_GLOSSARY_PATH`                 | Path to OpenAI glossary                                                                        | `./dict/mit_glossary.txt`         |                                                                                                           |
 | `OPENAI_API_BASE`                      | OpenAI API Base URL                                                                            | `https://api.openai.com/v1`        | Defaults to official address                                                                               |
@@ -1360,11 +1364,10 @@ gemini:
 chatgpt:
   # Should the `Prompt Template` (defined below) text be prepended to the translation requests?
   include_template: True
-  # Override default configs for a specific models:
-  gpt-4o-mini:
+  # The only supported ChatGPT model (also used by chatgpt_2stage).
+  # Requests use reasoning_effort: none to support temperature and top_p.
+  gpt-6-luna:
     temperature: 0.4
-  gpt-3.5-turbo:
-    temperature: 0.3
 
 # The text to prepend to `User` messages to GPT before the text to translate.
 # Use {to_lang} to indicate where the target language name should be inserted.

@@ -198,6 +198,9 @@ def _sort_panels_fill(panels: List[Tuple[int, int, int, int]], right_to_left: bo
 
 def visualize_textblocks(canvas: np.ndarray, blk_list: List[TextBlock], show_panels: bool = False,
                          img_rgb: np.ndarray = None, right_to_left: bool = True):
+    # OpenCV 5 text drawing requires an 8-bit image, including debug canvases.
+    if canvas.dtype != np.uint8:
+        canvas = np.clip(canvas, 0, 255).astype(np.uint8)
     lw = max(round(sum(canvas.shape) / 2 * 0.003), 2)  # line width
 
     # Panel detection and drawing

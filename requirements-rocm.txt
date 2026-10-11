@@ -6,7 +6,7 @@
 # Requires ROCm drivers: https://rocm.docs.amd.com/en/latest/deploy/linux/index.html
 # Supported GPUs: RX 6000/7000/9000 series, Instinct MI series
 
---extra-index-url https://download.pytorch.org/whl/rocm6.4
+--extra-index-url https://download.pytorch.org/whl/rocm7.2
 -r requirements.txt
 
 # ROCm builds of PyTorch (override CPU/CUDA versions from requirements.txt)

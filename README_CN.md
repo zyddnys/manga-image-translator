@@ -168,10 +168,10 @@
 #### 使用 Pip/venv (推荐)
 
 ```bash
-# 首先，确保您的机器安装了 Python 3.10 或更高版本
+# 首先，确保您的机器安装了 Python 3.12 或更高版本
 # 最新版本的 Python 可能尚未与某些 PyTorch 库兼容
 $ python --version
-Python 3.10.6
+Python 3.13.16
 
 # 克隆本仓库
 $ git clone https://github.com/zyddnys/manga-image-translator.git
@@ -190,6 +190,8 @@ $ pip install -r requirements.txt
 ```
 
 模型将在运行时自动下载到 `./models` 目录。
+
+依赖已固定为当前版本。由于 `google-genai` 要求 `websockets<17`，此依赖使用最新的 16.x 版本。`pydensecrf` 从 [Python 3.13 / Cython 3 修复分支](https://github.com/zyddnys/pydensecrf/tree/fix/python313-cython3) 编译安装，请先安装 Git 和 C++ 编译器（Ubuntu 可执行 `sudo apt install git build-essential`）。Pip 会自动安装编译所需的 Cython。
 
 #### Windows 用户注意事项：
 
@@ -226,7 +228,6 @@ docker run \
   -v /demo/doc/../../server/instance.py:/app/server/instance.py \
   -e OPENAI_API_KEY='' \
   -e OPENAI_API_BASE='' \
-  -e OPENAI_MODEL='' \
   zyddnys/manga-image-translator:main \
   server/main.py --verbose --start-instance --host=0.0.0.0 --port=5003  
 ```
@@ -260,7 +261,6 @@ docker run \
   -v /demo/doc/../../server/instance.py:/app/server/instance.py \
   -e OPENAI_API_KEY='' \
   -e OPENAI_API_BASE='' \
-  -e OPENAI_MODEL='' \
   -e OPENAI_HTTP_PROXY='' \
   zyddnys/manga-image-translator:main \
   server/main.py --verbose --start-instance --host=0.0.0.0 --port=5003 --use-gpu
@@ -1106,7 +1106,8 @@ FIL: 菲律宾语（他加禄语）
 | baidu         | ✔️      |         | 需要 `BAIDU_APP_ID` 和 `BAIDU_SECRET_KEY`           |  
 | deepl         | ✔️      |         | 需要 `DEEPL_AUTH_KEY`                                |  
 | caiyun        | ✔️      |         | 需要 `CAIYUN_TOKEN`                                  |  
-| openai        | ✔️      |         | 需要 `OPENAI_API_KEY`                     |  
+| chatgpt | ✔️ | | 仅使用 GPT-6 Luna，需要 `OPENAI_API_KEY`；别名：`openai`、`gpt-6-luna` |
+| chatgpt_2stage | ✔️ | | OCR 修正和翻译均使用 GPT-6 Luna，需要 `OPENAI_API_KEY` |
 | deepseek      | ✔️      |         | 需要 `DEEPSEEK_API_KEY`                          |  
 | groq          | ✔️      |         | 需要 `GROQ_API_KEY`                              |  
 | atlascloud    | ✔️      |         | 需要 `ATLASCLOUD_API_KEY`                        |  
@@ -1160,6 +1161,10 @@ SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
 
 #### 环境变量汇总
 
+`chatgpt` 和 `chatgpt_2stage` 固定使用 [`gpt-6-luna`](https://developers.openai.com/api/docs/models/gpt-6-luna)。请删除旧的 `OPENAI_MODEL`、`OPENAI_STAGE1_MODEL`、`OPENAI_STAGE2_MODEL` 和 `OPENAI_FALLBACK_MODEL` 设置，它们不再用于选择模型。其他模型请使用 `custom_openai` 和 `CUSTOM_OPENAI_MODEL`。旧的 `gpt-*` 翻译器别名不再支持，请改用 `chatgpt`、`openai` 或 `gpt-6-luna`。
+
+请求使用 Chat Completions API、`max_completion_tokens` 和 `reasoning_effort="none"`，保留 `temperature` 和 `top_p` 配置。详见 [OpenAI 迁移指南](https://developers.openai.com/api/docs/guides/latest-model#migration-quickstart)。
+
 | 环境变量名                     | 说明                                                                  | 默认值                               | 备注                                                                                               |  
 | :----------------------------- | :-------------------------------------------------------------------- | :----------------------------------- | :------------------------------------------------------------------------------------------------- |  
 | `BAIDU_APP_ID`                 | 百度翻译 appid                                                          | `''`                                 |                                                                                                    |  
@@ -1168,7 +1173,6 @@ SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
 | `YOUDAO_SECRET_KEY`            | 有道翻译应用秘钥                                                          | `''`                                 |                                                                                                    |  
 | `DEEPL_AUTH_KEY`              | DeepL 翻译 AUTH_KEY                                                       | `''`                                 |                                                                                                    |  
 | `OPENAI_API_KEY`              | OpenAI API 密钥                                                        | `''`                                 |                                                                                                    |  
-| `OPENAI_MODEL`                | OpenAI 模型                                                        | `'chatgpt-4o-latest'`                    |                                                                                                    |  
 | `OPENAI_HTTP_PROXY`           | OpenAI HTTP 代理                                                 | `''`                                 | 替代 `--proxy`                                                                                      |  
 | `OPENAI_GLOSSARY_PATH`        | OpenAI 术语表路径                                                   | `./dict/mit_glossary.txt`            |                                                                                                    |  
 | `OPENAI_API_BASE`             | OpenAI API 基础地址                                                 | `https://api.openai.com/v1`          | 默认为官方地址                                                                                       |  
@@ -1350,11 +1354,10 @@ gemini:
 chatgpt:  
   # 是否在翻译请求前附加 `Prompt Template`（下方定义）文本？  
   include_template: True  
-  # 覆盖特定模型的默认配置：  
-  gpt-4o-mini:  
-temperature: 0.4  
-  gpt-3.5-turbo:  
-temperature: 0.3  
+  # ChatGPT 仅支持此模型（chatgpt_2stage 的所有阶段也使用此模型）。
+  # 请求使用 reasoning_effort: none，以支持 temperature 和 top_p。
+  gpt-6-luna:
+    temperature: 0.4
 
 # 在要翻译的文本之前，附加到 ChatGPT 的 `User` 消息的文本。  
 # 使用 {to_lang} 表示目标语言名称插入的位置。  

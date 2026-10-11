@@ -123,4 +123,4 @@ To use a task, select a job, go to the `Tasks` tab, configure the few settings a
 Under `Configuration ⚙️` > `General & Translator (Advanced)`, you can find powerful customization options:
 
 *   **Pre/Post-Translation Dictionaries:** These allow you to provide your own `.txt` files to automatically fix common OCR errors or standardize translation terms for consistency. Example files are provided in the `MangaStudio_Data/dicts` folder.
-*   **GPT Config File:** This allows you to provide a `.yaml` file to deeply customize the behavior of AI translators (like GPT-4o or Gemini). You can change their "persona," style, and more. An example file is provided in `MangaStudio_Data/gpt_configs`.
+*   **GPT Config File:** This allows you to provide a `.yaml` file to deeply customize the behavior of AI translators (like GPT-6 Luna or Gemini). You can change their "persona," style, and more. An example file is provided in `MangaStudio_Data/gpt_configs`.

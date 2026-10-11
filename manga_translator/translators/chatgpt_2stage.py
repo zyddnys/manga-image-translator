@@ -1,4 +1,4 @@
-import os, re, asyncio, base64, json
+import re, asyncio, base64, json
 from io import BytesIO
 from typing import List
 from collections import Counter
@@ -7,7 +7,7 @@ from PIL import Image
 from manga_translator.utils import is_valuable_text
 from .chatgpt import OpenAITranslator
 from ..utils import Context
-from .keys import OPENAI_API_KEY, OPENAI_MODEL
+from .keys import OPENAI_MODEL
 
 
 def encode_image(image):
@@ -196,116 +196,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                 return True
         return False
 
-    async def _attempt_fallback_stage1(self, refine_prompt: str, base64_img: str, from_lang: str, queries: List[str]):
-        """统一的 Stage-1 fallback 逻辑，避免在多处重复代码。"""
-        if not hasattr(self, "_fallback_model") or not self._fallback_model:
-            self.logger.debug("No fallback model configured, keeping original texts.")
-            return queries, list(range(len(queries)))
-
-        fallback_max_attempts = 3
-        for fb_attempt in range(fallback_max_attempts):
-            self.logger.warning(
-                f"Trying fallback model '{self._fallback_model}' for Stage 1 OCR (attempt {fb_attempt+1}/{fallback_max_attempts})")
-            try:
-                await self._ratelimit_sleep()
-                response_fb = await self.client.chat.completions.create(
-                    model=self._fallback_model,
-                    messages=[
-                        {"role": "system", "content": self._get_refine_system_instruction(from_lang)},
-                        {"role": "user", "content": [
-                            {"type": "text", "text": refine_prompt},
-                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_img}"}}
-                        ]}
-                    ],
-                    temperature=self.refine_temperature,
-                    max_completion_tokens=self.max_tokens,
-                    response_format=self.REFINE_RESPONSE_SCHEMA,
-                )
-
-                if response_fb and response_fb.choices and response_fb.choices[0].message.content:
-                    raw_content_fb = response_fb.choices[0].message.content
-
-                    # 如果回退模型仍拒绝，则直接退出 / still refusal -> abort
-                    if self._contains_refusal(raw_content_fb):
-                        self.logger.warning(f"Fallback model also refused: '{raw_content_fb}'. Using original texts.")
-                        break
-
-                    return self._parse_json_response(raw_content_fb, queries)
-                else:
-                    self.logger.warning(f"Fallback Stage1 OCR attempt {fb_attempt+1}/{fallback_max_attempts} failed: Received empty response from model.")
-
-            except Exception as fb_err:
-                self.logger.warning(
-                    f"Fallback Stage1 OCR attempt {fb_attempt+1}/{fallback_max_attempts} failed: {fb_err}")
-                if fb_attempt < fallback_max_attempts - 1:
-                    await asyncio.sleep(1)
-
-        # 所有回退尝试失败 / All fallback attempts failed
-        self.logger.warning("All Stage 1 fallback attempts failed. Proceeding to Stage 2 with original texts.")
-        return queries, list(range(len(queries)))
-
-    async def _attempt_batch_fallback_stage1(self, batch_refine_prompt: str, batch_base64_images: List[str],
-                                           from_lang: str, queries: List[str], query_to_image_mapping: List[tuple]):
-        """批量 Stage-1 fallback 逻辑，在一个请求中处理多张图片。"""
-        if not hasattr(self, "_fallback_model") or not self._fallback_model:
-            self.logger.debug("No fallback model configured for batch processing, keeping original texts.")
-            return queries, list(range(len(queries)))
-
-        fallback_max_attempts = 3
-        for fb_attempt in range(fallback_max_attempts):
-            self.logger.warning(
-                f"Trying batch fallback model '{self._fallback_model}' for Stage 1 OCR (attempt {fb_attempt+1}/{fallback_max_attempts})")
-            try:
-                await self._ratelimit_sleep()
-
-                # Construct messages with multiple images for fallback
-                user_content = [{"type": "text", "text": batch_refine_prompt}]
-                for base64_img in batch_base64_images:
-                    user_content.append({
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{base64_img}"}
-                    })
-
-                response_fb = await self.client.chat.completions.create(
-                    model=self._fallback_model,
-                    messages=[
-                        {"role": "system", "content": self._get_batch_refine_system_instruction(from_lang)},
-                        {"role": "user", "content": user_content}
-                    ],
-                    temperature=self.refine_temperature,
-                    max_completion_tokens=self.max_tokens,
-                    response_format=self.BATCH_REFINE_RESPONSE_SCHEMA,
-                )
-
-                if response_fb and response_fb.choices and response_fb.choices[0].message.content:
-                    raw_content_fb = response_fb.choices[0].message.content
-
-                    # 如果回退模型仍拒绝，则直接退出
-                    if self._contains_refusal(raw_content_fb):
-                        self.logger.warning(f"Batch fallback model also refused: '{raw_content_fb}'. Using original texts.")
-                        break
-
-                    # 解析批量响应
-                    batch_reordered_texts, batch_position_mapping = self._parse_batch_json_response(
-                        raw_content_fb, queries, query_to_image_mapping
-                    )
-
-                    self.logger.info(f"Batch fallback model succeeded: {len(batch_reordered_texts)} texts reordered")
-                    return batch_reordered_texts, batch_position_mapping
-                else:
-                    self.logger.warning(f"Batch fallback Stage1 OCR attempt {fb_attempt+1}/{fallback_max_attempts} failed: Received empty response from model.")
-
-            except Exception as fb_err:
-                self.logger.warning(
-                    f"Batch fallback Stage1 OCR attempt {fb_attempt+1}/{fallback_max_attempts} failed: {fb_err}")
-                if fb_attempt < fallback_max_attempts - 1:
-                    await asyncio.sleep(1)
-
-        # 所有批量回退尝试失败
-        self.logger.warning("All batch Stage 1 fallback attempts failed. Proceeding to Stage 2 with original texts.")
-        return queries, list(range(len(queries)))
-
-    def __init__(self, max_tokens=16000, refine_temperature=0.0, translate_temperature=0.1, stage1_retry_count=2, stage2_send_image=True, stage1_model=None, stage2_model=None):
+    def __init__(self, max_tokens=16000, refine_temperature=0.0, translate_temperature=0.1, stage1_retry_count=2, stage2_send_image=True):
         super().__init__()
         self.max_tokens = max_tokens
         self.refine_temperature = refine_temperature
@@ -313,23 +204,9 @@ class ChatGPT2StageTranslator(OpenAITranslator):
         self.stage1_retry_count = stage1_retry_count  # 添加Stage1重试次数参数
         self.stage2_send_image = stage2_send_image     # 控制Stage2是否发送图片
         
-        # 双模型配置 - 支持环境变量配置
-        self.stage1_model = stage1_model or os.getenv('OPENAI_STAGE1_MODEL') or OPENAI_MODEL
-        self.stage2_model = stage2_model or os.getenv('OPENAI_STAGE2_MODEL') or OPENAI_MODEL
-        
-        # 添加第二阶段翻译标志位和图片存储
+        # Both OCR correction and translation use GPT-6 Luna.
         self._is_stage2_translation = False
         self._stage2_image_base64 = None
-        self._stage2_use_fallback = False  # 新增：Stage2回退模型激活标志
-        
-        # Check model configuration and warn once
-        if not hasattr(ChatGPT2StageTranslator, '_warned_about_model'):
-            self.logger.warning("⚠️ ChatGPT2Stage requires Large Multimodal Models (LMMs) for Stage 1 OCR correction!")
-            if self.stage1_model == self.stage2_model:
-                self.logger.info(f"Using single model for both stages: {self.stage1_model}")
-            else:
-                self.logger.info(f"Using dual models - Stage 1: {self.stage1_model}, Stage 2: {self.stage2_model}")
-            ChatGPT2StageTranslator._warned_about_model = True
 
     async def _translate(self, from_lang: str, to_lang: str, queries: List[str], ctx: Context = None) -> List[str]:
         """
@@ -375,7 +252,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
             self.logger.debug(f"Original query order: {queries}")
 
             # Stage 1: OCR correction and text reordering
-            self.logger.info(f"Stage 1: Correcting OCR errors and reordering text regions using {self.stage1_model}...")
+            self.logger.info(f"Stage 1: Correcting OCR errors and reordering text regions using {OPENAI_MODEL}...")
             base64_img, nw, nh = encode_image(rgb_img)
             refine_prompt = self._get_refine_prompt(query_regions, w, h, nw, nh)
 
@@ -395,7 +272,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                     
                     # Use structured output for reliable JSON formatting
                     response = await self.client.chat.completions.create(
-                        model=self.stage1_model,  # Use specified Stage 1 model
+                        model=OPENAI_MODEL,
                         messages=[
                             {"role": "system", "content": self._get_refine_system_instruction(from_lang)},
                             {"role": "user", "content": [
@@ -403,6 +280,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_img}"}}
                             ]}
                         ],
+                        reasoning_effort="none",
                         temperature=self.refine_temperature,
                         max_completion_tokens=self.max_tokens,
                         response_format=self.REFINE_RESPONSE_SCHEMA,
@@ -424,12 +302,10 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                         raise ValueError("No content from vision model response")
                     
                 except RefusalMessageError as e:
-                    self.logger.warning(f"Stage 1 model refusal detected: {e}. Attempting fallback model (if configured).")
-                    reordered_texts, original_position_mapping = await self._attempt_fallback_stage1(
-                        refine_prompt, base64_img, from_lang, queries)
+                    self.logger.warning(f"Stage 1 model refusal detected: {e}. Keeping original texts.")
                     break # 不再重试主模型
 
-                # 其它异常：先重试，最终再尝试 fallback
+                # Retry OCR errors, then preserve the original text and reading order.
                 except Exception as e:
                     if retry_count < self.stage1_retry_count:
                         self.logger.warning(
@@ -439,8 +315,6 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                     else:
                         self.logger.warning(
                             f"Stage 1 refinement failed (attempt {retry_count + 1}/{self.stage1_retry_count + 1}): {e}. All attempts failed.")
-                        reordered_texts, original_position_mapping = await self._attempt_fallback_stage1(
-                            refine_prompt, base64_img, from_lang, queries)
                         break  # 结束 retry 循环
             
             # Process refined output (remove unpaired symbols, etc.)
@@ -474,7 +348,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                     self.logger.debug(f"Failed to generate bboxes_fixed.png: {e}")
 
             # Stage 2: Translation using reordered text
-            self.logger.info(f"Stage 2: Translating reordered text using {self.stage2_model}...")
+            self.logger.info(f"Stage 2: Translating reordered text using {OPENAI_MODEL}...")
             
             # 术语表将通过系统消息自动应用，无需预处理文本
             # Glossary will be applied automatically through system messages, no need to preprocess text
@@ -491,7 +365,6 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                 self.logger.warning(f"Stage 2 translation failed: {e}. Clearing stage 2 flags and retrying with text-only split translation.")
                 self._is_stage2_translation = False
                 self._stage2_image_base64 = None
-                self._stage2_use_fallback = False
 
                 try:
                     # 重新尝试翻译，此时不会发送图片
@@ -505,7 +378,6 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                 # 清除第二阶段翻译标志位和图片数据 / Clear stage 2 translation flags and image data
                 self._is_stage2_translation = False
                 self._stage2_image_base64 = None
-                self._stage2_use_fallback = False # 重置回退状态
             
             # Remap translations back to original positions
             self.logger.info("Stage 3: Remapping translations to original positions...")
@@ -820,7 +692,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
             messages.append({'role': 'assistant', 'content': lang_chat_samples[1]})
 
         # 构建用户消息 - 第二阶段时根据配置决定是否包含图片 / Construct user message - include image in stage 2 based on config
-        if self._is_stage2_translation and self.stage2_send_image and not self._stage2_use_fallback:
+        if self._is_stage2_translation and self.stage2_send_image:
             # Check if this is batch processing
             if hasattr(self, '_stage2_batch_images') and self._stage2_batch_images:
                 # Batch Stage 2: Send text and multiple images
@@ -865,16 +737,13 @@ class ChatGPT2StageTranslator(OpenAITranslator):
             prompt_text = "\n".join(verbose_msgs)
             
             # 在第二阶段添加图片发送提醒（verbose模式）
-            if self._is_stage2_translation and self.stage2_send_image and not self._stage2_use_fallback:
+            if self._is_stage2_translation and self.stage2_send_image:
                 if hasattr(self, '_stage2_batch_images') and self._stage2_batch_images:
                     prompt_text += f"\n[IMAGES: {len(self._stage2_batch_images)} manga pages sent with batch translation request]"
                 elif self._stage2_image_base64:
                     prompt_text += "\n[IMAGE: Original manga page sent with translation request]"
-            elif self._is_stage2_translation and (not self.stage2_send_image or self._stage2_use_fallback):
-                if self._stage2_use_fallback:
-                    prompt_text += "\n[IMAGE: Disabled for fallback model - Text-only translation request]"
-                else:
-                    prompt_text += "\n[IMAGE: Disabled - Text-only translation request]"
+            elif self._is_stage2_translation and not self.stage2_send_image:
+                prompt_text += "\n[IMAGE: Disabled - Text-only translation request]"
             
             self.print_boxed(prompt_text, border_color="cyan", title="GPT Prompt")      
         else:  
@@ -894,39 +763,24 @@ class ChatGPT2StageTranslator(OpenAITranslator):
             prompt_text = "\n".join(simplified_msgs)
             
             # 在第二阶段添加图片发送提醒
-            if self._is_stage2_translation and self.stage2_send_image and not self._stage2_use_fallback:
+            if self._is_stage2_translation and self.stage2_send_image:
                 if hasattr(self, '_stage2_batch_images') and self._stage2_batch_images:
                     prompt_text += f"\n[IMAGES: {len(self._stage2_batch_images)} manga pages sent with batch translation request]"
                 elif self._stage2_image_base64:
                     prompt_text += "\n[IMAGE: Original manga page sent with translation request]"
-            elif self._is_stage2_translation and (not self.stage2_send_image or self._stage2_use_fallback):
-                if self._stage2_use_fallback:
-                    prompt_text += "\n[IMAGE: Disabled for fallback model - Text-only translation request]"
-                else:
-                    prompt_text += "\n[IMAGE: Disabled - Text-only translation request]"
+            elif self._is_stage2_translation and not self.stage2_send_image:
+                prompt_text += "\n[IMAGE: Disabled - Text-only translation request]"
             
             # 使用 rich 输出 prompt / Use rich to output the prompt
             self.print_boxed(prompt_text, border_color="cyan", title="GPT Prompt (verbose=False)") 
         
 
         # 发起请求 / Initiate the request
-        # 在Stage 2时使用指定的Stage 2模型或已激活的fallback模型
-        model_to_use = OPENAI_MODEL
-        if self._is_stage2_translation:
-            if self._stage2_use_fallback and hasattr(self, '_fallback_model') and self._fallback_model:
-                model_to_use = self._fallback_model
-                self.logger.info(f"Using activated fallback model for Stage 2 (text-only mode): {model_to_use}")
-            else:
-                model_to_use = self.stage2_model
-        else:
-            # For non-stage2, use the default model from parent logic, which is typically OPENAI_MODEL
-            # This branch is needed to avoid using a potentially uninitialized model_to_use
-            model_to_use = OPENAI_MODEL
-
         response = await self.client.chat.completions.create(
-            model=model_to_use,
+            model=OPENAI_MODEL,
             messages=messages,
-            max_tokens=self._MAX_TOKENS // 2,
+            max_completion_tokens=self._MAX_TOKENS // 2,
+            reasoning_effort="none",
             temperature=self.temperature,
             top_p=self.top_p,
             timeout=self._TIMEOUT
@@ -937,16 +791,8 @@ class ChatGPT2StageTranslator(OpenAITranslator):
 
         raw_text = response.choices[0].message.content
 
-        # 新增：检测Stage 2的拒绝回应，并激活fallback
-        if self._is_stage2_translation and not self._stage2_use_fallback:
-            has_numeric_prefix = re.search(r'<\|(\d+)\|>', raw_text)
-            if not has_numeric_prefix and self._contains_refusal(raw_text):
-                if hasattr(self, '_fallback_model') and self._fallback_model:
-                    self.logger.warning("Stage 2 refusal detected. Activating fallback model for subsequent requests.")
-                    self._stage2_use_fallback = True
-                    raise RefusalMessageError("Stage 2 refusal, switching to fallback model.")
-                else:
-                    self.logger.warning("Stage 2 refusal detected, but no fallback model is configured.")
+        if not raw_text:
+            raise ValueError("Empty translation content from OpenAI API")
 
         # 去除 <think>...</think> 标签及内容。由于某些中转api的模型的思考过程是被强制输出的，并不包含在reasoning_content中，需要额外过滤
         # Remove <think>...</think> tags and their contents. Since the reasoning process of some relay API models is forcibly output and not included in the reasoning_content, additional filtering is required.
@@ -999,7 +845,6 @@ class ChatGPT2StageTranslator(OpenAITranslator):
         """
         Main translation entry point - override to ensure context is passed through
         """
-        self._stage2_use_fallback = False # 确保每次外部调用都重置状态
         if not queries:
             return queries
 
@@ -1097,7 +942,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                 batch_query_regions.append(image_regions[:queries_for_this_image])
 
             # Stage 1: Batch OCR correction and text reordering
-            self.logger.info(f"Stage 1: Batch OCR correction for {len(batch_images)} images using {self.stage1_model}...")
+            self.logger.info(f"Stage 1: Batch OCR correction for {len(batch_images)} images using {OPENAI_MODEL}...")
 
             # Encode all images
             batch_base64_images = []
@@ -1133,11 +978,12 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                         })
 
                     response = await self.client.chat.completions.create(
-                        model=self.stage1_model,
+                        model=OPENAI_MODEL,
                         messages=[
                             {"role": "system", "content": self._get_batch_refine_system_instruction(from_lang)},
                             {"role": "user", "content": user_content}
                         ],
+                        reasoning_effort="none",
                         temperature=self.refine_temperature,
                         max_completion_tokens=self.max_tokens,
                         response_format=self.BATCH_REFINE_RESPONSE_SCHEMA,
@@ -1176,10 +1022,7 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                         raise ValueError("No content from vision model response")
 
                 except RefusalMessageError as e:
-                    self.logger.warning(f"Batch Stage 1 model refusal detected: {e}. Attempting batch fallback model (if configured).")
-                    # Try batch fallback model
-                    batch_reordered_texts, batch_position_mapping = await self._attempt_batch_fallback_stage1(
-                        batch_refine_prompt, batch_base64_images, from_lang, queries, query_to_image_mapping)
+                    self.logger.warning(f"Batch Stage 1 model refusal detected: {e}. Keeping original texts.")
                     break
 
                 except Exception as e:
@@ -1188,18 +1031,14 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                         await asyncio.sleep(2 ** retry_count)
                         continue
                     else:
-                        self.logger.warning(f"Batch Stage 1 failed after all attempts: {e}. Attempting batch fallback model (if configured).")
-
-                        # Try batch fallback model
-                        batch_reordered_texts, batch_position_mapping = await self._attempt_batch_fallback_stage1(
-                            batch_refine_prompt, batch_base64_images, from_lang, queries, query_to_image_mapping)
+                        self.logger.warning(f"Batch Stage 1 failed after all attempts: {e}. Keeping original texts.")
                         break
 
             # Process refined output
             batch_reordered_texts = self._process_refine_output(batch_reordered_texts)
 
             # Stage 2: Batch translation using reordered text
-            self.logger.info(f"Stage 2: Batch translating reordered text using {self.stage2_model}...")
+            self.logger.info(f"Stage 2: Batch translating reordered text using {OPENAI_MODEL}...")
 
             # Set batch stage 2 translation flags
             self._is_stage2_translation = True
@@ -1213,7 +1052,6 @@ class ChatGPT2StageTranslator(OpenAITranslator):
                 self.logger.warning(f"Batch Stage 2 translation failed: {e}. Clearing stage 2 flags and retrying with text-only split translation.")
                 self._is_stage2_translation = False
                 self._stage2_batch_images = None
-                self._stage2_use_fallback = False
 
                 try:
                     # 重新尝试翻译，此时不会发送图片

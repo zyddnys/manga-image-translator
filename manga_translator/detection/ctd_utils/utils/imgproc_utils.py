@@ -172,7 +172,7 @@ def draw_connected_labels(num_labels, labels, stats, centroids, names="draw_conn
             pix[np.where(labels==lab)] = 255
 
             rect = cv2.minAreaRect(cv2.findNonZero(pix))
-            box = np.int0(cv2.boxPoints(rect))
+            box = cv2.boxPoints(rect).astype(np.intp)
             labdraw = cv2.drawContours(labdraw, [box], 0, randcolor, 2)
             labdraw = cv2.circle(labdraw, (int(centroids[lab][0]),int(centroids[lab][1])), radius=5, color=(random.randint(0,255), random.randint(0,255), random.randint(0,255)), thickness=-1)                
 

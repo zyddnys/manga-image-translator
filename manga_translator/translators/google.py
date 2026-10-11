@@ -114,7 +114,7 @@ class GoogleTranslator(CommonTranslator):
 
         super().__init__()
 
-        self.client = httpx.AsyncClient(http2=http2, proxies=SYS_HTTP_PROXY)
+        self.client = httpx.AsyncClient(http2=http2, proxy=SYS_HTTP_PROXY)
         # if proxies is not None:  # pragma: nocover
 
         self.client.headers.update({

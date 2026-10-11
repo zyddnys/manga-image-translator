@@ -28,10 +28,9 @@ services:
       # deepl  
       DEEPL_AUTH_KEY: ''  
       
-      # openai/ChatGPT  
+      # OpenAI / ChatGPT (gpt-6-luna only)
       OPENAI_API_KEY: ''
       OPENAI_API_BASE: ''
-      OPENAI_MODEL: ''
       OPENAI_HTTP_PROXY: ''
       
       # glossary

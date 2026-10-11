@@ -137,11 +137,10 @@ gemini:
 chatgpt:
   # Should the `Prompt Template` (defined below) text be prepended to the translation requests?
   include_template: True
-  # Override default configs for a specific models:
-  gpt-4o-mini:
+  # The only supported ChatGPT model (also used by chatgpt_2stage).
+  # Requests use reasoning_effort: none to support temperature and top_p.
+  gpt-6-luna:
     temperature: 0.4
-  gpt-3.5-turbo:
-    temperature: 0.3
 
 # The text to prepend to `User` messages to GPT before the text to translate.
 # Use {to_lang} to indicate where the target language name should be inserted.
