@@ -6,10 +6,10 @@
 
 Android 漫画阅读器 · 自建翻译后端 · 云端书库 · 多设备进度同步 · 局域网遥控阅读
 
-[![CI](https://github.com/Dovahlore/manga-image-translator/actions/workflows/ci.yml/badge.svg)](https://github.com/Dovahlore/manga-image-translator/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/Dovahlore/manga-image-translator?label=release)](https://github.com/Dovahlore/manga-image-translator/releases)
+[![CI](https://github.com/Dovahlore/manga-raw-reader-app/actions/workflows/ci.yml/badge.svg)](https://github.com/Dovahlore/manga-raw-reader-app/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Dovahlore/manga-raw-reader-app?label=release)](https://github.com/Dovahlore/manga-raw-reader-app/releases)
 [![Platform](https://img.shields.io/badge/platform-Android%208.0%2B-3DDC84?logo=android&logoColor=white)](android/README.md)
-[![License](https://img.shields.io/github/license/Dovahlore/manga-image-translator)](LICENSE)
+[![License](https://img.shields.io/github/license/Dovahlore/manga-raw-reader-app)](LICENSE)
 [![Discord](https://img.shields.io/discord/739305951085199490?logo=discord&label=discord&logoColor=white)](https://discord.gg/Ak8APNy4vb)
 
 [功能总览](#功能总览) · [快速开始](#快速开始) · [架构](#架构) · [Android 文档](android/README.md) · [API 文档](app_api/API.md)
@@ -124,7 +124,7 @@ Manga Image Translator 是一套可以完全自托管的漫画翻译和阅读系
 ### 2. 启动后端
 
 ```bash
-git clone https://github.com/Dovahlore/manga-image-translator.git
+git clone https://github.com/Dovahlore/manga-raw-reader-app.git
 cd manga-image-translator
 
 cp app.env.example app.env
@@ -236,6 +236,6 @@ dict/                       术语表与替换字典
 
 如果这个项目让你的漫画阅读更轻松，欢迎点一个 Star ⭐
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Dovahlore/manga-image-translator&type=Date)](https://star-history.com/#Dovahlore/manga-image-translator&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=Dovahlore/manga-raw-reader-app&type=Date)](https://star-history.com/#Dovahlore/manga-raw-reader-app&Date)
 
 </div>
