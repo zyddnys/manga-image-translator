@@ -1,76 +1,174 @@
-# MangaReader —— EPUB 漫画阅读器（Android）
+# MIT Reader · Android App
 
-一个本地漫画翻译阅读器：导入 EPUB → 书库（封面=首页）→ 阅读（日漫右→左 / 普通左→右）→
-每页翻译 → 右下角切原图/译文图 → 自动预翻后 3 页。翻译走后端 `mit-app-api`（8020）。
+MIT Reader 是 Manga Image Translator 的 Android 客户端，使用 Kotlin 与 Jetpack Compose 开发，负责导入、书库、阅读、后台任务状态和跨设备协作。
+
+## 系统要求
+
+- Android 8.0（API 26）及以上；
+- Android Studio Ladybug 或更新版本；
+- JDK 17；
+- Android SDK 34；
+- Gradle 8.7；
+- 如需访问自建后端，设备与服务器应在同一局域网，或通过 VPN / HTTPS 反代访问。
+
+仓库当前未提交 Gradle Wrapper。命令行构建需要本机安装 Gradle 8.7，或直接使用 Android Studio 管理 Gradle。
 
 ## 功能
 
-- **书库**：封面网格；右下 `+` 菜单两种导入（复制进 app 专属目录 `filesDir/library/<id>/`，含抽出的页图）：
-  - 导入文件：EPUB / MOBI / 漫画压缩包（zip/rar）。**合集包自动拆分**——递归按「单层图片文件夹 = 一本书」：
-    外面套几层合集/包裹文件夹都能穿透，每个只含图片的文件夹各成一本，散图单独一本；单本包行为不变。
-    拆出的每本按页内容哈希去重。
-  - 导入文件夹：单层纯图片文件夹（解压后的合集文件夹直接选它）= 一本书；**含子文件夹直接拒绝**。
-  长按封面删除：本地文件 + 本地译文缓存 + 服务端该书全部记录一起删。
-- **书库筛选**：书库与翻译进度分为两个页签；点击书库页签右侧小三角可切换 `全部 | 本地 | 云端`，每本书左上角带同步状态角标——`仅本地` / `☁✓ 已同步` / `☁ 仅云端`。进度页带封面，本地与云端任务可分别收起，并按服务端真实 Job 状态显示运行或排队。
-- **云同步**：书菜单「同步到云端」把书打成 zip（book.src + pages + manifest.json，**译文不打进 zip**）传到后端；
-  「取消同步」删云端（含翻译结果）；仅云端书可「下载到本地」还原（页图 + 从服务端拉最新译文 + 所属收藏夹）。
-  导入时按源文件 SHA-256 去重。译文以服务端 `books/pages` 为准，任何设备新翻/重翻都实时落到云端（14 天清理跳过已同步书）。
-- **阅读**：日漫模式右→左横滑，普通模式左→右；顶栏显示 `x / 总数`。
-- **翻译**：底栏「翻译本页」→ 走 `POST /v1/pages/translate?async_mode=1` → 轮询 `GET /v1/jobs/{id}`；
-  完成后译文图下载到本地缓存（`filesDir/translated/<书id>/<页>.webp`）。右下角按钮切原图/译文图；已同步书有「☁ 刷新」按钮拉取别处新翻的页。
-- **自动模式**：顶栏开关，开启后进入阅读器/翻页时预翻「当前页起后 3 页」。
-- **设置**：服务器地址（http/https + 域名 + 端口均可）+ API Key（**兼作云同步账号**）+ 测试连接。
+### 导入与扫描
 
-## 后端配合
+- 支持 EPUB、MOBI、AZW/AZW3、CBZ、CBR、ZIP、RAR；
+- 支持系统文件选择器选择单层图片文件夹；
+- 自动识别合集包中的多本书；
+- 按源文件 hash、页内容 hash 和页面指纹去重；
+- 支持指定书库文件夹并自动扫描；
+- 扫描、导入、翻译和存储操作使用 App 级队列，退出页面不中断；
+- 进程重启后恢复未完成的导入和扫描。
 
-后端就是仓库里的 `mit-app-api`（端口 8020）。两件事要和 App 对上：
+### 书库
 
-1. **鉴权 + 账号**：`app.env` 里 `MIT_API_TOKEN` 已填（`aFm7-O4B5VD457MKVDNpDK9QFDkjIHbd`），
-   App 的「设置 → API Key」填同一串。**API Key 就是账号**：服务端用它的 SHA-256 当 owner——
-   同一个 Key 的多台设备互通，不同 Key 互不可见。留空则服务端不校验（回退单一 `default` 账号）。
-   多账号：把 `MIT_API_TOKEN` 改成逗号分隔的多个 Key，每个 Key 一个账号。
-2. **云同步的翻译永久保留**：已同步的书（`cloud_books`）豁免 14 天清理，书 zip 与翻译结果永久保留；
-   未同步的翻译结果仍按 14 天自动清理。
-3. **服务器地址**：默认已指向本机 `http://192.168.0.90:8020`（见 `ServerConfig.kt`）。
-   - 真机与电脑同一局域网即可直连（后端已绑 0.0.0.0；若连不上多半是 **Windows 防火墙**没放行 8020 入站，加一条放行）。
-   - 换电脑/端口：App 里「设置」页改。
-   - Android **模拟器**：把地址改成 `http://10.0.2.2:8020`（10.0.2.2 = 宿主机）。
-   - 公网：`https://你的域名`（需自行反代/TLS，`MIT_API_TOKEN` 必开）。
+- 本地书、云端书、已同步书统一聚合显示；
+- 网格 / 列表视图；
+- 全部 / 本地 / 云端筛选；
+- 名称、最近阅读、创建时间排序；
+- 搜索书名与收藏夹；
+- 收藏夹展开、收起、移动、重命名；
+- 显示仅本地、仅云端、已同步、翻译中、排队中、失败等状态；
+- 点击仅云端书自动下载还原，离线时拦截并提示。
 
-## 构建运行
+### 阅读器
 
-**APK 已在本机打好**：`android/app/build/outputs/apk/debug/app-debug.apk`（约 10.2MB，debug 签名）。
-直接拷到手机安装即可（手机允许"未知来源安装"）。
+- 日漫 RTL 与普通 LTR；
+- 跳页滑块与页码显示；
+- 菜单隐藏时，单击图片切换译文 / 原图；
+- 双击放大 / 复位；
+- 双指缩放，最大 5 倍；
+- 放大后单指 1:1 平移，支持惯性滑动；
+- 放大到边缘继续外滑翻页；
+- 音量上 = 上一页，音量下 = 下一页；
+- 菜单隐藏时点击底部热区呼出菜单；
+- 菜单显示时点击正文或菜单空白处隐藏；
+- 自动预翻当前页之后 3 页；
+- 阅读进度本地即时记录并同步云端。
 
-**本机命令行重新打包**（已装好工具链在 `D:\android-toolchain` + SDK 在 `D:\android-sdk`）：
+### 云同步
 
-```powershell
-cd "D:\mayuq\OneDrive - bupt.edu.cn\Projects\manga-image-translator\android"
-$env:JAVA_HOME='D:\android-toolchain\jdk-17.0.20.1+1'
-$env:ANDROID_HOME='D:\android-sdk'; $env:ANDROID_SDK_ROOT='D:\android-sdk'
-D:\android-toolchain\gradle-8.7\bin\gradle.bat assembleDebug --no-daemon
+- 原书包、页面索引、翻译状态、收藏夹和阅读进度同步；
+- 以内容 hash 识别同一本书，减少换机或重复导入造成的重复项；
+- 云端书可下载还原，译文页按需补拉；
+- 离线时保留最后一次在线成功的云端书列表和翻译进度快照；
+- 重新联网后由最新同步结果覆盖快照。
+
+### 设备对传
+
+- 同一局域网自动发现设备；
+- 传输前生成清单并检查空间；
+- 支持断点续传；
+- 每个文件 SHA-256 校验；
+- 校验通过后原子导入，失败不会污染书库。
+
+### 遥控器
+
+一台设备作为阅读端，另一台设备作为遥控器：
+
+- 阅读端在阅读器菜单中开启被控模式；
+- 遥控端从书库左下角进入遥控器模式；
+- 使用 6 位配对码和 token 鉴权；
+- 心跳保活，异常断开自动清理；
+- 同一阅读端只允许一台遥控器；
+- 遥控器与被控端角色互斥；
+- 仅阅读端停留在阅读器前台时接受翻页命令；
+- 遥控器页内音量上 / 下分别控制上一页 / 下一页；
+- 支持屏幕按钮翻页和连接状态显示。
+
+### 存储与更新
+
+- 可选择 App 专用内部存储、机身共享存储或 SD 卡 App 专用目录；
+- 新导入按当前设置写入；
+- 旧位置数据可通过设置手动搬运；
+- 搬运期间书库保持可见，任务可恢复；
+- App 支持从自建后端检查更新、下载 APK、校验并安装。
+
+## 构建
+
+### Android Studio
+
+1. 用 Android Studio 打开 `android/` 目录；
+2. 等待 Gradle Sync；
+3. 选择设备或模拟器；
+4. 点击 Run。
+
+### 命令行
+
+Debug 构建：
+
+```bash
+cd android
+gradle assembleDebug --no-daemon
 ```
 
-也可以直接用 Android Studio（Ladybug 或更新）打开本目录构建。
+Release 构建：
 
-> 依赖版本（`build.gradle.kts`）：AGP 8.5.2 / Kotlin 2.0.20 / Compose BOM 2024.09.00。
-> 若 Gradle sync 报版本相关错误，多半是本地 Gradle/JDK 版本与上面不一致，按 Studio 提示对齐即可。
-
-## 目录
-
+```bash
+cd android
+gradle assembleRelease --no-daemon
 ```
+
+Release 签名配置读取 `android/app/keystore.properties`：
+
+```properties
+storeFile=../your-release-key.jks
+storePassword=your-store-password
+keyAlias=your-alias
+keyPassword=your-key-password
+```
+
+该文件与密钥不要提交到 Git。
+
+## 连接后端
+
+1. 启动项目根目录的后端；
+2. 打开 App「设置」；
+3. 填写服务器地址，例如 `http://192.168.x.x:8020`；
+4. 填写与后端一致的 API Key；
+5. 点击「测试连接」。
+
+Android 模拟器访问本机后端时可使用 `http://10.0.2.2:8020`。
+
+## 调试
+
+查看连接设备：
+
+```bash
+adb devices
+```
+
+安装 Debug 包：
+
+```bash
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+查看日志：
+
+```bash
+adb logcat --pid=$(adb shell pidof -s com.mit.reader)
+```
+
+## 主要目录
+
+```text
 android/app/src/main/java/com/mit/reader/
-  ReaderApp.kt           Application：初始化 ServerConfig / 仓库 / API
-  MainActivity.kt        入口（Compose）
-  ReaderViewModel.kt     阅读态 + 翻译 job 轮询 + 自动预翻
-  data/EpubParser.kt     EPUB(spine 顺序)抽图
-  data/MobiParser.kt     MOBI/AZW(PDB+PalmDOC)抽图
-  data/Book.kt           Book / Folder / 阅读进度 / serverId(云端书 id)
-  data/LibraryRepository.kt  书库 + 本地译文缓存 + 云同步(zip 打包/下载还原) + index.json
-  data/TranslationApi.kt app_api 客户端（OkHttp，带 X-API-Token + 云接口）
-  data/ServerConfig.kt   服务器地址 / API Key（兼账号，SharedPreferences）
-  ui/AppNav.kt           路由
-  ui/LibraryScreen.kt    书库
-  ui/ReaderScreen.kt     阅读器
-  ui/SettingsScreen.kt   设置
+  MainActivity.kt     入口与音量键分发
+  ReaderApp.kt        App 级任务、同步、缓存、更新、遥控状态
+  ReaderViewModel.kt  阅读状态与页面翻译
+  data/               导入解析、书库仓库、网络 API、传输与遥控
+  ui/                 书库、阅读器、设置、进度、遥控器界面
 ```
+
+## 安全提醒
+
+- 不要把真实服务器地址、API Key、书名或截图提交到公开仓库；
+- 公网访问请使用 HTTPS 或 VPN；
+- Release 密钥只保存在本机；
+- App 权限仅覆盖网络、存储访问和系统打开文件等实际需求。
