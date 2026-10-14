@@ -94,7 +94,12 @@ class NLLBTranslator(OfflineTranslator):
             self.tokenizer.src_lang = from_lang
             encoded = self.tokenizer(queries, return_tensors='pt', padding=True, truncation=True, max_length=512)
             encoded = {k: v.to(self.device) for k, v in encoded.items()}
-            target_lang_id = self.tokenizer.lang_code_to_id[to_lang]
+            if hasattr(self.tokenizer, 'convert_tokens_to_ids'):
+                target_lang_id = self.tokenizer.convert_tokens_to_ids(to_lang)
+            elif hasattr(self.tokenizer, 'lang_code_to_id'):
+                target_lang_id = self.tokenizer.lang_code_to_id[to_lang]
+            else:
+                target_lang_id = self.tokenizer.vocab.get(to_lang)
             with torch.no_grad():
                 generated = self.model.generate(
                     **encoded,
