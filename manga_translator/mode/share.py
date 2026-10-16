@@ -17,16 +17,16 @@ SAFE_PICKLE_MODULES = frozenset({
     'collections',
     'numpy',
     'numpy.core.multiarray',
+    'numpy._core.multiarray',
     'numpy.dtype',
-    'manga_translator',
-    'manga_translator.utils',
-    'manga_translator.utils.generic',
-    'manga_translator.config'
 })
 
 class RestrictedUnpickler(pickle.Unpickler):
     def find_class(self, module: str, name: str):
-        if module in SAFE_PICKLE_MODULES or module.startswith('PIL.'):
+        if (
+            module in SAFE_PICKLE_MODULES
+            or module.startswith(('PIL', 'shapely', 'manga_translator'))
+        ):
             return super().find_class(module, name)
         raise pickle.UnpicklingError(
             f"Deserialization of {module}.{name} is not allowed"
