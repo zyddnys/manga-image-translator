@@ -44,6 +44,11 @@ ATLASCLOUD_API_KEY = os.getenv('ATLASCLOUD_API_KEY', '')
 ATLASCLOUD_API_BASE = os.getenv('ATLASCLOUD_API_BASE', 'https://api.atlascloud.ai/v1')
 ATLASCLOUD_MODEL = os.getenv('ATLASCLOUD_MODEL', 'deepseek-ai/deepseek-v4-flash')  # Full list: https://api.atlascloud.ai/v1/models
 
+# Cheaper Inference, an OpenAI-compatible gateway
+CHEAPER_INFERENCE_API_KEY = os.getenv('CHEAPER_INFERENCE_API_KEY', '')
+CHEAPER_INFERENCE_API_BASE = os.getenv('CHEAPER_INFERENCE_API_BASE', 'https://api.cheaperinference.com/v1')
+CHEAPER_INFERENCE_MODEL = os.getenv('CHEAPER_INFERENCE_MODEL', 'gpt-5.4-mini')  # Full list: https://cheaperinference.com/markets
+
 # Together AI
 TOGETHER_API_KEY = os.getenv('TOGETHER_API_KEY', '')
 TOGETHER_VL_MODEL = os.getenv('TOGETHER_VL_MODEL', 'Qwen/Qwen2.5-VL-72B-Instruct')
