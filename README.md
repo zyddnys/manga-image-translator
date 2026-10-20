@@ -767,6 +767,7 @@ An example config file can be found in example/config-example.json
         "deepseek",
         "groq",
         "atlascloud",
+        "opper",
         "custom_openai",
         "offline",
         "nllb",
@@ -1120,6 +1121,7 @@ FIL: Filipino (Tagalog)
 | deepseek | ✔️ | | Requires `DEEPSEEK_API_KEY` |
 | groq | ✔️ | | Requires `GROQ_API_KEY` |
 | atlascloud | ✔️ | | Requires `ATLASCLOUD_API_KEY` |
+| opper | ✔️ | | Requires `OPPER_API_KEY` |
 | gemini | ✔️ | | Requires `GEMINI_API_KEY` |
 | papago | | | |
 | sakura | | | Requires `SAKURA_API_BASE` |
@@ -1201,6 +1203,9 @@ Requests use Chat Completions with `max_completion_tokens` and `reasoning_effort
 | `ATLASCLOUD_API_KEY`                   | Atlas Cloud API Key                                                                                      | `''`                               |                                                                                                           |
 | `ATLASCLOUD_API_BASE`                  | Atlas Cloud API Base URL                                                                                 | `https://api.atlascloud.ai/v1`     |                                                                                                           |
 | `ATLASCLOUD_MODEL`                     | Atlas Cloud Model name                                                                                   | `deepseek-ai/deepseek-v4-flash` | Full list: <https://api.atlascloud.ai/v1/models>                                                          |
+| `OPPER_API_KEY`                        | Opper API Key                                                                                            | `''`                               |                                                                                                           |
+| `OPPER_API_BASE`                       | Opper API Base URL                                                                                       | `https://api.opper.ai/v3/compat`   |                                                                                                           |
+| `OPPER_MODEL`                          | Opper Model name                                                                                         | `gpt-5.4-mini`                  | Full list: <https://opper.ai/models>                                                                      |
 | `CUSTOM_OPENAI_API_KEY`                | Custom OpenAI API Key                                                    | `ollama`                         | Not needed for Ollama, but possibly required for other tools                                               |
 | `CUSTOM_OPENAI_API_BASE`               | Custom OpenAI API Base URL                                | `http://localhost:11434/v1`        | Use OLLAMA_HOST environment variable to change bind IP and port                                            |
 | `CUSTOM_OPENAI_MODEL`                  | Custom OpenAI compatible model name                                               | `''`                               | Example: `qwen2.5:7b`, ensure you pull and run it before usage                                             |
@@ -1229,7 +1234,7 @@ Used by the `gpt_config` parameter.
 #   Set it as a top-level entry.
 # If you wish to set a different value for a specific translator configuration:
 #   Set it beneath the configuration name 
-#   Top-level configuration options: 'chatgpt', 'ollama', 'deepseek', 'groq', 'atlascloud'
+#   Top-level configuration options: 'chatgpt', 'ollama', 'deepseek', 'groq', 'atlascloud', 'opper'
 #     For translators that support model specification: 
 #         The model name can be used as an addition level of specification
 #     Some translators also support additional leveling options (e.g. CUSTOM_OPENAI_MODEL_CONF)
