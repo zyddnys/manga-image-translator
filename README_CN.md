@@ -760,6 +760,7 @@ shared              以 API 模式运行
         "deepseek",
         "groq",
         "atlascloud",
+        "opper",
         "custom_openai",
         "offline",
         "nllb",
@@ -1111,6 +1112,7 @@ FIL: 菲律宾语（他加禄语）
 | deepseek      | ✔️      |         | 需要 `DEEPSEEK_API_KEY`                          |  
 | groq          | ✔️      |         | 需要 `GROQ_API_KEY`                              |  
 | atlascloud    | ✔️      |         | 需要 `ATLASCLOUD_API_KEY`                        |  
+| opper         | ✔️      |         | 需要 `OPPER_API_KEY`                             |  
 | gemini        | ✔️      |         | 需要 `GEMINI_API_KEY`                            |  
 | papago        |         |         |                                                          |  
 | sakura        |         |         | 需要 `SAKURA_API_BASE`                               |  
@@ -1190,6 +1192,9 @@ SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
 | `ATLASCLOUD_API_KEY`         | Atlas Cloud API 密钥                                                   | `''`                                 |                                                                                                    |  
 | `ATLASCLOUD_API_BASE`        | Atlas Cloud API 基础地址                                               | `https://api.atlascloud.ai/v1`       |                                                                                                    |  
 | `ATLASCLOUD_MODEL`           | Atlas Cloud 模型名称                                                   | `'deepseek-ai/deepseek-v4-flash'` | 完整列表：<https://api.atlascloud.ai/v1/models>                                                     |  
+| `OPPER_API_KEY`              | Opper API 密钥                                                         | `''`                                 |                                                                                                    |  
+| `OPPER_API_BASE`             | Opper API 基础地址                                                     | `https://api.opper.ai/v3/compat`       |                                                                                                    |  
+| `OPPER_MODEL`                | Opper 模型名称                                                         | `'gpt-5.4-mini'` | 完整列表：<https://opper.ai/models>                                                     |  
 | `CUSTOM_OPENAI_API_KEY`        | 自定义 OpenAI API 密钥                  | `'ollama'`                            | Ollama 不需要，但其他工具可能需要                                                                    |  
 | `CUSTOM_OPENAI_API_BASE`       | 自定义 OpenAI API 基础地址      | `http://localhost:11434/v1`          | 使用 OLLAMA_HOST 环境变量更改绑定 IP 和端口                                                           |  
 | `CUSTOM_OPENAI_MODEL`         | 自定义 OpenAI 兼容模型名称                                               | `''`                                 | 例如：`qwen2.5:7b`，使用前确保已拉取并运行                                                            |  
@@ -1219,7 +1224,7 @@ SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
 #   将其设置为顶级条目。  
 # 如果你想为特定的翻译器配置设置不同的值：  
 #   将其设置在配置名称下方  
-#   顶层配置选项：'chatgpt', 'ollama', 'deepseek', 'groq', 'atlascloud'  
+#   顶层配置选项：'chatgpt', 'ollama', 'deepseek', 'groq', 'atlascloud', 'opper'  
 #     对于支持指定模型的翻译器：  
 #         模型名称可以作为附加的层级进行指定  
 #     一些翻译器也支持附加的层级选项（例如 CUSTOM_OPENAI_MODEL_CONF）  

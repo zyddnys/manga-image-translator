@@ -44,6 +44,11 @@ ATLASCLOUD_API_KEY = os.getenv('ATLASCLOUD_API_KEY', '')
 ATLASCLOUD_API_BASE = os.getenv('ATLASCLOUD_API_BASE', 'https://api.atlascloud.ai/v1')
 ATLASCLOUD_MODEL = os.getenv('ATLASCLOUD_MODEL', 'deepseek-ai/deepseek-v4-flash')  # Full list: https://api.atlascloud.ai/v1/models
 
+# Opper, an EU-hosted OpenAI-compatible gateway
+OPPER_API_KEY = os.getenv('OPPER_API_KEY', '')
+OPPER_API_BASE = os.getenv('OPPER_API_BASE', 'https://api.opper.ai/v3/compat')
+OPPER_MODEL = os.getenv('OPPER_MODEL', 'gpt-5.4-mini')  # Full list: https://opper.ai/models
+
 # Together AI
 TOGETHER_API_KEY = os.getenv('TOGETHER_API_KEY', '')
 TOGETHER_VL_MODEL = os.getenv('TOGETHER_VL_MODEL', 'Qwen/Qwen2.5-VL-72B-Instruct')
