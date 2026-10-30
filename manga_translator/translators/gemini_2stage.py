@@ -142,10 +142,6 @@ class Gemini2StageTranslator(CommonTranslator):
 
         translations = [self._clean_translation_output(q, r, to_lang) for q, r in zip(queries, translations)]
 
-        if to_lang == 'ARA':
-            import arabic_reshaper
-            translations = [arabic_reshaper.reshape(t) for t in translations]
-
         if use_mtpe:
             translations = await self.mtpe_adapter.dispatch(queries, translations)
 

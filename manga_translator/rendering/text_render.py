@@ -4,14 +4,16 @@ import cv2
 import numpy as np
 import freetype
 import functools
+import khatt
 import logging
 from pathlib import Path
+from PIL import Image
 from typing import Tuple, Optional, List
 from hyphen import Hyphenator
 from hyphen.dictools import LANGUAGES as HYPHENATOR_LANGUAGES
 from langcodes import standardize_tag
 
-from ..utils import BASE_PATH, is_punctuation
+from ..utils import BASE_PATH, is_punctuation, is_right_to_left_char
 
 try:
     HYPHENATOR_LANGUAGES.remove('fr')
@@ -213,6 +215,7 @@ FALLBACK_FONTS = [
     os.path.join(BASE_PATH, 'fonts/msgothic.ttc'),
 ]
 FONT_SELECTION: List[freetype.Face] = []
+FONT_PATHS: List[str] = FALLBACK_FONTS
 font_cache = {}
 def get_cached_font(path: str) -> freetype.Face:
     path = path.replace('\\', '/')
@@ -223,11 +226,12 @@ def get_cached_font(path: str) -> freetype.Face:
     return font_cache[path]
 
 def set_font(font_path: str):
-    global FONT_SELECTION
+    global FONT_SELECTION, FONT_PATHS
     if font_path:
         selection = [font_path] + FALLBACK_FONTS
     else:
         selection = FALLBACK_FONTS
+    FONT_PATHS = selection
     FONT_SELECTION = [get_cached_font(p) for p in selection]
 
 class namespace:
@@ -614,6 +618,8 @@ def calc_horizontal(font_size: int, text: str, max_width: int, max_height: int, 
     Splits up a string of text into lines. Returns list of lines and their widths.
     Will go over max_height if too much text is present.
     """
+    if any(is_right_to_left_char(c) for c in text):
+        return calc_horizontal_rtl(font_size, text, max_width, max_height)
     max_width = max(max_width, 2 * font_size)
 
     whitespace_offset_x = get_char_offset_x(font_size, ' ')
@@ -1097,9 +1103,93 @@ def put_char_horizontal(font_size: int, cdpt: str, pen_l: Tuple[int, int], canva
 
     return char_offset_x  # Return horizontal advance 返回水平步进距离
 
+def get_rtl_string_width(font_size: int, text: str) -> int:
+    """Width of right-to-left text as khatt draws it: shaped, in the selected font and its fallbacks."""
+    if not text.strip():
+        return 0
+    left, _, right, _ = khatt.text_bbox(text, font=FONT_PATHS[0], size_px=font_size, fallback_fonts=FONT_PATHS[1:])
+    return right - left
+
+def calc_horizontal_rtl(font_size: int, text: str, max_width: int, max_height: int) -> Tuple[List[str], List[int]]:
+    """
+    Splits up right-to-left text into lines, in reading order. Returns list of lines and their widths.
+    Lines only break at spaces, as Arabic words are not hyphenated.
+    """
+    max_width = max(max_width, 2 * font_size)
+
+    # Try to increase width usage if a height overflow is unavoidable
+    expected_size = get_rtl_string_width(font_size, ' '.join(text.split()))
+    while True:
+        max_lines = max_height // font_size + 1
+        max_size = max_width * max_lines
+        if max_size < expected_size:
+            multiplier = np.sqrt(expected_size / max_size)
+            max_width *= max(multiplier, 1.05)
+            max_height *= multiplier
+        else:
+            break
+
+    line_text_list = []
+    for paragraph in text.split('\n'):
+        line = ''
+        for word in paragraph.split():
+            candidate = f'{line} {word}' if line else word
+            if line and get_rtl_string_width(font_size, candidate) > max_width:
+                line_text_list.append(line)
+                line = word
+            else:
+                line = candidate
+        line_text_list.append(line)
+    return line_text_list, [get_rtl_string_width(font_size, line) for line in line_text_list]
+
+def put_text_horizontal_rtl(font_size: int, text: str, width: int, height: int, alignment: str,
+                            fg: Tuple[int, int, int], bg: Tuple[int, int, int], line_spacing: int = 0):
+    """
+    Renders right-to-left text such as Arabic with khatt, which joins the letters, applies the
+    font's ligatures and marks, and lays out each line from right to left.
+    """
+    bg_size = int(max(font_size * 0.07, 1)) if bg is not None else 0
+    spacing_y = int(font_size * (line_spacing or 0.01))
+    line_text_list, line_width_list = calc_horizontal_rtl(font_size, text, width, height)
+
+    # make large canvas
+    margin = font_size + bg_size
+    block_width = max(line_width_list)
+    canvas_w = block_width + margin * 2
+    canvas_h = font_size * len(line_width_list) + spacing_y * (len(line_width_list) - 1) + margin * 2
+    canvas_text = Image.new('RGBA', (canvas_w, canvas_h))
+    canvas_border = Image.new('RGBA', (canvas_w, canvas_h))
+
+    # Lines are anchored at their ascender, on the side they are aligned to
+    if alignment == 'left':
+        anchor, pen_x = 'la', margin
+    elif alignment == 'center':
+        anchor, pen_x = 'ma', margin + block_width // 2
+    else:
+        anchor, pen_x = 'ra', margin + block_width
+    pen_y = margin
+    for line_text in line_text_list:
+        if line_text:
+            for canvas, stroke_width in ((canvas_text, 0), (canvas_border, bg_size)):
+                khatt.draw_text(canvas, (pen_x, pen_y), line_text, font=FONT_PATHS[0], size_px=font_size,
+                                fill='white', anchor=anchor, stroke_width=stroke_width,
+                                fallback_fonts=FONT_PATHS[1:])
+        pen_y += font_size + spacing_y
+
+    # colorize
+    canvas_text = np.array(canvas_text.getchannel('A'))
+    canvas_border = np.array(canvas_border.getchannel('A'))
+    line_box = add_color(canvas_text, fg, canvas_border, bg)
+
+    x, y, w, h = cv2.boundingRect(canvas_border)
+    return line_box[y:y+h, x:x+w]
+
 def put_text_horizontal(font_size: int, text: str, width: int, height: int, alignment: str,
                         reversed_direction: bool, fg: Tuple[int, int, int], bg: Tuple[int, int, int],
                         lang: str = 'en_US', hyphenate: bool = True, line_spacing: int = 0):
+    if any(is_right_to_left_char(c) for c in text):
+        # Not compacted: Arabic keeps its spaces after punctuation
+        return put_text_horizontal_rtl(font_size, text, width, height, alignment, fg, bg, line_spacing)
     text = compact_special_symbols(text)
     if not text :
         return
