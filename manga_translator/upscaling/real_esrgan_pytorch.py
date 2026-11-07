@@ -708,7 +708,7 @@ class RealESRGANUpscalerPytorch(OfflineUpscaler):
 
         # ------------------- process image (without the alpha channel) ------------------- #
         self.pre_process(img)
-        if self.tile_size > 0:
+        if self.tile_size > 0 or self.tile_size == -1:
             self.tile_process()
         else:
             self.process()
@@ -754,7 +754,7 @@ class RealESRGANUpscalerPytorch(OfflineUpscaler):
         return output, img_mode
     
     _MODEL_MAPPING = {
-        '4x-UltraSharp': {
+        'RealESRGAN_x4plus_anime_6B': {
             'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/4xESRGAN.pth',
             'hash': '545805CE2D861EE90972B5FA50B851F19EE4BB35DEDD2EB090BE1F7C935B6B00'.lower(),
         },
@@ -792,23 +792,58 @@ class RealESRGANUpscalerPytorch(OfflineUpscaler):
     """
 
     async def _load(self, device: str):
-
+        _MODEL_MAPPING = {
+            'realesrgan': {
+                'url': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-animevideov3.pth',
+                #'hash': '545805CE2D861EE90972B5FA50B851F19EE4BB35DEDD2EB090BE1F7C935B6B00'.lower(),
+                'file': 'real_esrgan',
+            },
+        }
         super().__init__()
-        netscale = 4 #scale in
         dni_weight = .5 #denoise
-        self.model_path = self._get_file_path('RealESRGAN_x4plus_anime_6B.pth')
+        model_name = 'realesr-animevideov3'
+        model_file = 'real_esrgan' + "/" + model_name + ".pth"
+        if model_name == 'RealESRGAN_x4plus':  # x4 RRDBNet model
+            model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
+            netscale = 4
+            file_url = ['https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth']
+        elif model_name == 'RealESRNet_x4plus':  # x4 RRDBNet model
+            model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
+            netscale = 4
+            file_url = ['https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.1/RealESRNet_x4plus.pth']
+        elif model_name == 'RealESRGAN_x4plus_anime_6B':  # x4 RRDBNet model with 6 blocks
+            model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=6, num_grow_ch=32, scale=4)
+            netscale = 4
+            file_url = ['https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.2.4/RealESRGAN_x4plus_anime_6B.pth']
+        elif model_name == 'RealESRGAN_x2plus':  # x2 RRDBNet model
+            model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=2)
+            netscale = 2
+            file_url = ['https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth']
+        elif model_name == 'realesr-animevideov3':  # x4 VGG-style model (XS size)
+            model = SRVGGNetCompact(num_in_ch=3, num_out_ch=3, num_feat=64, num_conv=16, upscale=4, act_type='prelu')
+            netscale = 4
+            file_url = ['https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-animevideov3.pth']
+        elif model_name == 'realesr-general-x4v3':  # x4 VGG-style model (S size)
+            model = SRVGGNetCompact(num_in_ch=3, num_out_ch=3, num_feat=64, num_conv=32, upscale=4, act_type='prelu')
+            netscale = 4
+            file_url = [
+                'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-wdn-x4v3.pth',
+                'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth'
+            ]
+
+        
         self.device = device
         os.makedirs(self.model_dir, exist_ok=True)
-        if os.path.exists('RealESRGAN_x4plus_anime_6B.pth'):
-            shutil.move('RealESRGAN_x4plus_anime_6B.pth', self._get_file_path('RealESRGAN_x4plus_anime_6B.pth'))
-
-        torch.cuda.empty_cache()
+        if os.path.exists(model_file):
+            shutil.move(model_file, self._get_file_path(model_file))
+        self.model_path = self._get_file_path(model_file)
+        #torch.cuda.empty_cache()
         upsampler = self.init(
             scale=netscale,
             model_path=self.model_path,
             dni_weight=dni_weight,
-            model=RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=6, num_grow_ch=32, scale=4),
-            tile=0,
+            model=model,
+            tile=-1,
             tile_pad=10,
             pre_pad=10,
             half=False,
@@ -849,7 +884,7 @@ class RealESRGANUpscalerPytorch(OfflineUpscaler):
                 ret = self.model(batch)
             ret: torch.Tensor
             ret: List[Image.Image] = [Image.fromarray((einops.rearrange(img.clip(0, 1), 'c h w -> h w c').cpu().numpy()[:,:,::-1].copy() * 255.0).astype(np.uint8)) for img in ret]
-            ret = [img.resize(size = (int(round(img.size[0] * ratio)), int(round(img.size[1] * ratio))), resample = Image.Resampling.BILINEAR) for img in ret]
+            ret = [img.resize(size = (int(round(img.size[0] * ratio)), int(round(img.size[1] * ratio))), resample = Image.Resampling.LANCZOS) for img in ret]
             return ret
         else :
             return []

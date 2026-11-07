@@ -152,6 +152,7 @@ class Upscaler(str, Enum):
     waifu2x = "waifu2x"
     esrgan = "esrgan"
     upscler4xultrasharp = "4xultrasharp"
+    realesrgan = "realesrgan"
 
 class RenderConfig(BaseModel):
     renderer: Renderer = Renderer.default

@@ -15,9 +15,9 @@
     "rtl": false
   },
   "upscale": {
-    "upscaler": "esrgan",
+    "upscaler": "4xultrasharp",
     "revert_upscaling": false,
-    "upscale_ratio": 1
+    "upscale_ratio": 1 
   },
   "translator": {
     "translator": "sugoi",
@@ -46,7 +46,7 @@
   },
   "inpainter": {
     "inpainter": "lama_large",
-    "inpainting_size": 2048,
+    "inpainting_size": 1024,
     "inpainting_precision": "fp32"
   },
   "ocr": {

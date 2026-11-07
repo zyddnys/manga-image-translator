@@ -30,6 +30,132 @@ import bisect
 from ..utils import natural_sort  # Use the project's existing natural sort utility if available
 import re
 
+import subprocess
+
+async def stream_context_to_editor_server(ctx_dict, dest_path, config, host="127.0.0.1", port=5003):
+    """
+    Serializes contextual text arrays, processes tracking tags, and packages 
+    compressed binary buffers for zero-loss matrix transmission to the Editor.
+    """
+    uri = f"ws://{host}:{port}/ws/ipc/append_image"
+    
+    # 1. Extract heavy image array matrices out of the dictionary block
+    img_rgb = ctx_dict.get('img_rgb', None)
+    img_inpainted = ctx_dict.get('img_inpainted', None)
+    
+    # 2. Transform custom internal descriptors recursively down into pure dict primitives
+    def sanitize(obj):
+        if isinstance(obj, (str, int, float, bool, type(None))):
+            return obj
+        elif isinstance(obj, dict):
+            return {k: sanitize(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple, set)):
+            return [sanitize(v) for v in obj]
+        elif isinstance(obj, np.ndarray):
+            if obj.size <= 32:
+                return obj.tolist()
+            return None
+        elif hasattr(obj, '__dict__'):
+            data_dict = {}
+            for k, v in obj.__dict__.items():
+                data_dict[k] = sanitize(v)
+            for attr_name in ('xyxy', 'xywh', 'bg_colors', 'fg_colors'):
+                if hasattr(obj, attr_name) and attr_name not in data_dict:
+                    val = getattr(obj, attr_name)
+                    if hasattr(val, 'tolist'):
+                        data_dict[attr_name] = val.tolist()
+                    elif hasattr(val, 'cpu'):
+                        data_dict[attr_name] = val.cpu().numpy().tolist()
+                    else:
+                        data_dict[attr_name] = sanitize(val)
+            return data_dict
+        else:
+            if hasattr(obj, 'tolist'):
+                return obj.tolist()
+            return str(obj)
+
+    # 3. Compress spatial image data profiles to optimize transmission efficiency
+    rgb_bytes = b""
+    if img_rgb is not None:
+        success, encoded = cv2.imencode('.png', img_rgb)
+        if success:
+            rgb_bytes = encoded.tobytes()
+
+    inpainted_bytes = b""
+    if img_inpainted is not None:
+        success, encoded = cv2.imencode('.png', img_inpainted)
+        if success:
+            inpainted_bytes = encoded.tobytes()
+
+    # 4. FIX: Sanitize the config object down to serializable base primitives
+    payload_metadata = {
+        "dest": str(dest_path),
+        "ctx": sanitize(ctx_dict),
+        "config": sanitize(config),
+        "has_rgb": img_rgb is not None,
+        "has_inpainted": img_inpainted is not None
+    }
+    
+    metadata_json_bytes = json.dumps(payload_metadata).encode('utf-8')
+    
+    # 5. Pack binary frames via custom layout headers to bypass pickling boundaries
+    json_len = len(metadata_json_bytes)
+    rgb_len = len(rgb_bytes)
+    
+    header = json_len.to_bytes(4, byteorder='big') + rgb_len.to_bytes(4, byteorder='big')
+    full_binary_packet = header + metadata_json_bytes + rgb_bytes + inpainted_bytes
+
+    # 6. Stripped multi-gpu and gpu_id routing channels out cleanly
+    try:
+        async with websockets.connect(uri, max_size=None) as websocket:
+            await websocket.send(full_binary_packet)
+            await websocket.recv()  # Await acknowledgment response block
+    except ConnectionRefusedError:
+        pass
+    except Exception as e:
+        print(f"[IPC Emitter Error] Failed to stream multi-part chunk payload: {e}", file=sys.stderr)
+
+def spawn_detached_editor_ui(initial_images=None):
+    """Runs the Tkinter event loop in a dedicated GUI thread alongside the IPC server."""
+    # Open local loopback interface port listener 
+    server_thread = threading.Thread(
+        target=run_async_server_loop, 
+        args=("127.0.0.1", 5003), 
+        daemon=True,
+        name="MangaTranslator-IPC-Server"
+    )
+    server_thread.start()
+
+    root = tk.Tk()
+    root.title("Live Stream Editor")
+    root.geometry("1280x720")
+
+    root.overrideredirect(True)
+    root.overrideredirect(False)
+
+    #root.attributes("-fullscreen", True)
+    #root.wm_attributes("-topmost", 1)
+    root.focus_set()
+
+    root.bind("<Escape>", lambda event: root.attributes("-fullscreen", False))#lambda event:root.destroy())
+    root.bind("<F11>", lambda event: root.attributes("-fullscreen", not root.attributes("-fullscreen")))
+
+    editor_widget = LiveEditor(root, initial_image_dict=initial_images)
+    editor_widget.pack(fill="both", expand=True)
+    editor_widget.register_close_protocol()
+
+    # Map the live widget reference so the background socket server can pass data frames directly into it
+    register_editor_instance(editor_widget)
+    
+    root.mainloop()
+
+    subprocess.run(["killall", "python"], shell=True)
+    # Clean up loop tasks when the Tkinter window workspace is destroyed by the user
+    if _SERVER_LOOP is not None:
+        _SERVER_LOOP.call_soon_threadsafe(_SERVER_LOOP.stop)
+        
+    shutdown_event.set()
+
 def natural_sort_key(s: str):
     """Generates an alphanumeric sorting key split (e.g., 'page_10' comes after 'page_2')"""
     return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', str(s))]
@@ -832,14 +958,11 @@ def render_textblock_list_eng_rendered(
         region_font_color = frgb #(int(frgb[2]), int(frgb[1]), int(frgb[0]))   # R, G, B -> B, G, R
         region_stroke_color = brgb #(int(brgb[2]), int(brgb[1]), int(brgb[0])) # R, G, B -> B, G, R
 
-        if force_font_size != -1:
-            font_size = force_font_size
+        region.font_size = force_font_size if force_font_size != -1 else font_size
 
         textlines_image = render_lines(
             textlines, canvas_h, canvas_w, font_size, sw, line_spacing, region_font_color, region_stroke_color
         )
-
-        region.font_size = font_size
 
         if textlines_image is None:
             continue
@@ -930,8 +1053,12 @@ class LiveEditor(tk.Frame):
         self.show_bboxes_active = False  # Toggle tracking state for bounding boxes
         self.property_box_has_focus = False  # Blocks canvas events when typing in properties
         self._saved_property_box_geometry = None  # Remembers custom property box window coordinates
-        self.is_fullscreen = False  # Newly added state tracker for window presentation modes
+        self.is_fullscreen = False  # State tracker for window presentation modes
 
+        self.inpainter_mode_active = False  # True when brush drawing overlay is toggled on
+        self.brush_size = 20  # Safe initial default soft brush pixel radius
+        self.manual_mask_surface = None  # NumPy tracking array matching native background size
+        self._last_brush_coords = None  # Smooth brush interpolator stroke coordinate tracker
 
         self.current_fg_color: Tuple[int, int, int] = (0, 0, 0)
         self.current_bg_color: Tuple[int, int, int] = (255, 255, 255)
@@ -962,7 +1089,6 @@ class LiveEditor(tk.Frame):
         # Bind background canvas clicks to clear selection and close properties
         self.canvas.bind("<Button-1>", self._on_canvas_background_click)
         
-        # --- KEYBOARD NUDGE SHORTCUT BINDINGS ---
         # Intercepts arrow keys to micro-adjust selected text block positions
         self.bind_all("<Up>", lambda e: self._on_keyboard_nudge(0, -1, e))
         self.bind_all("<Down>", lambda e: self._on_keyboard_nudge(0, 1, e))
@@ -980,111 +1106,73 @@ class LiveEditor(tk.Frame):
         self.input_frame.pack(side="top", fill="x", pady=5)
 
         # Packed from the right in order:
-        # [Fullscreen] [Show BBoxes] [Export Image] [Export All] [Fit to Window] [Exit]
+        # [Run Inpaint] [Brush Size] [Inpaint Mode] [Fullscreen] [Show BBoxes] [Export Image] [Export All] [Fit to Window] [Exit]
 
         # 1. Exit Button (rightmost)
         self.exit_btn = tk.Button(
-            self.input_frame,
-            text="Exit",
-            font=("Arial", 10, "bold"),
-            bg="#d9d9d9",
-            fg="black",
-            activebackground="#bfbfbf",
-            activeforeground="black",
-            relief="raised",
-            bd=2,
-            padx=10,
-            pady=2,
-            command=self.exit_program
+            self.input_frame, text="Exit", font=("Arial", 10, "bold"), bg="#d9d9d9", fg="black",
+            activebackground="#bfbfbf", activeforeground="black", relief="raised", bd=2, padx=10, pady=2, command=self.exit_program
         )
         self.exit_btn.pack(side="right", padx=(5, 15))
 
         # 2. Fit to Window Button
         self.fit_window_btn = tk.Button(
-            self.input_frame,
-            text="Fit to Window",
-            font=("Arial", 10, "bold"),
-            bg="#d9d9d9",
-            fg="black",
-            activebackground="#bfbfbf",
-            activeforeground="black",
-            relief="raised",
-            bd=2,
-            padx=10,
-            pady=2,
-            command=self.trigger_fit_to_window
+            self.input_frame, text="Fit to Window", font=("Arial", 10, "bold"), bg="#d9d9d9", fg="black",
+            activebackground="#bfbfbf", activeforeground="black", relief="raised", bd=2, padx=10, pady=2, command=self.trigger_fit_to_window
         )
         self.fit_window_btn.pack(side="right", padx=10)
 
         # 3. Export All Button
         self.export_all_btn = tk.Button(
-            self.input_frame,
-            text="Export All",
-            font=("Arial", 10, "bold"),
-            bg="#d9d9d9",
-            fg="black",
-            activebackground="#bfbfbf",
-            activeforeground="black",
-            disabledforeground="#808080",
-            relief="raised",
-            bd=2,
-            padx=10,
-            pady=2,
-            command=self.export_all_images
+            self.input_frame, text="Export All", font=("Arial", 10, "bold"), bg="#d9d9d9", fg="black",
+            activebackground="#bfbfbf", activeforeground="black", disabledforeground="#808080", relief="raised", bd=2, padx=10, pady=2, command=self.export_all_images
         )
         self.export_all_btn.pack(side="right", padx=5)
 
         # 4. Export Image Button
         self.export_img_btn = tk.Button(
-            self.input_frame,
-            text="Export Image",
-            font=("Arial", 10, "bold"),
-            bg="#d9d9d9",
-            fg="black",
-            activebackground="#bfbfbf",
-            activeforeground="black",
-            disabledforeground="#808080",
-            relief="raised",
-            bd=2,
-            padx=10,
-            pady=2,
-            command=self.export_current_image
+            self.input_frame, text="Export Image", font=("Arial", 10, "bold"), bg="#d9d9d9", fg="black",
+            activebackground="#bfbfbf", activeforeground="black", disabledforeground="#808080", relief="raised", bd=2, padx=10, pady=2, command=self.export_current_image
         )
         self.export_img_btn.pack(side="right", padx=5)
 
         # 5. Show BBoxes Button
         self.show_bboxes_btn = tk.Button(
-            self.input_frame,
-            text="Show BBoxes",
-            font=("Arial", 10, "bold"),
-            bg="#d9d9d9",
-            fg="black",
-            activebackground="#bfbfbf",
-            activeforeground="black",
-            relief="raised",
-            bd=2,
-            padx=10,
-            pady=2,
-            command=self.toggle_bounding_boxes
+            self.input_frame, text="Show BBoxes", font=("Arial", 10, "bold"), bg="#d9d9d9", fg="black",
+            activebackground="#bfbfbf", activeforeground="black", relief="raised", bd=2, padx=10, pady=2, command=self.toggle_bounding_boxes
         )
         self.show_bboxes_btn.pack(side="right", padx=5)
 
-        # 6. Fullscreen Button (Newly engineered presentation modifier)
+        # 6. Fullscreen Button
         self.fullscreen_btn = tk.Button(
-            self.input_frame,
-            text="Fullscreen",
-            font=("Arial", 10, "bold"),
-            bg="#d9d9d9",
-            fg="black",
-            activebackground="#bfbfbf",
-            activeforeground="black",
-            relief="raised",
-            bd=2,
-            padx=10,
-            pady=2,
-            command=self.toggle_fullscreen_mode
+            self.input_frame, text="Fullscreen", font=("Arial", 10, "bold"), bg="#d9d9d9", fg="black",
+            activebackground="#bfbfbf", activeforeground="black", relief="raised", bd=2, padx=10, pady=2, command=self.toggle_fullscreen_mode
         )
         self.fullscreen_btn.pack(side="right", padx=5)
+
+        # 7. Inpaint Mode Toggle Button
+        self.inpaint_toggle_btn = tk.Button(
+            self.input_frame, text="Inpaint Mode", font=("Arial", 10, "bold"), bg="#d9d9d9", fg="black",
+            activebackground="#bfbfbf", activeforeground="black", relief="raised", bd=2, padx=10, pady=2, command=self.toggle_inpainter_mode
+        )
+        self.inpaint_toggle_btn.pack(side="right", padx=5)
+
+        # 8. Brush Size Row Control Spinner Group
+        brush_frame = tk.Frame(self.input_frame, bg="#f0f0f0")
+        brush_frame.pack(side="right", padx=5)
+        tk.Label(brush_frame, text="Brush Size:", font=("Arial", 9, "bold"), bg="#f0f0f0").pack(side="left", padx=2)
+        self.brush_size_spinner = tk.Spinbox(brush_frame, from_=5, to=150, width=4, font=("Arial", 9), justify="center", command=self._on_brush_spinner_change)
+        self.brush_size_spinner.delete(0, "end")
+        self.brush_size_spinner.insert(0, str(self.brush_size))
+        self.brush_size_spinner.pack(side="left", padx=2)
+        self.brush_size_spinner.bind("<KeyRelease>", lambda e: self._on_brush_spinner_change())
+
+        # 9. Run Inpaint Trigger Action Button
+        self.run_inpaint_btn = tk.Button(
+            self.input_frame, text="Run Inpaint", font=("Arial", 10, "bold"), bg="#bfbfbf", fg="white",
+            activebackground="#d84315", activeforeground="white", state="disabled", relief="raised", bd=2, padx=10, pady=2, command=self.execute_manual_lama_mpe_inpaint
+        )
+        self.run_inpaint_btn.pack(side="right", padx=5)
 
     def render_zoomed_view(self, image_scaler = Image.Resampling.BILINEAR):
         """
@@ -1199,9 +1287,121 @@ class LiveEditor(tk.Frame):
         # Proactively re-center viewport layouts matching the changes
         self.master.after(150, self.trigger_fit_to_window)
 
+    def toggle_inpainter_mode(self):
+        """Toggles drawing state variables and intercepts layout mouse operations on the main canvas workspace."""
+        self.inpainter_mode_active = not self.inpainter_mode_active
+        
+        if self.inpainter_mode_active:
+            self.inpaint_toggle_btn.config(bg="#ffb74d", activebackground="#ffa726") # Orange highlight when drawing mode active
+            self.close_property_box()
+            self.canvas.config(cursor="pencil")
+            
+            self.canvas.itemconfig("draggable_layer", state="hidden")
+            self.canvas.delete("inline_bbox_rect")
+
+            # Unbind conflicting layer drag operations to keep mouse handling pristine
+            self.canvas.tag_unbind("draggable_layer", "")
+            self.canvas.tag_unbind("draggable_layer", "")
+            
+            # Direct brush mapping input loops setup overrides onto the canvas background surface
+            self.canvas.bind("<ButtonPress-1>", self._on_brush_stroke_start)
+            self.canvas.bind("<B1-Motion>", self._on_brush_stroke_drawing)
+            self.canvas.bind("<ButtonRelease-1>", self._on_brush_stroke_end)
+        else:
+            self.inpaint_toggle_btn.config(bg="#d9d9d9", activebackground="#bfbfbf")
+            self.canvas.config(cursor="")
+            
+            # Wipe out visual stroke previews from view pane
+            self.canvas.delete("manual_brush_preview")
+            self.canvas.itemconfig("draggable_layer", state="normal")
+            # Re-bind layer drag listeners back onto regular execution tracks safely
+            self.canvas.bind("<Button-1>", self._on_canvas_background_click)
+            self.render_zoomed_view()
+
+    def _on_brush_spinner_change(self):
+        try:
+            val = int(self.brush_size_spinner.get())
+            self.brush_size = max(5, min(val, 150))
+        except ValueError:
+            pass
+
+    def _on_brush_stroke_start(self, event):
+        if not self.inpainter_mode_active or self.current_img_index == -1:
+            return
+        self._last_brush_coords = (event.x, event.y)
+        self._paint_on_mask_surface(event.x, event.y)
+
+    def _on_brush_stroke_drawing(self, event):
+        if not self.inpainter_mode_active or self._last_brush_coords is None:
+            return
+        
+        # Line interpolation loop mechanics to provide perfectly gapless soft drawing marks
+        x1, y1 = self._last_brush_coords
+        x2, y2 = event.x, event.y
+        
+        distance = int(np.hypot(x2 - x1, y2 - y1))
+        steps = max(1, distance // 2)
+        
+        for i in range(steps + 1):
+            t = i / steps
+            ix = int(x1 + t * (x2 - x1))
+            iy = int(y1 + t * (y2 - y1))
+            self._paint_on_mask_surface(ix, iy)
+            
+        self._last_brush_coords = (x2, y2)
+
+    def _on_brush_stroke_end(self, event):
+        self._last_brush_coords = None
+        if self.manual_mask_surface is not None and self.manual_mask_surface.sum() > 0:
+            self.run_inpaint_btn.config(state="normal")
+
+    def _paint_on_mask_surface(self, win_x, win_y):
+        """Projects cursor window tracking markers onto the unscaled matrix tracking surface layer."""
+        if self.manual_mask_surface is None or not self.current_bg_pil:
+            return
+
+        # Translate raw cursor screen-window coordinates directly into scroll-aware canvas system points
+        canvas_x = self.canvas.canvasx(win_x)
+        canvas_y = self.canvas.canvasy(win_y)
+
+        # 2. Extract baseline layout workspace view boundaries dynamically
+        view_w = self.canvas_container.winfo_width()
+        view_h = self.canvas_container.winfo_height()
+        if view_w <= 1: view_w = 1280
+        if view_h <= 720: view_h = 720
+
+        # Calculate exact zoomed background image resolution footprint dimensions
+        scaled_w = int(self.bg_width * self.zoom_scale)
+        scaled_h = int(self.bg_height * self.zoom_scale)
+
+        # 3. Dynamic Padding Offsets: Extract centering offsets precisely mirroring render_zoomed_view
+        offset_x = max(0, (view_w - scaled_w) // 2)
+        offset_y = max(0, (view_h - scaled_h) // 2)
+
+        # 4. Inverse project scrollable canvas coordinates back into native image coordinates
+        img_x = int(round((canvas_x - offset_x) / self.zoom_scale))
+        img_y = int(round((canvas_y - offset_y) / self.zoom_scale))
+
+        # 5. Bound verification: Only commit drawings if within image area bounds
+        if 0 <= img_x < self.bg_width and 0 <= img_y < self.bg_height:
+            # Commit mask markings into the unscaled tracking array surface channel
+            cv2.circle(self.manual_mask_surface, (img_x, img_y), self.brush_size, 255, -1)
+            
+            # Render visual brush stroke circle path markers onto the scrollable canvas system space
+            r_scaled = max(2, int(self.brush_size * self.zoom_scale))
+            self.canvas.create_oval(
+                canvas_x - r_scaled, canvas_y - r_scaled, 
+                canvas_x + r_scaled, canvas_y + r_scaled,
+                fill="#ff1744", outline="", stipple="gray50", tags="manual_brush_preview"
+            )
+
     def draw_inline_bounding_boxes(self):
         """Calculates scale variations dynamically to project red wireframes or solid green selected outlines."""
         self.canvas.delete("inline_bbox_rect")
+        # Defensively exit if brush mode is open so it doesn't collide with pixel previews
+        if self.inpainter_mode_active:
+            return
+            
         if not self.show_bboxes_active or self.current_img_index == -1 or not self.current_bg_pil:
             return
 
@@ -1209,16 +1409,30 @@ class LiveEditor(tk.Frame):
         layers = data_bundle.get("layers", [])
         coords = data_bundle.get("coords", [])
 
+        # Read canvas view boundaries dynamically
+        self.update_idletasks()
         view_w = self.canvas_container.winfo_width()
         view_h = self.canvas_container.winfo_height()
         if view_w <= 1: view_w = 1280
         if view_h <= 1: view_h = 720
 
+        # Calculate exact zoomed visual background bounds
         scaled_w = max(1, int(self.bg_width * self.zoom_scale))
         scaled_h = max(1, int(self.bg_height * self.zoom_scale))
 
+        # Dynamic Padding Offsets logic must mirror render_zoomed_view centering precisely
         offset_x = max(0, (view_w - scaled_w) // 2)
         offset_y = max(0, (view_h - scaled_h) // 2)
+
+        # Retrieve scroll position fractions to shift coordinates if window scrolls or overflows
+        scroll_x_frac = self.canvas.xview()[0]
+        scroll_y_frac = self.canvas.yview()[0]
+        
+        # Convert scroll fractions back to visual viewport pixels to maintain locked alignments
+        scroll_w = max(scaled_w, view_w)
+        scroll_h = max(scaled_h, view_h)
+        scroll_offset_x = scroll_x_frac * scroll_w
+        scroll_offset_y = scroll_y_frac * scroll_h
 
         for i, pil_layer in enumerate(layers):
             if not isinstance(pil_layer, Image.Image):
@@ -1227,6 +1441,7 @@ class LiveEditor(tk.Frame):
             orig_x, orig_y = coords[i] if i < len(coords) else (50, 50)
             l_w, l_h = pil_layer.size
 
+            # Project image coordinate positions exactly matching zoom and centering transformations
             x1 = int(orig_x * self.zoom_scale) + offset_x
             y1 = int(orig_y * self.zoom_scale) + offset_y
             x2 = x1 + max(1, int(l_w * self.zoom_scale))
@@ -1328,7 +1543,7 @@ class LiveEditor(tk.Frame):
         )
 
     def append_image(self, image_dict: dict, path: str = "", config: Config = None):
-        #Image.fromarray(image_dict['img_inpainted']).show()
+
         self.config = config
 
         rendered_text_list, rendered_text_coords = [],[]
@@ -1372,8 +1587,7 @@ class LiveEditor(tk.Frame):
         rendered_text_coords,
         rendered_text_translated,
         image_dict,
-        export_path: str = "",
-    ):
+        export_path: str = "",):
         try:
             thumb_pil = Image.fromarray(image_dict['img_rgb']).copy()
             thumb_pil.thumbnail((110, 80))
@@ -1487,6 +1701,9 @@ class LiveEditor(tk.Frame):
         region = text_regions[layer_index] if layer_index < len(text_regions) else None
         font_size = str(getattr(region, 'font_size', '')) if region else ""
 
+        # --- EXTRACT UNTRANSLATED OCR ORIGINAL TEXT ---
+        original_ocr_text = str(getattr(region, 'text', '')) if region else ""
+
         current_fg = getattr(region, 'fg_color', None) or getattr(region, 'font_color', None)
         current_bg = getattr(region, 'bg_color', None) or getattr(region, 'stroke_color', None)
 
@@ -1531,17 +1748,15 @@ class LiveEditor(tk.Frame):
             self.property_box.bind("<FocusIn>", lambda e: setattr(self, 'property_box_has_focus', True))
             self.property_box.bind("<FocusOut>", lambda e: setattr(self, 'property_box_has_focus', False))
             
-            # Track whenever the window gets moved or resized to capture its placement coordinate string
             self.property_box.bind("<Configure>", self._on_property_box_configure)
 
+            # Adjusted panel height to 270 to naturally comfortably fit the added layout row element
             prop_w = 340
-            prop_h = 240
+            prop_h = 270
 
-            # Restore user's custom location if it was previously saved
             if self._saved_property_box_geometry:
                 self.property_box.geometry(f"{prop_w}x{prop_h}+{self._saved_property_box_geometry[0]}+{self._saved_property_box_geometry[1]}")
             else:
-                # Default position: dock cleanly to the top-right corner of the parent application window
                 screen_w = self.winfo_screenwidth()
                 screen_h = self.winfo_screenheight()
 
@@ -1600,7 +1815,16 @@ class LiveEditor(tk.Frame):
             self.layer_font_combobox.pack(side="left", padx=2, fill="x", expand=True)
             self.layer_font_combobox.bind("<<ComboboxSelected>>", self._on_property_font_dropdown_changed)
 
-            # 5. Text Input Row Layout
+            # 5. UNTRANSLATED SOURCE TEXT DISPLAY ROW (Newly Added Layout Segment)
+            source_frame = tk.Frame(content, bg="#f4f4f4")
+            source_frame.pack(fill="x", pady=(0, 4))
+            tk.Label(source_frame, text="Source Text:", font=("Arial", 9, "bold"), bg="#f4f4f4", width=10, anchor="w").pack(side="left")
+            
+            # Using a flat readonly entry layout context to keep selections copyable without edits
+            self.layer_source_display = tk.Entry(source_frame, font=("Arial", 9), bg="#e9e9e9", fg="#555555", bd=1, relief="sunken")
+            self.layer_source_display.pack(side="left", padx=2, fill="x", expand=True)
+
+            # 6. Text Input Row Layout
             text_frame = tk.Frame(content, bg="#f4f4f4")
             text_frame.pack(fill="x", pady=(0, 8))
             tk.Label(text_frame, text="Layer Text:", font=("Arial", 9, "bold"), bg="#f4f4f4", width=10, anchor="w").pack(side="left")
@@ -1608,7 +1832,7 @@ class LiveEditor(tk.Frame):
             self.layer_text_display.pack(side="left", padx=2, fill="x", expand=True)
             self.layer_text_display.bind("<KeyRelease>", self._on_layer_text_modified)
 
-            # 6. Action Control Footer Buttons
+            # 7. Action Control Footer Buttons
             btn_frame = tk.Frame(content, bg="#f4f4f4")
             btn_frame.pack(fill="x", side="bottom", pady=(2, 0))
 
@@ -1623,6 +1847,14 @@ class LiveEditor(tk.Frame):
             close_btn.pack(side="right")
 
         self.property_box.title(f"Layer {layer_index + 1} Properties")
+        
+        # Update original untranslated text string elements layout
+        self.layer_source_display.config(state="normal")
+        self.layer_source_display.delete(0, tk.END)
+        self.layer_source_display.insert(0, original_ocr_text)
+        # Lock back down to read-only state so it acts purely as a copyable highlight element
+        self.layer_source_display.config(state="readonly")
+
         self.layer_text_display.config(state="normal")
         self.layer_text_display.delete(0, tk.END)
         self.layer_text_display.insert(0, display_text)
@@ -1640,10 +1872,10 @@ class LiveEditor(tk.Frame):
             elif font_names:
                 self.layer_font_combobox.current(0)
 
-        self.fg_color_swatch.config(bg=fg_hex)
+        self.fg_color_swatch.config(fg=fg_hex)
         self.bg_color_swatch.config(bg=bg_hex)
         self.property_box.lift()
-        
+
         self.draw_inline_bounding_boxes()
 
     def close_property_box(self):
@@ -1850,7 +2082,7 @@ class LiveEditor(tk.Frame):
             ]
 
             active_bundle["layers"][self.active_layer_index] = processed_layers[0]
-            active_bundle["coords"][self.active_layer_index] = saved_coords #(new_coords[0][0], new_coords[0][1])
+            active_bundle["coords"][self.active_layer_index] = (new_coords[0][0], new_coords[0][1])
 
             self.load_background_image_by_index(self.current_img_index)
         except Exception as e:
@@ -1957,7 +2189,6 @@ class LiveEditor(tk.Frame):
             top_level = self.winfo_toplevel()
             self.canvas_container.pack_propagate(True)
             
-            # --- DEFENSIVE ENGINE: BLOCKS OVERRIDE AUTOMATIC FULLSCREEN BOOT ---
             # Max dimensions are dynamically capped at 85% of display hardware configurations
             max_safe_w = int(screen_width * 0.85) if screen_width > 0 else 1280
             max_safe_h = int(screen_height * 0.85) if screen_height > 0 else 720
@@ -1985,6 +2216,10 @@ class LiveEditor(tk.Frame):
             self.bg_width, self.bg_height = self.current_bg_pil.size
             
             self.render_zoomed_view()
+
+            # Allocates a single-channel tracking array completely mapped to base resolution pixels
+            self.manual_mask_surface = np.zeros((self.bg_height, self.bg_width), dtype=np.uint8)
+            self.run_inpaint_btn.config(state="disabled")
 
             if should_center_fresh:
                 self.master.after(100, self.center_canvas_viewport)
@@ -2404,4 +2639,94 @@ class LiveEditor(tk.Frame):
 
         # Cleanly dismantle and close the active property box frame workflow
         self.close_property_box()
+
+    def execute_manual_lama_mpe_inpaint(self):
+        """Pulls drawing contours and processes a background worker thread to execute LamaMPEInpainter."""
+        if self.current_img_index == -1 or self.manual_mask_surface is None:
+            return
+        if self.manual_mask_surface.sum() == 0:
+            return
+
+        self.run_inpaint_btn.config(state="disabled", text="Inpainting...")
+        self.inpaint_toggle_btn.config(state="disabled")
+
+        # Gather background matrix parameters cleanly
+        bundle = self.gallery_images[self.current_img_index]
+        native_rgb = bundle["img_inpainted"]  # Original clean source frame array matrix
+
+        threading.Thread(
+            target=self._async_lama_mpe_worker_pipeline,
+            args=(native_rgb, self.manual_mask_surface.copy(), self.current_img_index),
+            daemon=True
+        ).start()
+
+    def _async_lama_mpe_worker_pipeline(self, rgb_matrix: np.ndarray, mask_matrix: np.ndarray, target_idx: int):
+        try:
+            from manga_translator.inpainting.inpainting_lama_mpe import LamaMPEInpainter
+            from manga_translator.utils import Context
+            import asyncio
+            
+            print("[Inpainter Pipeline] Initializing LamaMPEInpainter runtime hardware structures...")
+            
+            # 1. Instantiate the module interface cleanly
+            inpainter_instance = LamaMPEInpainter()
+            
+            # 2. Package property parameters block mapping layouts natively
+            dummy_ctx = Context()
+            dummy_ctx.img_rgb = rgb_matrix
+            
+            # Define an internal coroutine wrapper to execute the async load and run pipelines sequentially
+            async def run_inpainting_lifecycle():
+                # Explicitly load the model layers and weights into CPU architecture
+                print("[Inpainter Pipeline] Loading model weights and computing neural network fields...")
+                await inpainter_instance.load('cpu')
+                
+                # Perform the forward pass calculation over the targeted hand-drawn elements matrices
+                return await inpainter_instance.inpaint(rgb_matrix, mask_matrix, dummy_ctx)
+
+            # 3. Spin up the thread-isolated asyncio engine loop execution context
+            inpainted_result_matrix = asyncio.run(run_inpainting_lifecycle())
+
+            if inpainted_result_matrix is not None:
+                self.master.after(0, self._safe_commit_inpainted_surface_callback, inpainted_result_matrix, target_idx)
+            else:
+                raise RuntimeError("Inpainter framework layer returned empty matrix reference array blocks.")
+                
+        except Exception as err:
+            print(f"[IPC Inpainter Thread Crash Fatal Error]: {err}", file=sys.stderr)
+            self.master.after(0, lambda: self.run_inpaint_btn.config(state="normal", text="Run Inpaint"))
+            self.master.after(0, lambda: self.inpaint_toggle_btn.config(state="normal"))
+
+    def _safe_commit_inpainted_surface_callback(self, fresh_inpainted_rgb: np.ndarray, target_idx: int):
+        """Callback thread sync handler loop to safely write fresh image data back into the gallery bundle."""
+        if target_idx < len(self.gallery_images):
+            bundle = self.gallery_images[target_idx]
+            
+            # 1. Overwrite the baseline image matrix frames with the fresh inpainted results data
+            bundle["img_inpainted"] = fresh_inpainted_rgb
+            new_bg_pil = Image.fromarray(fresh_inpainted_rgb)
+            bundle["bg"] = new_bg_pil
+            
+            # 2. Ensure the currently displayed PIL image reference
+            # is updated immediately if the user is working on this active page index
+            if target_idx == self.current_img_index:
+                self.current_bg_pil = new_bg_pil.copy()
+            
+            # 3. Reset drawing tracking data surfaces entirely
+            self.manual_mask_surface = np.zeros((self.bg_height, self.bg_width), dtype=np.uint8)
+            
+            # 4. Restore interface button state parameters
+            self.run_inpaint_btn.config(state="disabled", text="Run Inpaint")
+            self.inpaint_toggle_btn.config(state="normal")
+            
+            # 5. Cleanly shut down inpaint mode state parameters
+            # This handles the cache clearing and runs render_zoomed_view() for you
+            if self.inpainter_mode_active:
+                self.toggle_inpainter_mode()
+            else:
+                if hasattr(self, '_tk_overlay_cache'):
+                    self._tk_overlay_cache.clear()
+                self.render_zoomed_view()
+                
+            print(f"[Inpainter Pipeline] Manual LamaMPE clean loop finished on frame index #{target_idx + 1} successfully.")
 

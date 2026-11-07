@@ -515,15 +515,21 @@ class ESRGANUpscalerPytorch(OfflineUpscaler):
             'url': 'https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/4xESRGAN.pth',
             'hash': '545805CE2D861EE90972B5FA50B851F19EE4BB35DEDD2EB090BE1F7C935B6B00'.lower(),
         },
+        '2x-AnimeSharpV3' : {
+            'url' : 'https://github.com/Kim2091/Kim2091-Models/releases/download/2x-AnimeSharpV3/2x-AnimeSharpV3.pth',
+            'hash': 'd5722d738002c1353ce4bbc3fb44fe2ecf01606c713cdb5853f772b08af84f53'.lower(),
+        },
     }
     _VALID_UPSCALE_RATIOS = [2, 3, 4]
 
     async def _load(self, device: str):
         super().__init__()
+        model_name = '2x-AnimeSharpV3'
+        model_filename = model_name + '.pth'
         os.makedirs(self.model_dir, exist_ok=True)
-        if os.path.exists('2x-AnimeSharpV3.pth'):
-            shutil.move('2x-AnimeSharpV3.pth', self._get_file_path('2x-AnimeSharpV3.pth'))
-        sd = torch.load(self._get_file_path('2x-AnimeSharpV3.pth'))
+        if os.path.exists(model_filename):
+            shutil.move(model_filename, self._get_file_path(model_filename))
+        sd = torch.load(self._get_file_path(model_filename))
         in_nc, out_nc, nf, nb, plus, mscale = infer_params(sd)
         self.model = RRDBNet(in_nc=in_nc, out_nc=out_nc, nf=nf, nb=nb, upscale=mscale, plus=plus)
         self.model.load_state_dict(sd)
@@ -540,10 +546,11 @@ class ESRGANUpscalerPytorch(OfflineUpscaler):
         if image_batch :
             batch = torch.cat([einops.rearrange(torch.from_numpy(np.array(img.convert('RGB'))[:,:,::-1].copy()).float() / 255.0, 'h w c -> 1 c h w') for img in image_batch], dim = 0).to(self.device)
             with torch.no_grad() :
+                #torch.cuda.empty_cache()
                 ret = self.model(batch)
             ret: torch.Tensor
             ret: List[Image.Image] = [Image.fromarray((einops.rearrange(img.clip(0, 1), 'c h w -> h w c').cpu().numpy()[:,:,::-1].copy() * 255.0).astype(np.uint8)) for img in ret]
-            ret = [img.resize(size = (int(round(img.size[0] * ratio)), int(round(img.size[1] * ratio))), resample = Image.Resampling.BILINEAR) for img in ret]
+            ret = [img.resize(size = (int(round(img.size[0] * ratio)), int(round(img.size[1] * ratio))), resample = Image.Resampling.LANCZOS) for img in ret]
             return ret
         else :
             return []
