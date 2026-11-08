@@ -28,6 +28,9 @@ class RestrictedUnpickler(pickle.Unpickler):
     def find_class(self, module: str, name: str):
         if module in SAFE_PICKLE_MODULES or module.startswith('PIL.'):
             return super().find_class(module, name)
+        if module == "fractions" and name == "Fraction":
+            from fractions import Fraction
+            return Fraction
         raise pickle.UnpicklingError(
             f"Deserialization of {module}.{name} is not allowed"
         )
