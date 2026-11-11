@@ -43,7 +43,7 @@ marshmallow==4.3.1
 cython==3.3.0
 aioshutil==1.6
 aiofiles==25.1.0
-arabic-reshaper==3.0.1
+khatt==0.4.0
 pyhyphen==4.0.4
 langcodes[data]==3.5.1
 manga-ocr==0.1.16
