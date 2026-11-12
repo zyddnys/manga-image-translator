@@ -28,6 +28,7 @@ from .gemini_2stage import Gemini2StageTranslator
 from .custom_openai import CustomOpenAiTranslator
 from .atlascloud import AtlasCloudTranslator
 from .api_route import ApiRouteTranslator
+from .opper import OpperTranslator
 from ..config import Translator, TranslatorConfig, TranslatorChain
 from ..utils import Context
 
@@ -55,6 +56,7 @@ GPT_TRANSLATORS = {
     Translator.custom_openai: CustomOpenAiTranslator,
     Translator.atlascloud: AtlasCloudTranslator,
     Translator.api_route: ApiRouteTranslator,
+    Translator.opper: OpperTranslator,
     Translator.gemini: GeminiTranslator,
     Translator.gemini_2stage: Gemini2StageTranslator,
 }
