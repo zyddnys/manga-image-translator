@@ -13,7 +13,7 @@ from .keys import RUNCRATE_API_KEY, RUNCRATE_API_BASE, RUNCRATE_MODEL
 
 
 class RuncrateTranslator(CommonGPTTranslator):
-    """Runcrate (https://www.runcrate.ai), a GPU cloud with an OpenAI-compatible API.
+    """Runcrate (https://www.runcrate.ai), an AI cloud with an OpenAI-compatible API.
 
     One endpoint serves many open-weight model families, so the model is chosen
     with ``RUNCRATE_MODEL`` rather than being fixed here. Everything on the

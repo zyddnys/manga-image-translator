@@ -44,7 +44,7 @@ ATLASCLOUD_API_KEY = os.getenv('ATLASCLOUD_API_KEY', '')
 ATLASCLOUD_API_BASE = os.getenv('ATLASCLOUD_API_BASE', 'https://api.atlascloud.ai/v1')
 ATLASCLOUD_MODEL = os.getenv('ATLASCLOUD_MODEL', 'deepseek-ai/deepseek-v4-flash')  # Full list: https://api.atlascloud.ai/v1/models
 
-# Runcrate, a GPU cloud with an OpenAI-compatible API
+# Runcrate, an AI cloud with an OpenAI-compatible API
 RUNCRATE_API_KEY = os.getenv('RUNCRATE_API_KEY', '')
 RUNCRATE_API_BASE = os.getenv('RUNCRATE_API_BASE', 'https://api.runcrate.ai/v1')
 RUNCRATE_MODEL = os.getenv('RUNCRATE_MODEL', 'deepseek-ai/DeepSeek-V4.1-Flash')  # Full list: https://api.runcrate.ai/v1/models
