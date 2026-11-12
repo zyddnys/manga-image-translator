@@ -760,6 +760,7 @@ shared              以 API 模式运行
         "deepseek",
         "groq",
         "atlascloud",
+        "api_route",
         "opper",
         "custom_openai",
         "offline",
@@ -1112,6 +1113,7 @@ FIL: 菲律宾语（他加禄语）
 | deepseek      | ✔️      |         | 需要 `DEEPSEEK_API_KEY`                          |  
 | groq          | ✔️      |         | 需要 `GROQ_API_KEY`                              |  
 | atlascloud    | ✔️      |         | 需要 `ATLASCLOUD_API_KEY`                        |  
+| api_route | ✔️ | | 需要 `API_ROUTE_API_KEY`，服务：[API Route](https://api-route.com) |
 | opper         | ✔️      |         | 需要 `OPPER_API_KEY`                             |  
 | gemini        | ✔️      |         | 需要 `GEMINI_API_KEY`                            |  
 | papago        |         |         |                                                          |  
@@ -1179,7 +1181,7 @@ SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
 | `OPENAI_GLOSSARY_PATH`        | OpenAI 术语表路径                                                   | `./dict/mit_glossary.txt`            |                                                                                                    |  
 | `OPENAI_API_BASE`             | OpenAI API 基础地址                                                 | `https://api.openai.com/v1`          | 默认为官方地址                                                                                       |  
 | `GROQ_API_KEY`                | Groq API 密钥                                                          | `''`                                 |                                                                                                    |  
-| `GROQ_MODEL`                  | Groq 模型名称                                                          | `'mixtral-8x7b-32768'`               |                                                                                                    |  
+| `GROQ_MODEL`                  | Groq 模型名称                                                          | `'openai/gpt-oss-20b'`               |                                                                                                    |
 | `SAKURA_API_BASE`             | SAKURA API 地址                                                   | `http://127.0.0.1:8080/v1`           |                                                                                                    |  
 | `SAKURA_VERSION`               | SAKURA API 版本                                                     | `'0.9'`                              | `0.9` 或 `0.10`                                                                                    |  
 | `SAKURA_DICT_PATH`            | SAKURA 术语表路径                                                   | `./dict/sakura_dict.txt`             |                                                                                                    |  
@@ -1192,6 +1194,9 @@ SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
 | `ATLASCLOUD_API_KEY`         | Atlas Cloud API 密钥                                                   | `''`                                 |                                                                                                    |  
 | `ATLASCLOUD_API_BASE`        | Atlas Cloud API 基础地址                                               | `https://api.atlascloud.ai/v1`       |                                                                                                    |  
 | `ATLASCLOUD_MODEL`           | Atlas Cloud 模型名称                                                   | `'deepseek-ai/deepseek-v4-flash'` | 完整列表：<https://api.atlascloud.ai/v1/models>                                                     |  
+| `API_ROUTE_API_KEY` | API Route API 密钥 | `''` | [API Route](https://api-route.com) |
+| `API_ROUTE_API_BASE` | API Route API 基础地址 | `https://global.api-route.com/v1` | |
+| `API_ROUTE_MODEL` | API Route 模型 ID | `gpt-6.1-sol` | 可用模型以携带密钥的 `GET /v1/models` 返回结果为准 |
 | `OPPER_API_KEY`              | Opper API 密钥                                                         | `''`                                 |                                                                                                    |  
 | `OPPER_API_BASE`             | Opper API 基础地址                                                     | `https://api.opper.ai/v3/compat`       |                                                                                                    |  
 | `OPPER_MODEL`                | Opper 模型名称                                                         | `'gpt-5.4-mini'` | 完整列表：<https://opper.ai/models>                                                     |  
@@ -1224,7 +1229,7 @@ SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
 #   将其设置为顶级条目。  
 # 如果你想为特定的翻译器配置设置不同的值：  
 #   将其设置在配置名称下方  
-#   顶层配置选项：'chatgpt', 'ollama', 'deepseek', 'groq', 'atlascloud', 'opper'  
+#   顶层配置选项：'chatgpt', 'ollama', 'deepseek', 'groq', 'atlascloud', 'api_route', 'opper'
 #     对于支持指定模型的翻译器：  
 #         模型名称可以作为附加的层级进行指定  
 #     一些翻译器也支持附加的层级选项（例如 CUSTOM_OPENAI_MODEL_CONF）  
@@ -1493,4 +1498,4 @@ GPU 服务器开销较大，请考虑支持我们，非常感谢！
 
 ## Star 增长曲线
 
-[![Star History Chart](https://api.star-history.com/svg?repos=zyddnys/manga-image-translator&type=Date)](https://star-history.com/#zyddnys/manga-image-translator&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=zyddnys/manga-image-translator&type=Date)](https://star-history.dera.page/#zyddnys/manga-image-translator&Date)

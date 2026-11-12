@@ -2,17 +2,23 @@ FROM pytorch/pytorch:2.14.1-cuda12.6-cudnn9-runtime
 
 WORKDIR /app
 
-# Install pip dependencies
+# Reuse the base image's CUDA packages without modifying its managed Python.
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 
 COPY requirements.txt /app/requirements.txt
 
+# Update the base image's spin for huggingface_hub's newer Click requirement.
 RUN export TZ=Etc/UTC \
-        && apt update --yes \
-        && apt install g++ git ffmpeg libsm6 libxext6 gimp libvulkan1 --yes \
-        && pip install -r /app/requirements.txt \
-        && apt remove g++ git --yes \
-        && apt autoremove --yes \
-        && rm -rf /var/cache/apt
+        && apt-get update \
+        && DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends \
+            g++ git python3-venv ffmpeg libsm6 libxext6 gimp libvulkan1 \
+        && python -m venv --system-site-packages "${VIRTUAL_ENV}" \
+        && "${VIRTUAL_ENV}/bin/python" -m pip install --no-cache-dir -r /app/requirements.txt spin==0.19 \
+        && "${VIRTUAL_ENV}/bin/python" -m pip check \
+        && apt-get remove g++ git --yes \
+        && apt-get autoremove --yes \
+        && rm -rf /var/lib/apt/lists/* /var/cache/apt
 
 COPY . /app
 

@@ -10,7 +10,7 @@ class GroqTranslator(CommonTranslator):
         'CHS': 'Simplified Chinese', 'CHT': 'Traditional Chinese', 'CSY': 'Czech',
         'NLD': 'Dutch', 'ENG': 'English', 'FRA': 'French', 'DEU': 'German',
         'HUN': 'Hungarian', 'ITA': 'Italian', 'JPN': 'Japanese', 'KOR': 'Korean',
-        'POL': 'Polish', 'PTB': 'Portuguese', 'ROM': 'Romanian', 'RUS': 'Russian',
+        'POL': 'Polish', 'PTB': 'Brazilian Portuguese', 'ROM': 'Romanian', 'RUS': 'Russian',
         'ESP': 'Spanish', 'TRK': 'Turkish', 'UKR': 'Ukrainian', 'VIN': 'Vietnamese',
         'CNR': 'Montenegrin', 'SRP': 'Serbian', 'HRV': 'Croatian', 'ARA': 'Arabic',
         'THA': 'Thai', 'IND': 'Indonesian'

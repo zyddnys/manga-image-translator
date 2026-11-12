@@ -767,6 +767,7 @@ An example config file can be found in example/config-example.json
         "deepseek",
         "groq",
         "atlascloud",
+        "api_route",
         "opper",
         "custom_openai",
         "offline",
@@ -1121,6 +1122,7 @@ FIL: Filipino (Tagalog)
 | deepseek | ✔️ | | Requires `DEEPSEEK_API_KEY` |
 | groq | ✔️ | | Requires `GROQ_API_KEY` |
 | atlascloud | ✔️ | | Requires `ATLASCLOUD_API_KEY` |
+| api_route | ✔️ | | Requires `API_ROUTE_API_KEY`; service: [API Route](https://api-route.com) |
 | opper | ✔️ | | Requires `OPPER_API_KEY` |
 | gemini | ✔️ | | Requires `GEMINI_API_KEY` |
 | papago | | | |
@@ -1190,7 +1192,7 @@ Requests use Chat Completions with `max_completion_tokens` and `reasoning_effort
 | `OPENAI_GLOSSARY_PATH`                 | Path to OpenAI glossary                                                                        | `./dict/mit_glossary.txt`         |                                                                                                           |
 | `OPENAI_API_BASE`                      | OpenAI API Base URL                                                                            | `https://api.openai.com/v1`        | Defaults to official address                                                                               |
 | `GROQ_API_KEY`                         | Groq API Key                                                                                             | `''`                               |                                                                                                           |
-| `GROQ_MODEL`                           | Groq Model name                                                                                          | `'mixtral-8x7b-32768'`             |                                                                                                           |
+| `GROQ_MODEL`                           | Groq Model name                                                                                          | `'openai/gpt-oss-20b'`             |                                                                                                           |
 | `SAKURA_API_BASE`                      | SAKURA API Address                                                                                 | `http://127.0.0.1:8080/v1`         |                                                                                                           |
 | `SAKURA_VERSION`                       | SAKURA API Version                                                                                 | `'0.9'`                            | `0.9` or `0.10`                                                                                           |
 | `SAKURA_DICT_PATH`                     | Path to SAKURA dictionary                                                                          | `./dict/sakura_dict.txt`           |                                                                                                           |
@@ -1203,6 +1205,9 @@ Requests use Chat Completions with `max_completion_tokens` and `reasoning_effort
 | `ATLASCLOUD_API_KEY`                   | Atlas Cloud API Key                                                                                      | `''`                               |                                                                                                           |
 | `ATLASCLOUD_API_BASE`                  | Atlas Cloud API Base URL                                                                                 | `https://api.atlascloud.ai/v1`     |                                                                                                           |
 | `ATLASCLOUD_MODEL`                     | Atlas Cloud Model name                                                                                   | `deepseek-ai/deepseek-v4-flash` | Full list: <https://api.atlascloud.ai/v1/models>                                                          |
+| `API_ROUTE_API_KEY` | API Route API key | `''` | [API Route](https://api-route.com) |
+| `API_ROUTE_API_BASE` | API Route base URL | `https://global.api-route.com/v1` | |
+| `API_ROUTE_MODEL` | API Route model ID | `gpt-6.1-sol` | Available IDs come from authenticated `GET /v1/models` |
 | `OPPER_API_KEY`                        | Opper API Key                                                                                            | `''`                               |                                                                                                           |
 | `OPPER_API_BASE`                       | Opper API Base URL                                                                                       | `https://api.opper.ai/v3/compat`   |                                                                                                           |
 | `OPPER_MODEL`                          | Opper Model name                                                                                         | `gpt-5.4-mini`                  | Full list: <https://opper.ai/models>                                                                      |
@@ -1234,7 +1239,7 @@ Used by the `gpt_config` parameter.
 #   Set it as a top-level entry.
 # If you wish to set a different value for a specific translator configuration:
 #   Set it beneath the configuration name 
-#   Top-level configuration options: 'chatgpt', 'ollama', 'deepseek', 'groq', 'atlascloud', 'opper'
+#   Top-level configuration options: 'chatgpt', 'ollama', 'deepseek', 'groq', 'atlascloud', 'api_route', 'opper'
 #     For translators that support model specification: 
 #         The model name can be used as an addition level of specification
 #     Some translators also support additional leveling options (e.g. CUSTOM_OPENAI_MODEL_CONF)
@@ -1505,4 +1510,4 @@ GPU server costs are high, please consider supporting us. Thank you very much!
 
 ## Star Growth Curve
 
-[![Star History Chart](https://api.star-history.com/svg?repos=zyddnys/manga-image-translator&type=Date)](https://star-history.com/#zyddnys/manga-image-translator&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=zyddnys/manga-image-translator&type=Date)](https://star-history.dera.page/#zyddnys/manga-image-translator&Date)

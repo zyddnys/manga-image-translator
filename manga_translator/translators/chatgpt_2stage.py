@@ -885,14 +885,6 @@ class ChatGPT2StageTranslator(OpenAITranslator):
         # Apply post-processing
         translations = [self._clean_translation_output(q, r, to_lang) for q, r in zip(filtered_queries, translations)]
 
-        # Handle Arabic reshaping if needed
-        if to_lang == 'ARA':
-            try:
-                import arabic_reshaper
-                translations = [arabic_reshaper.reshape(t) for t in translations]
-            except ImportError:
-                self.logger.warning("arabic_reshaper not available for Arabic text reshaping")
-
         # Apply MTPE if requested
         if use_mtpe and hasattr(self, 'mtpe_adapter'):
             translations = await self.mtpe_adapter.dispatch(filtered_queries, translations)
