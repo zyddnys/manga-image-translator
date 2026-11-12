@@ -58,3 +58,8 @@ CUSTOM_OPENAI_MODEL_CONF = os.getenv('CUSTOM_OPENAI_MODEL_CONF', '') # e.g "qwen
 API_ROUTE_API_KEY = os.getenv('API_ROUTE_API_KEY', '')
 API_ROUTE_API_BASE = os.getenv('API_ROUTE_API_BASE', 'https://global.api-route.com/v1')
 API_ROUTE_MODEL = os.getenv('API_ROUTE_MODEL', 'gpt-6.1-sol')
+
+# UberLLM
+UBERLLM_API_KEY = os.getenv('UBERLLM_API_KEY', '')
+UBERLLM_API_BASE = os.getenv('UBERLLM_API_BASE', 'https://api.uberllm.dev/v1')
+UBERLLM_MODEL = os.getenv('UBERLLM_MODEL', 'deepseek/deepseek-v4.1-flash')  # Full list: https://api.uberllm.dev/v1/models
