@@ -768,6 +768,7 @@ An example config file can be found in example/config-example.json
         "deepseek",
         "groq",
         "atlascloud",
+        "api_route",
         "custom_openai",
         "offline",
         "nllb",
@@ -1121,6 +1122,7 @@ FIL: Filipino (Tagalog)
 | deepseek | ✔️ | | Requires `DEEPSEEK_API_KEY` |
 | groq | ✔️ | | Requires `GROQ_API_KEY` |
 | atlascloud | ✔️ | | Requires `ATLASCLOUD_API_KEY` |
+| api_route | ✔️ | | Requires `API_ROUTE_API_KEY`; service: [API Route](https://api-route.com) |
 | gemini | ✔️ | | Requires `GEMINI_API_KEY` |
 | papago | | | |
 | sakura | | | Requires `SAKURA_API_BASE` |
@@ -1190,7 +1192,7 @@ Requests use Chat Completions with `max_completion_tokens` and `reasoning_effort
 | `OPENAI_GLOSSARY_PATH`                 | Path to OpenAI glossary                                                                        | `./dict/mit_glossary.txt`         |                                                                                                           |
 | `OPENAI_API_BASE`                      | OpenAI API Base URL                                                                            | `https://api.openai.com/v1`        | Defaults to official address                                                                               |
 | `GROQ_API_KEY`                         | Groq API Key                                                                                             | `''`                               |                                                                                                           |
-| `GROQ_MODEL`                           | Groq Model name                                                                                          | `'mixtral-8x7b-32768'`             |                                                                                                           |
+| `GROQ_MODEL`                           | Groq Model name                                                                                          | `'openai/gpt-oss-20b'`             |                                                                                                           |
 | `SAKURA_API_BASE`                      | SAKURA API Address                                                                                 | `http://127.0.0.1:8080/v1`         |                                                                                                           |
 | `SAKURA_VERSION`                       | SAKURA API Version                                                                                 | `'0.9'`                            | `0.9` or `0.10`                                                                                           |
 | `SAKURA_DICT_PATH`                     | Path to SAKURA dictionary                                                                          | `./dict/sakura_dict.txt`           |                                                                                                           |
@@ -1206,6 +1208,9 @@ Requests use Chat Completions with `max_completion_tokens` and `reasoning_effort
 | `SARASHINA_API_KEY`                    | Sarashina API Key                                                                                        | `''`                               |                                                                                                           |
 | `SARASHINA_API_BASE`                   | Sarashina API Base URL                                                                                   | `https://api.sarashina.ai/v1`      |                                                                                                           |
 | `SARASHINA_REQUESTS_PER_MINUTE`                  | Max requests per minute sent to the Sarashina API | `6` |                                                                                                           |
+| `API_ROUTE_API_KEY` | API Route API key | `''` | [API Route](https://api-route.com) |
+| `API_ROUTE_API_BASE` | API Route base URL | `https://global.api-route.com/v1` | |
+| `API_ROUTE_MODEL` | API Route model ID | `gpt-6.1-sol` | Available IDs come from authenticated `GET /v1/models` |
 | `CUSTOM_OPENAI_API_KEY`                | Custom OpenAI API Key                                                    | `ollama`                         | Not needed for Ollama, but possibly required for other tools                                               |
 | `CUSTOM_OPENAI_API_BASE`               | Custom OpenAI API Base URL                                | `http://localhost:11434/v1`        | Use OLLAMA_HOST environment variable to change bind IP and port                                            |
 | `CUSTOM_OPENAI_MODEL`                  | Custom OpenAI compatible model name                                               | `''`                               | Example: `qwen2.5:7b`, ensure you pull and run it before usage                                             |
@@ -1234,7 +1239,7 @@ Used by the `gpt_config` parameter.
 #   Set it as a top-level entry.
 # If you wish to set a different value for a specific translator configuration:
 #   Set it beneath the configuration name 
-#   Top-level configuration options: 'chatgpt', 'ollama', 'deepseek', 'groq', 'atlascloud'
+#   Top-level configuration options: 'chatgpt', 'ollama', 'deepseek', 'groq', 'atlascloud', 'api_route'
 #     For translators that support model specification: 
 #         The model name can be used as an addition level of specification
 #     Some translators also support additional leveling options (e.g. CUSTOM_OPENAI_MODEL_CONF)
@@ -1505,4 +1510,4 @@ GPU server costs are high, please consider supporting us. Thank you very much!
 
 ## Star Growth Curve
 
-[![Star History Chart](https://api.star-history.com/svg?repos=zyddnys/manga-image-translator&type=Date)](https://star-history.com/#zyddnys/manga-image-translator&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=zyddnys/manga-image-translator&type=Date)](https://star-history.dera.page/#zyddnys/manga-image-translator&Date)

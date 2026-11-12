@@ -7,6 +7,7 @@ from PIL.Image import Image
 from fastapi import HTTPException
 
 from manga_translator import Config
+from manga_translator.mode.share import restricted_loads
 
 NotifyType = Optional[Callable[[int, Optional[bytes]], None]]
 
@@ -29,9 +30,9 @@ async def fetch_data(url, image: Image, config: Config, headers: Mapping[str, st
         async with session.post(url, data=data, headers=headers) as response:
             if response.status == 200:
                 try:
-                    return json.loads(await response.text())
-                except json.JSONDecodeError:
-                    raise HTTPException(502, detail='Invalid JSON response from upstream')
+                    return restricted_loads(await response.read())
+                except Exception as e:
+                    raise HTTPException(502, detail=f'Invalid response from upstream: {str(e)}')
             else:
                 raise HTTPException(response.status, detail=await response.text())
 

@@ -8,7 +8,7 @@ import numpy as np
 import py3langid as langid
 from shapely.geometry import Polygon, MultiPoint
 
-from .generic2 import color_difference, is_right_to_left_char, is_valuable_char
+from .generic2 import color_difference
 
 # determines render direction
 LANGUAGE_ORIENTATION_PRESETS = {
@@ -289,33 +289,9 @@ class TextBlock(object):
         return self._source_lang
 
     def get_translation_for_rendering(self):
-        text = self.translation
-        if self.direction.endswith('r'):
-            # The render direction is right to left so left-to-right
-            # text/number chunks need to be reversed to look normal.
-
-            text_list = list(text)
-            l2r_idx = -1
-
-            def reverse_sublist(l, i1, i2):
-                delta = i2 - i1
-                for j1 in range(i1, i2 - delta // 2):
-                    j2 = i2 - (j1 - i1) - 1
-                    l[j1], l[j2] = l[j2], l[j1]
-
-            for i, c in enumerate(text):
-                if not is_right_to_left_char(c) and is_valuable_char(c):
-                    if l2r_idx < 0:
-                        l2r_idx = i
-                elif l2r_idx >= 0 and i - l2r_idx > 1:
-                    # Reverse left-to-right characters for correct rendering
-                    reverse_sublist(text_list, l2r_idx, i)
-                    l2r_idx = -1
-            if l2r_idx >= 0 and i - l2r_idx > 1:
-                reverse_sublist(text_list, l2r_idx, len(text_list))
-
-            text = ''.join(text_list)
-        return text
+        # Right-to-left text stays in logical order: the renderer shapes it and
+        # lays it out right to left (see text_render.put_text_horizontal_rtl)
+        return self.translation
 
     @property
     def is_bulleted_list(self):

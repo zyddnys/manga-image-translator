@@ -51,7 +51,7 @@ class Gemini2StageTranslator(CommonTranslator):
         'CN': 'Chinese', 'CHS': 'Simplified Chinese', 'CHT': 'Traditional Chinese',
         'CSY': 'Czech', 'NLD': 'Dutch', 'ENG': 'English', 'FRA': 'French',
         'DEU': 'German', 'HUN': 'Hungarian', 'ITA': 'Italian', 'JPN': 'Japanese',
-        'KOR': 'Korean', 'POL': 'Polish', 'PTB': 'Portuguese', 'ROM': 'Romanian',
+        'KOR': 'Korean', 'POL': 'Polish', 'PTB': 'Brazilian Portuguese', 'ROM': 'Romanian',
         'RUS': 'Russian', 'ESP': 'Spanish', 'TRK': 'Turkish', 'UKR': 'Ukrainian',
         'VIN': 'Vietnamese', 'CNR': 'Montenegrin', 'SRP': 'Serbian', 'HRV': 'Croatian',
         'ARA': 'Arabic', 'THA': 'Thai', 'IND': 'Indonesian'
@@ -141,10 +141,6 @@ class Gemini2StageTranslator(CommonTranslator):
             if not untranslated_indices: break
 
         translations = [self._clean_translation_output(q, r, to_lang) for q, r in zip(queries, translations)]
-
-        if to_lang == 'ARA':
-            import arabic_reshaper
-            translations = [arabic_reshaper.reshape(t) for t in translations]
 
         if use_mtpe:
             translations = await self.mtpe_adapter.dispatch(queries, translations)
