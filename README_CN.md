@@ -757,6 +757,7 @@ shared              以 API 模式运行
         "none",
         "original",
         "sakura",
+        "sarashina",
         "deepseek",
         "groq",
         "atlascloud",
@@ -1116,6 +1117,7 @@ FIL: 菲律宾语（他加禄语）
 | gemini        | ✔️      |         | 需要 `GEMINI_API_KEY`                            |  
 | papago        |         |         |                                                          |  
 | sakura        |         |         | 需要 `SAKURA_API_BASE`                               |  
+| sarashina     | ✔️      |         | 需要 `SARASHINA_API_KEY`，仅支持日语与英语互译     |  
 | custom_openai |         |         | 需要 `CUSTOM_OPENAI_API_BASE` `CUSTOM_OPENAI_MODEL` |  
 | offline       |         | ✔️      | 为语言选择最合适的离线翻译器    |  
 | nllb          |         | ✔️      | 离线翻译模型                                 |  
@@ -1192,6 +1194,9 @@ SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
 | `ATLASCLOUD_API_KEY`         | Atlas Cloud API 密钥                                                   | `''`                                 |                                                                                                    |  
 | `ATLASCLOUD_API_BASE`        | Atlas Cloud API 基础地址                                               | `https://api.atlascloud.ai/v1`       |                                                                                                    |  
 | `ATLASCLOUD_MODEL`           | Atlas Cloud 模型名称                                                   | `'deepseek-ai/deepseek-v4-flash'` | 完整列表：<https://api.atlascloud.ai/v1/models>                                                     |  
+| `SARASHINA_API_KEY`          | Sarashina API 密钥                                                     | `''`                                 |                                                                                                    |  
+| `SARASHINA_API_BASE`         | Sarashina API 基础地址                                                 | `https://api.sarashina.ai/v1`        |                                                                                                    |  
+| `SARASHINA_REQUESTS_PER_MINUTE`        | 每分钟发送到 Sarashina API 的最大请求数 | `6` |                                                                                                    |  
 | `API_ROUTE_API_KEY` | API Route API 密钥 | `''` | [API Route](https://api-route.com) |
 | `API_ROUTE_API_BASE` | API Route API 基础地址 | `https://global.api-route.com/v1` | |
 | `API_ROUTE_MODEL` | API Route 模型 ID | `gpt-6.1-sol` | 可用模型以携带密钥的 `GET /v1/models` 返回结果为准 |
