@@ -1085,7 +1085,7 @@ class MangaTranslator:
         # Translation processing below only happens for non-none translator or none translator without prep_manual  
         if self.load_text:  
             input_filename = os.path.splitext(os.path.basename(self.input_files[0]))[0]  
-            with open(self._result_path(f"{input_filename}_translations.txt"), "r") as f:  
+            with open(self._result_path(f"{input_filename}_translations.txt"), "r", encoding="utf-8") as f:
                     translated_sentences = json.load(f)  
         else:  
             # 如果是none翻译器，不需要调用翻译服务，文本已经设置为空  
@@ -1104,7 +1104,7 @@ class MangaTranslator:
             # Save translation if args.save_text is set and quit  
             if self.save_text:  
                 input_filename = os.path.splitext(os.path.basename(self.input_files[0]))[0]  
-                with open(self._result_path(f"{input_filename}_translations.txt"), "w") as f:  
+                with open(self._result_path(f"{input_filename}_translations.txt"), "w", encoding="utf-8") as f:
                     json.dump(translated_sentences, f, indent=4, ensure_ascii=False)  
                 print("Don't continue if --save-text is used")  
                 exit(-1)  
