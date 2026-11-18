@@ -239,7 +239,7 @@ class MangaTranslatorLocal(MangaTranslator):
 
     async def _translate_file(self, path: str, dest: str, config: Config, ctx: Context) -> bool:
         if path.endswith('.txt'):
-            with open(path, 'r') as f:
+            with open(path, 'r', encoding='utf-8') as f:
                 queries = f.read().split('\n')
             translated_sentences = \
                 await dispatch_translation(config.translator.translator_gen, queries, self.use_mtpe, ctx,
@@ -248,7 +248,7 @@ class MangaTranslatorLocal(MangaTranslator):
             if ext != '.txt':
                 dest = p + '.txt'
             logger.info(f'Saving "{dest}"')
-            with open(dest, 'w') as f:
+            with open(dest, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(translated_sentences))
             return True
 
