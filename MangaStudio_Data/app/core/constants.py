@@ -45,7 +45,7 @@ TRANSLATOR_GROUPS = {
     ],
     "--- API-BASED (Requires Setup) ---": [
         "deepl", "gemini", "deepseek", "groq", "atlascloud", "youdao", "baidu",
-        "caiyun", "sakura", "papago", "openai", "custom_openai"
+        "caiyun", "sakura", "sarashina", "papago", "openai", "custom_openai"
     ],
     "--- OTHER ACTIONS ---": [
         "original",
@@ -74,6 +74,7 @@ TRANSLATOR_CAPABILITIES = {
     "youdao": {'__any__': '__all__'},
     "baidu": {'__any__': '__all__'},
     "caiyun": {'__any__': '__all__'},
+    "sarashina": {'JPN': ['ENG'], 'ENG': ['JPN']},
     "openai": {'__any__': '__all__'},
     "custom_openai": {'__any__': '__all__'},
 

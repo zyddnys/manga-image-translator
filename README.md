@@ -764,6 +764,7 @@ An example config file can be found in example/config-example.json
         "none",
         "original",
         "sakura",
+        "sarashina",
         "deepseek",
         "groq",
         "atlascloud",
@@ -1125,6 +1126,7 @@ FIL: Filipino (Tagalog)
 | gemini | ✔️ | | Requires `GEMINI_API_KEY` |
 | papago | | | |
 | sakura | | | Requires `SAKURA_API_BASE` |
+| sarashina | ✔️ | | Requires `SARASHINA_API_KEY`. JPN <-> ENG only |
 | custom_openai | | | Requires `CUSTOM_OPENAI_API_BASE` `CUSTOM_OPENAI_MODEL` |
 | offline | | ✔️ | Use the most suitable offline translator for the language|
 | nllb | | ✔️ | Offline translation model |
@@ -1203,6 +1205,9 @@ Requests use Chat Completions with `max_completion_tokens` and `reasoning_effort
 | `ATLASCLOUD_API_KEY`                   | Atlas Cloud API Key                                                                                      | `''`                               |                                                                                                           |
 | `ATLASCLOUD_API_BASE`                  | Atlas Cloud API Base URL                                                                                 | `https://api.atlascloud.ai/v1`     |                                                                                                           |
 | `ATLASCLOUD_MODEL`                     | Atlas Cloud Model name                                                                                   | `deepseek-ai/deepseek-v4-flash` | Full list: <https://api.atlascloud.ai/v1/models>                                                          |
+| `SARASHINA_API_KEY`                    | Sarashina API Key                                                                                        | `''`                               |                                                                                                           |
+| `SARASHINA_API_BASE`                   | Sarashina API Base URL                                                                                   | `https://api.sarashina.ai/v1`      |                                                                                                           |
+| `SARASHINA_REQUESTS_PER_MINUTE`                  | Max requests per minute sent to the Sarashina API | `6` |                                                                                                           |
 | `API_ROUTE_API_KEY` | API Route API key | `''` | [API Route](https://api-route.com) |
 | `API_ROUTE_API_BASE` | API Route base URL | `https://global.api-route.com/v1` | |
 | `API_ROUTE_MODEL` | API Route model ID | `gpt-6.1-sol` | Available IDs come from authenticated `GET /v1/models` |

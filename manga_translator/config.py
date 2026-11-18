@@ -118,6 +118,7 @@ class Translator(str, Enum):
     none = "none"
     original = "original"
     sakura = "sakura"
+    sarashina = "sarashina"
     deepseek = "deepseek"
     groq = "groq"
     gemini = "gemini"

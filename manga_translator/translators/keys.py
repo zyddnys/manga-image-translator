@@ -44,6 +44,11 @@ ATLASCLOUD_API_KEY = os.getenv('ATLASCLOUD_API_KEY', '')
 ATLASCLOUD_API_BASE = os.getenv('ATLASCLOUD_API_BASE', 'https://api.atlascloud.ai/v1')
 ATLASCLOUD_MODEL = os.getenv('ATLASCLOUD_MODEL', 'deepseek-ai/deepseek-v4-flash')  # Full list: https://api.atlascloud.ai/v1/models
 
+# Sarashina Translate API (Japanese <-> English only)
+SARASHINA_API_KEY = os.getenv('SARASHINA_API_KEY', '')
+SARASHINA_API_BASE = os.getenv('SARASHINA_API_BASE', 'https://api.sarashina.ai/v1')
+SARASHINA_REQUESTS_PER_MINUTE = int(os.getenv('SARASHINA_REQUESTS_PER_MINUTE', '6')) # Client-side throttle; sarashina3-translate is limited to 6 RPM (https://docs.sarashina.ai/rate-limits)
+
 # Together AI
 TOGETHER_API_KEY = os.getenv('TOGETHER_API_KEY', '')
 TOGETHER_VL_MODEL = os.getenv('TOGETHER_VL_MODEL', 'Qwen/Qwen2.5-VL-72B-Instruct')
