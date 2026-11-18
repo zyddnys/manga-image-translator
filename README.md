@@ -768,6 +768,7 @@ An example config file can be found in example/config-example.json
         "groq",
         "atlascloud",
         "api_route",
+        "runcrate",
         "custom_openai",
         "offline",
         "nllb",
@@ -1122,6 +1123,7 @@ FIL: Filipino (Tagalog)
 | groq | ✔️ | | Requires `GROQ_API_KEY` |
 | atlascloud | ✔️ | | Requires `ATLASCLOUD_API_KEY` |
 | api_route | ✔️ | | Requires `API_ROUTE_API_KEY`; service: [API Route](https://api-route.com) |
+| runcrate | ✔️ | | Requires `RUNCRATE_API_KEY` |
 | gemini | ✔️ | | Requires `GEMINI_API_KEY` |
 | papago | | | |
 | sakura | | | Requires `SAKURA_API_BASE` |
@@ -1206,6 +1208,9 @@ Requests use Chat Completions with `max_completion_tokens` and `reasoning_effort
 | `API_ROUTE_API_KEY` | API Route API key | `''` | [API Route](https://api-route.com) |
 | `API_ROUTE_API_BASE` | API Route base URL | `https://global.api-route.com/v1` | |
 | `API_ROUTE_MODEL` | API Route model ID | `gpt-6.1-sol` | Available IDs come from authenticated `GET /v1/models` |
+| `RUNCRATE_API_KEY`                     | Runcrate API Key                                                                                         | `''`                               |                                                                                                           |
+| `RUNCRATE_API_BASE`                    | Runcrate API Base URL                                                                                    | `https://api.runcrate.ai/v1`       |                                                                                                           |
+| `RUNCRATE_MODEL`                       | Runcrate Model name                                                                                      | `deepseek-ai/DeepSeek-V4.1-Flash` | Full list: <https://api.runcrate.ai/v1/models>                                                            |
 | `CUSTOM_OPENAI_API_KEY`                | Custom OpenAI API Key                                                    | `ollama`                         | Not needed for Ollama, but possibly required for other tools                                               |
 | `CUSTOM_OPENAI_API_BASE`               | Custom OpenAI API Base URL                                | `http://localhost:11434/v1`        | Use OLLAMA_HOST environment variable to change bind IP and port                                            |
 | `CUSTOM_OPENAI_MODEL`                  | Custom OpenAI compatible model name                                               | `''`                               | Example: `qwen2.5:7b`, ensure you pull and run it before usage                                             |
@@ -1234,7 +1239,7 @@ Used by the `gpt_config` parameter.
 #   Set it as a top-level entry.
 # If you wish to set a different value for a specific translator configuration:
 #   Set it beneath the configuration name 
-#   Top-level configuration options: 'chatgpt', 'ollama', 'deepseek', 'groq', 'atlascloud', 'api_route'
+#   Top-level configuration options: 'chatgpt', 'ollama', 'deepseek', 'groq', 'atlascloud', 'api_route', 'runcrate'
 #     For translators that support model specification: 
 #         The model name can be used as an addition level of specification
 #     Some translators also support additional leveling options (e.g. CUSTOM_OPENAI_MODEL_CONF)
