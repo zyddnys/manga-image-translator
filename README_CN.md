@@ -761,6 +761,7 @@ shared              以 API 模式运行
         "groq",
         "atlascloud",
         "api_route",
+        "opper",
         "custom_openai",
         "offline",
         "nllb",
@@ -1113,6 +1114,7 @@ FIL: 菲律宾语（他加禄语）
 | groq          | ✔️      |         | 需要 `GROQ_API_KEY`                              |  
 | atlascloud    | ✔️      |         | 需要 `ATLASCLOUD_API_KEY`                        |  
 | api_route | ✔️ | | 需要 `API_ROUTE_API_KEY`，服务：[API Route](https://api-route.com) |
+| opper         | ✔️      |         | 需要 `OPPER_API_KEY`                             |  
 | gemini        | ✔️      |         | 需要 `GEMINI_API_KEY`                            |  
 | papago        |         |         |                                                          |  
 | sakura        |         |         | 需要 `SAKURA_API_BASE`                               |  
@@ -1195,6 +1197,9 @@ SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
 | `API_ROUTE_API_KEY` | API Route API 密钥 | `''` | [API Route](https://api-route.com) |
 | `API_ROUTE_API_BASE` | API Route API 基础地址 | `https://global.api-route.com/v1` | |
 | `API_ROUTE_MODEL` | API Route 模型 ID | `gpt-6.1-sol` | 可用模型以携带密钥的 `GET /v1/models` 返回结果为准 |
+| `OPPER_API_KEY`              | Opper API 密钥                                                         | `''`                                 |                                                                                                    |  
+| `OPPER_API_BASE`             | Opper API 基础地址                                                     | `https://api.opper.ai/v3/compat`       |                                                                                                    |  
+| `OPPER_MODEL`                | Opper 模型名称                                                         | `'gpt-5.4-mini'` | 完整列表：<https://opper.ai/models>                                                     |  
 | `CUSTOM_OPENAI_API_KEY`        | 自定义 OpenAI API 密钥                  | `'ollama'`                            | Ollama 不需要，但其他工具可能需要                                                                    |  
 | `CUSTOM_OPENAI_API_BASE`       | 自定义 OpenAI API 基础地址      | `http://localhost:11434/v1`          | 使用 OLLAMA_HOST 环境变量更改绑定 IP 和端口                                                           |  
 | `CUSTOM_OPENAI_MODEL`         | 自定义 OpenAI 兼容模型名称                                               | `''`                                 | 例如：`qwen2.5:7b`，使用前确保已拉取并运行                                                            |  
@@ -1224,7 +1229,7 @@ SAKURA_DICT_PATH=PATH_TO_YOUR_FILE
 #   将其设置为顶级条目。  
 # 如果你想为特定的翻译器配置设置不同的值：  
 #   将其设置在配置名称下方  
-#   顶层配置选项：'chatgpt', 'ollama', 'deepseek', 'groq', 'atlascloud', 'api_route'
+#   顶层配置选项：'chatgpt', 'ollama', 'deepseek', 'groq', 'atlascloud', 'api_route', 'opper'
 #     对于支持指定模型的翻译器：  
 #         模型名称可以作为附加的层级进行指定  
 #     一些翻译器也支持附加的层级选项（例如 CUSTOM_OPENAI_MODEL_CONF）  
