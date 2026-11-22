@@ -8,14 +8,14 @@ except ImportError:
 
 from .common import MissingAPIKeyException
 from .common_gpt import CommonGPTTranslator
-from .keys import UBERLLM_API_KEY, UBERLLM_API_BASE, UBERLLM_MODEL
+from .keys import MARTLLM_API_KEY, MARTLLM_API_BASE, MARTLLM_MODEL
 
 
-class UberLLMTranslator(CommonGPTTranslator):
-    """UberLLM (https://uberllm.dev) — an OpenAI-compatible gateway.
+class MartLLMTranslator(CommonGPTTranslator):
+    """MartLLM (https://martllm.com) — an OpenAI-compatible gateway.
 
     One endpoint serves many model families, so the model is chosen
-    with ``UBERLLM_MODEL`` rather than being fixed here. Everything on the
+    with ``MARTLLM_MODEL`` rather than being fixed here. Everything on the
     wire is plain OpenAI chat completions, which is why this translator only
     builds the client and leaves prompt assembly, response parsing and rate
     limiting to ``CommonGPTTranslator``.
@@ -30,21 +30,21 @@ class UberLLMTranslator(CommonGPTTranslator):
     _RETURN_PROMPT = False
     _INCLUDE_TEMPLATE = False
 
-    def __init__(self, check_uberllm_key=True):
+    def __init__(self, check_martllm_key=True):
         # Nest the config under the model so a gpt_config file can hold
         # per-model prompts, the way deepseek.py does.
-        CommonGPTTranslator.__init__(self, config_key='uberllm.' + UBERLLM_MODEL)
+        CommonGPTTranslator.__init__(self, config_key='martllm.' + MARTLLM_MODEL)
 
-        if not UBERLLM_API_KEY and check_uberllm_key:
-            raise MissingAPIKeyException('UBERLLM_API_KEY environment variable required')
+        if not MARTLLM_API_KEY and check_martllm_key:
+            raise MissingAPIKeyException('MARTLLM_API_KEY environment variable required')
 
         # The key is checked first because openai>=1.66 refuses to construct a
         # client without credentials, which would raise OpenAIError before the
         # check above could give the clearer message. The placeholder keeps the
-        # keyless construction path (check_uberllm_key=False) working, the
+        # keyless construction path (check_martllm_key=False) working, the
         # way custom_openai.py does it.
-        self.client = openai.AsyncOpenAI(api_key=UBERLLM_API_KEY or 'uberllm',
-                                         base_url=UBERLLM_API_BASE)
+        self.client = openai.AsyncOpenAI(api_key=MARTLLM_API_KEY or 'martllm',
+                                         base_url=MARTLLM_API_BASE)
 
         self.token_count = 0
         self.token_count_last = 0
@@ -53,7 +53,7 @@ class UberLLMTranslator(CommonGPTTranslator):
     @property
     def MODEL(self) -> str:
         """The id `_assemble_request` puts in the request body."""
-        return UBERLLM_MODEL
+        return MARTLLM_MODEL
 
     def count_tokens(self, text: str) -> int:
         """One token per UTF-8 byte.
@@ -80,13 +80,13 @@ class UberLLMTranslator(CommonGPTTranslator):
         async def translate_batch(batch_queries, batch_indices, split_level=0):
             split_prefix = ' (split)' if split_level > 0 else ''
             prompt, query_size = self._assemble_prompts(from_lang, to_lang, batch_queries).__next__()
-            self.logger.debug(f'-- UberLLM Prompt{split_prefix} --\n'
+            self.logger.debug(f'-- MartLLM Prompt{split_prefix} --\n'
                               + self._format_prompt_log(to_lang, prompt))
 
             for attempt in range(self._RETRY_ATTEMPTS):
                 try:
                     response = await self._request_with_timeout(to_lang, prompt)
-                    self.logger.debug(f'-- UberLLM Response{split_prefix} --\n' + response)
+                    self.logger.debug(f'-- MartLLM Response{split_prefix} --\n' + response)
 
                     new_translations = self._parse_response(response, batch_queries)
                     if len(new_translations) < query_size:
@@ -107,11 +107,11 @@ class UberLLMTranslator(CommonGPTTranslator):
                     return True
 
                 except openai.RateLimitError:
-                    self.logger.warning('Rate limited by UberLLM. Retrying.')
+                    self.logger.warning('Rate limited by MartLLM. Retrying.')
                     await asyncio.sleep(1)
                 except openai.APIError as error:
                     if attempt == self._RETRY_ATTEMPTS - 1:
-                        self.logger.error('UberLLM returned a server error. Use a different translator '
+                        self.logger.error('MartLLM returned a server error. Use a different translator '
                                           'or try again later.')
                         raise
                     self.logger.warning(f'Restarting request after a server error: {error}')
@@ -157,7 +157,7 @@ class UberLLMTranslator(CommonGPTTranslator):
                 )
             except asyncio.TimeoutError:
                 self.logger.warning(f'Restarting request due to timeout. Attempt: {timeout_attempt + 1}')
-        raise asyncio.TimeoutError('UberLLM did not respond quickly enough.')
+        raise asyncio.TimeoutError('MartLLM did not respond quickly enough.')
 
     async def _request_translation(self, to_lang: str, prompt: str) -> str:
         await self._ratelimit_sleep()

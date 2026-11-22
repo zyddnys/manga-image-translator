@@ -1,4 +1,4 @@
-"""UberLLM regressions with the real OpenAI SDK and mocked HTTP responses."""
+"""MartLLM regressions with the real OpenAI SDK and mocked HTTP responses."""
 
 import asyncio
 import json
@@ -11,15 +11,15 @@ import pytest
 import pytest_asyncio
 
 from manga_translator.config import Translator
-from manga_translator.translators import uberllm, keys
+from manga_translator.translators import martllm, keys
 from manga_translator.translators.common import MissingAPIKeyException
 
 
 @pytest_asyncio.fixture
 async def make_translator(monkeypatch):
-    monkeypatch.setattr(uberllm, 'UBERLLM_API_KEY', 'test-uberllm-key')
-    monkeypatch.setattr(uberllm, 'UBERLLM_API_BASE', 'https://uberllm.invalid/v1')
-    monkeypatch.setattr(uberllm, 'UBERLLM_MODEL', 'deepseek/deepseek-v4.1-flash')
+    monkeypatch.setattr(martllm, 'MARTLLM_API_KEY', 'test-martllm-key')
+    monkeypatch.setattr(martllm, 'MARTLLM_API_BASE', 'https://martllm.invalid/v1')
+    monkeypatch.setattr(martllm, 'MARTLLM_MODEL', 'deepseek/deepseek-v4.1-flash')
     clients = []
 
     def make(replies):
@@ -37,17 +37,17 @@ async def make_translator(monkeypatch):
             })
 
         client = openai.AsyncOpenAI(
-            api_key='test-uberllm-key', base_url='https://uberllm.invalid/v1',
+            api_key='test-martllm-key', base_url='https://martllm.invalid/v1',
             http_client=httpx.AsyncClient(transport=httpx.MockTransport(respond)),
         )
         clients.append(client)
         def build_client(**kwargs):
-            assert kwargs == {'api_key': 'test-uberllm-key', 'base_url': 'https://uberllm.invalid/v1'}
+            assert kwargs == {'api_key': 'test-martllm-key', 'base_url': 'https://martllm.invalid/v1'}
             return client
 
         with monkeypatch.context() as patch:
-            patch.setattr(uberllm.openai, 'AsyncOpenAI', build_client)
-            translator = uberllm.UberLLMTranslator()
+            patch.setattr(martllm.openai, 'AsyncOpenAI', build_client)
+            translator = martllm.MartLLMTranslator()
         translator._MAX_REQUESTS_PER_MINUTE = 0
         return translator, requests
 
@@ -56,30 +56,30 @@ async def make_translator(monkeypatch):
         await client.close()
 
 
-def test_uberllm_config_and_enum(monkeypatch):
-    monkeypatch.setenv('UBERLLM_API_KEY', 'configured-key')
-    monkeypatch.setenv('UBERLLM_API_BASE', 'https://custom.invalid/v1')
-    monkeypatch.setenv('UBERLLM_MODEL', 'other/model')
+def test_martllm_config_and_enum(monkeypatch):
+    monkeypatch.setenv('MARTLLM_API_KEY', 'configured-key')
+    monkeypatch.setenv('MARTLLM_API_BASE', 'https://custom.invalid/v1')
+    monkeypatch.setenv('MARTLLM_MODEL', 'other/model')
     config = runpy.run_path(str(Path(keys.__file__)))
-    assert config['UBERLLM_API_KEY'] == 'configured-key'
-    assert config['UBERLLM_API_BASE'] == 'https://custom.invalid/v1'
-    assert config['UBERLLM_MODEL'] == 'other/model'
-    assert Translator('uberllm') == Translator.uberllm
+    assert config['MARTLLM_API_KEY'] == 'configured-key'
+    assert config['MARTLLM_API_BASE'] == 'https://custom.invalid/v1'
+    assert config['MARTLLM_MODEL'] == 'other/model'
+    assert Translator('martllm') == Translator.martllm
 
 
-def test_uberllm_config_defaults(monkeypatch):
-    for variable in ('UBERLLM_API_KEY', 'UBERLLM_API_BASE', 'UBERLLM_MODEL'):
+def test_martllm_config_defaults(monkeypatch):
+    for variable in ('MARTLLM_API_KEY', 'MARTLLM_API_BASE', 'MARTLLM_MODEL'):
         monkeypatch.delenv(variable, raising=False)
     config = runpy.run_path(str(Path(keys.__file__)))
-    assert config['UBERLLM_API_KEY'] == ''
-    assert config['UBERLLM_API_BASE'] == 'https://api.uberllm.dev/v1'
-    assert config['UBERLLM_MODEL'] == 'deepseek/deepseek-v4.1-flash'
+    assert config['MARTLLM_API_KEY'] == ''
+    assert config['MARTLLM_API_BASE'] == 'https://api.martllm.com/v1'
+    assert config['MARTLLM_MODEL'] == 'deepseek/deepseek-v4.1-flash'
 
 
-def test_uberllm_requires_key(monkeypatch):
-    monkeypatch.setattr(uberllm, 'UBERLLM_API_KEY', '')
-    with pytest.raises(MissingAPIKeyException, match='UBERLLM_API_KEY'):
-        uberllm.UberLLMTranslator()
+def test_martllm_requires_key(monkeypatch):
+    monkeypatch.setattr(martllm, 'MARTLLM_API_KEY', '')
+    with pytest.raises(MissingAPIKeyException, match='MARTLLM_API_KEY'):
+        martllm.MartLLMTranslator()
 
 
 @pytest.mark.asyncio
@@ -88,8 +88,8 @@ async def test_translation_preserves_order_and_uses_configured_transport(make_tr
     assert await translator._translate('Japanese', 'English', ['こんにちは！', 'さようなら。']) == ['Hello!', 'Goodbye.']
     request = requests[0]
     payload = json.loads(request.content)
-    assert str(request.url) == 'https://uberllm.invalid/v1/chat/completions'
-    assert request.headers['Authorization'] == 'Bearer test-uberllm-key'
+    assert str(request.url) == 'https://martllm.invalid/v1/chat/completions'
+    assert request.headers['Authorization'] == 'Bearer test-martllm-key'
     assert payload['model'] == 'deepseek/deepseek-v4.1-flash'
     assert '<|1|>こんにちは！' in payload['messages'][-1]['content']
     assert payload['max_tokens'] > 0
@@ -119,6 +119,6 @@ async def test_timeout_cancels_and_awaits_each_request(make_translator, monkeypa
             cancelled.append(True)
 
     monkeypatch.setattr(translator, '_request_translation', slow_request)
-    with pytest.raises(asyncio.TimeoutError, match='UberLLM'):
+    with pytest.raises(asyncio.TimeoutError, match='MartLLM'):
         await translator._request_with_timeout('English', 'hello')
     assert len(cancelled) == 2

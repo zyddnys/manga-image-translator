@@ -124,7 +124,7 @@ class Translator(str, Enum):
     gemini_2stage = "gemini_2stage"
     atlascloud = "atlascloud"
     api_route = "api_route"
-    uberllm = "uberllm"
+    martllm = "martllm"
     custom_openai = "custom_openai"
     offline = "offline"
     nllb = "nllb"
