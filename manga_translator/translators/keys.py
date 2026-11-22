@@ -58,3 +58,8 @@ CUSTOM_OPENAI_MODEL_CONF = os.getenv('CUSTOM_OPENAI_MODEL_CONF', '') # e.g "qwen
 API_ROUTE_API_KEY = os.getenv('API_ROUTE_API_KEY', '')
 API_ROUTE_API_BASE = os.getenv('API_ROUTE_API_BASE', 'https://global.api-route.com/v1')
 API_ROUTE_MODEL = os.getenv('API_ROUTE_MODEL', 'gpt-6.1-sol')
+
+# MartLLM
+MARTLLM_API_KEY = os.getenv('MARTLLM_API_KEY', '')
+MARTLLM_API_BASE = os.getenv('MARTLLM_API_BASE', 'https://api.martllm.com/v1')
+MARTLLM_MODEL = os.getenv('MARTLLM_MODEL', 'deepseek/deepseek-v4.1-flash')  # Full list: https://api.martllm.com/v1/models
