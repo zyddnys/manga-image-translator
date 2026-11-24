@@ -58,3 +58,8 @@ CUSTOM_OPENAI_MODEL_CONF = os.getenv('CUSTOM_OPENAI_MODEL_CONF', '') # e.g "qwen
 API_ROUTE_API_KEY = os.getenv('API_ROUTE_API_KEY', '')
 API_ROUTE_API_BASE = os.getenv('API_ROUTE_API_BASE', 'https://global.api-route.com/v1')
 API_ROUTE_MODEL = os.getenv('API_ROUTE_MODEL', 'gpt-6.1-sol')
+
+# WorldRouter
+WORLDROUTER_API_KEY = os.getenv('WORLDROUTER_API_KEY', '')
+WORLDROUTER_API_BASE = os.getenv('WORLDROUTER_API_BASE', 'https://inference-api.worldrouter.ai/v1')
+WORLDROUTER_MODEL = os.getenv('WORLDROUTER_MODEL', 'deepseek-v4-flash')
