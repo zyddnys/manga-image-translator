@@ -627,6 +627,11 @@ An example config file can be found in example/config-example.json
     },
     "OcrConfig": {
       "properties": {
+        "minicpm_fallback": {
+          "default": false,
+          "title": "Minicpm Fallback",
+          "type": "boolean"
+        },
         "use_mocr_merge": {
           "default": false,
           "title": "Use Mocr Merge",
@@ -975,6 +980,7 @@ An example config file can be found in example/config-example.json
     "ocr": {
       "$ref": "#/$defs/OcrConfig",
       "default": {
+        "minicpm_fallback": false,
         "use_mocr_merge": false,
         "ocr": "48px",
         "min_text_length": 0,
@@ -1067,6 +1073,8 @@ ocr               The Optical Character Recognition (OCR) model to use
 min_text_length   Minimum text length for a text area
 ignore_bubble     Threshold for ignoring non-bubble area text, valid values range from 1-50. Recommended 5 to 10. If too low, normal bubble areas might be ignored, if too large, non-bubble areas might be treated as normal bubbles
 ```
+
+Set `{"ocr": {"ocr": "48px", "minicpm_fallback": true}}` to send crops below the 48px recognition threshold to MiniCPM-OCR. This option defaults to false. Point `MINICPM_OCR_BASE_URL` at an OpenAI-compatible server serving MiniCPM-OCR (for example, `http://127.0.0.1:8000/v1`). The served model name defaults to `minicpm-ocr`; set `MINICPM_OCR_MODEL` to override it and `MINICPM_OCR_API_KEY` if the endpoint requires authentication. Recovered lines retain their detection score. If the service is unavailable, the page keeps its 48px results.
 
 #### Other Options
 ```
