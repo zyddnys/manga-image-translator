@@ -620,6 +620,11 @@ shared              以 API 模式运行
     },
     "OcrConfig": {
       "properties": {
+        "minicpm_fallback": {
+          "default": false,
+          "title": "Minicpm Fallback",
+          "type": "boolean"
+        },
         "use_mocr_merge": {
           "default": false,
           "title": "Use Mocr Merge",
@@ -966,6 +971,7 @@ shared              以 API 模式运行
     "ocr": {
       "$ref": "#/$defs/OcrConfig",
       "default": {
+        "minicpm_fallback": false,
         "use_mocr_merge": false,
         "ocr": "48px",
         "min_text_length": 0,
@@ -1058,6 +1064,8 @@ ocr               使用的光学字符识别(OCR)模型
 min_text_length   文本区域的最小文本长度
 ignore_bubble     忽略非气泡区域文本的阈值，有效值范围1-50。建议5到10。如果太低，正常气泡区域可能被忽略，如果太大，非气泡区域可能被视为正常气泡
 ```
+
+开启 `{"ocr": {"ocr": "48px", "minicpm_fallback": true}}` 后，48px 会将低于自身置信度阈值的文字框裁片发送给 MiniCPM-OCR。默认关闭。将 `MINICPM_OCR_BASE_URL` 指向提供 MiniCPM-OCR 的 OpenAI 兼容服务（例如 `http://127.0.0.1:8000/v1`）。服务模型名默认为 `minicpm-ocr`，可通过 `MINICPM_OCR_MODEL` 指定，如需鉴权可设置 `MINICPM_OCR_API_KEY`。补回的框保留检测分数，服务不可用时保留 48px 已识别的行。
 
 #### 其他参数
 ```

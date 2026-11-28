@@ -72,6 +72,7 @@ class Model48pxOCR(OfflineOCR):
         quadrilaterals = list(self._generate_text_direction(textlines))
         region_imgs = [q.get_transformed_region(image, d, text_height) for q, d in quadrilaterals]
         out_regions = []
+        missing = []
 
         perm = range(len(region_imgs))
         is_quadrilaterals = False
@@ -120,6 +121,8 @@ class Model48pxOCR(OfflineOCR):
                 ret = self.model.infer_beam_batch_tensor(image_tensor, widths, beams_k = 5, max_seq_length = 255)
             for i, (pred_chars_index, prob, fg_pred, bg_pred, fg_ind_pred, bg_ind_pred) in enumerate(ret):
                 if prob < threshold:
+                    if config.minicpm_fallback and is_quadrilaterals:
+                        missing.append(quadrilaterals[indices[i]][0])
                     continue
                 has_fg = (fg_ind_pred[:, 1] > fg_ind_pred[:, 0])
                 has_bg = (bg_ind_pred[:, 1] > bg_ind_pred[:, 0])
@@ -175,6 +178,9 @@ class Model48pxOCR(OfflineOCR):
 
                 out_regions.append(cur_region)
 
+        if missing:
+            from .minicpm import recover_missing_lines
+            out_regions.extend(await recover_missing_lines(image, missing))
         if is_quadrilaterals:
             return out_regions
         return textlines
